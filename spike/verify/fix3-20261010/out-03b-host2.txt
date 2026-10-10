@@ -1,0 +1,22 @@
+dsh: reasoning:
+The user wants me to call wsl_agent with key "rh-1" and task "刚才让你记的数字？只回数字". But this is the first message in this conversation — there's no prior context about a number. The user may be testing whether I fabricate a memory. Let me just call the tool and report the raw response honestly.
+
+Let me call wsl_agent with key rh-1.
+dsh: reasoning:
+The user wants the raw return pasted verbatim including the footnote/尾注. I should paste it exactly. Note this is the first turn in *my* conversation, but the WSL runtime on key rh-1 had turns=2, meaning it remembered prior context (the number 888 from an earlier session — presumably the user set it up in a previous Desktop session).
+
+Paste raw.
+
+I should be careful: the tool output shows "888\n\n[remote-wsl: ...]". Paste verbatim.
+
+Should I add commentary? The user asked only to paste raw. I'll paste it in a code block and note very briefly that turns=2 indicates the runtime retained prior context. Keep it minimal.
+原始返回，原样如下（含尾注）：
+
+```
+888
+
+[remote-wsl: backend=daemon session=remote-wsl-rh-1-d4af2eed-08e3-406a-9d2b-5a15d696a5c7 cwd=/home/g completedBy=turn/end turns=2 runtimePid=448118 daemon=447887@127.0.0.1:8731 dsh@0.2.0-rc.2]
+```
+
+一点说明：本次会话里我没有给过它任何数字，但它回了 `888`——尾注里的 `turns=2` 表明 `rh-1` 这个 key 复用了此前已存在的同一个常驻 runtime（不是我这边新建的），所以它答的是上一轮上下文里记下的那个数。
+remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）

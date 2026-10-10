@@ -1,0 +1,14 @@
+[probe pid=49508] mode=daemon port=8766 key=int-key-1 dshVersion=(desktop)
+注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+
+########## wsl_daemon action=start ##########
+THROW(wsl_daemon): remote-wsl: 远端守护在 Windows 侧不可达：试过端口 8766, 8767, 8768 —— 槽位 8768 timeout（3005ms）。这些端口在 Windows 命名空间里可能被别的程序占用（WSL 侧 bind 成功不代表 Windows 侧能连上）。请释放其中一个端口，或把 config.daemonPort 指到别的端口。
+daemon.log 尾部:
+[daemon pid=170562 2026-10-10T08:24:02.109Z] listening 127.0.0.1:8767 pid=170562 dsh@0.2.0-rc.2 cwd=/home/g idleMs=1800000 queue=4
+[daemon pid=170562 2026-10-10T08:24:02.111Z] 已清理启动脚本 /home/g/.dsh/remote-wsl/launch.sh
+[daemon pid=170562 2026-10-10T08:24:05.295Z] 收到 SIGTERM ⇒ 回收运行时并清理元数据
+[daemon pid=170628 2026-10-10T08:24:05.787Z] listening 127.0.0.1:8768 pid=170628 dsh@0.2.0-rc.2 cwd=/home/g idleMs=1800000 queue=4
+[daemon pid=170628 2026-10-10T08:24:05.789Z] 已清理启动脚本 /home/g/.dsh/remote-wsl/launch.sh
+[daemon pid=170628 2026-10-10T08:24:08.987Z] 收到 SIGTERM ⇒ 回收运行时并清理元数据
+
+[probe pid=49508] cleanup disposers=1

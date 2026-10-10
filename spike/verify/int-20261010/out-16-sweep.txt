@@ -1,0 +1,13 @@
+[probe pid=12524] mode=exec port=8755 key=int-key-1 dshVersion=(desktop)
+注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+
+########## wsl_exec（有副作用 ⇒ 会触发 ensureSwept）##########
+exit 0
+--- stdout ---
+sweep-ok
+1
+--- stderr ---
+remote-wsl: 主机代理 172.30.176.1:9910 不可用 ⇒ 本次直连
+
+
+[probe pid=12524] cleanup disposers=1

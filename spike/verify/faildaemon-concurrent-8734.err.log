@@ -1,0 +1,15 @@
+[daemon 2026-10-10T07:36:50.541Z] listening on 127.0.0.1:8734 pid=137833 dsh@0.2.0-rc.2 cwd=/home/g idleMs=600000
+[daemon 2026-10-10T07:36:51.073Z] recv op=status id=1 key=-
+[daemon 2026-10-10T07:36:51.077Z] client disconnected (runtimes kept alive)
+[daemon 2026-10-10T07:36:51.131Z] recv op=prompt id=1 key=k1
+[daemon 2026-10-10T07:36:51.137Z] host proxy 172.30.176.1:9910 unreachable -> direct
+[daemon 2026-10-10T07:36:51.137Z] spawning runtime key=k1 dsh@0.2.0-rc.2 cwd=/home/g
+[daemon 2026-10-10T07:36:51.139Z] recv op=prompt id=1 key=k1
+[daemon 2026-10-10T07:36:51.902Z] runtime ready key=k1 pid=137862 session=remote-wsl-k1-f786600b-04e4-46c0-a1f0-a2d245d56a2b
+[daemon 2026-10-10T07:36:53.540Z] client disconnected (runtimes kept alive)
+[daemon 2026-10-10T07:36:54.616Z] client disconnected (runtimes kept alive)
+[daemon 2026-10-10T07:36:54.669Z] recv op=status id=1 key=-
+[daemon 2026-10-10T07:36:54.674Z] client disconnected (runtimes kept alive)
+[daemon 2026-10-10T07:36:54.755Z] recv op=shutdown id=1 key=-
+[daemon 2026-10-10T07:36:54.755Z] shutdown requested -> reaping all runtimes
+[daemon 2026-10-10T07:36:54.792Z] client disconnected (runtimes kept alive)

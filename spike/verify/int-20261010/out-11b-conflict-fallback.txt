@@ -1,0 +1,9 @@
+[probe pid=27452] mode=daemon port=8756 key=int-key-1 dshVersion=(desktop)
+注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+
+########## wsl_daemon action=start ##########
+daemon start: ok port=8757 pid=169455 version=0.2.0-rc.2 reused=false
+notes: 槽位 8756 未通过 Windows 侧就绪判据：timeout（3010ms） | 槽位 8757 由 Windows 侧握手确认就绪（实际端口 8757，5ms）
+元数据 (WSL): /home/g/.dsh/remote-wsl/daemon.json
+
+[probe pid=27452] cleanup disposers=1

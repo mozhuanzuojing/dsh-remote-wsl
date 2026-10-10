@@ -1,0 +1,11 @@
+[probe2 pid=44424] mode=collision port=8867 dshVersion=(desktop)
+# Windows 侧已占 127.0.0.1:8867（只接受连接、不回话）
+# wsl_daemon start 总耗时=5882ms
+daemon start: ok port=8868 pid=336809 version=0.2.0-rc.2 reused=false
+machine: daemon=336809@8868 version=0.2.0-rc.2 reused=false
+notes: 槽位 8867 未通过 Windows 侧就绪判据：timeout（3008ms） | 槽位 8868 由 Windows 侧握手确认就绪（实际端口 8868，4ms）
+元数据 (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（slot=8868）
+# 实际端口 8867 监听=0 回退端口 8868 监听=1
+# procs = [{"pid":336809,"port":8868,"metaPort":8868}]
+# launcher 残留 = 
+# launch-stderr.log = (empty)

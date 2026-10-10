@@ -1,0 +1,30 @@
+[probe] entry=D:/project/dsh1/vendor/dsh-remote-wsl/src/index.ts exists=true
+[probe pid=24720] mode=concurrent port=8755 key=ckey-1 dshVersion=(desktop)
+注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+
+########## 同 key 6 个并发 prompt（queueLimit=4）##########
+--- job#0 elapsed_ms=2267 wall_from_start=2267
+OK-0
+
+[remote-wsl: backend=daemon session=remote-wsl-ckey-1-406905ac-c45a-4634-9cf2-1ea4b9fcecc2 completedBy=turn/end turns=1 runtimePid=162067 daemon=158529@127.0.0.1:8755 dsh@0.2.0-rc.2]
+--- job#1 elapsed_ms=2952 wall_from_start=3078
+OK-1
+
+[remote-wsl: backend=daemon session=remote-wsl-ckey-1-406905ac-c45a-4634-9cf2-1ea4b9fcecc2 completedBy=turn/end turns=2 runtimePid=162067 daemon=158529@127.0.0.1:8755 dsh@0.2.0-rc.2]
+--- job#2 elapsed_ms=3584 wall_from_start=3840
+OK-2
+
+[remote-wsl: backend=daemon session=remote-wsl-ckey-1-406905ac-c45a-4634-9cf2-1ea4b9fcecc2 completedBy=turn/end turns=3 runtimePid=162067 daemon=158529@127.0.0.1:8755 dsh@0.2.0-rc.2]
+--- job#3 elapsed_ms=4285 wall_from_start=4668
+OK-3
+
+remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）
+[remote-wsl: backend=daemon session=remote-wsl-ckey-1-406905ac-c45a-4634-9cf2-1ea4b9fcecc2 completedBy=turn/end turns=4 runtimePid=162067 daemon=158529@127.0.0.1:8755 dsh@0.2.0-rc.2]
+--- job#4 elapsed_ms=5137 wall_from_start=5644
+OK-4
+
+[remote-wsl: backend=daemon session=remote-wsl-ckey-1-406905ac-c45a-4634-9cf2-1ea4b9fcecc2 completedBy=turn/end turns=5 runtimePid=162067 daemon=158529@127.0.0.1:8755 dsh@0.2.0-rc.2]
+--- job#5 elapsed_ms=9 wall_from_start=641
+[remote-wsl: 并发超出队列上限；运行时保持不动，可直接重试 retryable=true] queue full for key "ckey-1" (limit 4 waiting): 上游 SDK 无 cancel，串行队列不接受更多并发；等当前轮结束后重试
+
+[probe pid=24720] cleanup disposers=1

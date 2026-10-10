@@ -1,0 +1,7 @@
+[probe2 pid=21260] mode=tool-exec port=8875 dshVersion=(desktop)
+exit 0
+--- stdout ---
+
+--- stderr ---
+remote-wsl: 主机代理 172.30.176.1:9910 不可用 ⇒ 本次直连
+

@@ -1,0 +1,8 @@
+[probe pid=48740] mode=daemon port=8756 key=int-key-1 dshVersion=(desktop)
+注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+
+########## wsl_daemon action=status ##########
+daemon: not running（absent: 没有守护元数据（守护未运行））
+state dir (WSL): /home/g/.dsh/remote-wsl
+
+[probe pid=48740] cleanup disposers=1

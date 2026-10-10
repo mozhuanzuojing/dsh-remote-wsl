@@ -1,0 +1,4 @@
+[probe4 pid=17492] mode=dprompt port=8841 backend=daemon
+# requested_cwd=(absent→守护 --cwd) daemonReportedCwd=/home/g session=remote-wsl-p1-5cb5db4c-b5ac-4666-8303-26c5c77303ff turns=2 runtimePid=442885 ok=true
+# /proc/442885/cwd=/home/g
+# answer="ACK"

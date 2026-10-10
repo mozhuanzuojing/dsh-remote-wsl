@@ -1,0 +1,11 @@
+dsh: reasoning:
+The user wants me to call wsl_status and paste the "backend" line and the "daemon" line verbatim. Let me call the tool.
+`wsl_status` 输出中相关两行，原样如下：
+
+```
+backend: daemon（默认：运行时由 WSL 侧常驻守护持有，关客户端 ≠ 会话结束）
+daemon: not running（absent: 没有守护元数据（守护未运行））
+```
+
+补充说明（仅供参考，非原样行）：当前 daemon 未运行，`daemon ports` 显示 actual=(未运行)，因此浏览器后端（web hosts）也为空。
+remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）

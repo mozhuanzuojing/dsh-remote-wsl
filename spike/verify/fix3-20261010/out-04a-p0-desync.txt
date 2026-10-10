@@ -1,0 +1,10 @@
+[test] 自作用域：私有 wslHome=/tmp/rwsl-test-12436 daemonPort=8821 webPort=8822（本成员独占段 8821–8840）
+[fixture] 副本比对 daemon-client.ts   lib=366498843ca1c7b6 src=366498843ca1c7b6 MATCH
+[fixture] 副本比对 daemon.ts          lib=1c5284e56a7affdb src=1c5284e56a7affdb MATCH
+[fixture] 副本比对 index.ts           lib=1ccb232dfb864644 src=773d0aac8ec34f46 MISMATCH
+[fixture] 副本比对 sdk-runtime.ts     lib=74853c0539fe5fa1 src=74853c0539fe5fa1 MATCH
+[fixture] 副本比对 selftest.ts        lib=1aaa5d1b938543d8 src=1aaa5d1b938543d8 MATCH
+[fixture] 副本比对 shell-env.ts       lib=9a9f6e5592c197f5 src=9a9f6e5592c197f5 MATCH
+[fixture] 副本比对 version.ts         lib=ae5612fa22d80672 src=ae5612fa22d80672 MATCH
+FAIL  P0 前置：rwsl-test\lib\*.ts 必须与 vendor src\*.ts 逐字节一致（不一致：index.ts）
+      ⇒ 先执行：Copy-Item D:\project\dsh1\vendor\dsh-remote-wsl\src\*.ts C:\Users\l\AppData\Local\Temp\rwsl-test\lib\ -Force 再跑（禁止静默使用旧副本）

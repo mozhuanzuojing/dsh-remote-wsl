@@ -1,0 +1,435 @@
+# dsh-remote-wsl
+
+把 **WSL 发行版**当作「远端执行宿主」的 DeepSeek Harness 插件——VS Code Remote-WSL 的 DSH 对应物，
+但**形状是诚实的**。
+
+## 为什么不是"让桌面壳连远端 host"
+
+VS Code Remote-WSL：Windows 只跑 UI，`vscode-server` 跑在 WSL，客户端连过去。
+
+DSH **没有**这一步（2026-10-10 实测，见 `docs/2026-10-10-wsl-dsh-sdk-bridge.md`）：
+桌面 Electron 壳的 host 是它从**本机打包运行时** spawn 的本地进程（`dsh-desktop-host/lib/index.js`），
+`hostUrl = ready.url`、`ws://127.0.0.1/*` 是硬过滤，没有任何 `DSH_*`/flag 能指向远端；
+`dsh web --host 0.0.0.0` 被 CLI 明确拒绝（`it would expose remote code execution to the network`）。
+
+所以本插件做的是**同一件事的可用形态**：从 Windows 宿主侧驱动 WSL 那份 dsh，并把隔离与版本一致性一起管起来。
+
+## 五个工具（对应 VS Code 侧的五个概念）
+
+| 工具 | 对应概念 | 做什么 |
+|---|---|---|
+| `wsl_status` | 连接状态 | 发行版列表 / 桌面 dsh 版本 / WSL pin / 漂移 / **守护 pid·端口·version·keys** / 版本报警 |
+| `wsl_exec` | 远端终端 | 在 WSL 里跑 bash（cwd 是 Linux 路径），回 exit+stdout+stderr |
+| `wsl_agent` | 远端 agent | 把任务交给 WSL 里的 dsh（`--profile sdk`，stdio JSON-RPC）；运行时由**WSL 侧常驻守护**持有 ⇒ **关客户端 ≠ 会话结束**，跨宿主进程续同一 `key` 仍保上下文 |
+| `wsl_daemon` | 远端会话生命周期 | `status` / `start`（幂等）/ `stop`（显式结束会话）/ `restart`（对齐新版本） |
+| `wsl_open_ui` | 远端 UI 窗口 | WSL 里跑 `dsh web`，Windows 开应用窗口（浏览器 client 能连远端 origin，桌面壳不能） |
+| `wsl_sync_version` | server 供给 | 读桌面版本 → 比对 WSL pin → 可选预热该版本 → 修复 pin |
+
+## 常驻守护（默认后端）：关客户端 ≠ 会话结束
+
+**这是本插件与"每个宿主进程自己 spawn 一个运行时"的分水岭。** 上游事实（spike + 独立验证双重复现）：
+`sessionId` 由客户端指定，服务端用它判重并且**落盘占用** —— 另一个进程（哪怕原持有者已正常退出、
+运行时已消失）再用同一 id 一定收到 `JSON-RPC -32603: session "…" already exists`。
+所以**上下文只可能活在"那个还活着的运行时进程"里**；`-32603` 这条路彻底堵死了"重启运行时再拿旧 id 接回来"。
+
+于是运行时改由 **WSL 侧常驻守护**持有，Windows 侧退化成"连上去发一条 prompt 的瘦客户端"：
+
+```
+Windows 宿主（可来可走，退出不影响会话）
+  └─ lib(daemon-client) ── TCP 127.0.0.1:<port>, NDJSON, 先 hello+token ──▶ WSL 守护（daemon.ts）
+                                                                              ├─ key=k1 → SdkRuntime(session A)
+                                                                              └─ key=k2 → SdkRuntime(session B)
+```
+
+**会话只在三种情况结束**（工具描述与本节都说清楚，不让用户以为是永久）：
+
+1. 显式停止：`wsl_daemon action=stop`；
+2. **空闲超时**：`daemonIdleMs`（默认 **1800000 = 30 分钟**）到期，守护回收运行时 ⇒ **上下文丢失**；
+3. 守护或运行时死亡（崩溃 / `kill` / `wsl --shutdown`）⇒ 下一次调用自动恢复，但**明确告知上下文已重置**。
+
+### 协议（NDJSON，一行一条；连接建立后第一条必须是 `hello`）
+
+| 方向 | 帧 |
+|---|---|
+| → | `{"op":"hello","token":"<64位十六进制>","client":"win-pid-1234"}` |
+| ← | `{"ok":true,"op":"hello","daemonPid":N,"version":"0.2.0-rc.2","port":8731,…}` |
+| → | `{"op":"prompt","id":1,"key":"k1","text":"…"}` / `{"op":"status","id":2}` / `{"op":"shutdown","id":3}` |
+| ← | `{"ok":true,"answer":"…","sessionId":"…","turns":2,"runtimePid":N,"completedBy":"turn/end"}` / `{"ok":false,"error":"…","retryable":true}` |
+
+token 不符 ⇒ `{"ok":false,"error":"unauthorized"}` 并断开（本机任意进程都不能偷 prompt/shutdown）。
+
+### 三条硬要求（来自独立验证 task-2 的真缺陷）
+
+1. **就绪判据由 Windows 侧确认（缺陷 #11）**。WSL 与 Windows 是**不同的网络命名空间**：Windows 侧先占了
+   端口时，WSL 守护照样 `bind` 成功、日志照打 `listening`、进程不退，而 Windows 客户端连到的是**别的属主**
+   （实测挂死 6s；默认 300s 就是 5 分钟假死）。所以 ready = 客户端 `hello`+token 拿到**符合本守护身份**的应答；
+   握手默认 **3s** 超时。身份不符/超时 ⇒ 清掉那个"影子守护"（WSL 侧 bind 成功但 Windows 侧不可达）并**换端口**
+   （`daemonPort` +1，最多 `daemonPortTries` 次）；全占则给**可读报错**并让用户释放端口。
+2. **不落 `/tmp`（缺陷 #12）**。守护的元数据 / token / 启动脚本 / 日志全部在
+   `~/.dsh/remote-wsl/`（目录 0700、文件 0600）：`daemon.json`（pid/port/version/keys，**不含 token**）、
+   `daemon.token`、`launch.sh`（守护起来后自删）、`daemon.log`（有界，256KB 截断）。
+   守护**绝不创建** `/tmp/dsh-rwsl-*`；退出时清理 `daemon.json`/`daemon.token`/`launch.sh`（只留 `daemon.log`）。
+3. **不自动杀守护（语义 #5）**。`status` 带守护持有的 dsh `version`；与桌面版本或 WSL pin 不一致 ⇒
+   `wsl_status` 出**报警行**（`daemon drift: ⚠️ …`）但**不自动重启**（那会无声中断用户正在进行的会话），
+   换版本走显式 `wsl_daemon action=restart`。
+
+### 其它语义（Lead 定，已实现）
+
+- **同一 key 并发**：守护内 **FIFO 串行**，等待位上限 `daemonQueueLimit`（默认 4），超出**明确拒绝**
+  （`queueFull:true` + 可读错误）——上游无 cancel，静默排队会变成长尾延迟。
+- **没有正文时不换运行时（原 spike §7.10 的兜底对齐）**：守护形态**禁止**沿用"停稳运行时 + 读 zstd 日志换新
+  sessionId"的老兜底（那会毁上下文）；改为 `ok:false` + `retryable:true`，运行时保持不动。
+  （老兜底只保留在 `backend:'in-host'` 的逃生舱里。）
+- **环境注入只做一次**：`shellPreamble`（PATH + 代理探测）与 `useShellEnvironment`（登录 shell 环境）在
+  **守护启动时各做一次**，之后每个运行时复用同一份 env —— 不再每 key 付一次登录 shell 启动成本。
+- **per-call `cwd` 真的生效（P1）**：`wsl_agent({cwd})` 通过协议传给守护，守护按 **(key, cwd)** 分运行时条目
+  —— 不同 cwd ⇒ 各自独立运行时与 `sessionId`；**同 key 同 cwd 仍复用同一个**（跨宿主重连不受影响）。
+  每次返回都带 `cwd=<生效值>`；万一与请求不一致会以 `⚠️ 请求的 cwd=… 未生效` 开头明确告知（绝不静默）。
+  远端 `/proc/<runtimePid>/cwd` 可独立复核（实测 `requested=/tmp → /proc/<pid>/cwd=/tmp`、默认 `→ /home/g`）。
+- **客户端健壮性**：`ECONNREFUSED` ⇒ 自动起守护 + **重试一次**；若因此换了 sessionId，返回文本**以
+  `⚠️ 远端会话已重置…` 开头**，并在元数据里带 `contextReset=yes`（绝不静默）。
+- **单实例幂等**：已有守护就复用（读元数据 + 握手判活），任何一次调用都不会起第二个守护。
+
+### 并发隔离与过渡期兼容（元数据按槽位分文件）
+
+- 元数据/token 是 **`daemon.<槽位>.json` / `daemon.<槽位>.token`**（0600），槽位 = 启动时请求的端口
+  （`--meta-port`，默认 = `--port`）。**不是单个 `daemon.json`** —— 那样两个守护并存时会**互相覆盖**。  实测：槽位 8731 与 8771 两个守护并存，`daemon.8731.json`（pid 148688 / port 8731）与
+  `daemon.8771.json`（pid 148759 / port 8771）各读各的，两次 `status` 分别命中自己的守护。
+- **启动脚本也按槽位**：`launch.<槽位>.sh`（0600，守护起来后自删）。曾经的全局单文件 `launch.sh`
+  会让两个槽位互相覆盖 —— task-4 复现为"A 要 8759 却握手到 8760、真正的 8759 守护完全没有元数据、
+  终态 3 个守护"，根因还有一层：**包装层的 spawn 路径必须与写入路径同一个槽位**
+  （写 `launch.8752.sh` 却跑 `launch.8751.sh` ⇒ 回退槽位永远起不来 + 脚本泄漏）。
+- WSL 侧端口被占时守护 `+1` 迁移，**文件仍按请求槽位命名**（真实端口写在 `port` 字段）⇒ 迁移不会覆盖
+  别的槽位；`--state-dir` 是另一个维度的完全隔离（两个人的测试可以各用一份状态目录）。
+- 清理只清**自己那一个槽位**的文件（`cleanupFiles` / `removeMetaFiles` 都按槽位），绝不动别人的。
+- 过渡期兼容：旧的单文件 `daemon.json` / `daemon.token` 仍被识别（读得到就认；死了则按 pid **验身份后**
+  清理 —— 判据是 `/proc/<pid>/cmdline` 命中 `daemon.ts`，避免 pid 复用误杀）。不认它的话，
+  升级后那个旧守护会变成**不可见的孤儿**（继续占端口与运行时）。
+
+### 复用 / 停止的边界（task-9 追加 A–D）
+
+| 行为 | 规则 | 为什么 |
+|---|---|---|
+| 复用 | **只复用调用方自己槽位（`config.daemonPort`）的守护**；别的槽位只报告、不打扰 | 以前"复用同状态目录里任意活守护"会**静默忽略**调用方配的端口/idle（D） |
+| 请求槽位已被自家守护占 | 有元数据的活守护 ⇒ **复用**；无元数据/失联的孤儿 ⇒ **先收掉再在同槽位起** | "3 守护/2 请求""slot≠actualPort""孤儿占端口"的同族根因（A/B） |
+| 配置不相容 | `cwd`/`profile` 不同 ⇒ **明确报错**（复用会让会话跑错工作目录）；`idleMs`/`queueLimit`/`lingerMs` 不同 ⇒ 复用但**显式回报**，要应用新值用 `wsl_daemon action=restart` | 不许静默忽略（D）；版本不一致仍只报警（语义 #5） |
+| `stop` 不带 slot | **只停自己槽位**；自己槽位没有守护就如实回报，**绝不去停别人的槽位** | 危险脚枪（C）；要停全部/含孤儿必须显式 `all=true` |
+| 孤儿发现/回收 | 按 `/proc/<pid>/cmdline` **身份扫描**（命中本插件守护脚本 **且** `--state-dir` 是本插件的），不只看元数据里的单个 pid | 元数据缺失、或**同一 state-dir 下有两份相同 cmdline 的守护**时会漏（B） |
+| 请求槽位就绪失败 | 先收掉该槽位上**本插件自己的**守护（含无元数据的），再换下一个候选端口 | 不留孤儿（验收要求 `ss -ltn` 与 `/proc` 扫描前后对照） |
+
+`wsl_daemon` 每条返回都带一行**稳定机器可读行**；四种动作（start / restart / status / stop / stop --all）
+**字段完全一致**，缺项统一为 `-`（未运行时 `slot=- pid=- port=- version=-`）。解析用这把尺子：
+
+```
+^machine: slot=(\S+) pid=(\S+) port=(\S+) version=(\S+)( .*)?$
+```
+
+> 注意：这是 **F3 之后的新格式**（旧格式 `daemon=<pid>@<port>` 已废弃，外部解析需按上式改）。
+> 动作特有信息都在第 5 组之后：`keys=` / `orphans=` / `reused=` / `reaped=` / `stopped=` / `killed=`。
+
+### 两条 `wsl.exe` 调用纪律（实测，写代码必须守）
+
+1. **不要用 `wsl.exe … -- bash -c "<script>"`**：那不是 argv-exec，命令串会先经过发行版的**默认登录 shell**
+   （本机 zsh）展开一次 ⇒ `$var` 被外层吃掉、glob 先被外层展开。实测：`bash -c 'i=5; echo "i=$i"'` 打出 `i=`；
+   `for d in /proc/[0-9]*; do echo "$d"; done` 打出空。**要跑脚本就写文件跑 `bash <file>`，或 base64 管道进 bash**
+   （本插件一次性路径用前者，守护/扫描探针用后者）。这也是"`/tmp` 计数假 0"的机制来源：glob 未匹配时
+   外层 shell 先报错、`wc -l` 再吞掉退出码 —— 所以计数一律用 `find … -print | wc -l` 而不是裸 glob。
+2. **包装层的失败不能吞**：`spawn(..., {stdio:'ignore'})` 会把"包装层根本没起来"变成静默失败。
+   现在包装层 stderr 落 `~/.dsh/remote-wsl/launch-stderr.log`，非 0 退出也记一行。
+
+### 源码形态（2026-10-10 约定变更）
+
+源码是 **TypeScript（`src/*.ts`）**，走 Node **原生 type stripping**（零构建）：只用可擦除语法
+（type/interface/`as`/泛型/类型注解），**不用 enum / namespace / 构造器参数属性**；相对导入**带显式 `.ts`**
+（`./shell-env.ts` …），这样"原生跑 TS"与"tsc 编译"两条路都走得通。
+`package.json`：`main`/`exports` → `./src/index.ts`，`files` → `src`，`engines.node` → `>=26.10`。
+实测：桌面侧 node 与 WSL 侧 node **26.10.0** 都能直接跑这些 `.ts`
+（守护本身就是 WSL 里 `node /mnt/d/…/src/daemon.ts` 起的，导入 `./shell-env.ts`、`./sdk-runtime.ts`）。
+**Node 版本口径（如实说明，别把两者混起来）**：`primary-runtime/runtime.json` 里声明的 node 是 **24.21.0**
+（那是随包 runtime 的声明值）；而**宿主进程实测跑的是 24.18.1**（独立探针证据：`TS-PLUGIN-LOADED-OK node=v24.18.1`）。
+本插件的原生 TS 路径在**两者上都实测可用**，所以 `engines.node` 写的是 Node **26.10**（WSL 侧守护的运行时口径）。
+**若某个宿主 loader 不吃 `.ts` 入口**：用 `tsc` 编译到 `dist/` 并把 `main` 改成 `./dist/index.js`（本 README
+所记的验收是在"loader 直接吃 `.ts`"的原生路径下完成的）。`lib/` 过渡副本**已删除**（TS 迁移完成；回滚点在 `_backup/`）。
+
+## 安装（link 进 profile）
+
+```powershell
+# 1) 在目标 profile 的 package.json 里加依赖 + bundle
+#    "dependencies": { "dsh-remote-wsl": "link:D:/project/dsh1/vendor/dsh-remote-wsl" }
+#    "dsh": { "profile": { "bundles": [ ..., "dsh-remote-wsl" ] } }
+# 2) 建软链接（pnpm 对 link: 依赖不会装依赖，DSH 从宿主树解析其余包）
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.dsh\profiles\<profile>\node_modules\dsh-remote-wsl" `
+         -Target 'D:\project\dsh1\vendor\dsh-remote-wsl'
+# 3) 校验
+dsh --profile <profile> --dump-config | Select-String 'remote-wsl'
+```
+
+配置键（都在 bundle 的 `cordis.patch.yml` 里给默认值，可在 profile 的 `cordis.patch.yml` 覆盖）：
+`distro` `wslHome` `cwd` `provider` `model` `profile` `dshVersion`（空=跟随桌面）`webPort`
+`idleTimeoutMs` `timeoutMs` `desktopRuntimeJson` `proxyPort`，以及守护形态的这些：
+
+| 键 | 默认 | 作用 |
+|---|---|---|
+| `backend` | `'daemon'` | `'daemon'`=运行时由 WSL 常驻守护持有（默认）；`'in-host'`=旧形态逃生舱（本宿主进程持有，关客户端即丢会话，保留日志兜底） |
+| `daemonPort` | `8731` | 守护监听端口（WSL 侧被占则 +1；Windows 侧被占则由客户端换端口） |
+| `daemonPortTries` | `3` | Windows 命名空间被占时的端口回退次数（全占 ⇒ 可读报错，不等 300s） |
+| `daemonIdleMs` | `1800000` | 空闲回收。**到期即回收运行时 ⇒ 上下文丢失** |
+| `daemonLingerMs` | `600000` | **寿命闸门**：无 key 且无客户端持续这么久 ⇒ 守护自退（0=关）。有会话时绝不触发 |
+| `daemonQueueLimit` | `4` | 同 key 并发 prompt 的**等待位上限**，超出明确拒绝 |
+| `daemonHandshakeTimeoutMs` | `3000` | Windows 侧握手判据超时（身份不符必须快速失败，绝不等 `timeoutMs`） |
+| `daemonStartTimeoutMs` | `20000` | 起守护后等"Windows 侧握手确认就绪"的上限 |
+
+## 设计要点（都是踩出来的，不是猜的）
+
+1. **零运行时 `@deepseek-ai/*` 依赖**：`link:` 装的插件拿不到依赖，裸包名会 `failed to import`
+   （本插件第一版就这么挂的）。所有服务经 `ctx.get` / `ctx.inject(['tools'], …)` 读取，内部只用 Node 内置模块。
+   （同 `dsh-shadow` 的约定：其 dist 里一个裸 `@deepseek-ai/*` 都没有。）
+2. **脚本写成 WSL 侧文件再执行**：`pwsh → wsl.exe → bash` 三层会吃引号；base64 内联又会占 stdin
+   （SDK 协议要读 stdin）。写文件两者都躲开。**守护形态把启动脚本写进 `~/.dsh/remote-wsl/launch.sh`（0600，
+   守护起来后自删）；`/tmp/dsh-rwsl-*` 只属于一次性/逃生舱路径**（见"三条硬要求"第 2 条）。
+   （另：`Start-Process` **不会**给参数加引号 —— 内联 `bash -c "… | … | …"` 会被拆成多个参数而**静默不起**
+   守护；所以走"落地脚本 + `bash <file>`"。）
+3. **代理先探测再使用**：主机代理会停/重启，硬 export 会让模型调用全 `TRANSPORT` 失败。
+4. **尾帧可能没有换行结尾**：静止窗口触发时先 flush 残余缓冲，否则 `turn/end` 永不到达、调用挂死。
+5. **完成判定三级兜底**：`turn/end` → `session.status:idle` → 静止窗口；正文若仍缺，守护形态**如实回报
+   `ok:false, retryable:true` 并保持运行时不动**（语义见上）；只有 `backend:'in-host'` 的逃生舱才沿用
+   "停稳运行时 + 由 WSL 侧 node 读多帧 zstd 日志"的老兜底。
+6. **PID 回收**：`child.kill()` 只杀 `wsl.exe` 包装层，Linux 侧会变孤儿（实测有人跑了 1 小时）。
+   启动脚本落 `.pid`，回收时 `pkill -P` + `kill` 一起上。
+
+## 已知边界（上游事实，插件不假装有）
+
+- SDK **无 cancel / 无 session-close**：放弃一轮 = 关掉运行时（守护形态下 = 该 key 的运行时被回收 ⇒ 上下文丢失，
+  所以同 key 并发是 FIFO 串行 + 上限拒绝，而不是"静默排队"）；
+- **无 per-prompt 结果**，完成判定必须客户端自定（见上）；
+- **跨进程复用同一 sessionId 被拒**（`-32603 session already exists`），而且**落盘占用**：原持有者已正常退出、
+  运行时已消失，另一个进程再拿同一 id 仍被拒（spike + 独立验证双重复现）⇒ 一个运行时一个 id，
+  多轮只在同一常驻运行时内成立。**这正是"运行时必须由守护持有"的全部理由**；
+- 桌面壳依旧**不能**连远端 host——`wsl_open_ui` 是补位，不是等价替换；
+- `wsl_agent` 用 WSL 的 `~/.dsh` 与 `~/.agents` 那一份（与 Windows 侧是**两份独立副本**，政策如此）。
+
+## 验证（2026-10-10）
+
+| 项 | 结果 |
+|---|---|
+| 单元/集成（桩 ctx，直调 5 个工具） | 全过；`wsl_agent` 两轮 → `7` / `turn/end` / turns=2 |
+| 真实 DSH agent（临时 profile，headless） | 13.5s 内成功调用 `wsl_status`+`wsl_exec`；17.7s 内成功调用 `wsl_open_ui`+`wsl_sync_version` |
+| `warm` 修正后 | `warm 0.2.0-rc.2: ok` |
+| 回收 | 调用后 WSL 侧无 3082 监听、无 `profile sdk` 进程、`/tmp` 无 `dsh-rwsl-*` 残留 |
+
+## 验证（task-3：守护形态，2026-10-10，全部原始输出）
+
+环境：Windows 桌面侧 node（随包 runtime.json 声明 **24.21.0**，宿主进程实测 **24.18.1**）/ WSL node **26.10.0** / dsh `0.2.0-rc.2`。
+真实宿主 = `dsh --profile remote-wsl-test`（headless，`link:` 装的本插件，loader **直接吃 `src/index.ts`**）；
+确定性脚手架 = `src/selftest.ts`。下表各行来自同一天的连续几次运行，pid/端口随运行而变
+（`rc1` 是跨宿主重连 + 后续 kill/恢复用的会话，`rc2` 是最终冻结版上的复测会话）。
+
+| 验收项 | 原始输出要点 |
+|---|---|
+| 真实宿主加载 `.ts` 入口 | 宿主退出时打印 `remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）`（该行只存在于新代码 ⇒ 插件确实是从 `src/index.ts` 装载的） |
+| **跨宿主重连** | 宿主 A：`session=remote-wsl-rc2-636204c7-e9a3-4c80-91ad-3bb7809d9fd6 completedBy=turn/end turns=1 runtimePid=149743 daemon=149686@127.0.0.1:8731`；**另一个宿主进程 B**：`77`（模型原样粘贴工具返回）`session` 与 `runtimePid` **完全相同**、`turns=2` |
+| 幂等（只有一份守护） | A / B 两次调用的元数据行里 `daemon=149686@127.0.0.1:8731` 一致；`wsl_daemon action=status` 只列 1 个守护 |
+| **并发隔离（元数据按槽位）** | 槽位 8731 与 8771 两个守护**并存**：`status --port 8731` → `daemonPid=148688 port=8731`；`status --port 8771` → `daemonPid=148759 port=8771`；状态目录里 `daemon.8731.json/.token` 与 `daemon.8771.json/.token` 各自独立，`stop --port 8731` 只清自己那一个槽位 |
+| **`/tmp` 不增长（缺陷 #12）** | 我的基线 `tmp_dsh_baseline=0` → 起两个守护并跑完 → `tmp_dsh_during=0` → 全部停止后 `tmp_dsh_after=0`；`tmp_files_referencing_my_daemons=0`；状态目录运行期只有 `daemon.<槽位>.json/.token` + `daemon.log`（`launch.sh` 起来后自删），停止后只剩 `daemon.log` |
+| 可见性 | `wsl_status`：`daemon: running pid=140442 port=8731 version=0.2.0-rc.2 uptime=75s keys=1 [rc1(turn 2,pid140497)]` |
+| 漂移报警 | 伪造 `pin=9.9.9` ⇒ `daemon drift: ⚠️ 守护持有的 dsh@0.2.0-rc.2 与 wsl pin 9.9.9 不一致 —— 不自动重启（避免无声中断正在进行的会话）…`；pin 已随即还原为 `0.2.0-rc.2` |
+| **kill 守护后恢复 + 明确重置告知** | `kill -9 140442` 后一次 `wsl_agent`：`daemon reuse failed on 8731: 连接被拒（守护已死，元数据是陈的）` + `⚠️ 远端会话已重置…（新 sessionId=remote-wsl-rc1-30280602-…）` + `contextReset=yes`；新守护 `143062`、`turns=1` |
+| 并发（同 key 6 个，默认 queueLimit=4） | 5 个 `ok=true`，`at=3325/4630/6499/10940/12403ms` **单调递增**、`turns=1..5` 同一 session；第 6 个 **9ms** 内 `ok=false queueFull=true error=queue full for key "…" (limit 4 waiting): 上游 SDK 无 cancel…`。⚠️ **身份是 `(key, cwd)` ⇒ `queueLimit` 是"每 `(key,cwd)` 的上限"**：同一 key 在不同 cwd 下各有独立队列、独立运行时与会话。 |
+| **端口静默冲突（缺陷 #11）** | Windows 先占 8751 ⇒ 首次握手 `timeout（3009ms）` 判死 → 清影子守护 → 换 8752 由 Windows 侧握手确认（**4ms**），总 **5021ms**；占满 8761/8762/8763 ⇒ **11062ms** 后给可读报错（`试过端口 8761, 8762, 8763 …请释放其中一个端口`），**不是 5 分钟** |
+| `/tmp` 生命周期（缺陷 #12） | 守护运行中：`state_dir_files=daemon.json daemon.log daemon.token`、`tmp_files_referencing_daemon_pid=0`；停止后 `state_dir_after=daemon.log`、`listen_8771=0` |
+| 空闲回收（语义 #2） | `--idle-ms 15000` + 等 21s ⇒ `"keys": []`（运行时被回收 ⇒ 上下文丢失；已在工具描述与配置表写明） |
+| 显式停止（语义 #1/#4） | `wsl_daemon action=stop` ⇒ `{"ok":true,"port":8731,"reaped":[{"key":"rc1",…,"turns":1,"idleForMs":23222}],"transport":"shutdown"}` |
+| 收尾（我方足迹） | `stop --all` 回收 `rc2`（`reaped:[{key:"rc2",turns:2,runtimePid:149743}]`）后：`daemon.ts` 进程 **0**（`pgrep -af 'daemon\.t[s]'` 只剩**别的 teammate** 的 `spike/daemon.ts --port 8741`）、孤儿（ppid=1）`--profile sdk` **0**、`/tmp/dsh-rwsl-*` **0**、8731/8732/8751/8752/8753/8761/8762/8763/8771 全部无监听、状态目录只剩 `daemon.log` |
+
+复现：
+
+```powershell
+node src/selftest.ts status | ensure --port 8731 | ensure --port 8771 --isolated | prompt <key> <文本>
+node src/selftest.ts queue 6 | collision 8751 1 | collision 8761 3 | stop --port 8731 | stop --all
+dsh --profile remote-wsl-test '请调用 wsl_agent 工具（参数 key="rc2"，task="记住数字 77，只回 ACK"），把返回原文贴出来'
+dsh --profile remote-wsl-test '请调用 wsl_agent 工具（参数 key="rc2"，task="刚才让你记的数字是多少？只回数字"），把返回原文贴出来'
+```
+
+**未跑**：验证者的 `%TEMP%\rwsl-test\{test,adversarial}.ts` 回归夹具 —— 它们正在被并发迁移/运行
+（同一时刻在同一份 WSL 状态上跑会互相干扰），且按约定"`src/*.ts` 复制进 `rwsl-test\lib\` 并把 import 指向
+`index.ts`"由验证者执行。本插件的回归证据是上面的**真实宿主 e2e**（两个独立宿主进程 + 6 个工具调用）。
+
+## 验证（task-9：槽位竞态 / 孤儿 / 寿命闸门 / 漂移 / 端口显示，2026-10-10）
+
+| 验收项 | 原始输出要点 |
+|---|---|
+| **槽位竞态（A）** | `race 8759 8760`：两个独立进程同时起两槽位 ⇒ `metadata slots=[8759,8760]`、`daemon processes=[{pid:310603,port:8759,metaPort:8759},{pid:310614,port:8760,metaPort:8760}]`、两槽 `windowsHandshake=ok(3ms/8ms)`、**恰好 2 个守护**（2 请求 = 2 守护；修复前是 3 个） |
+| **请求槽位孤儿（A/B）** | `reclaim 8795`：BEFORE 孤儿 `pid=313809` 占着 8795（元数据已删）⇒ AFTER `ok slot=8795 port=8795 pid=314218`，note 明确写"上发现**无元数据/失联**的本插件守护 pid=313809 ⇒ 先收掉再起"，判据 `port===slot OK / 孤儿已收掉 OK / 该槽位恰好 1 个守护 OK` |
+| **#11 冲突不留孤儿** | Windows 先占 8751 ⇒ `timeout（3016ms）` 判死 → 收掉该槽位影子守护 → 8752 由 Windows 侧握手确认（6ms），总 6690ms；AFTER `/proc` 扫描 `=[{pid:309352,port:8752}]`、`占位端口=0 回退端口=1` |
+| **漂移（显式 dshVersion，③）** | `dshVersion='0.1.0-fake'` ⇒ `daemon drift: ⚠️ 守护持有的 dsh@0.2.0-rc.2 与 显式 config.dshVersion 0.1.0-fake 不一致…`（alarm=true）；`'0.2.0-rc.2'` ⇒ 无报警行（alarm=false） |
+| **实际端口显示（④）** | `daemon: pid=315546 actualPort=8731 slot=8731 version=0.2.0-rc.2` + `daemon ports: configured=8792(+3 回退) actual=8792 slot=8792` |
+| **文本更正（⑤）/ 机器行（⑥）** | `state (WSL): …/daemon.<slot>.json（0600）、daemon.<slot>.token（0600），slot=8731`；`machine: daemon=315546@8731 version=0.2.0-rc.2 keys=2 orphans=0`；stop 机器行 `machine: daemon=all version=- reaped=2 orphans_killed=0 orphans_left=0` |
+| **`stop` 不越界（C）** | 自己槽位 8731 没有守护 ⇒ `{"ok":true,"alreadyStopped":true,"slot":8731,"note":"自己槽位 8731 没有守护（未去停别的槽位）"}`，而 8801/8802 两个守护仍活；`stop --port 8801` 只停 8801（8802 存活） |
+| **配置不相容（D）** | soft：`注意：守护参数与本次配置不同（idleMs 300000≠1800000）—— 已复用，未静默忽略；要应用新值请 wsl_daemon action=restart`；hard：`远端守护（槽位 8803 / 端口 8803）与本次配置**结构性不兼容**：cwd /home/g≠/tmp…` |
+| **寿命闸门（②）** | `linger 8000 --idle-ms 600000` ⇒ `起守护 pid=282345 lingerMs=8000` → `守护已自退，耗时 8681ms` → `残留进程=[] 残留元数据=[]` |
+| **孤儿可见 + `stop --all`（②）** | 删元数据后 `status.orphans=[{pid:311741,port:8795}]`；`stop --all` ⇒ `{"ok":true,"stopped":[],"killed":[{"pid":311741,"port":8795}],"remaining":[]}`；再查 `orphans=[]`、`ss -ltn` 该端口 0 |
+| **回归** | `test.ts` exit 0（T3 两轮 `7`/`turns=2`、T5 `wsl_open_ui` 起停）；`adversarial.ts` **PASS 30 / FAIL 0**；真实宿主 `rc4`：宿主 A `ACK` → **另一个宿主进程** `123`，`session`/`runtimePid` 完全相同、`turns=2` |
+| 收尾（我方足迹） | `daemon_procs=0`、`launch.*.sh=0`、`/tmp/dsh-rwsl-*=0`、8731/8751-8753/8759/8760/8791/8792/8795 全无监听、state dir 只剩 `daemon.log` + `launch-stderr.log` |
+
+## 验证（task-12：F1 误报孤儿 / F3 机器行 / F4 内联 bash，2026-10-10）
+
+| 项 | 原始输出 |
+|---|---|
+| **F1 改前（缺陷）** | A=8862 健康、B=8863 健康；对 B 不带 slot `stop` ⇒ `machine: daemon=8863@8863 version=- reaped=0 orphans_left=1` + `Orphans: ⚠️ 仍有 1 个守护在跑但无元数据（pid352735@8862）—— 用 action=stop all=true`。**误报**，照建议执行会杀掉另一个 DSH 宿主的守护 |
+| **F1 改后（修复）** | 同场景 ⇒ `machine: slot=8863 pid=360191 port=8863 version=0.2.0-rc.2 reaped=0 orphans_left=0`，**无 Orphans 行**；同一时刻 A 的 `status` 给出 `machine: slot=8862 pid=360114 port=8862 version=0.2.0-rc.2 keys=0 orphans=0` ⇒ `stop`/`status` 口径一致（都走 `daemonSnapshot`） |
+| **F1 真孤儿仍可发现** | 8866 健康 + 8865 **真孤儿**（元数据已删）⇒ `status`：`orphans=1` + `Orphans: 1 个守护在跑但无元数据（pid365531@8865）`；`stop`(8866) ⇒ `orphans_left=1`；`stop all=true` ⇒ `killedOrphans=1（pid365531@8865）remainingOrphans=0` |
+| **F3 五条机器行同字段** | status(有)：`slot=8862 pid=360114 port=8862 version=0.2.0-rc.2 keys=0 orphans=0`；start：`slot=8862 pid=361904 port=8862 version=0.2.0-rc.2 reused=false`；stop：`slot=8862 pid=361904 port=8862 version=0.2.0-rc.2 reaped=0 orphans_left=0`；stop --all：`slot=all pid=- port=- version=- stopped=0 killed=0 orphans_left=0 reaped=0`；status(无)：`slot=- pid=- port=- version=- orphans=0` |
+| **F4 整改 + 计数仍正确** | `/tmp/dsh-rwsl-*.pid` 计数改走 `runWsl`（落文件 + `bash <file>`）+ `find … -print \| wc -l`；`wsl_status` 输出 `pid files in WSL /tmp: 2`（非"假 0"） |
+| 回归 | `test.ts` exit 0；`adversarial.ts` **PASS 32 / FAIL 0**（含 Z4/Z5 自作用域 `/tmp` 归零）；真实宿主（`--patch daemonPort=8801`，专属段）：宿主 A `ACK` → **另一个宿主进程** `555`，同 `session` / `runtimePid=377150`、`turns=2` |
+
+### F4：内联 `bash -c/-lc` 全仓清单（`src/` 已整改；`spike/` 仅报告，按约定不改）
+
+| 位置 | 形态 | 处置 |
+|---|---|---|
+| `src/index.ts`（原 `/tmp` 计数） | `wsl.exe … bash -lc "ls … \| wc -l"` — **高危**（串先经发行版默认登录 shell 展开） | **已整改**：`runWsl`（落文件 + `bash <file>`）+ `find … -print \| wc -l` |
+| `src/daemon-client.ts` (`wslRunScript`) | `wsl.exe … bash -c "echo <b64> \| base64 -d \| bash"` | **保留**：串里只有 base64（无 `$`/glob），外层 shell 无法失真 —— 推荐的探针形态 |
+| `src/sdk-runtime.ts` / `src/daemon.ts` | `spawn('/bin/bash', ['-c', script])` —— **在 WSL 内** | **保留**：真正的 argv-exec，不经 `wsl.exe` 边界 |
+| `src/shell-env.ts`（生成脚本内）、`src/index.ts` `shellPreamble` | 脚本**文件内**的 `timeout 5 bash -lc 'export -p'`、`timeout 3 bash -c "exec 3<>/dev/tcp/…"` | **保留**：脚本已由 bash 以文件执行，内层是 argv-exec；前者故意要登录 shell |
+| `src/index.ts` `listDistros` | `spawnSync('wsl.exe', ['-l','-q'])` | **无 bash**，安全 |
+| `spike/run-spike.ps1:79` | `wsl.exe … bash -c $bash` —— **高危形态** | 报告（`spike/` 是证据目录，按约定不改） |
+| `spike/verify/*.ps1` | 多数为 `bash -c "echo <b64> \| base64 -d \| bash"`（安全）；`verify-shellenv.ps1` 故意用 `bash -lc` 探测 shell 身份 | 报告（安全 / 故意），不改 |
+
+## 验证（task-15：P1 per-call cwd / P2 活宿主陈旧文件，2026-10-10）
+
+| 项 | 原始输出 |
+|---|---|
+| **P1 确定性证据** | `cwdcheck p1key /tmp`：`requested=/tmp daemonReportedCwd=/tmp /proc/426647/cwd=/tmp session=remote-wsl-p1key-63f5… turns=1`；`default daemonReportedCwd=/home/g /proc/426708/cwd=/home/g session=remote-wsl-p1key-def-6646… turns=1` ⇒ 两个 cwd 各自独立运行时/会话，`/proc` 独立复核通过 |
+| **P1 工具级** | daemon 后端 `wsl_agent({key:p1t, cwd:/tmp, task:运行 pwd})` ⇒ 远端输出 **`/tmp`** + `[remote-wsl: backend=daemon … cwd=/tmp … runtimePid=426941]`；**in-host 对照**同样 `cwd:/tmp` ⇒ **`/tmp`** + `backend=in-host … cwd=/tmp`（行为一致，未回归） |
+| **P1 未破坏跨宿主重连** | 宿主 A（key=rc7, cwd=/tmp）`ACK`、`session=remote-wsl-rc7-373bede9… cwd=/tmp turns=1`；**另一个宿主进程** B 同 key 同 cwd ⇒ **`777`**、同 `session`/`runtimePid=427750`、`turns=2` |
+| **P2 三步计数 + 反例** | ① 写文件后 `own=2 foreign=1`（own winpid=18940；foreign winpid=47280，**活着**）→ 一次普通变更型调用（`wsl_exec true`）→ ② `own=0 foreign=1`（自己的陈旧文件已收敛、**他人文件未被删**）→ ③ 只清自造对照文件 ⇒ `0/0` |
+| 回归 | `test.ts` exit 0（P0 副本闸门 **7/7 MATCH**）；`adversarial.ts` **PASS 32 / FAIL 0** |
+| 机器行文档 | README + 工具描述都补了 `^machine: slot=(\S+) pid=(\S+) port=(\S+) version=(\S+)( .*)?$` 与"未运行时各字段为 `-`"，并注明旧格式 `daemon=<pid>@<port>` 已废弃 |
+
+> 边界说明（P2 的"绝不碰他人"）：**属主活着的他人 winpid 文件一律不动**；属主**已死**的他人文件仍按原判据回收
+> （那是宿主崩溃后的孤儿清理，属于既有设计，与此条纪律不冲突）。
+> **补充（task-16 复核）**：对**属主已死**的他人残留，sweep **不只手删文件 —— 同时 TERM 其 `.pid` 指向的 linux 运行时进程**（否则那个孤儿运行时仍占着 WSL 资源）；**属主活着**的他人文件与其运行时都**一律不动**。
+
+---
+
+## 用起来会踩的事实（补录，2026-10-10）
+
+上面几节讲"为什么是这个形状"。这一节讲**用起来会踩的地方**——都是审计（`GAP-AUDIT.md` §8/§9）
+暴露、而此前 README 没写的。
+
+### 新增/即将新增的配置键（照 VS Code 对位）
+
+| 键 | 默认 | 作用 | VS Code 对位 |
+|---|---|---|---|
+| `useShellEnvironment` | `true` | 把 WSL **登录 shell** 的环境注入**常驻运行时**（`wsl_agent` 那条 SDK 通道） | `remote.WSL.useShellEnvironment`（其实现为 `!1!==get(...)` ⇒ 同为默认 true） |
+| `backgroundWarm` | `true` | 检测到**版本漂移**（桌面 dsh 版本 ≠ WSL pin）时，**后台**预热 pin 对应的版本，不阻塞当前这次调用 | `downloadInBackground`（VS Code 那边是"为下一个更新预下载 server commit"） |
+
+两条的**代价**要一起看，否则默认值会显得没道理：
+
+- **为什么只有常驻运行时注入**：登录 shell 注入要付一次 `bash -l` 的启动成本。常驻运行时**复用很多轮**，
+  这份成本被摊薄了；`wsl_exec` 是**一次性**的，每条命令都背一次登录 shell 启动不划算——
+  所以**一次性 `wsl_exec` 不注入**，仍按 `shellPreamble` 的**硬编码补 PATH**（`~/.local/bin`、
+  `mise/shims`，`src/index.ts` 的登录 shell 注入段）——同属"不背登录 shell 成本"的取舍。
+- **关掉 `useShellEnvironment` 的时机**：你的 WSL 登录 shell 初始化很慢，或**会往 stdout 打印**
+  （问候语 / 版本管理器 banner 之类）。后者会污染运行时启动——SDK 通道读的是 stdio 上的 JSON-RPC，
+  正文里混进非协议行就是事故。真踩了先查 `~/.bashrc` / `~/.profile` 里的 `echo`。
+- **`backgroundWarm` 的边界**：它只是把"预热"挪到后台，**仍受网络与代理影响**（warm 走 `pnpm dlx`，
+  冷启 ~5–7s，见 §7 复核第 ③ 条）；代理不可用时后台预热会静默不成功——
+  以 `wsl_status` 的 pin / drift 与后续调用实际用时为准。
+
+### 尖锐边：`exit 141`
+
+脚本 preamble 第一行是 `set -uo pipefail`，所以**管道上游被 SIGPIPE 杀掉**会如实变成退出码 `141`
+（`128+13`，13 = SIGPIPE）：
+
+```bash
+yes | head -1      # ⇒ exit 141
+```
+
+本机实测（WSL 侧直跑）：
+
+```
+pipefail-on: exit=141
+pipefail-off: exit=0
+```
+
+**这是 bash 语义，不是插件 bug**——同一行在真实的 `set -o pipefail` 脚本里也是 141。
+`yes` 写到 `head` 关闭管道为止，被 SIGPIPE 收掉；`pipefail` 让"管道里任一环失败"成为管道整体的状态，
+于是 bash 如实报了 141。换句话说：**你的脚本本来就该预期看到 141**。
+
+想要旧行为（只看最后一个命令的退出码），改法：
+
+| 做法 | 写法 | 代价 |
+|---|---|---|
+| 单条命令显式吞掉 | `yes \| head -1 \|\| true` | 实测 `exit=0`；但**真实的失败也会被一起吞掉** |
+| 临时关掉 pipefail | `set +o pipefail`（本命令内自己加一行） | 实测 `exit=0`；该命令后续任何一环失败都不再被反映 |
+| 只关心上游自己的退出码 | 用 `${PIPESTATUS[0]}` 取值 | 实测 `yes \| head -1` 下 `PIPESTATUS[0]=0`——即 141 是 pipefail 对 SIGPIPE 的整体判定，**不在上游的退出码里** |
+
+上面第 3 行是这节的要点：141 **不代表上游命令"失败返回 141"**，而是"管道里有人被信号收掉"。
+要看上游自己的状态就取 `PIPESTATUS`（实测 `false | true` ⇒ `PIPESTATUS[0]=1`，能如实反映上游失败）。
+
+选哪种取决于你要区分的是"上游被 SIGPIPE"还是"上游真失败了"——想区分就用 `PIPESTATUS`。
+
+### UNC 工作区：读可以走 UNC，执行必须走 WSL
+
+Windows 侧**可以**经 `\\wsl.localhost\<distro>\...` **读** WSL 文件。本机实测：
+
+```powershell
+Get-ChildItem '\\wsl.localhost\debian-u8-1\home\g' -Force   # 目录可列
+Get-Content   '\\wsl.localhost\debian-u8-1\tmp\<file>'      # 文件可读（实测读到 hello-from-wsl）
+```
+
+但**禁止在 UNC 路径上跑 Windows 的写型工具**（`git` / `npm` / `pnpm` / 任何会改文件属主或权限的）：
+
+> 那份文件在 WSL 里是 **ext4**，Windows 侧经 9p 访问。Windows 进程**不按 POSIX 语义**写属主与权限位，
+> 一次 `git checkout` / `pnpm install` 就足以把**同一份仓库**的属主/权限写坏——而 WSL 侧还要继续用它。
+> 这不是"慢"或"可能有问题"，是**会写坏同一份仓库**（§7 复核里被专门标为硬风险）。
+
+**规矩一句话**：
+
+| 你要做的事 | 走哪条路 |
+|---|---|
+| 看内容（读文件、列目录、读日志/配置） | 可以走 UNC（`\\wsl.localhost\…`） |
+| 跑工具、改文件、`git` / 包管理、执行任何东西 | **必须**走 `wsl_exec` / `wsl_agent`，或 `wsl_open_ui` 里的终端 |
+
+（本插件自己只在 `/tmp` 写一次性 `.sh`/`.mjs` 启动脚本，用完就删，见"设计要点"第 2 条；
+那是一次性文件、不碰你的仓库内容，与上面这条禁令不冲突。）
+
+### 文件系统事件：不做监听，改动一律在 WSL 侧发生
+
+跨 OS 的文件事件**不可靠**——WSL2 的文件在 ext4，Windows 侧经 9p/UNC 看过去；`inotify` 的语义过不了这层边界。
+
+VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling`（+ `.pollingInterval`，
+见 `GAP-AUDIT.md` §8 第 6 项）。
+
+本插件的选择更简单：**不做文件监听、也不做失效检测**。代价与边界：
+
+- Windows 侧的文件监听器**看不到 WSL 侧 ext4 的改动**——别假定"改完会收到通知"；
+- 反过来，**改动一律在 WSL 侧发生**（`wsl_exec` / `wsl_agent` / `wsl_open_ui` 起的 WSL host），
+  所以本插件的场景下这个缺口的实际影响**小于编辑器场景**（§9 第 6 项：🟡）；
+- 要感知 WSL 侧的变化，就**显式去查**：跑一条 `wsl_exec`（例如 `git -C <repo> status --porcelain`），
+  或让 `wsl_agent` 在任务结束时自己报告——**不要等事件**。
+
+### 诊断面：`wsl_status` 报告什么
+
+`wsl_status` 是只读、廉价的入口——**在怪远端之前先调它**。它现在报告（字段名以 `src/index.ts` 实际输出为准）：
+
+| 输出行 | 内容 |
+|---|---|
+| `distros:` | `wsl -l -q` 列出的发行版 |
+| `target:` | 当前 `distro` / `wslHome` / `cwd` |
+| `wsl ip:` | WSL 内 `hostname -I` |
+| `desktop dsh version:` | 桌面 dsh 版本 + 来源路径（`<-` 后面那段；来源按 §7 的分层解析） |
+| `version this plugin uses:` | 本插件这次实际用的版本 |
+| `wsl pin:` / `drift:` | WSL 侧 pin；不一致时 `YES (desktop x / pin y)` |
+| `resident runtimes:` | 本插件持有的常驻运行时及各自 `turn` 数 |
+| `web hosts:` | `wsl_open_ui` 起的 host（按端口） |
+| `pid files in WSL /tmp:` | 孤儿运行时计数（只数不杀；首次有副作用的调用会清） |
+
+计划补进同一处的诊断项（**字段名未定，下面是概念不是字段名**）：
+
+- **shell-env 注入状态**——即 `useShellEnvironment` 生效与否、注入是否成功（对位 §9 第 7 项）；
+- **`localhostForwarding` 探测结果**——WSL2 的 localhost 转发由 WSL 自身提供，扩展只能遵从
+  （§8 第 8 项、§9 第 8 项）；**用户关掉转发时本插件会静默失败**，所以这项要探测后再报，
+  不能假定转发一定在（现在 `wsl ip:` 报的是 WSL 内网 IP，本身不能证明 Windows `localhost` 可达）；
+- **WSL 里已装的 dlx 版本**——现在只知道"插件要用哪个版本"，不知道"WSL 里已经有哪些"；
+  对位 §9 第 5 项的版本供给面（自动 + 后台 + 预供给）。

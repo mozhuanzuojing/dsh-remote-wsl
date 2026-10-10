@@ -1,0 +1,7 @@
+[probe2 pid=47396] mode=script port=8865 dshVersion=(desktop)
+--- stdout ---
+metadata_after_rm=[daemon.8864.json daemon.8864.token daemon.log launch-stderr.log ]
+listen_8865=1
+--- stderr ---
+
+--- exit=undefined ---

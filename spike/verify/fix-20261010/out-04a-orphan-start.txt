@@ -1,0 +1,4 @@
+[probe2 pid=15224] mode=iso-start port=8865 dshVersion=(desktop)
+# launchDaemon = {"ok":true,"launcher":"/home/g/.dsh/remote-wsl/launch.8865.sh"}
+# iso-start result = {"slot":8865,"port":8865,"pid":335610,"hsMs":4}
+# slots = [8865,8864] procs = [{"pid":334384,"port":8864,"metaPort":8864},{"pid":335610,"port":8865,"metaPort":8865}]

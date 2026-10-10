@@ -1,0 +1,2 @@
+[probe2 pid=48212] mode=daemon port=8862 dshVersion=(desktop)
+unknown mode: daemon

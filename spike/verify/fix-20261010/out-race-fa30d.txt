@@ -1,0 +1,8 @@
+[probe2 pid=8916] mode=tool-stop port=8861 dshVersion=(desktop)
+########## wsl_daemon action=stop (--all) ##########
+daemon stopped（transport=shutdown）; reaped 0 runtime(s): (none)
+machine: daemon=8861@8861 version=- reaped=0 orphans_left=1
+Orphans: ⚠️ 仍有 1 个守护在跑但无元数据（pid329300@8862）—— 用 action=stop all=true
+⚠️ 会话上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。
+# log: daemon shutdown on slot 8862 (port 8862): ok=true 
+# stopDaemon --all => {"ok":true,"stopped":[{"ok":true,"port":8862,"slot":8862,"reaped":[],"transport":"shutdown"}],"killed":[],"remaining":[]}

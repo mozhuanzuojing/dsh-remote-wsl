@@ -1,0 +1,55 @@
+################ 前置清点 ################
+  profile_sdk_procs=0  one_runtime_procs=0  port_listen=0
+  node(win) = C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\primary-runtime\dependencies\node\bin\node.exe
+
+################ A. alive：A 持有运行时，B 用同一 sessionId ################
+  sessionId = verify-alive-ab31ba0a8f41
+  起进程 A: wsl.exe ... -- bash /mnt/d/project/dsh1/vendor/dsh-remote-wsl/spike/verify/conflict-alive-A.sh  (A 是独立 OS 进程，持有运行时 180000 ms)
+  A prompt 完成: pid=136950 runtimePid=136968 ok=True turns=1 text='ACK.'
+  [PASS] 进程 A 已建立会话并持有运行时（runtimePid=136968）
+  A 运行时进程此刻: 136968 /home/g/.local/share/mise/installs/node/26.10.0/bin/pnpm dlx --allow-build=@deepseek-ai/dsh-subprocess-local --allow-build=@google/genai --allow-build=koffi --allow-build=node-pty --allow-build=protobufjs @deepseek-ai/dsh@0.2.0-rc.2 --profile sdk
+  [PASS] A 的运行时 136968 此刻确实活着
+  --- B（另一个独立 OS 进程）用同一 sessionId 发 prompt ---
+  [B] [one-runtime] host proxy 172.30.176.1:9910 unreachable -> direct
+  [B] [one-runtime] spawning runtime key=verify-one dsh@0.2.0-rc.2 cwd=/home/g
+  [B] [one-runtime] runtime ready key=verify-one pid=137088 session=verify-alive-ab31ba0a8f41
+  [B] {"stage":"start","ok":true,"pid":137051,"runtimePid":137088,"sessionId":"verify-alive-ab31ba0a8f41"}
+  [B] {"stage":"prompt","ok":false,"pid":137051,"sessionId":"verify-alive-ab31ba0a8f41","error":"JSON-RPC -32603: session \"verify-alive-ab31ba0a8f41\" already exists"}
+  [B] {"stage":"close","result":{"exitCode":0},"pid":137051}
+  [PASS] alive：B 收到 JSON-RPC -32603
+  [PASS] alive：B 收到 'already exists'
+  [PASS] alive：B 的 initialize 成功（冲突点在 session，不在连接）
+  [PASS] alive：B 的 prompt 被拒（ok:false）
+  B 耗时 1294 ms
+  --- 清理 alive 场景 ---
+  profile_sdk_procs=0  one_runtime_procs=0  port_listen=0
+
+################ B. stale：旧运行时已消失后仍被拒？ ################
+  sessionId = verify-stale-13d4d778e338
+  --- 进程 A（独立进程）建会话后正常 shutdown ---
+  [A] [one-runtime] host proxy 172.30.176.1:9910 unreachable -> direct
+  [A] [one-runtime] spawning runtime key=verify-one dsh@0.2.0-rc.2 cwd=/home/g
+  [A] [one-runtime] runtime ready key=verify-one pid=137199 session=verify-stale-13d4d778e338
+  [A] {"stage":"start","ok":true,"pid":137170,"runtimePid":137199,"sessionId":"verify-stale-13d4d778e338"}
+  [A] {"stage":"prompt","ok":true,"pid":137170,"runtimePid":137199,"sessionId":"verify-stale-13d4d778e338","turns":1,"completedBy":"turn/end","text":"ACK"}
+  [A] {"stage":"close","result":{"exitCode":0},"pid":137170}
+  [PASS] stale：A 建立了会话（runtimePid=137199）
+  A 的运行时进程 137199 现存行数 = 0
+  [PASS] stale：A 的运行时 137199 已消失（close 生效）
+  当前 profile_sdk pids = []
+  [PASS] stale：此刻没有任何 --profile sdk 运行时在跑（旧运行时确实没了）
+  --- 进程 B（另一个独立进程）用**同一** sessionId 发 prompt ---
+  [B] [one-runtime] host proxy 172.30.176.1:9910 unreachable -> direct
+  [B] [one-runtime] spawning runtime key=verify-one dsh@0.2.0-rc.2 cwd=/home/g
+  [B] {"stage":"start","ok":true,"pid":137289,"runtimePid":137307,"sessionId":"verify-stale-13d4d778e338"}
+  [B] [one-runtime] runtime ready key=verify-one pid=137307 session=verify-stale-13d4d778e338
+  [B] {"stage":"prompt","ok":false,"pid":137289,"sessionId":"verify-stale-13d4d778e338","error":"JSON-RPC -32603: session \"verify-stale-13d4d778e338\" already exists"}
+  [B] {"stage":"close","result":{"exitCode":0},"pid":137289}
+  [PASS] stale：B 仍收到 -32603
+  [PASS] stale：B 仍收到 'already exists'
+  [PASS] stale：B 的 prompt 被拒（ok:false）
+
+################ 收尾 ################
+  profile_sdk_procs=0  one_runtime_procs=0  port_listen=0
+
+VERIFY-CONFLICT: ALL CHECKS PASSED

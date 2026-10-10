@@ -1,0 +1,3 @@
+[probe3 pid=40372] mode=iso-orphan port=8843
+# 真孤儿造好: pid=406800 slot=8843 元数据已删 listen=1 launch={"ok":true,"launcher":"/home/g/.dsh/remote-wsl/launch.8843.sh"}
+# snapshot = {"slots":[8841],"livePids":[405630],"procs":[{"pid":405630,"port":8841,"metaPort":8841},{"pid":406800,"port":8843,"metaPort":8843}],"orphans":[{"pid":406800,"port":8843,"metaPort":8843}],"liveSlot":null,"livePort":null,"livePid":null}

@@ -1,0 +1,22 @@
+dsh: reasoning:
+The user wants me to call wsl_agent with key 'rv-int-1' and task='刚才让你记的数字？只回数字'. This implies there was an earlier turn in this session where I told the WSL agent to remember a number. But this conversation shows no prior turns — this is the first user message in this context. Hmm, the user references "刚才让你记的数字" (the number I asked you to remember just now). Perhaps in an earlier part of session that's not in my context... Actually the conversation as given starts here. But the user insists key 'rv-int-1' — implying it's a continuation. Since the WSL daemon keeps sessions alive, maybe there is an existing runtime under key 'rv-int-1'.
+
+I should just call wsl_agent as requested and paste raw return. Let me do it.
+
+Also I should not fabricate. Just call the tool.
+
+Note: the tool requires 'task' and optional key. Let me call it.
+dsh: reasoning:
+Raw return, paste verbatim including footnote.
+原始返回如下，原样贴出（含尾注）：
+
+```
+41
+
+[remote-wsl: backend=daemon session=remote-wsl-rv-int-1-6758a2c8-d199-4773-9bda-6e93fd2f1369 completedBy=turn/end turns=2 runtimePid=171038 daemon=170873@127.0.0.1:8755 dsh@0.2.0-rc.2]
+```
+
+即：正文为 `41`，尾注为 `[remote-wsl: backend=daemon session=remote-wsl-rv-int-1-6758a2c8-d199-4773-9bda-6e93fd2f1369 completedBy=turn/end turns=2 runtimePid=171038 daemon=170873@127.0.0.1:8755 dsh@0.2.0-rc.2]`。
+
+从尾注可读出的关键信息：同一 key `rv-int-1` 复用了同一个常驻 runtime（`session=...rv-int-1-6758a2c8...`，`turns=2`，说明这是该会话的第 2 轮，上下文未重置），后端为 daemon、完成原因为 `turn/end`，daemon 版本 dsh@0.2.0-rc.2。
+remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）

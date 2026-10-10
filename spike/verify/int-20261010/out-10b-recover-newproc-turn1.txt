@@ -1,0 +1,10 @@
+[probe pid=37620] mode=agent port=8755 key=rkey-2 dshVersion=(desktop)
+注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+
+########## wsl_agent ##########
+elapsed_ms=1851
+ACK
+
+[remote-wsl: backend=daemon session=remote-wsl-rkey-2-1c0acaad-64f1-4891-8458-4c543e079e70 completedBy=turn/end turns=1 runtimePid=162940 daemon=162791@127.0.0.1:8755 dsh@0.2.0-rc.2]
+
+[probe pid=37620] cleanup disposers=1

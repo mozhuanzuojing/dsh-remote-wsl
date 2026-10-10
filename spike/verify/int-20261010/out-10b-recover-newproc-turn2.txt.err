@@ -1,0 +1,3 @@
+[probe] entry=D:/project/dsh1/vendor/dsh-remote-wsl/src/index.ts exists=true
+remote-wsl: daemon reuse failed on slot 8755 (port 8755): 连接被拒（守护已死，元数据是陈的）
+remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）

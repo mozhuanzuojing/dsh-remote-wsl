@@ -1,0 +1,11 @@
+[probe2 pid=34524] mode=script port=8875 dshVersion=(desktop)
+--- stdout ---
+FINAL profile_sdk=[]
+FINAL daemons(带 state-dir 身份):
+FINAL listeners=[]
+FINAL state_dir=[daemon.log launch-stderr.log ]
+FINAL tmp_dsh_rwsl=4
+FINAL pin=[0.2.0-rc.2]
+--- stderr ---
+
+--- exit=undefined ---

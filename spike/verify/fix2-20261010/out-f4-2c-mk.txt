@@ -1,0 +1,5 @@
+[probe3 pid=45156] mode=script port=8844
+--- stdout ---
+made6
+--- stderr ---
+

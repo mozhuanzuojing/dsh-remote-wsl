@@ -1,0 +1,4 @@
+[fixture] lib entry = index.ts
+remote-wsl: 后台预热 dsh@0.2.0-rc.2 ok
+remote-wsl: 守护启动包装层退出 code=127（详见 launch-stderr.log）
+remote-wsl: 后台预热 dsh@0.2.0-rc.2 ok

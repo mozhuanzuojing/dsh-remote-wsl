@@ -1,0 +1,91 @@
+################ 0) 开工现场：他人守护清点（不得复用、不得误杀）################
+    [probe3 pid=36312] mode=snapshot port=8841
+    # snapshot = {"slots":[],"livePids":[],"procs":[],"orphans":[],"liveSlot":null,"livePort":null,"livePid":null}
+
+################ 1) 起 A(8841) 与 B(8842) 两个健康守护 ################
+    [probe3 pid=24300] mode=tool-start port=8841
+    ########## wsl_daemon action=start ##########
+    daemon start: ok port=8841 pid=405630 version=0.2.0-rc.2 reused=false
+    machine: slot=8841 pid=405630 port=8841 version=0.2.0-rc.2 reused=false
+    notes: 槽位 8841 由 Windows 侧握手确认就绪（实际端口 8841，5ms）
+    元数据 (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（slot=8841）
+    [probe3 pid=4256] mode=tool-start port=8842
+    ########## wsl_daemon action=start ##########
+    daemon start: ok port=8842 pid=406202 version=0.2.0-rc.2 reused=false
+    machine: slot=8842 pid=406202 port=8842 version=0.2.0-rc.2 reused=false
+    notes: 另有守护在槽位 8841（端口 8841）—— 不属于本次配置（daemonPort=8842），未复用、未打扰 | 槽位 8842 由 Windows 侧握手确认就绪（实际端口 8842，4ms）
+    元数据 (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（slot=8842）
+  现场:
+    [probe3 pid=8680] mode=snapshot port=8841
+    # snapshot = {"slots":[8841,8842],"livePids":[405630,406202],"procs":[{"pid":405630,"port":8841,"metaPort":8841},{"pid":406202,"port":8842,"metaPort":8842}],"orphans":[],"liveSlot":null,"livePort":null,"livePid":null}
+  A pid=（B 的 pid 见 snapshot procs）
+
+################ 2) 【F1 核心】无孤儿时对 B 不带 slot 执行 stop ################
+    [probe3 pid=11176] mode=tool-stop port=8842
+    ########## wsl_daemon action=stop ##########
+    daemon stopped（transport=shutdown）; reaped 0 runtime(s): (none)
+    machine: slot=8842 pid=406202 port=8842 version=0.2.0-rc.2 reaped=0 orphans_left=0
+    ⚠️ 会话上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。
+  [PASS] 无 Orphans: 误报行
+  [PASS] orphans_left=0
+  [PASS] machine 行 slot=8842（带 slot 的 stop）
+    [probe3 pid=37620] mode=status-json port=8841
+    # daemonStatus = {"ok":true,"slot":8841,"pid":405630,"port":8841,"orphans":[]}
+  [PASS] A(pid=) 在 stop B 之后仍存活且握手正常
+
+################ 3) 【F1 反例】真造孤儿(8843) ⇒ 必须仍被识别 ################
+    [probe3 pid=40372] mode=iso-orphan port=8843
+    # 真孤儿造好: pid=406800 slot=8843 元数据已删 listen=1 launch={"ok":true,"launcher":"/home/g/.dsh/remote-wsl/launch.8843.sh"}
+    # snapshot = {"slots":[8841],"livePids":[405630],"procs":[{"pid":405630,"port":8841,"metaPort":8841},{"pid":406800,"port":8843,"metaPort":8843}],"orphans":[{"pid":406800,"port":8843,"metaPort":8843}],"liveSlot":null,"livePort":null,"livePid":null}
+  snapshot:
+    [probe3 pid=9060] mode=snapshot port=8841
+    # snapshot = {"slots":[8841],"livePids":[405630],"procs":[{"pid":405630,"port":8841,"metaPort":8841},{"pid":406800,"port":8843,"metaPort":8843}],"orphans":[{"pid":406800,"port":8843,"metaPort":8843}],"liveSlot":null,"livePort":null,"livePid":null}
+  孤儿 pid=406800
+  [PASS] snapshot.orphans 识别出真孤儿
+  daemonStatus:
+    [probe3 pid=43888] mode=status-json port=8841
+    # daemonStatus = {"ok":true,"slot":8841,"pid":405630,"port":8841,"orphans":[{"pid":406800,"port":8843,"metaPort":8843}]}
+  [PASS] daemonStatus.orphans 同一口径（含 pid=406800）
+  wsl_daemon action=status:
+    [probe3 pid=47084] mode=tool-status port=8841
+    ########## wsl_daemon action=status ##########
+    daemon: pid=405630 actualPort=8841 slot=8841 version=0.2.0-rc.2 cwd=/home/g profile=sdk
+    machine: slot=8841 pid=405630 port=8841 version=0.2.0-rc.2 keys=0 orphans=1
+    uptime=6s idleMs=1800000 lingerMs=600000 queueLimit=4
+    keys (0): (none)
+    Orphans: ⚠️ 1 个守护在跑但无元数据（pid406800@8843）—— 用 wsl_daemon action=stop all=true 回收
+    ready 判据: 本次调用由 Windows 侧 hello+token 握手核实（4ms），不是守护自己的 listening 日志
+    state (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（0600）、daemon.<slot>.token（0600），slot=8841
+  [PASS] status 工具行 orphans=1 且点名 pid406800
+
+################ 4) 不带 slot 的 stop（真孤儿存在时）：只点名真孤儿，不误报 A ################
+    [probe3 pid=45848] mode=tool-stop port=8841
+    ########## wsl_daemon action=stop ##########
+    daemon stopped（transport=shutdown）; reaped 0 runtime(s): (none)
+    machine: slot=8841 pid=405630 port=8841 version=0.2.0-rc.2 reaped=0 orphans_left=1
+    Orphans: ⚠️ 仍有 1 个守护在跑但无元数据（pid406800@8843）—— 用 action=stop all=true
+    ⚠️ 会话上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。
+  [PASS] 真孤儿存在时**仍**输出 Orphans 行（没把真孤儿漏掉）
+  [PASS] Orphans 行点名真孤儿 pid406800
+  [PASS] Orphans 行**不含**任何健康守护 pid（检查过 405630,406202)
+
+################ 5) ensure 侧口径：对孤儿槽位起 ⇒ 先收掉、仍在请求槽位起 ################
+    [probe3 pid=9252] mode=ensure-json port=8843
+    # ensureDaemon = {"ok":true,"slot":8843,"port":8843,"pid":408033,"reused":false}
+    #   note: 槽位 8843 上发现**无元数据/失联**的本插件守护 pid=406800 ⇒ 先收掉再起（不留孤儿）
+    #   note: 槽位 8843 由 Windows 侧握手确认就绪（实际端口 8843，3ms）
+  [PASS] ensure 在请求槽位 8843 起（未迁移 +1）
+  [PASS] ensure 明确'发现无元数据/失联的本插件守护 ⇒ 先收掉再起'
+  收尾现场:
+    [probe3 pid=33136] mode=snapshot port=8841
+    # snapshot = {"slots":[8843],"livePids":[408033],"procs":[{"pid":408033,"port":8843,"metaPort":8843}],"orphans":[],"liveSlot":null,"livePort":null,"livePid":null}
+  [PASS] 真孤儿已被回收（orphans=[]）
+
+################ 6) 逐槽位停我自己的（不用 stop all=true）################
+  stop 8843 => machine: slot=8843 pid=408033 port=8843 version=0.2.0-rc.2 reaped=0 orphans_left=0
+  stop 8841 => machine: slot=8841 pid=- port=- version=- reaped=0 orphans_left=0
+  最终 snapshot:
+    [probe3 pid=18796] mode=snapshot port=8841
+    # snapshot = {"slots":[],"livePids":[],"procs":[],"orphans":[],"liveSlot":null,"livePort":null,"livePid":null}
+
+RUN-F1: ALL CHECKS PASSED

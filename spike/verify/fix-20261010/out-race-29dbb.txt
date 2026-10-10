@@ -1,0 +1,6 @@
+[probe2 pid=45508] mode=tool-start port=8862 dshVersion=(desktop)
+########## wsl_daemon action=start ##########
+daemon start: ok port=8862 pid=329300 version=0.2.0-rc.2 reused=false
+machine: daemon=329300@8862 version=0.2.0-rc.2 reused=false
+notes: 槽位 8862 由 Windows 侧握手确认就绪（实际端口 8862，4ms）
+元数据 (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（slot=8862）

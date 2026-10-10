@@ -1,0 +1,3 @@
+[fixture] lib entry = index.ts
+remote-wsl: 后台预热 dsh@0.2.0-rc.2 ok
+remote-wsl: 后台预热 dsh@0.2.0-rc.2 ok

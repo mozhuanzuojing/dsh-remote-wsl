@@ -1,0 +1,27 @@
+################ 情况 1：Windows 先占 8735，再起 WSL daemon ################
+  Windows 侧监听结果: WINDOWS_BOUND
+
+  windows_tcp_connect=connected:True   （先证明 Windows 侧监听确实在接客）
+  WSL daemon stdout = {"ok":true,"event":"listening","host":"127.0.0.1","port":8735,"pid":138085,"version":"0.2.0-rc.2","cwd":"/home/g","profile":"sdk","idleMs":600000,"home":"/home/g"}
+
+  WSL daemon stderr = [daemon 2026-10-10T07:37:22.177Z] listening on 127.0.0.1:8735 pid=138085 dsh@0.2.0-rc.2 cwd=/home/g idleMs=600000
+  daemon 进程 HasExited=False
+  WSL 侧监听: 1
+  Windows 客户端 --status = {"id":1,"ok":false,"error":"transport: timeout after 6000ms (op=status)"}
+  windows_tcp_connect=connected:True
+  --- 结论观察：daemon 是否静默成功 / Windows 客户端是否连得上 ---
+
+################ 情况 2：WSL daemon 先占 8736，Windows 再占同一端口 ################
+  daemon stderr = [daemon 2026-10-10T07:37:41.709Z] listening on 127.0.0.1:8736 pid=138200 dsh@0.2.0-rc.2 cwd=/home/g idleMs=600000
+  daemon 就绪（客户端视角）= {"id":1,"ok":true,"daemonPid":138200,"daemonStartedAt":1791617861702,"uptimeMs":3813,"port":8736,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":600000,"keys":[]}
+  Windows 侧在 WSL 已监听 8736 时的绑定结果: WINDOWS_BIND_FAILED: 调用“Start”并传入“0”个参数时发生异常：“通常每个套接字地址(协议/网络地址/端口)只允许使用一次。”
+
+  Windows 客户端 --status = {"id":1,"ok":true,"daemonPid":138200,"daemonStartedAt":1791617861702,"uptimeMs":4526,"port":8736,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":600000,"keys":[]}
+  windows_tcp_connect=connected:True
+
+################ 收尾 ################
+  profile_sdk_procs=0
+  daemon_procs=0
+  listen_8735=0
+  listen_8736=0
+  tmp_dsh=0

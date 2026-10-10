@@ -1,0 +1,11 @@
+# dsh bundle layer: mount the dsh-remote-wsl plugin via the package root export.
+# 与 dsh-shadow 同款：profile 里用 `link:` 依赖引用本包，行名用裸包名即可解析；
+# 本包**不声明任何 dsh-* peerDependencies**（跟随宿主树解析），避免宿主升级时被
+# dsh-app-boot 的 peer 版本求值判为不匹配而静默 disabled。
+- insert:
+    - id: remote-wsl
+      name: 'dsh-remote-wsl'
+      config:
+        distro: debian-u8-1
+        # 空字符串 = 跟随桌面版本（读 primary-runtime/runtime.json 的 desktopVersion）
+        dshVersion: ''

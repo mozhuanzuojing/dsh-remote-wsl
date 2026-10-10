@@ -1,0 +1,4 @@
+[probe4 pid=10532] mode=dprompt port=8841 backend=daemon
+# requested_cwd=/tmp daemonReportedCwd=/tmp session=remote-wsl-p1-e28e3386-fd51-4048-9595-f9d042754323 turns=2 runtimePid=442810 ok=true
+# /proc/442810/cwd=/tmp
+# answer="ACK"

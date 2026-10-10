@@ -1,0 +1,12 @@
+# 本地回滚点（不在 package.json 的 files 里，不随包发布）
+_backup/
+
+# 运行期/工具产物
+node_modules/
+.shadow/
+*.tmp
+*.bak
+*.bak-*
+*.orig
+.DS_Store
+Thumbs.db

@@ -1,0 +1,24 @@
+################ 守护启动 → prompt 一轮 → kill -s TERM ################
+  daemonPid=138389 port=8737
+  prompt → {"id":1,"ok":true,"answer":"ACK","sessionId":"remote-wsl-k1-0ef33617-f343-4c85-914d-7dc245bce734","turns":1,"runtimePid":138407,"completedBy":"turn/end","eventCount":19}
+  runtimePid=138407
+  杀掉前: runtime_pids=[138407,138433,] daemon_pids=[138389,]
+  kill -s TERM 138389 → kill_rc=0
+  杀掉后: runtime_pids=[] daemon_pids=[]
+  客户端 --status: exit=2 raw={"id":1,"ok":false,"error":"transport: ECONNREFUSED connect ECONNREFUSED 127.0.0.1:8737"}
+  [PASS] SIGTERM：运行时被 reapAll 一起收掉（无孤儿）
+  --- 清理本次残留 ---
+  清理后: runtime_pids=[] daemon_pids=[]
+
+################ 守护启动 → prompt 一轮 → kill -s KILL ################
+  daemonPid=138597 port=8738
+  prompt → {"id":1,"ok":true,"answer":"ACK","sessionId":"remote-wsl-k1-31d39595-10a4-4be5-8b71-e7be8a96eca5","turns":1,"runtimePid":138615,"completedBy":"turn/end","eventCount":19}
+  runtimePid=138615
+  杀掉前: runtime_pids=[138615,138641,] daemon_pids=[138597,]
+  kill -s KILL 138597 → kill_rc=0
+  杀掉后: runtime_pids=[] daemon_pids=[]
+  客户端 --status: exit=2 raw={"id":1,"ok":false,"error":"transport: ECONNREFUSED connect ECONNREFUSED 127.0.0.1:8738"}
+  [PASS] SIGKILL：无孤儿
+  --- 清理本次残留 ---
+  清理后: runtime_pids=[] daemon_pids=[]
+

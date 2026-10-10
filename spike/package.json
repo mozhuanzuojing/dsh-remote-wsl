@@ -1,0 +1,16 @@
+{
+  "name": "dsh-remote-wsl-spike",
+  "version": "0.0.0",
+  "private": true,
+  "description": "dsh-remote-wsl 「WSL 侧常驻守护 + Windows 薄客户端」spike：.ts 源码零构建直跑（Node 原生 type stripping）",
+  "type": "module",
+  "engines": {
+    "node": ">=26.10"
+  },
+  "//": [
+    "type=module 是硬要求：spike/*.ts 与 spike/verify/*.ts 都用了顶层 await（repro-conflict.ts / one-runtime.ts），",
+    "Node 靠最近的 package.json 判定 .ts 的模块类型；没有这个文件会按 CJS 解析并报错。",
+    "engines.node>=26.10：Node 23.6 起原生 type stripping 默认开启，26.10 是本机实测基线。",
+    "没有 scripts / devDependencies —— 本 spike 刻意零构建：不引 tsc、不产 dist，node xxx.ts 直接跑。"
+  ]
+}

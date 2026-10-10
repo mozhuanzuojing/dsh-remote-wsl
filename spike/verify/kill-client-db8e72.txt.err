@@ -1,0 +1,2 @@
+[client] connected 127.0.0.1:8737 op=prompt key=k1
+[client] response received, exiting (daemon+runtime must outlive me)

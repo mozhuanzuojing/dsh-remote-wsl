@@ -1,0 +1,6 @@
+[probe2 pid=47632] mode=script port=8868 dshVersion=(desktop)
+--- stdout ---
+AFTER_OPENUI tmp_count=0 list=[]
+--- stderr ---
+
+--- exit=undefined ---

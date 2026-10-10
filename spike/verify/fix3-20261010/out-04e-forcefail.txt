@@ -1,0 +1,69 @@
+!! 故障注入：ADV_FORCE_FAIL=1 ⇒ 故意把期望值改坏（证明断言会红）
+[fixture] 副本比对 daemon-client.ts   lib=366498843ca1c7b6 src=366498843ca1c7b6 MATCH
+[fixture] 副本比对 daemon.ts          lib=1c5284e56a7affdb src=1c5284e56a7affdb MATCH
+[fixture] 副本比对 index.ts           lib=773d0aac8ec34f46 src=773d0aac8ec34f46 MATCH
+[fixture] 副本比对 sdk-runtime.ts     lib=74853c0539fe5fa1 src=74853c0539fe5fa1 MATCH
+[fixture] 副本比对 selftest.ts        lib=1aaa5d1b938543d8 src=1aaa5d1b938543d8 MATCH
+[fixture] 副本比对 shell-env.ts       lib=9a9f6e5592c197f5 src=9a9f6e5592c197f5 MATCH
+[fixture] 副本比对 version.ts         lib=ae5612fa22d80672 src=ae5612fa22d80672 MATCH
+PASS  P0 前置：rwsl-test\lib\*.ts 与 vendor src\*.ts 逐字节一致（跑的是当前交付物）
+[fixture] 私有 wslHome：并发=/tmp/rwsl-adv-22324 / 空闲回收=/tmp/rwsl-adv-22324-idle（各自独立守护槽位，跑完删除）
+[fixture] 自作用域端口（本成员独占段 8821–8840）：daemon=8821 idle-daemon=8822 web=8823
+[fixture] 基线：WSL 里已有 profile sdk 进程 14 个（442431,442810,442833,442885,442908,443670,443693,443794,443817,443870,443893,447887,448118,448141；属于他人/历史，不计入本夹具残留）
+A distro 错 -> exit 127 --- stdout --- --- stderr --- remote-wsl: 无法写入发行版 "no-such-distro" 的 /tmp（UNC \\wsl.localhost\no-such-distro 不可用）。用 `wsl -l -v` 确认发行版名、并确认它在运行。原始错误: UN
+PASS  A1 负路径：wsl_exec 对不存在的发行版返回 exit 127（不是静默成功）  [exit 127 --- stdout --- --- stderr --- remote-wsl: 无法写入发行版 "no-such-distro" 的 /tmp（UNC \\wsl.localhost\no-such-distro 不可用）。用 `wsl -l -v` 确认发行版名、并确认它在运行。原始错误: UN]
+A status(distro 错) -> distros: debian-u8-1 | target: no-such-distro wslHome=/home/g cwd=/home/g | wsl ip: (未探测)
+PASS  A2 wsl_status 如实显示被请求的错误发行版（target）而不是假装一切正常  [distros: debian-u8-1 target: no-such-distro wslHome=/home/g cwd=/home/g wsl ip: (未探测) shell env injection (useShellEnvironment): on（只注入常驻进程 wsl_agent / wsl_open]
+B 截断 -> exit=141 返回长度=120039（上限约 120k）
+PASS  B1 200k stdout + 50k stderr 被截断到 ≤130k（上限生效，不是原样透传）  [exit=141 len=120039]
+C 并发 ALPHA -> "ALPHA"
+C 并发 BETA -> "BETA"
+C 用时=3.7s
+PASS  C1 并发两个 key 都成功且互不串味  [ALPHA [remote-wsl: backend=daemon sessio / BETA [remote-wsl: backend=daemon session]
+PASS  C2 两个 key 落在两个独立 sessionId（同一守护内分池）  [remote-wsl-conc-a-5339dff9-4428-45ab-aa37-f4bcd8a263a7 vs remote-wsl-conc-b-9b14bdd6-07c4-465e-9af8-8d7e1e55ce81]
+PASS  C3 并发用例确实跑在 daemon 后端（不是悄悄退化成 in-host）  [daemon,daemon]
+D1 第一轮 -> "ONE" meta=backend:daemon session:09f7d6ab turns:1 runtimePid:455942 daemon:455688@8822
+PASS  D1a daemon 后端第一轮：拿到 sessionId 且 turns=1  [{"backend":"daemon","session":"remote-wsl-idle-test-02cf0ef7-1804-4a2c-a293-9e9b09f7d6ab","completedBy":"turn/end","turns":1,"runtimePid":455942,"daemonPid":455]
+PASS  D1b 本次调用用的是**我自己**的守护（cmdline 指向本用例私有 state-dir，而不是复用别人的）  [daemonPid=455688 客户端端口=8822 期望槽位=8822 cmd=/home/g/.local/share/mise/installs/node/26.10.0/bin/node /mnt/c/Users/l/AppData/Local/Temp/rwsl-test/lib/daemon.ts --p]
+D1 status(空闲前) -> daemon: pid=455688 actualPort=8822 slot=8822 version=0.2.0-rc.2 cwd=/home/g profile=sdk machine: slot=8822 pid=455688 port=8822 version=0.2.0-rc.2 keys=1 orphans=0 uptime=3s idleMs=15000 lingerMs=600000 queueLimit=4 keys (1): idle-test sess
+PASS  D1c `wsl_daemon status` 读到的是**我的**守护（pid 一致）且记着我这个 key  [daemon: pid=455688 actualPort=8822 slot=8822 version=0.2.0-rc.2 cwd=/home/g profile=sdk machine: slot=8822 pid=455688 port=8822 version=0.2.0-rc.2 keys=1 orphan]
+PASS  D1d 空闲前 keys=1（我的守护里只有我这一个 key）  [daemon: pid=455688 actualPort=8822 slot=8822 version=0.2.0-rc.2 cwd=/home/g profile=sdk machine: slot=8822 pid=455688 port=8822 version=0.2.0-rc.2 keys=1 orphan]
+D1 等待 20s（> daemonIdleMs 15000）…
+PASS  D1e 空闲到期后**我的运行时**已被回收（精确到我自己的 runtimePid）  [runtimePid=455942]
+PASS  D1f 守护本身仍活着（回收的是运行时，不是守护）  [daemonPid=455688]
+D1 status(空闲后) -> daemon: pid=455688 actualPort=8822 slot=8822 version=0.2.0-rc.2 cwd=/home/g profile=sdk machine: slot=8822 pid=455688 port=8822 version=0.2.0-rc.2 keys=0 orphans=0 uptime=23s idleMs=15000 lingerMs=600000 queueLimit=4 keys (0): (none) ready 
+PASS  D1g 空闲到期后 keys 清空  [daemon: pid=455688 actualPort=8822 slot=8822 version=0.2.0-rc.2 cwd=/home/g profile=sdk machine: slot=8822 pid=455688 port=8822 version=0.2.0-rc.2 keys=0 orphan]
+D1 第二轮 -> meta=session:23279bd8 turns:1 runtimePid:456680 contextReset:true
+FAIL  D1h 同 key 拿到**新** sessionId（空闲到期 = 上下文已丢）  [remote-wsl-idle-test-02cf0ef7-1804-4a2c-a293-9e9b09f7d6ab -> remote-wsl-idle-test-291f3e49-6281-411b-88dd-6eb823279bd8]
+FAIL  D1i 新会话 turns=999999（旧会话轮次没有串过来）  [turns=1]
+PASS  D1j 上下文重置必须**明确告知**（不许静默换会话）  [⚠️ 远端会话已重置（守护或运行时重启过）：本次回答**不含**之前轮次的上下文，之前让它记住的内容已丢失（新 sessionId=remote-wsl-idle-test-291f3e49-6281-411b-88dd-6eb823279bd8）。 TWO [remote-wsl: backend=daemon se]
+D1 自作用域计数：全局新增=[455062,455326,455352,455371,455398,455688,456680,456703] 其中我的=[455062,455326,455352,455371,455398,455688,456680,456703] 他人的=[none]（他人新增按 task-7 不计入判据）
+PASS  D1k 自作用域计数非空：本实例的守护/运行时确实出现在进程表里（说明不是空跑）  [mine=[455062,455326,455352,455371,455398,455688,456680,456703]]
+D2 第一轮 -> "ONE" meta=backend:in-host session:6f64bb0e turns:1
+PASS  D2a in-host 后端第一轮：拿到 sessionId 且 turns=1  [{"backend":"in-host","session":"remote-wsl-idle-inhost-f03c7d86-dc40-4947-913b-49b46f64bb0e","completedBy":"turn/end","turns":1,"runtimePid":null,"daemonPid":nu]
+PASS  D2b in-host 形态下确实由本宿主持有常驻运行时（否则这条路径没被真正走到）  [idle-inhost(turn 1)]
+D2 等待 20s（> idleTimeoutMs 15000）…
+PASS  D2c 空闲到期后常驻运行时已回收  [(none)]
+D2 第二轮 -> meta=session:428b7ed8 turns:1
+FAIL  D2d in-host 同 key 拿到新 sessionId  [remote-wsl-idle-inhost-f03c7d86-dc40-4947-913b-49b46f64bb0e -> remote-wsl-idle-inhost-4386936d-e84e-4e33-8df1-6c30428b7ed8]
+FAIL  D2e in-host 新会话 turns=999999  [turns=1]
+E 占端口 -> LISTEN 0 5 127.0.0.1:8823 0.0.0.0:* users:(("python3",pid=457269,fd=3)) 
+PASS  E1 已用**本实例自己的** python pid 占住 web 端口 8823  [$!=457269 listener=457269]
+E 结果 -> 抛出: remote-wsl: web 进程退出（exit 1） remote-wsl: 已注入登录 shell 环境 remote-wsl: 主机代理 172.30.176.1:9910 不可用 ⇒ 本次直连 dsh: startup failed: 2 requi（用时 4.4s）
+PASS  E2 端口被占时 wsl_open_ui 明确报错（不是静默成功）  [remote-wsl: web 进程退出（exit 1） remote-wsl: 已注入登录 shell 环境 remote-wsl: 主机代理 172.30.176.1:9910 不可用 ⇒ 本次直连 dsh: startup failed: 2 required plugins did not activate F]
+PASS  E3 报错可读且指向 web 进程（不是超时假死）  [remote-wsl: web 进程退出（exit 1） remote-wsl: 已注入登录 shell 环境 remote-wsl: 主机代理 172.30.176.1:9910 不可用 ⇒ 本次直连 dsh: startup failed: 2 required plugins did not activate F]
+PASS  E4 快速失败（远小于 timeoutMs=180000）  [4.4s]
+E 清理 -> 端口 8823 监听数=0（只 kill 自己的 pid $! = 457269 / listener = 457269）
+PASS  E5 收尾：只回收自己起的占用进程，端口已释放  [listeners=0]
+[收尾] 本实例作用域内进程 6 个：[455062,455326,455352,455371,455398,455688]（守护 + 运行时子树）
+PASS  Z1 收尾：本实例作用域归零（只按自己的 pid 回收，无全局 pkill）  [[]]
+PASS  Z2 收尾：本实例调用过的运行时 pid 全部已回收（无孤儿）  [[]]
+PASS  Z3 收尾：本夹具私有 wslHome 目录已清理（只覆盖 /tmp/rwsl-adv-*，即夹具自建的目录）  [[]]
+[收尾] 第①步：/tmp/dsh-rwsl-22324-*（本运行自己的，含 1 个探针）= 6 个 [/tmp/dsh-rwsl-22324-assertprobe-mv28bq2m.pid,/tmp/dsh-rwsl-22324-assertprobe-mv28bq2m.sh,/tmp/dsh-rwsl-22324-mv28bdua-60d9e18d.pid,/tmp/dsh-rwsl-22324-mv28bdua-60d9e18d.sh,/tmp/dsh-rwsl-22324-mv28bh0s-8d26768d.pid,/tmp/dsh-rwsl-22324-mv28bh0s-8d26768d.sh]；全局 /tmp/dsh-rwsl-* = 6 个（含他人，不参与断言）
+[收尾] 第②步：普通有副作用调用（wsl_exec）之后 = 6 个（产品只清属主已死的 ⇒ 本进程还活着，预期不变）
+[收尾] 第③步：自作用域 sweep 之后 = 0 个 [none]
+PASS  Z4 收尾：本运行自己的 /tmp/dsh-rwsl-22324-* 归零（自作用域真判据；覆盖 D2 in-host 与 E WebHost 的自建文件 + 探针）  [第①步=6 第②步(wsl_exec后)=6 第③步(sweep后)=0]
+PASS  Z5 收尾：本运行自己的 /tmp/dsh-rwsl-22324-* 最终为 0（兜底清理后复核）  [[]]
+[收尾] 基线里他人进程仍活 14/14；全局 profile sdk 现存 16，其中他人新增 2（task-7：不计入我的判据，也不断言）
+
+===== 断言汇总：PASS 28 / FAIL 4 =====

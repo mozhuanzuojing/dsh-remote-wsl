@@ -1,0 +1,4 @@
+# 本仓要求「提交的字节 == 工作区的字节」：不要把 CRLF/LF 做任何归一化。
+# 原因：README/GAP-AUDIT 里记录了 src/*.ts 的 7 个 SHA256（冻结 revision），
+# 一旦发生 EOL 转换，clone 出来的文件哈希就对不上冻结值。
+* -text

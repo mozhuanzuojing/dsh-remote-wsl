@@ -1,0 +1,1 @@
+export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"; cd /mnt/d/project/dsh1/vendor/dsh-remote-wsl/spike/verify; exec mise exec -- node one-runtime.ts --session-id verify-alive-5544e4ea2d73 --text 'Reply only ACK.' --hold-ms 180000

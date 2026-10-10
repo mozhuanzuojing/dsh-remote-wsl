@@ -1,0 +1,11 @@
+[probe4 pid=26736] mode=races port=8842 backend=daemon
+#   [round 1] log: daemon shutdown on slot 8842 (port 8842): ok=true 
+# round 1: ensure.ok=true port=8842 pid=444657 | stop.transport=shutdown ok=true ms=8
+#   [round 2] log: daemon shutdown on slot 8842 (port 8842): ok=true 
+# round 2: ensure.ok=true port=8842 pid=445090 | stop.transport=shutdown ok=true ms=8
+#   [round 3] log: daemon shutdown on slot 8842 (port 8842): ok=true 
+# round 3: ensure.ok=true port=8842 pid=445743 | stop.transport=shutdown ok=true ms=7
+#   [round 4] log: daemon shutdown on slot 8842 (port 8842): ok=true 
+# round 4: ensure.ok=true port=8842 pid=446387 | stop.transport=shutdown ok=true ms=8
+#   [round 5] log: daemon shutdown on slot 8842 (port 8842): ok=true 
+# round 5: ensure.ok=true port=8842 pid=447060 | stop.transport=shutdown ok=true ms=7

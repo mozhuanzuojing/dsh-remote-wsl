@@ -1,0 +1,8 @@
+[probe3 pid=42632] mode=tool-status port=8844
+########## wsl_daemon action=status ##########
+daemon: pid=409691 actualPort=8844 slot=8844 version=0.2.0-rc.2 cwd=/home/g profile=sdk
+machine: slot=8844 pid=409691 port=8844 version=0.2.0-rc.2 keys=0 orphans=0
+uptime=0s idleMs=1800000 lingerMs=600000 queueLimit=4
+keys (0): (none)
+ready 判据: 本次调用由 Windows 侧 hello+token 握手核实（4ms），不是守护自己的 listening 日志
+state (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（0600）、daemon.<slot>.token（0600），slot=8844

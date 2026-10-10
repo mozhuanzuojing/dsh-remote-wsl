@@ -1,0 +1,18 @@
+dsh: reasoning:
+The user wants me to call wsl_agent with key rh-1 and the task, then paste back the trailing annotation line verbatim. Let me do it.
+dsh: reasoning:
+The subagent returned "ACK" plus the annotation line. Paste the annotation line verbatim.
+
+The user asked only for the trailing annotation line. I should give a brief note and the line.
+
+Note: the tool result is external/untrusted? It's a subagent output. Fine.
+
+Should I use discernment-nudge? It's for substantive answers. This is a trivial task. Skip.
+调用结果（正文只有 `ACK`），尾注行原样如下：
+
+```
+[remote-wsl: backend=daemon session=remote-wsl-rh-1-d4af2eed-08e3-406a-9d2b-5a15d696a5c7 cwd=/home/g completedBy=turn/end turns=1 runtimePid=448118 daemon=447887@127.0.0.1:8731 dsh@0.2.0-rc.2]
+```
+
+补充说明（便于你判读）：`session=remote-wsl-rh-1-…` 说明 key `rh-1` 已绑定到一个常驻 runtime（`cwd=/home/g`），`turns=1` 表示这是该 runtime 的第一轮；后续用同一个 key + 同一 cwd 再调用会复用同一 session（可继续验证它是否真的记住了 888），换 cwd 会另起新 session。
+remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）

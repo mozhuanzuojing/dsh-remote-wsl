@@ -1,0 +1,5 @@
+[fixture] lib entry = index.ts
+remote-wsl: 后台预热 dsh@0.2.0-rc.2 ok
+remote-wsl: slot 8821 not ready from Windows side: unauthorized（5ms）
+remote-wsl: slot 8821 not ready from Windows side: refused（0ms）
+remote-wsl: 后台预热 dsh@0.2.0-rc.2 ok

@@ -1,0 +1,78 @@
+################ STEP 0: 前置清点 ################
+  port_listen=0  profile_sdk_pids=  profile_sdk_procs=0  tmp_dsh=0
+  [PASS] 起始 profile_sdk_procs=0
+  [PASS] 起始 8731 无监听
+
+################ STEP 1: 起守护（我自己的启动脚本）################
+  daemon stdout: {"ok":true,"event":"listening","host":"127.0.0.1","port":8731,"pid":136389,"version":"0.2.0-rc.2","cwd":"/home/g","profile":"sdk","idleMs":1800000,"home":"/home/g"}
+
+  [PASS] 守护就绪（tries=1）
+  daemonPid=136389 version=0.2.0-rc.2 port=8731 idleMs=1800000 keys=0
+  port_listen=1  profile_sdk_pids=  profile_sdk_procs=0  tmp_dsh=0
+  [PASS] 守护刚起、未 prompt 时还没有运行时进程（起点干净）
+
+################ STEP 2: client A（独立进程）第 1 轮 ################
+  cmd = "D:\project\dsh1\vendor\dsh-remote-wsl\spike\client.mjs" --host 127.0.0.1 --port 8731 --key k1 --text "记住数字 7，只回 ACK"
+  clientA windows_pid=32816 exit=0 HasExited=True elapsed_ms=2185
+  clientA stdout(raw) = {"id":1,"ok":true,"answer":"ACK","sessionId":"remote-wsl-k1-e3c6e087-5b9c-46b4-8a57-78065c1bbaca","turns":1,"runtimePid":136427,"completedBy":"turn/end","eventCount":19}
+  clientA stderr = [client] connected 127.0.0.1:8731 op=prompt key=k1
+[client] response received, exiting (daemon+runtime must outlive me)
+  [PASS] A round1 ok:true
+  [PASS] A round1 answer 含 ACK（实际 'ACK'）
+  sessionId=remote-wsl-k1-e3c6e087-5b9c-46b4-8a57-78065c1bbaca runtimePid=136427 turns=1 completedBy=turn/end events=19
+  [PASS] client A 进程已退出（HasExited=true）
+
+################ STEP 3: A 退出后观察（负向对照：探针必须能看到活的运行时）################
+  port_listen=1  profile_sdk_pids=136427,136450,  profile_sdk_procs=2  tmp_dsh=0
+  [PASS] A 退出后守护持有的运行时仍在（procs=2）
+  status#1 raw = {"id":1,"ok":true,"daemonPid":136389,"daemonStartedAt":1791617621579,"uptimeMs":2997,"port":8731,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":1800000,"keys":[{"key":"k1","sessionId":"remote-wsl-k1-e3c6e087-5b9c-46b4-8a57-78065c1bbaca","turns":1,"runtimePid":136427,"startedAt":1791617623142,"idleForMs":158}]}
+  [PASS] status#1 里 key=k1 仍在（客户端退出没带走运行时）
+  [PASS] status#1 sessionId 与 A 一致
+  [PASS] status#1 runtimePid 与 A 一致
+
+################ STEP 4: client B（**另一个**独立进程）追问 ################
+  clientB windows_pid=45908 exit=0 HasExited=True elapsed_ms=851
+  clientB stdout(raw) = {"id":1,"ok":true,"answer":"7","sessionId":"remote-wsl-k1-e3c6e087-5b9c-46b4-8a57-78065c1bbaca","turns":2,"runtimePid":136427,"completedBy":"turn/end","eventCount":9}
+  [PASS] client B 与 client A 是不同进程（PID 32816 vs 45908）
+  [PASS] B round2 ok:true
+  [PASS] B round2 answer 恰为 7（跨进程上下文保留）；实际 '7'
+  [PASS] B sessionId 与 A 一致
+  [PASS] B runtimePid 与 A 一致（没有偷偷重启运行时）
+  [PASS] B turns=2
+
+################ STEP 5: 跨 client 期间进程集合必须不变 ################
+  port_listen=1  profile_sdk_pids=136427,136450,  profile_sdk_procs=2  tmp_dsh=0
+  before(A 后) pids = [136427,136450,]
+  after (B 后) pids = [136427,136450,]
+  [PASS] 运行时进程 PID 集合未变（无新运行时、无重启）
+  status#2 raw = {"id":1,"ok":true,"daemonPid":136389,"daemonStartedAt":1791617621579,"uptimeMs":4002,"port":8731,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":1800000,"keys":[{"key":"k1","sessionId":"remote-wsl-k1-e3c6e087-5b9c-46b4-8a57-78065c1bbaca","turns":2,"runtimePid":136427,"startedAt":1791617623142,"idleForMs":147}]}
+  [PASS] status#2 sessionId 未变
+  [PASS] status#2 runtimePid 未变
+  [PASS] status#2 daemonPid 未变（136389）
+
+################ STEP 6: 守护日志证据（client disconnected 但运行时保留）################
+  [daemon 2026-10-10T07:33:42.096Z] client disconnected (runtimes kept alive)
+  [daemon 2026-10-10T07:33:42.287Z] recv op=prompt id=1 key=k1
+  [daemon 2026-10-10T07:33:42.293Z] host proxy 172.30.176.1:9910 unreachable -> direct
+  [daemon 2026-10-10T07:33:42.293Z] spawning runtime key=k1 dsh@0.2.0-rc.2 cwd=/home/g
+  [daemon 2026-10-10T07:33:43.142Z] runtime ready key=k1 pid=136427 session=remote-wsl-k1-e3c6e087-5b9c-46b4-8a57-78065c1bbaca
+  [daemon 2026-10-10T07:33:44.424Z] client disconnected (runtimes kept alive)
+  [daemon 2026-10-10T07:33:44.576Z] recv op=status id=1 key=-
+  [daemon 2026-10-10T07:33:44.581Z] client disconnected (runtimes kept alive)
+  [daemon 2026-10-10T07:33:44.635Z] recv op=prompt id=1 key=k1
+  [daemon 2026-10-10T07:33:45.440Z] client disconnected (runtimes kept alive)
+  [daemon 2026-10-10T07:33:45.581Z] recv op=status id=1 key=-
+  [daemon 2026-10-10T07:33:45.586Z] client disconnected (runtimes kept alive)
+
+################ STEP 7: --shutdown + 收尾核对 ################
+  shutdown raw = {"id":1,"ok":true,"reaped":[{"key":"k1","sessionId":"remote-wsl-k1-e3c6e087-5b9c-46b4-8a57-78065c1bbaca","turns":2,"runtimePid":136427,"startedAt":1791617623142,"idleForMs":216}]}
+  port_listen=0  profile_sdk_pids=  profile_sdk_procs=0  tmp_dsh=0
+  post-shutdown --status exit=2 raw={"id":1,"ok":false,"error":"transport: ECONNREFUSED connect ECONNREFUSED 127.0.0.1:8731"}
+  [PASS] 守护已退出：--status 传输层失败 exit=2
+  [PASS] 收尾 profile_sdk_procs=0
+  [PASS] 收尾 /tmp/dsh-rwsl-* = 0
+  [PASS] 收尾 8731 无监听
+
+################ VERDICT ################
+  files: A_pid=32816 B_pid=45908 sessionId=remote-wsl-k1-e3c6e087-5b9c-46b4-8a57-78065c1bbaca runtimePid=136427 daemonPid=136389
+  VERIFY-RECONNECT: ALL CHECKS PASSED

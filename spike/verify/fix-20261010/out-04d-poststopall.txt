@@ -1,0 +1,8 @@
+[probe2 pid=14288] mode=script port=8865 dshVersion=(desktop)
+--- stdout ---
+procs=
+listen_88xx=[]
+meta=[daemon.log ]
+--- stderr ---
+
+--- exit=undefined ---

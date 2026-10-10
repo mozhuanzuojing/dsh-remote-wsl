@@ -1,0 +1,4 @@
+[probe2 pid=21432] mode=agent port=8861 dshVersion=(desktop)
+TS8-OK
+
+[remote-wsl: backend=daemon session=remote-wsl-ts8-key-562bef9c-5b0f-4838-9b34-117eb0fad517 completedBy=turn/end turns=1 runtimePid=367243 daemon=367001@127.0.0.1:8861 dsh@0.2.0-rc.2]

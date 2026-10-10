@@ -1,0 +1,3 @@
+remote-wsl: daemon shutdown on slot 8875 (port 8875): ok=true 
+remote-wsl: daemon shutdown on slot 8731 (port 8731): ok=true 
+remote-wsl: daemon shutdown on slot 8868 (port 8868): ok=true 

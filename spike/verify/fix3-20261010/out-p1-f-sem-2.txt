@@ -1,0 +1,5 @@
+[probe4 pid=2584] mode=agent port=8841 backend=daemon
+########## wsl_agent ##########
+这次会话里没有更早的对话记录，也没有你让我记的数字。我不能编一个给你——把数字发我，我记下。
+
+[remote-wsl: backend=daemon session=remote-wsl-semk-b1f59ca2-2ce1-4861-80d5-c3391cd8120c cwd=/tmp completedBy=turn/end turns=1 runtimePid=443870 daemon=442431@127.0.0.1:8841 dsh@0.2.0-rc.2]

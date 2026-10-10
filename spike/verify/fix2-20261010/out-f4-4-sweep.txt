@@ -1,0 +1,7 @@
+[probe3 pid=27096] mode=tool-exec port=8844
+exit 0
+--- stdout ---
+sweep-f4
+--- stderr ---
+remote-wsl: 主机代理 172.30.176.1:9910 不可用 ⇒ 本次直连
+

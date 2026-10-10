@@ -1,0 +1,1 @@
+{"id":1,"ok":true,"answer":"BBB","sessionId":"remote-wsl-k1-f786600b-04e4-46c0-a1f0-a2d245d56a2b","turns":2,"runtimePid":137862,"completedBy":"turn/end","eventCount":9}

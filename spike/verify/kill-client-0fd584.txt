@@ -1,0 +1,1 @@
+{"id":1,"ok":true,"answer":"ACK","sessionId":"remote-wsl-k1-31d39595-10a4-4be5-8b71-e7be8a96eca5","turns":1,"runtimePid":138615,"completedBy":"turn/end","eventCount":19}

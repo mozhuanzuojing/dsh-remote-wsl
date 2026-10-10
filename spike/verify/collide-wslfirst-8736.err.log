@@ -1,0 +1,8 @@
+[daemon 2026-10-10T07:37:41.709Z] listening on 127.0.0.1:8736 pid=138200 dsh@0.2.0-rc.2 cwd=/home/g idleMs=600000
+[daemon 2026-10-10T07:37:45.514Z] recv op=status id=1 key=-
+[daemon 2026-10-10T07:37:45.520Z] client disconnected (runtimes kept alive)
+[daemon 2026-10-10T07:37:46.228Z] recv op=status id=1 key=-
+[daemon 2026-10-10T07:37:46.232Z] client disconnected (runtimes kept alive)
+[daemon 2026-10-10T07:37:46.241Z] client disconnected (runtimes kept alive)
+[daemon 2026-10-10T07:37:46.286Z] recv op=status id=1 key=-
+[daemon 2026-10-10T07:37:46.291Z] client disconnected (runtimes kept alive)

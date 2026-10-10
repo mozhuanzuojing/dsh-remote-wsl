@@ -1,0 +1,10 @@
+[probe2 pid=14128] mode=script port=8861 dshVersion=(desktop)
+--- stdout ---
+--- /proc 扫描（只认带本插件 state-dir 的 daemon）---
+--- 监听 ---
+
+--- 元数据 ---
+--- launcher 文件 ---
+--- stderr ---
+
+--- exit=undefined ---

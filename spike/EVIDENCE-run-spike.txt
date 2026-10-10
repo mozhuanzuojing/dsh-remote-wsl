@@ -1,0 +1,107 @@
+# EVIDENCE — run-spike.ps1 完整跑通（-WithStale -WithIdle）
+# 生成时间: 2026-10-10T15:30:27.1668438+08:00  机器: LAPTOP-E4C1RDSB
+# 命令: pwsh -NoProfile -File D:\project\dsh1\vendor\dsh-remote-wsl\spike\run-spike.ps1 -WithStale -WithIdle
+# 本文件是从完整 stdout 日志抽出的证据行（PASS/FAIL + 每步原始 JSON + 反证 -32603 原文）；完整日志: %TEMP%\dsh-rwsl-spike-run.log
+# 注意 STEP 8/10/13 的 0 不是假 0：STEP 8 是负向对照（运行时活着时探针实测 profile_sdk_procs=4 / port_listeners=1）
+
+STEP 1: 前置清点（应为 0，证明结论不是被既有残留进程污染的）
+  dsh_rwsl_tmp=0  port_listeners=0  profile_sdk_procs=0
+  [PASS] 起始没有 --profile sdk 残留进程
+  [PASS] 起始 8731 端口空闲
+STEP 2: 起守护进程（WSL 内 node daemon.mjs，监听 127.0.0.1:8731）
+  [PASS] 守护进程就绪（--status ok:true，尝试 1 次）
+    [daemon 2026-10-10T07:29:33.635Z] listening on 127.0.0.1:8731 pid=135303 dsh@0.2.0-rc.2 cwd=/home/g idleMs=1800000
+    [daemon 2026-10-10T07:29:34.170Z] client disconnected (runtimes kept alive)
+STEP 3: client 第 1 轮（新进程）：记住数字 7，只回 ACK
+  round1 raw response (exit=0):
+    {"id":1,"ok":true,"answer":"ACK","sessionId":"remote-wsl-k1-2a8bff86-9a21-48ed-992f-bbdc4bde6154","turns":1,"runtimePid":135324,"completedBy":"turn/end","eventCount":19}
+  [PASS] round1 ok:true
+  [PASS] round1 answer 含 ACK（实际: ACK）
+STEP 4: --status #1（客户端退出后第一次观察）
+  status #1 raw response (exit=0):
+    {"id":1,"ok":true,"daemonPid":135303,"daemonStartedAt":1791617373626,"uptimeMs":3098,"port":8731,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":1800000,"keys":[{"key":"k1","sessionId":"remote-wsl-k1-2a8bff86-9a21-48ed-992f-bbdc4bde6154","turns":1,"runtimePid":135324,"startedAt":1791617375406,"idleForMs":57}]}
+  [PASS] status #1 里 key=k1 仍在（运行时没被客户端退出带走）
+  [PASS] status #1 sessionId 与 round1 一致
+STEP 5: client 第 2 轮（**另一个独立进程**）：刚才让你记的数字？只回数字 —— 期望 7
+  round2 raw response (exit=0):
+    {"id":1,"ok":true,"answer":"7","sessionId":"remote-wsl-k1-2a8bff86-9a21-48ed-992f-bbdc4bde6154","turns":2,"runtimePid":135324,"completedBy":"turn/end","eventCount":9}
+  [PASS] round2 ok:true
+  [PASS] round2 answer 恰为 7（跨进程上下文保留 = 重连成立）；实际: '7'
+  [PASS] round2 sessionId 与 round1 一致
+  [PASS] round2 runtimePid 与 round1 一致
+  [PASS] round2 turns=2
+STEP 6: --status #2（对比 sessionId / runtimePid 是否未变）
+  status #2 raw response (exit=0):
+    {"id":1,"ok":true,"daemonPid":135303,"daemonStartedAt":1791617373626,"uptimeMs":3878,"port":8731,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":1800000,"keys":[{"key":"k1","sessionId":"remote-wsl-k1-2a8bff86-9a21-48ed-992f-bbdc4bde6154","turns":2,"runtimePid":135324,"startedAt":1791617375406,"idleForMs":53}]}
+  [PASS] status #2 sessionId 未变（remote-wsl-k1-2a8bff86-9a21-48ed-992f-bbdc4bde6154）
+  [PASS] status #2 runtimePid 未变（135324）
+  [PASS] status #2 daemonPid 未变（135303）
+  [PASS] status #2 turns=2
+STEP 7: 第二个 key（k2）验证各自独立运行时；再回头问 k1 验证互不干扰
+  key=k2 raw response (exit=0):
+    {"id":1,"ok":true,"answer":"SECOND","sessionId":"remote-wsl-k2-92b9a234-8521-43b1-ba8c-bc814bd18076","turns":1,"runtimePid":135371,"completedBy":"turn/end","eventCount":19}
+  [PASS] k2 ok 且 answer 含 SECOND（实际: SECOND）
+  [PASS] k2 的 sessionId 与 k1 不同
+  [PASS] k2 的 runtimePid 与 k1 不同（各持一个独立运行时）
+    {"id":1,"ok":true,"daemonPid":135303,"daemonStartedAt":1791617373626,"uptimeMs":6191,"port":8731,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":1800000,"keys":[{"key":"k1","sessionId":"remote-wsl-k1-2a8bff86-9a21-48ed-992f-bbdc4bde6154","turns":2,"runtimePid":135324,"startedAt":1791617375406,"idleForMs":2366},{"key":"k2","sessionId":"remote-wsl-k2-92b9a234-8521-43b1-ba8c-bc814bd18076","turns":1,"runtimePid":135371,"startedAt":1791617378416,"idleForMs":57}]}
+  [PASS] status #3 有 2 个 key
+  回到 k1 raw response (exit=0):
+    {"id":1,"ok":true,"answer":"7","sessionId":"remote-wsl-k1-2a8bff86-9a21-48ed-992f-bbdc4bde6154","turns":3,"runtimePid":135324,"completedBy":"turn/end","eventCount":9}
+  [PASS] k1 在 k2 活动之后仍记得 7；实际: '7'
+  [PASS] k1 仍是同一 sessionId/runtimePid
+STEP 8: 负向对照：收尾核对用的探针必须**能**查出活着的运行时与监听端口（否则后面的 0 是假 0）
+  dsh_rwsl_tmp=0  port_listeners=1  profile_sdk_procs=4
+  [PASS] 探针能查到活着的 --profile sdk 进程（2 个运行时 ⇒ 实测 4 个进程）
+  [PASS] 探针能查到守护在 8731 上监听（实测 1）
+  [PASS] 守护不使用 /tmp/dsh-rwsl-* 临时文件（守护直接 spawn bash -c，不落地脚本）
+STEP 9: --shutdown（唯一会回收运行时的入口）
+  shutdown raw response (exit=0):
+    {"id":1,"ok":true,"reaped":[{"key":"k1","sessionId":"remote-wsl-k1-2a8bff86-9a21-48ed-992f-bbdc4bde6154","turns":3,"runtimePid":135324,"startedAt":1791617375406,"idleForMs":142},{"key":"k2","sessionId":"remote-wsl-k2-92b9a234-8521-43b1-ba8c-bc814bd18076","turns":1,"runtimePid":135371,"startedAt":1791617378416,"idleForMs":940}]}
+  [PASS] shutdown ok 且回收 2 个运行时
+STEP 10: 收尾核对：无残留进程 / 无临时残留 / 端口已释放
+  dsh_rwsl_tmp=0  port_listeners=0  profile_sdk_procs=0
+  [PASS] 守护已退出：--status 传输层失败（exit=2）：{"id":1,"ok":false,"error":"transport: ECONNREFUSED connect ECONNREFUSED 127.0.0.1:8731"}
+  [PASS] pgrep 'profile sdk' = 0
+  [PASS] /tmp/dsh-rwsl-* = 0
+  [PASS] 端口 8731 无监听
+STEP 11: 反证实验：不走守护，两个独立进程各自起 dsh --profile sdk 复用同一 sessionId
+# mode=alive dsh@0.2.0-rc.2 shared sessionId=remote-wsl-conflict-659fc922-e9aa-40a3-a325-b572111048b7
+[B] FRAME {"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"session \"remote-wsl-conflict-659fc922-e9aa-40a3-a325-b572111048b7\" already exists"}}
+[B] ERROR JSON-RPC -32603: session "remote-wsl-conflict-659fc922-e9aa-40a3-a325-b572111048b7" already exists
+# VERDICT {"mode":"alive","sessionId":"remote-wsl-conflict-659fc922-e9aa-40a3-a325-b572111048b7","crossProcessConflictObserved":true,"error":"JSON-RPC -32603: session \"remote-wsl-conflict-659fc922-e9aa-40a3-a325-b572111048b7\" already exists"}
+  [PASS] 直连复现到 'already exists'
+  [PASS] 直连复现到 JSON-RPC 错误码 -32603
+STEP 12: 附：--mode stale 对照（A 已 shutdown 后再复用同一 id）
+# mode=stale dsh@0.2.0-rc.2 shared sessionId=remote-wsl-conflict-b0132b3c-f7da-4f45-ac0e-16c8ab542df6
+[B] FRAME {"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"session \"remote-wsl-conflict-b0132b3c-f7da-4f45-ac0e-16c8ab542df6\" already exists"}}
+[B] ERROR JSON-RPC -32603: session "remote-wsl-conflict-b0132b3c-f7da-4f45-ac0e-16c8ab542df6" already exists
+# VERDICT {"mode":"stale","sessionId":"remote-wsl-conflict-b0132b3c-f7da-4f45-ac0e-16c8ab542df6","crossProcessConflictObserved":true,"error":"JSON-RPC -32603: session \"remote-wsl-conflict-b0132b3c-f7da-4f45-ac0e-16c8ab542df6\" already exists"}
+STEP 13: 反证实验后的最终清点
+  dsh_rwsl_tmp=0  port_listeners=0  profile_sdk_procs=0
+  [PASS] pgrep 'profile sdk' = 0
+  [PASS] /tmp/dsh-rwsl-* = 0
+  [PASS] 端口 8731 无监听
+STEP 14: 空闲回收（--idle-ms 15000，端口 8732）：无人连接的运行时被守护回收；同 key 再来 ⇒ 新 sessionId（上下文丢失）
+  [PASS] idle 守护就绪（尝试 2 次）
+  idle 场景第 1 轮 raw response (exit=0):
+    {"id":1,"ok":true,"answer":"IDLE-OK","sessionId":"remote-wsl-k1-04caab3d-7fd6-4bd1-9589-53038200f9c0","turns":1,"runtimePid":135704,"completedBy":"turn/end","eventCount":19}
+  [PASS] idle 场景第 1 轮 ok:true
+    {"id":1,"ok":true,"daemonPid":135683,"daemonStartedAt":1791617390069,"uptimeMs":3480,"port":8732,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":15000,"keys":[{"key":"k1","sessionId":"remote-wsl-k1-04caab3d-7fd6-4bd1-9589-53038200f9c0","turns":1,"runtimePid":135704,"startedAt":1791617392270,"idleForMs":53}]}
+  [PASS] 回收前 keys=1（sessionId=remote-wsl-k1-04caab3d-7fd6-4bd1-9589-53038200f9c0 runtimePid=135704）
+    {"id":1,"ok":true,"daemonPid":135683,"daemonStartedAt":1791617390069,"uptimeMs":24543,"port":8732,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":15000,"keys":[]}
+  [PASS] 空闲超时后 keys=0（运行时被守护回收）
+  [PASS] 被回收的运行时进程 135704 已不存在
+    {"id":1,"ok":true,"answer":"AGAIN","sessionId":"remote-wsl-k1-fb7f38a8-63e3-4ad9-a9ba-d3b33749aed7","turns":1,"runtimePid":135796,"completedBy":"turn/end","eventCount":19}
+  [PASS] 回收后同 key 拿到新 sessionId 且 turns=1（上下文丢失 = 空闲回收的代价，已知缺陷）
+    [daemon 2026-10-10T07:30:17.000Z] client disconnected (runtimes kept alive)
+    [daemon 2026-10-10T07:30:17.050Z] shutdown requested -> reaping all runtimes
+    [daemon 2026-10-10T07:30:17.082Z] client disconnected (runtimes kept alive)
+  dsh_rwsl_tmp=0  port_listeners=0  profile_sdk_procs=0
+  [PASS] idle 步骤后 pgrep 'profile sdk' = 0
+  [PASS] idle 步骤后无端口监听
+  最终清点: dsh_rwsl_tmp=0  port_listeners=0  profile_sdk_procs=0
+    [daemon 2026-10-10T07:29:39.821Z] client disconnected (runtimes kept alive)
+    [daemon 2026-10-10T07:29:40.562Z] client disconnected (runtimes kept alive)
+    [daemon 2026-10-10T07:29:40.700Z] shutdown requested -> reaping all runtimes
+    [daemon 2026-10-10T07:29:40.780Z] client disconnected (runtimes kept alive)
+SPIKE RESULT: ALL CHECKS PASSED

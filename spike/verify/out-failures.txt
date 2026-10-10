@@ -1,0 +1,69 @@
+################ ① 守护未起时 client 的输出 ################
+  cmd = node client.mjs --port 8739 --key k1 --text hi
+  exit=2 elapsed_ms=61
+  stdout(raw) = {"id":1,"ok":false,"error":"transport: ECONNREFUSED connect ECONNREFUSED 127.0.0.1:8739"}
+  stderr      = 
+  [PASS] 退出码 2（传输层失败）
+  [PASS] stdout 是可读的 transport 错误 JSON
+  [PASS] 含 ECONNREFUSED（不是崩溃/空输出）
+
+################ ②a 端口被占（WSL 侧）：第二个 daemon 的输出 ################
+  第一个 daemon 就绪=True tries=1
+  [PASS] 占位 daemon 已就绪
+  第二个 daemon wsl.exe HasExited=True exit=2
+  第二个 daemon stdout = 
+  第二个 daemon stderr:
+    [daemon 2026-10-10T07:35:01.798Z] FATAL listen error: listen EADDRINUSE: address already in use 127.0.0.1:8732
+  [PASS] 第二个 daemon 打印 FATAL listen error
+  [PASS] 第二个 daemon 打印 EADDRINUSE
+  [PASS] 第二个 daemon 进程已退出（非静默驻留）
+  --- 关掉占位 daemon ---
+
+################ ②b 端口被占（Windows 侧 127.0.0.1:8733）################
+  Windows 侧 8733 监听 job state=Running
+  WSL daemon 在 Windows 已占用 8733 时: ready=False tries=12 daemonExited=False
+  daemon stderr:
+    [daemon 2026-10-10T07:35:12.182Z] listening on 127.0.0.1:8733 pid=137444 dsh@0.2.0-rc.2 cwd=/home/g idleMs=600000
+  Windows client --status exit=2 raw={"id":1,"ok":false,"error":"transport: ECONNREFUSED connect ECONNREFUSED 127.0.0.1:8733"}
+  （观察项：若两侧都监听成功，则 Windows 客户端会命中 Windows 侧监听者而非 WSL 守护）
+
+################ ③ 两个 client 同时对**同一** key 发 prompt ################
+  daemon 就绪=True tries=1
+  [PASS] 并发场景 daemon 已就绪
+  两个 client 进程: pid1=6864 pid2=42976（都未 Wait，几乎同时发出）
+  client1 pid=6864 exit=0 elapsed_ms=2458 raw={"id":1,"ok":true,"answer":"AAA","sessionId":"remote-wsl-k1-f786600b-04e4-46c0-a1f0-a2d245d56a2b","turns":1,"runtimePid":137862,"completedBy":"turn/end","eventCount":19}
+  client2 pid=42976 exit=0 elapsed_ms=3527 raw={"id":1,"ok":true,"answer":"BBB","sessionId":"remote-wsl-k1-f786600b-04e4-46c0-a1f0-a2d245d56a2b","turns":2,"runtimePid":137862,"completedBy":"turn/end","eventCount":9}
+  status = {"id":1,"ok":true,"daemonPid":137833,"daemonStartedAt":1791617810530,"uptimeMs":4139,"port":8734,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":600000,"keys":[{"key":"k1","sessionId":"remote-wsl-k1-f786600b-04e4-46c0-a1f0-a2d245d56a2b","turns":2,"runtimePid":137862,"startedAt":1791617811902,"idleForMs":64}]}
+  daemon 日志（recv / 完成顺序）:
+    [daemon 2026-10-10T07:36:50.541Z] listening on 127.0.0.1:8734 pid=137833 dsh@0.2.0-rc.2 cwd=/home/g idleMs=600000
+    [daemon 2026-10-10T07:36:51.073Z] recv op=status id=1 key=-
+    [daemon 2026-10-10T07:36:51.077Z] client disconnected (runtimes kept alive)
+    [daemon 2026-10-10T07:36:51.131Z] recv op=prompt id=1 key=k1
+    [daemon 2026-10-10T07:36:51.137Z] host proxy 172.30.176.1:9910 unreachable -> direct
+    [daemon 2026-10-10T07:36:51.137Z] spawning runtime key=k1 dsh@0.2.0-rc.2 cwd=/home/g
+    [daemon 2026-10-10T07:36:51.139Z] recv op=prompt id=1 key=k1
+    [daemon 2026-10-10T07:36:51.902Z] runtime ready key=k1 pid=137862 session=remote-wsl-k1-f786600b-04e4-46c0-a1f0-a2d245d56a2b
+    [daemon 2026-10-10T07:36:53.540Z] client disconnected (runtimes kept alive)
+    [daemon 2026-10-10T07:36:54.616Z] client disconnected (runtimes kept alive)
+    [daemon 2026-10-10T07:36:54.669Z] recv op=status id=1 key=-
+    [daemon 2026-10-10T07:36:54.674Z] client disconnected (runtimes kept alive)
+  [PASS] 两个并发 client 都拿到 ok:true（没有互相踩坏）
+  [PASS] status 显示 turns=2（守护内串行两轮）
+  观察：elapsed1=2458ms elapsed2=3527ms（串行 ⇒ 第二个的耗时约等于两轮之和）
+
+################ 收尾 ################
+  profile_sdk_procs=0
+  daemon_procs=0
+  tmp_dsh=0
+  awk: line 1: syntax error at or near {
+  port_8731=
+  awk: line 1: syntax error at or near {
+  port_8732=
+  awk: line 1: syntax error at or near {
+  port_8733=
+  awk: line 1: syntax error at or near {
+  port_8734=
+  awk: line 1: syntax error at or near {
+  port_8739=
+
+VERIFY-FAILURES: ALL CHECKS PASSED

@@ -1,0 +1,61 @@
+################ A) 同进程：kill -TERM 守护后恢复 ################
+  第 1 轮已产出；杀守护前状态：
+  meta.pid=158529
+  wsl: 158529 /home/g/.local/share/mise/installs/node/26.10.0/bin/node /mnt/d/project/dsh1/vendor/dsh-remot
+  kill -TERM 158529 => IDENTITY_OK-TERM
+  kill 后 profile/daemon: daemon_ts=0  listen8755=0  profile_sdk=0
+  ---- 同进程探针原始输出 ----
+  [probe pid=32844] mode=recover-inproc port=8755 key=rkey-1 dshVersion=(desktop)
+  注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+  
+  ########## 第 1 轮（建会话）##########
+  ACK
+  
+  [remote-wsl: backend=daemon session=remote-wsl-rkey-1-29575dd9-b1fa-427a-8572-960af8ff2016 completedBy=turn/end turns=3 runtimePid=162220 daemon=158529@127.0.0.1:8755 dsh@0.2.0-rc.2]
+  
+  等待外部 kill 守护完成（flag=D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\int-20261010\kill-done.flag）...
+  flag 出现=true；现在再 prompt 同一 key（守护应已死）
+  
+  ########## 第 2 轮（kill 之后，同进程）##########
+  ⚠️ 远端会话已重置（守护或运行时重启过）：本次回答**不含**之前轮次的上下文，之前让它记住的内容已丢失（新 sessionId=remote-wsl-rkey-1-d9622371-c8c2-40de-99c0-6a5beab96a1d）。
+  
+  我这边没有这个数字——本次会话里没有你让我记数字的记录，我不能凭空编一个给你。
+  
+  如果是在别的会话/别的窗口说的，把原话或上下文发我，我照着查。
+  
+  [remote-wsl: backend=daemon session=remote-wsl-rkey-1-d9622371-c8c2-40de-99c0-6a5beab96a1d completedBy=turn/end turns=1 runtimePid=162836 daemon=162791@127.0.0.1:8755 dsh@0.2.0-rc.2 contextReset=yes]
+  elapsed_ms=6352
+  
+  [probe pid=32844] cleanup disposers=1
+  ---- 探针退出码=0 ----
+
+################ B) 跨进程：kill -KILL 守护（元数据残留）后新进程恢复 ################
+  [turn1] [probe pid=37620] mode=agent port=8755 key=rkey-2 dshVersion=(desktop)
+  [turn1] 注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+  [turn1] 
+  [turn1] ########## wsl_agent ##########
+  [turn1] elapsed_ms=1851
+  [turn1] ACK
+  [turn1] 
+  [turn1] [remote-wsl: backend=daemon session=remote-wsl-rkey-2-1c0acaad-64f1-4891-8458-4c543e079e70 completedBy=turn/end turns=1 runtimePid=162940 daemon=162791@127.0.0.1:8755 dsh@0.2.0-rc.2]
+  [turn1] 
+  [turn1] [probe pid=37620] cleanup disposers=1
+  turn1 后 meta.pid=162791
+  kill -KILL 162791 => IDENTITY_OK-KILL
+  残留元数据: True  token: True
+  kill 后 wsl: daemon_ts=0  listen8755=0  profile_sdk=0
+  ---- 新进程第 2 轮原始输出 ----
+  [probe pid=33376] mode=agent port=8755 key=rkey-2 dshVersion=(desktop)
+  注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
+  
+  ########## wsl_agent ##########
+  elapsed_ms=5957
+  ⚠️ 远端会话已重置（守护或运行时重启过）：本次回答**不含**之前轮次的上下文，之前让它记住的内容已丢失（新 sessionId=remote-wsl-rkey-2-fe91a27f-8025-485b-acc5-12ce1a9606b9）。
+  
+  没有记录到——本会话里没有你让我记数字的消息，我不能编一个给你。
+  
+  [remote-wsl: backend=daemon session=remote-wsl-rkey-2-fe91a27f-8025-485b-acc5-12ce1a9606b9 completedBy=turn/end turns=1 runtimePid=163082 daemon=163039@127.0.0.1:8755 dsh@0.2.0-rc.2 contextReset=yes]
+  
+  [probe pid=33376] cleanup disposers=1
+
+恢复后现场: daemon_ts=1  listen8755=1
