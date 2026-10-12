@@ -1,0 +1,7 @@
+### D2  F33：配置槽位(8972)无守护、别槽(8973)有守护 ⇒ running=false + others[]；stop 别槽 ⇒ 400/E_ARG 且 pid 不变
+前置：配置槽位 8972 无守护；别槽 8973 已起守护 pid=962850 ok=true
+snapshot.daemon = {"running":false,"keys":[],"orphans":0,"others":[{"slot":8731,"pid":944726,"port":8731,"version":"0.2.0-rc.2","note":"非本槽位（configured daemonPort=8972）；未复用、未打扰"},{"slot":8973,"pid":962850,"port":8973,"version":"0.2.0-rc.2","note":"非本槽位（configured daemonPort=8972）；未复用、未打扰"},{"slot":8982,"pid":961517,"port":8982,"version":"0.2.0-rc.2","note":"非本槽位（configured daemonPort=8972）；未复用、未打扰"}]}
+判据① running=false 且未回落别槽 = true ；判据② others[] 含 8973 且带"非本槽位"note = true
+explorer.daemon stop slot=8973 ⇒ HTTP 400 code=E_ARG msg=remote-wsl: slot 8973 不是本插件配置的槽位（8973≠8972）；本插件只操作自己的槽位
+别槽 pid: before=962850 after=962850 ⇒ 未变 = true（**硬证明**）
+verdict=PASS —— F33 已修（面板只认配置槽位 + 动作面拒绝别槽，且别槽守护确实没被动）

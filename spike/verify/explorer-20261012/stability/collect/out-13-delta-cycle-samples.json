@@ -1,0 +1,1252 @@
+{
+ "receivedAt": "2026-10-12T08:36:48.154Z",
+ "name": "out-13-delta-cycle-samples",
+ "data": {
+  "schema": "dsrw-cycle/1",
+  "startedAt": "2026-10-12T08:36:36.470Z",
+  "mode": "mount-unmount",
+  "running": false,
+  "done": true,
+  "error": null,
+  "notes": [],
+  "classify": {
+   "railFound": true,
+   "railName": "远程资源管理器 远程资源管理器",
+   "appeared": {
+    "ok": true,
+    "ms": 0
+   },
+   "othersFound": true,
+   "disappeared": {
+    "ok": true,
+    "ms": 26,
+    "mountTransitionsDelta": 1
+   },
+   "mountTransitionsNow": 2
+  },
+  "leakArmed": false,
+  "target": {
+   "cycles": 20,
+   "warmup": 2,
+   "gapMs": 150,
+   "unmountWaitMs": 1500
+  },
+  "warmupSamples": [
+   {
+    "i": -1,
+    "t": 46942,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 47097,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 317,
+     "listenersAdds": 360,
+     "listenersRemoves": 43,
+     "timersOutstanding": 2,
+     "apiInFlight": 1,
+     "apiSeqIssued": 3,
+     "heapUsed": 39876904,
+     "mountTransitions": 3,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 47278,
+     "domAll": 716,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 316,
+     "listenersAdds": 360,
+     "listenersRemoves": 44,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 3,
+     "heapUsed": 40408401,
+     "mountTransitions": 4,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": -2,
+    "t": 47473,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 38,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 47625,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 318,
+     "listenersAdds": 362,
+     "listenersRemoves": 44,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 4,
+     "heapUsed": 40509355,
+     "mountTransitions": 5,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 47827,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 325,
+     "listenersAdds": 370,
+     "listenersRemoves": 45,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 4,
+     "heapUsed": 41025273,
+     "mountTransitions": 6,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   }
+  ],
+  "cycles": [
+   {
+    "i": 1,
+    "t": 48015,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 48171,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 327,
+     "listenersAdds": 372,
+     "listenersRemoves": 45,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 5,
+     "heapUsed": 40735301,
+     "mountTransitions": 7,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 48359,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 334,
+     "listenersAdds": 380,
+     "listenersRemoves": 46,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 5,
+     "heapUsed": 41160921,
+     "mountTransitions": 8,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 2,
+    "t": 48547,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 48701,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 336,
+     "listenersAdds": 382,
+     "listenersRemoves": 46,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 6,
+     "heapUsed": 41327885,
+     "mountTransitions": 9,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 48877,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 343,
+     "listenersAdds": 390,
+     "listenersRemoves": 47,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 6,
+     "heapUsed": 40950865,
+     "mountTransitions": 10,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 3,
+    "t": 49055,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 49213,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 345,
+     "listenersAdds": 392,
+     "listenersRemoves": 47,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 7,
+     "heapUsed": 41124493,
+     "mountTransitions": 11,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 49401,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 352,
+     "listenersAdds": 400,
+     "listenersRemoves": 48,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 7,
+     "heapUsed": 41520037,
+     "mountTransitions": 12,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 4,
+    "t": 49587,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 25,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 49742,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 354,
+     "listenersAdds": 402,
+     "listenersRemoves": 48,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 8,
+     "heapUsed": 40907109,
+     "mountTransitions": 13,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 49920,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 361,
+     "listenersAdds": 410,
+     "listenersRemoves": 49,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 8,
+     "heapUsed": 41375101,
+     "mountTransitions": 14,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 5,
+    "t": 50100,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 50257,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 363,
+     "listenersAdds": 412,
+     "listenersRemoves": 49,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 9,
+     "heapUsed": 41540117,
+     "mountTransitions": 15,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 50435,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 370,
+     "listenersAdds": 420,
+     "listenersRemoves": 50,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 9,
+     "heapUsed": 42020413,
+     "mountTransitions": 16,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 6,
+    "t": 50612,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 50772,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 372,
+     "listenersAdds": 422,
+     "listenersRemoves": 50,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 10,
+     "heapUsed": 42190413,
+     "mountTransitions": 17,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 50957,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 379,
+     "listenersAdds": 430,
+     "listenersRemoves": 51,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 10,
+     "heapUsed": 40387053,
+     "mountTransitions": 18,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 7,
+    "t": 51145,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 27,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 51298,
+     "domAll": 696,
+     "panelPresent": true,
+     "panelNodes": 46,
+     "rows": 1,
+     "preTextLen": null,
+     "listenersOutstanding": 381,
+     "listenersAdds": 433,
+     "listenersRemoves": 52,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 11,
+     "heapUsed": 40608682,
+     "mountTransitions": 19,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 51486,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 389,
+     "listenersAdds": 441,
+     "listenersRemoves": 52,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 11,
+     "heapUsed": 41019485,
+     "mountTransitions": 20,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 8,
+    "t": 51672,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 51828,
+     "domAll": 696,
+     "panelPresent": true,
+     "panelNodes": 46,
+     "rows": 1,
+     "preTextLen": null,
+     "listenersOutstanding": 391,
+     "listenersAdds": 444,
+     "listenersRemoves": 53,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 12,
+     "heapUsed": 41206477,
+     "mountTransitions": 21,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 52006,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 399,
+     "listenersAdds": 452,
+     "listenersRemoves": 53,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 12,
+     "heapUsed": 41629269,
+     "mountTransitions": 22,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 9,
+    "t": 52185,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 25,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 52336,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 400,
+     "listenersAdds": 454,
+     "listenersRemoves": 54,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 13,
+     "heapUsed": 41798337,
+     "mountTransitions": 23,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 52527,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 408,
+     "listenersAdds": 462,
+     "listenersRemoves": 54,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 13,
+     "heapUsed": 40737141,
+     "mountTransitions": 24,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 10,
+    "t": 52714,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 52867,
+     "domAll": 696,
+     "panelPresent": true,
+     "panelNodes": 46,
+     "rows": 1,
+     "preTextLen": null,
+     "listenersOutstanding": 410,
+     "listenersAdds": 465,
+     "listenersRemoves": 55,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 14,
+     "heapUsed": 40926453,
+     "mountTransitions": 25,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 53057,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 418,
+     "listenersAdds": 473,
+     "listenersRemoves": 55,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 14,
+     "heapUsed": 41321645,
+     "mountTransitions": 26,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 11,
+    "t": 53246,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 53402,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 420,
+     "listenersAdds": 475,
+     "listenersRemoves": 55,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 15,
+     "heapUsed": 41481913,
+     "mountTransitions": 27,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 53579,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 427,
+     "listenersAdds": 483,
+     "listenersRemoves": 56,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 15,
+     "heapUsed": 41898249,
+     "mountTransitions": 28,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 12,
+    "t": 53757,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 53910,
+     "domAll": 696,
+     "panelPresent": true,
+     "panelNodes": 46,
+     "rows": 1,
+     "preTextLen": null,
+     "listenersOutstanding": 429,
+     "listenersAdds": 486,
+     "listenersRemoves": 57,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 16,
+     "heapUsed": 42084765,
+     "mountTransitions": 29,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 54101,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 437,
+     "listenersAdds": 494,
+     "listenersRemoves": 57,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 16,
+     "heapUsed": 40899833,
+     "mountTransitions": 30,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 13,
+    "t": 54290,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 27,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 54447,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 439,
+     "listenersAdds": 496,
+     "listenersRemoves": 57,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 17,
+     "heapUsed": 41057841,
+     "mountTransitions": 31,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 54635,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 446,
+     "listenersAdds": 504,
+     "listenersRemoves": 58,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 17,
+     "heapUsed": 41466801,
+     "mountTransitions": 32,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 14,
+    "t": 54812,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 54974,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 448,
+     "listenersAdds": 506,
+     "listenersRemoves": 58,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 18,
+     "heapUsed": 41625633,
+     "mountTransitions": 33,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 55152,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 455,
+     "listenersAdds": 514,
+     "listenersRemoves": 59,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 18,
+     "heapUsed": 42027549,
+     "mountTransitions": 34,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 15,
+    "t": 55330,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 27,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 55483,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 457,
+     "listenersAdds": 516,
+     "listenersRemoves": 59,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 19,
+     "heapUsed": 42194129,
+     "mountTransitions": 35,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 55670,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 464,
+     "listenersAdds": 524,
+     "listenersRemoves": 60,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 19,
+     "heapUsed": 41061781,
+     "mountTransitions": 36,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 16,
+    "t": 55847,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 56012,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 466,
+     "listenersAdds": 526,
+     "listenersRemoves": 60,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 20,
+     "heapUsed": 41220389,
+     "mountTransitions": 37,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 56190,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 473,
+     "listenersAdds": 534,
+     "listenersRemoves": 61,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 20,
+     "heapUsed": 41618305,
+     "mountTransitions": 38,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 17,
+    "t": 56370,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 25,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 56527,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 475,
+     "listenersAdds": 536,
+     "listenersRemoves": 61,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 21,
+     "heapUsed": 41776981,
+     "mountTransitions": 39,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 56703,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 482,
+     "listenersAdds": 544,
+     "listenersRemoves": 62,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 21,
+     "heapUsed": 42304421,
+     "mountTransitions": 40,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 18,
+    "t": 56887,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 26,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 57039,
+     "domAll": 696,
+     "panelPresent": true,
+     "panelNodes": 46,
+     "rows": 1,
+     "preTextLen": null,
+     "listenersOutstanding": 484,
+     "listenersAdds": 547,
+     "listenersRemoves": 63,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 22,
+     "heapUsed": 42501449,
+     "mountTransitions": 41,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 57229,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 492,
+     "listenersAdds": 555,
+     "listenersRemoves": 63,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 22,
+     "heapUsed": 40516060,
+     "mountTransitions": 42,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 19,
+    "t": 57416,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 27,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 57572,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 494,
+     "listenersAdds": 557,
+     "listenersRemoves": 63,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 23,
+     "heapUsed": 40686832,
+     "mountTransitions": 43,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 57758,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 501,
+     "listenersAdds": 565,
+     "listenersRemoves": 64,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 23,
+     "heapUsed": 41212859,
+     "mountTransitions": 44,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   },
+   {
+    "i": 20,
+    "t": 57944,
+    "steps": {
+     "mountWaitMs": 0,
+     "mounted": true,
+     "unmountWaitMs": 27,
+     "unmounted": true,
+     "mountTransitionsDelta": 1
+    },
+    "afterMount": {
+     "at": 58098,
+     "domAll": 666,
+     "panelPresent": true,
+     "panelNodes": 16,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 503,
+     "listenersAdds": 567,
+     "listenersRemoves": 64,
+     "timersOutstanding": 1,
+     "apiInFlight": 1,
+     "apiSeqIssued": 24,
+     "heapUsed": 41376079,
+     "mountTransitions": 45,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    },
+    "afterUnmount": {
+     "at": 58276,
+     "domAll": 808,
+     "panelPresent": false,
+     "panelNodes": 0,
+     "rows": 0,
+     "preTextLen": null,
+     "listenersOutstanding": 510,
+     "listenersAdds": 575,
+     "listenersRemoves": 65,
+     "timersOutstanding": 0,
+     "apiInFlight": 0,
+     "apiSeqIssued": 24,
+     "heapUsed": 41775023,
+     "mountTransitions": 46,
+     "detachedObserved": 0,
+     "instrCapped": {
+      "listeners": true,
+      "fetch": false
+     }
+    }
+   }
+  ],
+  "baseline": {
+   "at": 48014,
+   "dom": {
+    "domAll": 666,
+    "panelPresent": true,
+    "panelNodes": 16,
+    "rows": 0,
+    "distroRows": 0,
+    "buttons": 41,
+    "preTextLen": null
+   },
+   "listeners": {
+    "adds": 372,
+    "removes": 45,
+    "outstanding": 327
+   },
+   "timers": 1,
+   "pending": 1
+  },
+  "instrumentHealth": {
+   "listeners": true,
+   "timers": true,
+   "fetch": true,
+   "errors": {
+    "listeners": null,
+    "timers": null,
+    "fetch": null
+   }
+  },
+  "instrument": {
+   "caps": {
+    "fetchLog": 500,
+    "listenerSamples": 100,
+    "timerSamples": 100,
+    "marks": 200,
+    "mounts": 400
+   },
+   "now": {
+    "domAll": 666,
+    "panelPresent": true,
+    "panelNodes": 16,
+    "rows": 0,
+    "distroRows": 0,
+    "buttons": 41,
+    "preTextLen": null
+   }
+  }
+ }
+}

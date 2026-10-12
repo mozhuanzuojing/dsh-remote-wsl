@@ -77,6 +77,39 @@ window.__ModuleLoader__.load({
 		}
 
 		/**
+		 * F25：把一次 `{ok:false,…}` **结果值**变成人话失败原因。
+		 * host 半的 `explorer.fixPin` 会在 HTTP 200 里回 `{ok:false,error,pinBefore,pinAfter,wrote:false}`，
+		 * 所以不能只看 HTTP 状态，必须看结果里的 ok。
+		 */
+		function actionFailureText(result) {
+			const reason =
+				typeof result.error === "string" && result.error.length
+					? result.error
+					: typeof result.note === "string" && result.note.length
+						? result.note
+						: "host 用 200 回了 ok:false，但没有给出原因";
+			const wrote = result.wrote === false ? "（未写入）" : "";
+			const pins =
+				typeof result.pinBefore === "string" || typeof result.pinAfter === "string"
+					? ` pin: ${result.pinBefore === undefined ? "?" : result.pinBefore === null ? "无" : result.pinBefore} → ${result.pinAfter === undefined ? "?" : result.pinAfter === null ? "无" : result.pinAfter}`
+					: "";
+			return `${reason}${wrote}${pins}`;
+		}
+
+		/** 守护动作的成功结论：带上 slot/port/pid，让"作用在哪个槽位"可见。 */
+		function daemonNote(verb, result) {
+			if (!isRecord(result)) return `已${verb}守护。`;
+			const bits = [];
+			if (result.slot !== undefined && result.slot !== null) bits.push(`slot ${result.slot}`);
+			if (result.port !== undefined && result.port !== null) bits.push(`:${result.port}`);
+			if (result.pid !== undefined && result.pid !== null) bits.push(`pid ${result.pid}`);
+			if (result.version !== undefined && result.version !== null) bits.push(String(result.version));
+			const extra = result.alreadyStopped === true ? "（本来就没在跑，幂等）" : result.reused === true ? "（复用已有守护）" : "";
+			const notes = Array.isArray(result.notes) && result.notes.length ? `：${result.notes.join("；")}` : "";
+			return `已${verb}守护${bits.length ? ` ${bits.join(" · ")}` : ""}${extra}${notes}`;
+		}
+
+		/**
 		 * 造面板组件。
 		 * @param ctx - client 受限 cordis 上下文（当前只用于留出扩展位）。
 		 * @param api - client.api.js 的 createExplorerApi() 句柄：面板不对 URL/JSON 说话。
@@ -104,6 +137,7 @@ window.__ModuleLoader__.load({
 				const readSeq = React.useRef(0); // 读取序号：只有最新一次允许写状态（防乱序覆盖）
 				const readAbort = React.useRef(null); // 最新一次读取的 AbortController
 				const actionAbort = React.useRef(null); // 最新一次动作的 AbortController
+				const lastRun = React.useRef(null); // 最近一次动作（失败时给"重试"入口）
 
 				const load = React.useCallback(() => {
 					const mySeq = readSeq.current + 1;
@@ -115,8 +149,9 @@ window.__ModuleLoader__.load({
 					}
 					const controller = newAbortController();
 					readAbort.current = controller;
-					// 一次新的读取会作废上一条动作结论：宁可没有，也不要留一条陈旧的事实。
-					setAction({ busy: null, note: null, error: null });
+					// 注意：这里**不**清动作结果条。动作成功后的 `refresh` 会走到这里，
+					// 一清就把"已启动守护 slot/port/pid"这类**成功反馈**抹掉（T5 要求的可见反馈）。
+					// 成功结论只在新动作开始时、或读取失败时（见下）撤下。
 					setState((prev) => ({ ...prev, status: "loading", error: null }));
 					api.snapshot(signalOf(controller)).then(
 						(snapshot) => {
@@ -128,6 +163,9 @@ window.__ModuleLoader__.load({
 							if (error && error.kind === "aborted") return; // 卸载/被新读取取代：不写状态
 							// 失败时保留 lastSuccessAt 作为"陈旧"提示，但 status='error'
 							// 会让所有事实渲染分支整体撤下（见 factsVisible）。
+							// 同时撤下"成功口吻"的动作结论（读不到了就不能再替它背书）；
+							// 动作**失败**结论保留，因为它带着"重试"入口。
+							setAction((prev) => (prev.note === null ? prev : { ...prev, note: null }));
 							setState((prev) => ({ ...prev, status: "error", error, lastFailureAt: new Date() }));
 						},
 					);
@@ -150,6 +188,7 @@ window.__ModuleLoader__.load({
 				}, [load]);
 
 				const run = React.useCallback((busyKey, operation, options) => {
+					lastRun.current = { busyKey, operation, options };
 					if (actionAbort.current !== null) {
 						actionAbort.current.abort();
 						actionAbort.current = null;
@@ -162,6 +201,15 @@ window.__ModuleLoader__.load({
 						.then(
 							(result) => {
 								if (controller !== null && controller.signal.aborted) return null; // 已卸载/被取代
+								// ★ F25：host 可能用 **200** 回一个 `{ok:false,…}` 的**结果值**
+								//（`explorer.fixPin` 就是这个形状：{ok,error,pinBefore,pinAfter,wrote}）。
+								// 一律按 ok 分支渲染：ok:false 必须显式失败并给重试，不许成功口吻。
+								// 注意只有**显式 false** 才算失败：`explorer.openSession` 的结果里没有 ok 字段。
+								if (isRecord(result) && result.ok === false) {
+									setAction({ busy: null, note: null, error: { message: actionFailureText(result), kind: "host-result", detail: result } });
+									if (options && options.refresh) load();
+									return result;
+								}
 								setAction({ busy: null, note: options && options.describe ? options.describe(result) : "完成。", error: null });
 								if (options && options.refresh) load();
 								return result;
@@ -190,6 +238,9 @@ window.__ModuleLoader__.load({
 				const daemon = daemonKnown ? snapshot.daemon : null;
 				const keysKnown = daemonKnown && Array.isArray(daemon.keys);
 				const keys = keysKnown ? daemon.keys : [];
+				// T8：`daemon.others[]` 是**只读**的"别的槽位"清单（{slot,pid,port,version,note}）。
+				// 它是设计稿字段表的加法，可能缺席 ⇒ 容错成空数组，绝不对它生成任何动作。
+				const others = daemonKnown && Array.isArray(daemon.others) ? daemon.others.filter((row) => isRecord(row)) : [];
 				const driftKnown = isRecord(snapshot && snapshot.drift);
 				const drift = driftKnown ? snapshot.drift : null;
 
@@ -346,6 +397,29 @@ window.__ModuleLoader__.load({
 					body.push(React.createElement("div", { key: "tree", className: "dsh-rw-tree" }, rows));
 				}
 
+				// —— 别的槽位（T8 的 daemon.others[]）：**只读**展示，一个动作按钮都不生成 ——
+				if (factsVisible && others.length > 0) {
+					body.push(
+						React.createElement(
+							"div",
+							{ key: "otheraemon", className: "dsh-rw-others" },
+							React.createElement("div", { className: "dsh-rw-others-title" }, `其它槽位的守护（只读：本面板不会对它们发起任何动作）`),
+							others.map((row, index) =>
+								React.createElement(
+									"div",
+									{ key: `other:${row.slot === undefined || row.slot === null ? index : row.slot}`, className: "dsh-rw-other" },
+									React.createElement(
+										"span",
+										{ className: "dsh-rw-other-main" },
+										`slot ${row.slot === undefined || row.slot === null ? "?" : row.slot}${row.port === undefined || row.port === null ? "" : ` · :${row.port}`}${row.pid === undefined || row.pid === null ? "" : ` · pid ${row.pid}`}${row.version === undefined || row.version === null ? "" : ` · ${row.version}`}`,
+									),
+									React.createElement("span", { className: "dsh-rw-other-note" }, typeof row.note === "string" && row.note.length ? row.note : "非本槽位；未复用、未打扰"),
+								),
+							),
+						),
+					);
+				}
+
 				// —— 危险动作的二次确认（停止/重启守护）：写清后果 + 影响哪个 slot + 当前 keys 数 ——
 				if (pending !== null) {
 					const verb = pending.action === "stop" ? "停止" : "重启";
@@ -357,7 +431,7 @@ window.__ModuleLoader__.load({
 						React.createElement(
 							"div",
 							{ key: "confirm", className: "dsh-rw-confirm", role: "alertdialog", "aria-label": `${verb}守护确认` },
-							React.createElement("div", { className: "dsh-rw-confirm-title" }, `确认${verb}守护？slot ${pending.slot}（本插件自有槽位，不存在 all 选项）`),
+							React.createElement("div", { className: "dsh-rw-confirm-title" }, `确认${verb}守护？slot ${pending.slot}（本插件配置的槽位，不存在 all 选项）`),
 							React.createElement(
 								"div",
 								{ className: "dsh-rw-confirm-body" },
@@ -378,7 +452,7 @@ window.__ModuleLoader__.load({
 											run(
 												`daemon:${target.action}`,
 												(signal) => api.daemon({ action: target.action, slot: target.slot }, signal),
-												{ describe: () => `已请求${verb}守护 slot ${target.slot}。`, refresh: true },
+												{ describe: (result) => daemonNote(verb, result), refresh: true },
 											);
 										},
 									},
@@ -396,7 +470,28 @@ window.__ModuleLoader__.load({
 						React.createElement(
 							"div",
 							{ key: "action", className: "dsh-rw-note" + (action.error !== null ? " dsh-rw-note--error" : ""), role: action.error !== null ? "alert" : "status" },
-							action.error !== null ? `失败：${errorText(action.error)}` : action.note,
+							action.error !== null
+								? React.createElement(
+									"span",
+									null,
+									`失败：${errorText(action.error)}`,
+									" ",
+									React.createElement(
+										"button",
+										{
+											type: "button",
+											className: "dsh-rw-link",
+											"aria-label": "重试上一个失败的动作",
+											title: "重试上一个失败的动作",
+											onClick: () => {
+												const last = lastRun.current;
+												if (last !== null) run(last.busyKey, last.operation, last.options);
+											},
+										},
+										"重试",
+									),
+								)
+								: action.note,
 						),
 					);
 				}
@@ -417,8 +512,13 @@ window.__ModuleLoader__.load({
 				// —— 状态条：读失败时**不**给任何 daemon 事实，只给"数据不可确认" ——
 				const daemonSlot = daemonKnown && typeof daemon.slot === "number" ? daemon.slot : null;
 				const statusLeft = [];
-				if (!factsVisible) {
+				if (state.status === "error") {
+					// ★ F34：只有**真的读失败**才说"已撤下"。首挂载 fetch 未返回时 status='loading'，
+					// 走到下面的 loading 分支，绝不允许同屏出现"正在读取…"+"读取失败后已撤下"。
 					statusLeft.push(React.createElement("span", { key: "nodata", className: "dsh-rw-status-text" }, "数据不可用：读取失败后已撤下，不显示守护/漂移状态。"));
+				} else if (!factsVisible) {
+					// 首挂载 / 还没取到过任何快照：只能说"还在读"，不许说"失败"
+					statusLeft.push(React.createElement("span", { key: "loadingstatus", className: "dsh-rw-status-text" }, `尚未取得快照：正在读取守护与漂移状态（超时 ${api.timeoutMs}ms）…`));
 				} else if (!daemonKnown) {
 					statusLeft.push(React.createElement("span", { key: "nodaemon", className: "dsh-rw-status-text" }, "快照缺少 daemon 段，守护状态未知（不断言“未运行”）。"));
 				} else if (daemon.running !== true) {
@@ -433,7 +533,7 @@ window.__ModuleLoader__.load({
 								disabled: action.busy !== null,
 								"aria-label": "启动守护（幂等；不会停止任何已有守护）",
 								title: "启动守护（幂等；不会停止任何已有守护）",
-								onClick: () => run("daemon:ensure", (signal) => api.daemon({ action: "ensure" }, signal), { describe: () => "已请求启动守护。", refresh: true }),
+								onClick: () => run("daemon:ensure", (signal) => api.daemon({ action: "ensure" }, signal), { describe: (result) => daemonNote("启动", result), refresh: true }),
 							},
 							action.busy === "daemon:ensure" ? "启动中…" : "启动守护",
 						),
@@ -473,7 +573,7 @@ window.__ModuleLoader__.load({
 											className: "dsh-rw-link dsh-rw-link--danger",
 											disabled: action.busy !== null,
 											"aria-label": `停止守护 slot ${daemonSlot}（需二次确认，仅此槽位，没有 all）`,
-											title: `只停止 slot ${daemonSlot}（本插件自有槽位）；没有 stop all；需二次确认`,
+											title: `只停止 slot ${daemonSlot}（本插件配置的槽位）；没有 stop all；需二次确认`,
 											onClick: () => setPending({ action: "stop", slot: daemonSlot, keys: keysKnown ? keys.length : "?" }),
 										},
 										action.busy === "daemon:stop" ? "停止中…" : `停止 slot ${daemonSlot}…`,

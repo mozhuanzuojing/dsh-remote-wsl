@@ -1,0 +1,135 @@
+{
+ "receivedAt": "2026-10-12T08:16:26.106Z",
+ "name": "out-40-boundary-ab",
+ "data": {
+  "out": {
+   "A": {
+    "warm": {
+     "buildMs": 0,
+     "rows": 200,
+     "distros": 1,
+     "pathLen": 60,
+     "prettyBytes": 40337
+    },
+    "tSettleSeries": [
+     419,
+     418,
+     420,
+     421,
+     422
+    ],
+    "tSettleP50": 420,
+    "tSettleP95": 422,
+    "tTreeP50": 9,
+    "tTreeP95": 10,
+    "rowsAssertedAll": true,
+    "rows": 200,
+    "domAll": 1950,
+    "panelNodes": 1231,
+    "nodesPerRow": 6.16,
+    "ltMaxSeries": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ltTotalSeries": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "preTextLenClosed": null,
+    "rerender": {
+     "ok": false,
+     "tRerenderMs": 4005,
+     "longtask": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0
+     },
+     "dom": {
+      "domAll": 1950,
+      "panelPresent": true,
+      "panelNodes": 1231,
+      "rows": 200,
+      "distroRows": 1,
+      "buttons": 453,
+      "preTextLen": null
+     }
+    },
+    "scroll": {
+     "medianMs": 1006,
+     "maxMs": 1006,
+     "frames": 19
+    }
+   },
+   "B": {
+    "warm": {
+     "buildMs": 0,
+     "rows": 200,
+     "distros": 1,
+     "pathLen": 300,
+     "prettyBytes": 90737
+    },
+    "tSettleSeries": [
+     422,
+     420,
+     420,
+     421,
+     420
+    ],
+    "tSettleP50": 420,
+    "tSettleP95": 422,
+    "tTreeP50": 11,
+    "tTreeP95": 15,
+    "rowsAssertedAll": true,
+    "rows": 200,
+    "domAll": 1950,
+    "panelNodes": 1231,
+    "nodesPerRow": 6.16,
+    "ltMaxSeries": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ltTotalSeries": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "preTextLenClosed": null,
+    "rerender": {
+     "ok": false,
+     "tRerenderMs": 4010,
+     "longtask": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0
+     },
+     "dom": {
+      "domAll": 1950,
+      "panelPresent": true,
+      "panelNodes": 1231,
+      "rows": 200,
+      "distroRows": 1,
+      "buttons": 453,
+      "preTextLen": null
+     }
+    },
+    "scroll": {
+     "medianMs": 1006,
+     "maxMs": 1006,
+     "frames": 19
+    }
+   }
+  },
+  "longtaskSupported": true
+ }
+}

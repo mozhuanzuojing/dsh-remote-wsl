@@ -1,6 +1,15 @@
-(node:47760) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(node:51136) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
 (Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
 remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
 remote-wsl(explorer): daemon shutdown on slot 8932 (port 8932): ok=true 
-remote-wsl(explorer): daemon shutdown on slot 8932 (port 8932): ok=true 
+remote-wsl(explorer): 守护启动包装层退出 code=3221225786（详见 launch-stderr.log）
+remote-wsl(explorer): daemon shutdown on slot 8932 (port 8932): ok=false 守护调用失败(refused): connect ECONNREFUSED 127.0.0.1:8932（Windows 侧 3000ms 握手判据）
+remote-wsl(explorer): daemon shutdown on slot 8932 (port 8935): ok=true 
+remote-wsl(explorer): daemon shutdown on slot 8932 (port 8937): ok=true 
+remote-wsl(explorer): 守护启动包装层退出 code=2（详见 launch-stderr.log）
+remote-wsl(explorer): slot 8932 not ready from Windows side: 元数据未出现
+remote-wsl(explorer): 守护启动包装层退出 code=2（详见 launch-stderr.log）
+remote-wsl(explorer): slot 8933 not ready from Windows side: 元数据未出现
+remote-wsl(explorer): 守护启动包装层退出 code=2（详见 launch-stderr.log）
+remote-wsl(explorer): slot 8934 not ready from Windows side: 元数据未出现
 remote-wsl(explorer): daemon shutdown on slot 8932 (port 8932): ok=true 

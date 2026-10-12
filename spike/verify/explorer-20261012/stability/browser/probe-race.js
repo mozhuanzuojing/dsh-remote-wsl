@@ -187,8 +187,10 @@
     other.el.click();
     await waitFor(() => document.querySelector(PANEL) === null, 1500);
     await sleep(300);
-    const residual = instr.fetchSnapshot().pendingApiCount;
-    const res = { path: 'T2c', switches, delayMs, peakInFlight: peak, residualAfterUnmount300ms: residual, timeline, verdict: residual > 0 ? 'PILEUP-AFTER-UNMOUNT' : peak > 1 ? 'pileup-but-drained' : 'no-pileup' };
+    const fsEnd = instr.fetchSnapshot();
+    const residual = fsEnd.pendingApiCount;
+    const residualNotAborted = fsEnd.pendingApiNotAborted;
+    const res = { path: 'T2c', switches, delayMs, peakInFlight: peak, residualAfterUnmount300ms: residual, residualNotAborted, timeline, verdict: residualNotAborted > 0 ? 'PILEUP-AFTER-UNMOUNT' : peak > 1 ? 'pileup-but-drained(全部已取消/排空)' : 'no-pileup', residualNotAborted };
     S.results.push(res);
     disarm();
     return res;

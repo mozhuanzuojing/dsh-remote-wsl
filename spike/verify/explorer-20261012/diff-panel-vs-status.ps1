@@ -14,6 +14,8 @@ param(
   [string]$Status,
   [string]$OutFile,
   [int]$ExpectedSlot = 0,   # >0 时强制"真相源报的守护槽位 = 我方槽位"（实测：停掉我方守护后工具会改报**同队其它槽位**）
+  [string]$Snapshot,        # ③ 第三条真相面：route 的 explorer.snapshot JSON（T10 起用于 F33 更严语义判定）
+  [switch]$F33StrictSlot,   # 打开 T10 的 F33 语义：snapshot.daemon 只报配置槽位、别槽进 others[]
   [string]$OutDir = $PSScriptRoot,
   [switch]$SelfTest
 )
@@ -121,7 +123,42 @@ function As-Arr($v) {
   return , $vals   # 逗号返回：保住"真空集 @()"（否则会被 PS 展开成 $null，弱证据就丢了）
 }
 
-function Compare-Core($panel, $st) {
+function Test-F33Scope($st, $snapObj, [int]$expectedSlot) {
+  # T10 / F32+F33 判定口径（lead 2026-10-12 预备通知）：
+  #   · snapshot.daemon **只报配置槽位**（无守护 ⇒ running:false，**不回落 live[0]**）；别槽进 **others[]**（加法字段）
+  #   · wsl_status 的 daemon 行仍走 daemonStatus()/live[0]（任何槽位）
+  #   ⇒ 唯一允许的差异场景 =「配置槽位无守护、别处有守护」：status 报别槽、snapshot 报 running:false 且别槽在 others[]
+  #      —— 这是**更严**行为（F33 目的），判 pass；其余场景仍要求逐项一致。
+  $items = New-Object System.Collections.Generic.List[object]
+  $mk = { param($id, $pv, $sv, $verdict, $note) [pscustomobject]@{ id = $id; panel = $pv; status = $sv; verdict = $verdict; weak = $false; note = $note } }
+  if ($null -eq $snapObj) { $items.Add((& $mk 'f33.snapshot-scope' 'snapshot 缺失' $null 'unknown' '未提供 route snapshot JSON ⇒ F33 口径不可判（不得当通过）')); return $items }
+  $snapD = $null
+  # 兼容两种落盘形状：① route 原始响应 `{ok,result}`；② 我自己的封装 `{capturedAt,status,bodyJson:{ok,result}}`
+  # （T10 自查发现的 harness 缺陷：只认 ① 时，喂封装文件会判「形状不符 ⇒ unknown」，把 F33 判成不可判。）
+  $root = $snapObj
+  if ($null -ne $snapObj.bodyJson) { $root = $snapObj.bodyJson }
+  try { $snapD = $root.result.daemon } catch { }
+  if ($null -eq $snapD) { $items.Add((& $mk 'f33.snapshot-scope' 'snapshot 无 result.daemon' $null 'unknown' 'JSON 形状不符 ⇒ 不可判')); return $items }
+  $others = @()
+  if ($snapD.PSObject.Properties.Name -contains 'others') { $others = @($snapD.others) }
+  $otherSlots = @($others | ForEach-Object { if ($_.PSObject.Properties.Name -contains 'slot') { $_.slot } elseif ($_.PSObject.Properties.Name -contains 'port') { $_.port } else { $null } } | Where-Object { $null -ne $_ })
+  $statusSlot = if ($null -ne $st.daemon) { $st.daemon.slot } else { $null }
+  $snapRunning = [bool]$snapD.running
+  $snapSlot = if ($snapD.PSObject.Properties.Name -contains 'slot') { $snapD.slot } else { $null }
+  $items.Add((& $mk 'f33.snapshot.daemon.running' 'snapshot.daemon.running' $snapRunning 'match' 'snapshot 只报配置槽位'))
+  $items.Add((& $mk 'f33.snapshot.others' 'others[] slots' $otherSlots 'match' '加法字段：别槽守护清单'))
+  if ($expectedSlot -le 0) { $items.Add((& $mk 'f33.snapshot-scope' '需 -ExpectedSlot' $null 'unknown' '未给配置槽位 ⇒ 不可判')); return $items }
+  if ($statusSlot -eq $expectedSlot) {
+    $ok = ($snapRunning -and "$snapSlot" -eq "$expectedSlot")
+    $items.Add((& $mk 'f33.snapshot-scope' "snapshot running=$snapRunning slot=$snapSlot" "status slot=$statusSlot" $(if ($ok) { 'match' } else { 'mismatch' }) 'status 与 snapshot 都指向配置槽位 ⇒ 必须一致且 running'))
+  } else {
+    $ok = ((-not $snapRunning) -and ($otherSlots -contains $statusSlot))
+    $items.Add((& $mk 'f33.snapshot-scope' "snapshot running=$snapRunning others=[$($otherSlots -join ',')]" "status slot=$statusSlot（≠配置槽 $expectedSlot）" $(if ($ok) { 'match' } else { 'mismatch' }) 'F33 更严语义：配置槽位无守护 ⇒ snapshot 报 running=false，且 status 报的那个别槽必须出现在 others[]'))
+  }
+  return $items
+}
+
+function Compare-Core($panel, $st, $snapObj = $null) {
   $items = New-Object System.Collections.Generic.List[object]
   function Add-Item([string]$id, $pv, $sv, [string]$note) {
     $verdict = 'unknown'
@@ -150,6 +187,10 @@ function Compare-Core($panel, $st) {
   $pDistros = if ($null -eq $panel.rows) { $null } else { @($pRows | Where-Object { $_.kind -eq 'distro' } | ForEach-Object { $_.name }) }
   Add-Item 'distros' $pDistros $st.distros '集合对称差必须为空'
 
+  $f33Items = @()
+  if ($F33StrictSlot) { $f33Items = @(Test-F33Scope $st $snapObj $ExpectedSlot) }
+  $f33Scope = $f33Items | Where-Object { $_.id -eq 'f33.snapshot-scope' }
+
   $sb = $panel.statusBar
   if ($null -ne $sb) {
     $sd = $st.daemon
@@ -158,12 +199,21 @@ function Compare-Core($panel, $st) {
       $sdPid = $sd.pid; $sdPort = $sd.port; $sdVer = $sd.version
       if ($ExpectedSlot -gt 0) {
         $slotOk = ($null -ne $sd.slot -and $sd.slot -eq $ExpectedSlot)
-        Add-Item 'status.daemon.slot.expected' $sd.slot $ExpectedSlot "真相源报的守护槽位必须是**我方**槽位 $ExpectedSlot；实测停掉我方守护后 probe 立刻改报**同队其它槽位**（8912 ∈ T2 端口段 8911–8920 / 8731 插件默认口；属主未确认）—— 不设此闸，pid/port 会被非本方槽位的守护带跑"
-        if (-not $slotOk) {
+        # ⚠️ 必须带 `-not $slotOk`：只有"status 报的确实**不是**我方槽位"时才走 F33 更严分支。
+        # （T10 自查：漏了这个条件 ⇒ 正常场景里 daemon.pid/port/version 被静默跳过，③ 的核心比对丢项。）
+        if ($F33StrictSlot -and $f33Scope -and $f33Scope.verdict -eq 'match' -and -not $slotOk) {
+          # T10：配置槽位无守护而 status 报别槽 —— F33 更严语义下的**正确**行为，不判红、也判不出"一致"（不适用）
+          Add-Item 'status.daemon.slot.expected' $sd.slot $ExpectedSlot 'F33 更严语义：配置槽位无守护 ⇒ snapshot 报 running=false、status 报的别槽在 others[] 内（已由 f33.snapshot-scope 判定为正确）；本项不适用'
+          $items[$items.Count - 1].verdict = 'unknown'
           $emit = $false
-          Add-Item 'daemon.pid' $sb.pid $null '真相源报的是**非本方**槽位 => daemon.* 判 unknown（不得当通过）；需先让本方槽位守护起来'
-          Add-Item 'daemon.port' $sb.port $null '同上'
-          Add-Item 'daemon.version' $sb.version $null '同上'
+        } else {
+          Add-Item 'status.daemon.slot.expected' $sd.slot $ExpectedSlot "真相源报的守护槽位必须是**我方**槽位 $ExpectedSlot；实测停掉我方守护后 probe 立刻改报**同队其它槽位**（8912 ∈ T2 端口段 8911–8920 / 8731 插件默认口；属主未确认）—— 不设此闸，pid/port 会被非本方槽位的守护带跑"
+          if (-not $slotOk) {
+            $emit = $false
+            Add-Item 'daemon.pid' $sb.pid $null '真相源报的是**非本方**槽位 => daemon.* 判 unknown（不得当通过）；需先让本方槽位守护起来'
+            Add-Item 'daemon.port' $sb.port $null '同上'
+            Add-Item 'daemon.version' $sb.version $null '同上'
+          }
         }
       }
       if ($emit) {
@@ -204,6 +254,7 @@ function Compare-Core($panel, $st) {
   $paths = if ($null -eq $panel.rows) { $null } else { @($pRows | Where-Object { $_.kind -eq 'workspace' } | ForEach-Object { $_.path }) }
   Add-Item 'workspaces.paths' $paths $null 'wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过'
 
+  foreach ($fi in $f33Items) { $items.Add($fi) }
   return $items
 }
 
@@ -264,6 +315,27 @@ daemon: not running（absent: 没有守护元数据（守护未运行））
 web hosts: (none)
 '@
 
+  # F/G：T10 的 F33 语义（snapshot.daemon 只报配置槽位；别槽进 others[]）
+  $statusOtherSlot = @'
+distros: debian-u8-1
+desktop dsh version: 0.2.0-rc.2
+wsl pin: 0.2.0-rc.2
+drift: no
+daemon: running pid=111111 actualPort=8962 slot=8962 version=0.2.0-rc.2 uptime=5s idleMs=1800000 lingerMs=600000 keys=0 [(none)]
+daemon ports: configured=8932(+3 回退) actual=8962 slot=8962
+web hosts: (none)
+'@
+  $panelNotRunning = @'
+{ "capturedAt":"synthetic",
+  "rows":[{"kind":"distro","name":"debian-u8-1"}],
+  "statusBar":{"line":"daemon 未运行（配置槽位 8932）","pid":null,"port":null,"version":null,"keys":null,"keysDetail":[],"drift":null},
+  "webHosts":[] }
+'@
+  $snapF33Ok = '{ "ok":true,"result":{ "daemon":{ "running":false, "others":[{"slot":8962,"pid":111111,"version":"0.2.0-rc.2"}] } } }'
+  $snapF33Bad = '{ "ok":true,"result":{ "daemon":{ "running":true, "slot":8962, "pid":111111, "version":"0.2.0-rc.2", "others":[] } } }'
+  # F33 **正常**场景（配置槽位就是有守护的那个）——用于 E2 完整性检查
+  $snapF33Normal = '{ "ok":true,"result":{ "daemon":{ "running":true, "slot":8932, "pid":158529, "port":8932, "version":"0.2.0-rc.2", "keys":[], "orphans":0, "others":[] } } }'
+
   $log = New-Object System.Text.StringBuilder
   [void]$log.AppendLine('===== diff-panel-vs-status 自测（比较器区分力）=====')
   $ok = $true
@@ -271,12 +343,19 @@ web hosts: (none)
     @{ name = 'A 一致（期望 exit 0）'; panel = $panelGood; status = $statusGood; expect = 0 },
     @{ name = 'B 换掉一个 distro（期望 exit 1）'; panel = $panelBadDistro; status = $statusGood; expect = 1 },
     @{ name = 'C 改 pid（期望 exit 1）'; panel = $panelBadPid; status = $statusGood; expect = 1 },
-    @{ name = 'D 面板侧抽不到（全 null）vs 空守护（期望 exit 3，绝不能 0）'; panel = $panelMissing; status = $statusEmpty; expect = 3 }
+    @{ name = 'D 面板侧抽不到（全 null）vs 空守护（期望 exit 3，绝不能 0）'; panel = $panelMissing; status = $statusEmpty; expect = 3 },
+    @{ name = 'F F33 更严语义成立（配置槽无守护+别槽在 others[]，期望 exit 0）'; panel = $panelNotRunning; status = $statusOtherSlot; snap = $snapF33Ok; f33 = $true; slot = 8932; expect = 0 },
+    @{ name = 'G F33 被违反（snapshot 把别槽当自己报 running=true，期望 exit 1）'; panel = $panelNotRunning; status = $statusOtherSlot; snap = $snapF33Bad; f33 = $true; slot = 8932; expect = 1 }
   )
   foreach ($c in $cases) {
     $p = $c.panel | ConvertFrom-Json
     $s = Parse-Status $c.status
-    $items = Compare-Core $p $s
+    $snapObj = if ($c.ContainsKey('snap')) { $c.snap | ConvertFrom-Json } else { $null }
+    $prevF33 = $F33StrictSlot; $prevSlot = $ExpectedSlot
+    $F33StrictSlot = [bool]($c.ContainsKey('f33') -and $c.f33)
+    $ExpectedSlot = if ($c.ContainsKey('slot')) { [int]$c.slot } else { 0 }
+    $items = Compare-Core $p $s $snapObj
+    $F33StrictSlot = $prevF33; $ExpectedSlot = $prevSlot
     $sum = Summarize $items
     $code = Exit-Of $sum
     $pass = ($code -eq $c.expect)
@@ -297,6 +376,19 @@ web hosts: (none)
   if ($missing.Count -gt 0) { $ok = $false; [void]$log.AppendLine("  MISSING: $($missing -join ', ')  <== FAIL（映射静默丢失）") }
   else { [void]$log.AppendLine("  全部在场 PASS") }
 
+  # E2) F33 **正常**场景也必须有 daemon.pid/port/version（T10 自查：F33 分支曾把这三项静默跳过）
+  $prevF33b = $F33StrictSlot; $prevSlotb = $ExpectedSlot
+  $F33StrictSlot = $true; $ExpectedSlot = 8932
+  $idsF33Normal = @((Compare-Core ($panelGood | ConvertFrom-Json) (Parse-Status $statusGood) ($snapF33Normal | ConvertFrom-Json)) | ForEach-Object { $_.id })
+  $F33StrictSlot = $prevF33b; $ExpectedSlot = $prevSlotb
+  $needF33 = @('daemon.pid', 'daemon.port', 'daemon.version', 'f33.snapshot-scope')
+  $missF33 = @($needF33 | Where-Object { $idsF33Normal -notcontains $_ })
+  [void]$log.AppendLine("")
+  [void]$log.AppendLine("--- E2 F33 正常场景不得丢项（期望 daemon.pid/port/version + f33.snapshot-scope 全在场）---")
+  [void]$log.AppendLine("  实际: $($idsF33Normal -join ', ')")
+  if ($missF33.Count -gt 0) { $ok = $false; [void]$log.AppendLine("  MISSING: $($missF33 -join ', ')  <== FAIL") }
+  else { [void]$log.AppendLine("  全部在场 PASS") }
+
   Set-Content -LiteralPath $out -Value $log.ToString() -Encoding utf8
   Write-Host $log.ToString()
   Write-Host "自测总判：$(if ($ok) { 'PASS（比较器有区分力 + 映射无丢失）' } else { 'FAIL' })  -> $out"
@@ -308,7 +400,13 @@ if (-not $Panel -or -not $Status) { throw "需要 -Panel <extract.json> -Status 
 $panelObj = Get-Content -LiteralPath $Panel -Raw | ConvertFrom-Json
 $statusText = Get-Content -LiteralPath $Status -Raw
 $st = Parse-Status $statusText
-$items = Compare-Core $panelObj $st
+$snapObj = $null
+if ($Snapshot) {
+  if (Test-Path -LiteralPath $Snapshot) { try { $snapObj = (Get-Content -LiteralPath $Snapshot -Raw | ConvertFrom-Json) } catch { Write-Host "WARN: snapshot JSON 解析失败：$($_.Exception.Message)" } }
+  else { Write-Host "WARN: -Snapshot 指定的文件不存在：$Snapshot" }
+}
+if ($F33StrictSlot -and $null -eq $snapObj) { Write-Host 'WARN: 开了 -F33StrictSlot 但没有可用 snapshot ⇒ f33.* 项将记 unknown（不得当通过）' }
+$items = Compare-Core $panelObj $st $snapObj
 $sum = Summarize $items
 $body = Render $items $sum
 $code = Exit-Of $sum

@@ -1,8 +1,5 @@
-2026-10-12T15:52:28.0121294+08:00  bundle route probe
-200  len=  13930  plugins/??dsh-remote-wsl/client.js&rev=cc5a610f9149
- 404              plugins/??dsh-remote-wsl/client.js
- 404              plugins/??dsh-remote-wsl/client.panel.js
- 404              plugins/??dsh-remote-wsl/client.api.js
- 404              plugins/??dsh-remote-wsl/client.icon.js
- 404              plugins/??dsh-remote-wsl/client.js&rev=cc5a610f9149&token=
- 404              3nQqKJpfkJla4ab7m9Lm6bXPvXeP31M_DJEgY2MNd74
+2026-10-12 16:34:36  testhost=http://127.0.0.1:8981
+http://127.0.0.1:8981/plugins/dsh-remote-wsl/  ->  404  (响应状态代码未指示成功: 404 (Not Found)。)
+http://127.0.0.1:8981/plugins/dsh-remote-wsl/client.api.js  ->  404  (响应状态代码未指示成功: 404 (Not Found)。)
+http://127.0.0.1:8981/plugins/dsh-remote-wsl/client.panel.js  ->  404  (响应状态代码未指示成功: 404 (Not Found)。)
+http://127.0.0.1:8981/plugins/dsh-remote-wsl/client.icon.js  ->  404  (响应状态代码未指示成功: 404 (Not Found)。)

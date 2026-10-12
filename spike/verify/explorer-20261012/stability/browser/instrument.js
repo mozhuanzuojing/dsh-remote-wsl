@@ -217,7 +217,8 @@
         deliveredAt: null,
         status: null,
         error: null,
-        source: 'network'
+        source: 'network',
+        callerAborted: false
       };
       pendingFetches.add(rec);
       if (fetchLog.length < CAP.fetchLog) fetchLog.push(rec);
@@ -381,14 +382,16 @@
   };
 
   const fetchSnapshot = () => {
-    const pend = [...pendingFetches].map((r) => ({ id: r.id, url: r.url, method: r.method, isApi: r.isApi, seq: r.seq, ageMs: Math.round(now() - r.startedAt), gate: r.gate || null }));
+    const pend = [...pendingFetches].map((r) => ({ id: r.id, url: r.url, method: r.method, isApi: r.isApi, seq: r.seq, ageMs: Math.round(now() - r.startedAt), gate: r.gate || null, callerAborted: r.callerAborted === true }));
     const api = fetchLog.filter((r) => r.isApi && r.seq !== null);
     return {
       pending: pend,
       pendingCount: pend.length,
       pendingApiCount: pend.filter((p) => p.isApi).length,
+      // S12: 被调用方 abort 的请求不算真堆积（真网络下它们会立刻 reject）
+      pendingApiNotAborted: pend.filter((p) => p.isApi && !p.callerAborted).length,
       apiSeqIssued: apiSeq,
-      apiRequests: api.map((r) => ({ seq: r.seq, startedAt: Math.round(r.startedAt), deliveredAt: r.deliveredAt === null ? null : Math.round(r.deliveredAt), status: r.status, gateDelayMs: r.gateDelayMs || 0, source: r.source, error: r.error })),
+      apiRequests: api.map((r) => ({ seq: r.seq, startedAt: Math.round(r.startedAt), deliveredAt: r.deliveredAt === null ? null : Math.round(r.deliveredAt), status: r.status, gateDelayMs: r.gateDelayMs || 0, source: r.source, error: r.error, callerAborted: r.callerAborted === true })),
       lastApiSeqIssued: api.length ? api[api.length - 1].seq : null,
       lastApiSeqDelivered: api.filter((r) => r.deliveredAt !== null).length ? api.filter((r) => r.deliveredAt !== null).slice(-1)[0].seq : null,
       logCapped: fetchLog.length >= CAP.fetchLog,

@@ -213,29 +213,47 @@ export function createExplorerHandlers(deps) {
     const v = deps.resolveVersion(cfg);
 
     // ★ 单一真相源：daemon 段只能来自 daemonSnapshot()（= wsl_status / wsl_daemon status 的同一函数）。
-    //   `live[0]` 的选择口径与 daemonStatus() 完全一致（同一个数组、同一顺序，
-    //   listDaemonSlots 已把 cfg.daemonPort 排最前）。
+    //
+    // ★★ F33（task-8，安全级）：**只认配置槽位**，绝不回落到 `live[0]`。
+    // 为什么（T7 实测，修复前）：自有槽位 8982 无守护时 `live[0]` 会是**别的 agent 的槽位 8962**，
+    // 面板于是显示"我的守护 slot 8962 · pid …"，而 UI 的"停止"按钮正是以该 slot 为目标 ⇒
+    // **跨实例误停风险**。所以：
+    //   · 本槽位（`cfg.daemonPort`）没有守护 ⇒ 明确 `running:false`（**不回落**）；
+    //   · 别的槽位的活守护只作为**只读资讯**进 `others[]`，并逐条标明"非本槽位、未复用未打扰"。
+    // `orphans` 仍取 daemonSnapshot() 的全量口径（孤儿本来就是"无元数据"的，不存在"谁的"问题）。
     const ds = await daemonSnapshot(cfg);
     const live = Array.isArray(ds.live) ? ds.live : [];
-    const first = live[0];
-    const liveKeys = Array.isArray(first?.info?.keys) ? first.info.keys : [];
-    const daemon = first
+    const configuredSlot = Number(cfg.daemonPort) || null;
+    const mine = live.find((l) => Number(l.slot) === configuredSlot) ?? null;
+    const others = live
+      .filter((l) => Number(l.slot) !== configuredSlot)
+      .map((l) => ({
+        slot: l.slot,
+        pid: l.info?.daemonPid ?? null,
+        port: l.info?.port ?? null,
+        version: l.info?.version ?? null,
+        note: `非本槽位（configured daemonPort=${configuredSlot}）；未复用、未打扰`,
+      }));
+    const mineKeys = Array.isArray(mine?.info?.keys) ? mine.info.keys : [];
+    const daemon = mine
       ? {
           running: true,
-          slot: first.slot,
-          pid: first.info?.daemonPid ?? null,
+          slot: mine.slot,
+          pid: mine.info?.daemonPid ?? null,
           // `port` 是对 §4 字段表的一处**加法**（§4 原文只列 running/slot/pid/version/keys/orphans）：
           // §2 的状态条与 §6 验收②都要显示守护端口，而 T4 的比对器有 daemon.port 一项。
           // 来源同一个：daemonSnapshot() 的 live[0].info.port（= wsl_status 的 `actualPort=`）。
-          port: first.info?.port ?? null,
-          version: first.info?.version ?? null,
-          keys: liveKeys.map((k) => str(k?.key)),
+          port: mine.info?.port ?? null,
+          version: mine.info?.version ?? null,
+          keys: mineKeys.map((k) => str(k?.key)),
           orphans: Array.isArray(ds.orphans) ? ds.orphans.length : 0,
+          others,
         }
       : {
           running: false,
           keys: [],
           orphans: Array.isArray(ds.orphans) ? ds.orphans.length : 0,
+          others,
         };
 
     const drift = v.drift
@@ -304,7 +322,9 @@ export function createExplorerHandlers(deps) {
     }
 
     const ensured = await ensureDaemon(cfg, { version: v.version, log });
-    if (!ensured.ok) throw new Error(`remote-wsl: ${ensured.error}`);
+    // F14b（task-8）：与 `daemon` 分支**同一失败语义** —— 都走 E_UNAVAILABLE(503)。
+    // 改前这里是裸 Error ⇒ HTTP 500，而同类的 daemon ensure 失败是 503（调用方无法按 code 分流）。
+    if (!ensured.ok) failUnavailable(`remote-wsl: ${ensured.error}`);
     const daemonInfo = { slot: ensured.slot ?? null, port: ensured.port ?? null, pid: ensured.info?.daemonPid ?? null };
 
     // ── warm 分支：仅在显式 warm:true 下走（P0 UI 不暴露）──────────────────────
@@ -361,6 +381,15 @@ export function createExplorerHandlers(deps) {
     const slot = args?.slot == null ? undefined : Number(args.slot);
     if (slot !== undefined && (!Number.isFinite(slot) || slot <= 0)) {
       failArg(`remote-wsl: explorer.daemon 的 slot 非法: ${String(args?.slot)}`);
+    }
+    // ★★ F33（task-8，安全级）：动作面**也只允许配置槽位**。
+    // 宁可拒绝，也不给 UI 任何路径去碰别人的守护（改前：面板能从 snapshot 里拿到别的实例的 slot
+    // 并把它当"停止"目标 ⇒ 跨实例误停；见 T7 稳定性报告）。
+    const configuredSlot = Number(cfg.daemonPort) || null;
+    if (slot !== undefined && configuredSlot !== null && slot !== configuredSlot) {
+      failArg(
+        `remote-wsl: slot ${slot} 不是本插件配置的槽位（${slot}≠${configuredSlot}）；本插件只操作自己的槽位`,
+      );
     }
     // slot 只在**本次调用**里覆盖 daemonPort（与 wsl_daemon 的 "配置端口即槽位" 语义一致）
     const eff = slot === undefined ? cfg : { ...cfg, daemonPort: slot };
@@ -582,6 +611,8 @@ export function createExplorerHttpAdapter(webServer, handlers) {
 export function registerExplorer(ctx, deps) {
   const { handlers, log } = createExplorerHandlers(deps);
   let removeRoute = null;
+  /** inject 回调是否**至少触发过一次**（F15 判据：只有"根本没触发"才补降级日志）。 */
+  let injectFired = false;
 
   /**
    * 把路由注册**整体**包进 try/catch（lead 加固 1，阻断级）。
@@ -591,10 +622,21 @@ export function registerExplorer(ctx, deps) {
    * ② 留下"注册成功但 dispose 还没接上"的无主残留。所以：
    *   · 注册成功 → `removeRoute` 立刻接上，并返回可等待的 disposer；
    *   · 注册 throw → 只**降级数据面**（打一行 `explorer http route unavailable: …`），
-   *     插件其余部分照常；此时没有任何东西被注册，也就不存在残留；
-   *   · 兜底：万一在赋值之后才抛，先把已注册的路由 dispose 掉再降级（不留无主残留）。
+   *     插件其余部分照常；
+   *   · 兜底：万一在赋值之后才抛，先把**本次**注册的路由 dispose 掉再降级。
+   *
+   * ★★ F32（task-8）：`registeredHere` 是**每次回调自己**的局部标志。
+   * 改前的缺陷：catch 里无条件 `removeRoute = null`，而 `removeRoute` 是同一次
+   * `registerExplorer` 内**共享**的变量 —— 于是当 inject 回调被触发**第二次**（HMR / 服务重提供）、
+   * 第二次因 duplicate 抛错时，会把**第一次成功注册**那条路由的 disposer 抹掉 ⇒
+   * 卸载后路由计数仍为 1（残留，且仍持旧闭包）。实测对照见
+   * `spike/verify/explorer-20261012/reliability/out-C-03-inject-twice.txt`。
+   * 现在：只有"本次确实注册成功过"才允许清理/置空 `removeRoute`。
    */
   const registerRoute = (webCtx) => {
+    injectFired = true;
+    if (warnTimer) clearTimeout(warnTimer);
+    let registeredHere = false;
     let adapter = null;
     try {
       const webServer = typeof webCtx?.get === 'function' ? webCtx.get('webServer') : undefined;
@@ -603,30 +645,60 @@ export function registerExplorer(ctx, deps) {
         return;
       }
       adapter = createExplorerHttpAdapter(webServer, handlers);
+      // 新路由已就位：把**上一次**（若还在，例如换了一个 webServer 实例）释放掉，
+      // 避免同一次 registerExplorer 内两条 route 并存。
+      if (typeof removeRoute === 'function') {
+        try {
+          removeRoute();
+        } catch (e2) {
+          log(`释放上一次路由失败: ${e2?.message ?? String(e2)}`);
+        }
+      }
       removeRoute = adapter.dispose;
+      registeredHere = true;
       log(`面板数据面已注册: ${EXPLORER_ROUTE}（方法 ${EXPLORER_METHODS.join(', ')}）`);
     } catch (e) {
-      // 降级，但先把可能已建立的路由收干净（register 返回 disposer 之后才抛的唯一情形）
-      if (adapter && typeof adapter.dispose === 'function') {
+      // 只清**本次**注册成功的那条；本次没成功 ⇒ 绝不碰 removeRoute（那可能是上一次成功注册的）
+      if (registeredHere && adapter && typeof adapter.dispose === 'function') {
         try {
           adapter.dispose();
         } catch (e2) {
-          log(`dispose 已注册路由时又失败: ${e2?.message ?? String(e2)}`);
+          log(`dispose 本次已注册路由时又失败: ${e2?.message ?? String(e2)}`);
         }
+        removeRoute = null;
       }
-      removeRoute = null;
       log(`explorer http route unavailable: ${e?.message ?? String(e)}（面板数据面降级；6 个 agent 工具不受影响）`);
       return;
     }
     return () => {
+      // 幂等：只释放本次注册的那条
+      if (!registeredHere) return;
+      registeredHere = false;
       try {
-        if (typeof removeRoute === 'function') removeRoute();
+        if (typeof adapter?.dispose === 'function') adapter.dispose();
       } catch (e) {
         log(`移除路由失败: ${e?.message ?? String(e)}`);
       }
-      removeRoute = null;
+      if (removeRoute === adapter?.dispose) removeRoute = null;
     };
   };
+
+  /**
+   * ★★ F15（task-8）：`webServer` **永不就绪**（条件注入的回调根本不触发）时，改前**一行日志都没有**
+   * —— 数据面静默缺席，排查时只能靠猜（INJ-C1 实测 `stderr=[]`）。
+   * 这里补一条**一次性**降级日志。两点纪律：
+   *   · 只在 `injectFired === false` 时打（`webServer` 到位但服务形状不对的那句已有，绝不重复打）；
+   *   · 定时器 `unref()`（诊断不能拖住宿主退出），且 inject 一旦触发就立刻清掉。
+   * 延迟默认 30s（服务激活通常快得多，避免误报"永不就绪"）；可用
+   * `DSH_REMOTE_WSL_INJECT_WARN_MS` 覆盖 —— 这是给验证用的接缝（T10 不必等 30 秒）。
+   */
+  const warnAfterMs = Number(process.env.DSH_REMOTE_WSL_INJECT_WARN_MS) || 30000;
+  const warnTimer = setTimeout(() => {
+    if (!injectFired) {
+      log('webServer 未就绪 ⇒ explorer.* HTTP 路由未注册（方法表仍可用）');
+    }
+  }, warnAfterMs);
+  warnTimer.unref?.();
 
   if (typeof ctx?.inject === 'function') {
     ctx.inject(['webServer'], registerRoute);
@@ -639,6 +711,7 @@ export function registerExplorer(ctx, deps) {
     handlers,
     route: EXPLORER_ROUTE,
     dispose: () => {
+      if (warnTimer) clearTimeout(warnTimer);
       if (typeof removeRoute === 'function') removeRoute();
       removeRoute = null;
     },

@@ -1,0 +1,5 @@
+### D1  F32：同一次 registerExplorer 内 inject 回调触发两次（第二次 duplicate）
+逃到最外层的抛错=(none) ✅
+stderr=["remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）\n","remote-wsl(explorer): explorer http route unavailable: webserver: duplicate exact route \"/remote-wsl/api\"（面板数据面降级；6 个 agent 工具不受影响）\n"]
+routes: before dispose = 1（期望 1）｜after dispose = 0（**期望 0**；改前实测为 1）
+verdict=PASS —— F32 已修（dispose 后路由归零）

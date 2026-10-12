@@ -1,0 +1,11 @@
+F31：launch-stderr.log 必须 0600（UNC/9p 上 chmod 无效 ⇒ 改由 WSL 侧 chmod 600）
+
+起始（队友 8982 的启动已让修复生效过一次）: 600
+
+步骤2 故意 chmod 644（模拟改前）:  644
+
+步骤3 经 route explorer.daemon{action:ensure} 起我方 8932 守护（新代码）: 200 ok=true pid=972182
+
+步骤4 重新 stat: 600  ⇒ ★ 修复成立（644 → 起守护 → 600）
+
+判据：mode == 600 ⇒ PASS；若仍 644 ⇒ RED（UNC/9p 上本地 chmodSync 不生效，必须走 WSL 侧）

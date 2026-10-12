@@ -1,0 +1,78 @@
+{
+ "receivedAt": "2026-10-12T08:37:31.866Z",
+ "name": "out-43-delta-boundary-c",
+ "data": {
+  "warm": {
+   "fixture": "C",
+   "buildMs": 4,
+   "rows": 12000,
+   "distros": 60,
+   "pathLen": 60,
+   "prettyBytes": 2370208,
+   "compactBytes": 1864037
+  },
+  "mounts": [
+   {
+    "tSettle": 1487,
+    "tPanel": 9,
+    "tTree": 310,
+    "rowsAsserted": true,
+    "rows": 12000,
+    "distroRows": 60,
+    "domAll": 73095,
+    "panelNodes": 72445,
+    "nodesPerRow": 6.04,
+    "ltMax": 295,
+    "ltTotal": 295,
+    "preTextClosed": null
+   },
+   {
+    "tSettle": 1267,
+    "tPanel": 9,
+    "tTree": 268,
+    "rowsAsserted": true,
+    "rows": 12000,
+    "distroRows": 60,
+    "domAll": 73095,
+    "panelNodes": 72445,
+    "nodesPerRow": 6.04,
+    "ltMax": 252,
+    "ltTotal": 252,
+    "preTextClosed": null
+   },
+   {
+    "tSettle": 1233,
+    "tPanel": 9,
+    "tTree": 237,
+    "rowsAsserted": true,
+    "rows": 12000,
+    "distroRows": 60,
+    "domAll": 73095,
+    "panelNodes": 72445,
+    "nodesPerRow": 6.04,
+    "ltMax": 222,
+    "ltTotal": 222,
+    "preTextClosed": null
+   }
+  ],
+  "rerender": {
+   "ok": false,
+   "tRerenderMs": 4002,
+   "longtask": {
+    "count": 1,
+    "totalMs": 62,
+    "maxMs": 62
+   },
+   "dom": {
+    "domAll": 73095,
+    "panelPresent": true,
+    "panelNodes": 72445,
+    "rows": 12000,
+    "distroRows": 60,
+    "buttons": 24103,
+    "preTextLen": null
+   }
+  },
+  "fixtureUninstalled": false
+ }
+}

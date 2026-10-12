@@ -1,0 +1,390 @@
+{
+ "receivedAt": "2026-10-12T08:15:04.134Z",
+ "name": "out-40-boundary",
+ "data": {
+  "results": {
+   "A": {
+    "warm": {
+     "buildMs": 0,
+     "rows": 200,
+     "distros": 1,
+     "pathLen": 60,
+     "prettyBytes": 40337
+    },
+    "tSettleSeries": [
+     419,
+     421,
+     424,
+     420,
+     420,
+     420,
+     420
+    ],
+    "tSettleP50": 420,
+    "tSettleP95": 424,
+    "tTreeP50": 11,
+    "tTreeP95": 16,
+    "rowsAssertedAll": true,
+    "domRows": 200,
+    "domAll": 1950,
+    "panelNodes": 1231,
+    "nodesPerRow": 6.16,
+    "preTextLen": null,
+    "ltMaxSeries": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ltTotalMax": 0,
+    "rerender": {
+     "ok": false,
+     "tRerenderMs": 4014,
+     "longtask": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0
+     },
+     "dom": {
+      "domAll": 1950,
+      "panelPresent": true,
+      "panelNodes": 1231,
+      "rows": 200,
+      "distroRows": 1,
+      "buttons": 453,
+      "preTextLen": null
+     }
+    },
+    "scroll": {
+     "medianMs": 1006,
+     "maxMs": 1006,
+     "frames": 19
+    },
+    "longtaskSupported": true
+   },
+   "B": {
+    "warm": {
+     "buildMs": 0,
+     "rows": 200,
+     "distros": 1,
+     "pathLen": 300,
+     "prettyBytes": 90737
+    },
+    "tSettleSeries": [
+     420,
+     420,
+     423,
+     420,
+     418,
+     421,
+     421
+    ],
+    "tSettleP50": 420,
+    "tSettleP95": 423,
+    "tTreeP50": 11,
+    "tTreeP95": 13,
+    "rowsAssertedAll": true,
+    "domRows": 200,
+    "domAll": 1950,
+    "panelNodes": 1231,
+    "nodesPerRow": 6.16,
+    "preTextLen": null,
+    "ltMaxSeries": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ltTotalMax": 0,
+    "rerender": {
+     "ok": false,
+     "tRerenderMs": 4003,
+     "longtask": {
+      "count": 0,
+      "totalMs": 0,
+      "maxMs": 0
+     },
+     "dom": {
+      "domAll": 1950,
+      "panelPresent": true,
+      "panelNodes": 1231,
+      "rows": 200,
+      "distroRows": 1,
+      "buttons": 453,
+      "preTextLen": null
+     }
+    },
+    "scroll": {
+     "medianMs": 1006,
+     "maxMs": 1006,
+     "frames": 19
+    },
+    "longtaskSupported": true
+   },
+   "C": {
+    "warm": {
+     "buildMs": 28,
+     "rows": 12000,
+     "distros": 60,
+     "pathLen": 60,
+     "prettyBytes": 2370208
+    },
+    "tSettleSeries": [
+     2387,
+     2035,
+     2121,
+     2036,
+     1824,
+     1701,
+     2063
+    ],
+    "tSettleP50": 2036,
+    "tSettleP95": 2387,
+    "tTreeP50": 383,
+    "tTreeP95": 441,
+    "rowsAssertedAll": false,
+    "domRows": 12000,
+    "domAll": 73164,
+    "panelNodes": 72445,
+    "nodesPerRow": 6.04,
+    "preTextLen": null,
+    "ltMaxSeries": [
+     415,
+     381,
+     364,
+     337,
+     317,
+     272,
+     333
+    ],
+    "ltTotalMax": 415,
+    "rerender": {
+     "ok": false,
+     "tRerenderMs": 4013,
+     "longtask": {
+      "count": 1,
+      "totalMs": 116,
+      "maxMs": 116
+     },
+     "dom": {
+      "domAll": 73164,
+      "panelPresent": true,
+      "panelNodes": 72445,
+      "rows": 12000,
+      "distroRows": 60,
+      "buttons": 24112,
+      "preTextLen": null
+     }
+    },
+    "scroll": {
+     "medianMs": 1006,
+     "maxMs": 1006,
+     "frames": 19
+    },
+    "longtaskSupported": true
+   }
+  },
+  "probeStatus": {
+   "schema": "dsrw-boundary/1",
+   "results": [],
+   "error": null,
+   "longtaskSupported": true,
+   "fixture": {
+    "enabled": true,
+    "fixture": "C",
+    "spec": {
+     "distros": 60,
+     "rows": 200,
+     "len": 60
+    },
+    "hits": 49,
+    "snapshotHits": 49,
+    "otherHits": 0,
+    "lastSeq": 50,
+    "spoofStale": false,
+    "markers": [
+     {
+      "reqSeq": 31,
+      "fixtureSeq": 30,
+      "marker": 31,
+      "spoofed": false,
+      "at": 66290,
+      "startedAt": 66290
+     },
+     {
+      "reqSeq": 32,
+      "fixtureSeq": 31,
+      "marker": 32,
+      "spoofed": false,
+      "at": 66947,
+      "startedAt": 66947
+     },
+     {
+      "reqSeq": 33,
+      "fixtureSeq": 32,
+      "marker": 33,
+      "spoofed": false,
+      "at": 67604,
+      "startedAt": 67604
+     },
+     {
+      "reqSeq": 34,
+      "fixtureSeq": 33,
+      "marker": 34,
+      "spoofed": false,
+      "at": 68259,
+      "startedAt": 68259
+     },
+     {
+      "reqSeq": 35,
+      "fixtureSeq": 34,
+      "marker": 35,
+      "spoofed": false,
+      "at": 68912,
+      "startedAt": 68912
+     },
+     {
+      "reqSeq": 36,
+      "fixtureSeq": 35,
+      "marker": 36,
+      "spoofed": false,
+      "at": 69573,
+      "startedAt": 69573
+     },
+     {
+      "reqSeq": 37,
+      "fixtureSeq": 36,
+      "marker": 37,
+      "spoofed": false,
+      "at": 93924,
+      "startedAt": 93924
+     },
+     {
+      "reqSeq": 38,
+      "fixtureSeq": 37,
+      "marker": 38,
+      "spoofed": false,
+      "at": 94579,
+      "startedAt": 94579
+     },
+     {
+      "reqSeq": 39,
+      "fixtureSeq": 38,
+      "marker": 39,
+      "spoofed": false,
+      "at": 95232,
+      "startedAt": 95232
+     },
+     {
+      "reqSeq": 40,
+      "fixtureSeq": 39,
+      "marker": 40,
+      "spoofed": false,
+      "at": 95887,
+      "startedAt": 95887
+     },
+     {
+      "reqSeq": 41,
+      "fixtureSeq": 40,
+      "marker": 41,
+      "spoofed": false,
+      "at": 96540,
+      "startedAt": 96540
+     },
+     {
+      "reqSeq": 42,
+      "fixtureSeq": 41,
+      "marker": 42,
+      "spoofed": false,
+      "at": 97191,
+      "startedAt": 97191
+     },
+     {
+      "reqSeq": 43,
+      "fixtureSeq": 42,
+      "marker": 43,
+      "spoofed": false,
+      "at": 97844,
+      "startedAt": 97844
+     },
+     {
+      "reqSeq": 44,
+      "fixtureSeq": 43,
+      "marker": 44,
+      "spoofed": false,
+      "at": 122271,
+      "startedAt": 122271
+     },
+     {
+      "reqSeq": 45,
+      "fixtureSeq": 44,
+      "marker": 45,
+      "spoofed": false,
+      "at": 125096,
+      "startedAt": 125096
+     },
+     {
+      "reqSeq": 46,
+      "fixtureSeq": 45,
+      "marker": 46,
+      "spoofed": false,
+      "at": 127544,
+      "startedAt": 127544
+     },
+     {
+      "reqSeq": 47,
+      "fixtureSeq": 46,
+      "marker": 47,
+      "spoofed": false,
+      "at": 130085,
+      "startedAt": 130085
+     },
+     {
+      "reqSeq": 48,
+      "fixtureSeq": 47,
+      "marker": 48,
+      "spoofed": false,
+      "at": 132558,
+      "startedAt": 132558
+     },
+     {
+      "reqSeq": 49,
+      "fixtureSeq": 48,
+      "marker": 49,
+      "spoofed": false,
+      "at": 134773,
+      "startedAt": 134773
+     },
+     {
+      "reqSeq": 50,
+      "fixtureSeq": 49,
+      "marker": 50,
+      "spoofed": false,
+      "at": 136924,
+      "startedAt": 136924
+     }
+    ],
+    "warmed": true,
+    "warmedBuildMs": 17,
+    "prettyBytes": 2370208,
+    "rows": 12000,
+    "instrRevision": 1
+   },
+   "dom": {
+    "domAll": 73164,
+    "panelPresent": true,
+    "panelNodes": 72445,
+    "rows": 12000,
+    "distroRows": 60,
+    "buttons": 24112,
+    "preTextLen": null
+   }
+  }
+ }
+}

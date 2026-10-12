@@ -1,0 +1,617 @@
+{
+ "receivedAt": "2026-10-12T08:19:05.658Z",
+ "name": "out-30-stale-timeline",
+ "data": {
+  "events": [
+   {
+    "label": "sample-start",
+    "at": 300580,
+    "iso": "2026-10-12T08:17:21.995Z",
+    "extra": null
+   },
+   {
+    "label": "daemon-8982-stopped(at 16:17:33)",
+    "at": 372765,
+    "iso": "2026-10-12T08:18:34.179Z",
+    "extra": null
+   },
+   {
+    "label": "daemon-8982-restarted-16:18:51",
+    "at": 404240,
+    "iso": "2026-10-12T08:19:05.655Z",
+    "extra": null
+   }
+  ],
+  "samples": [
+   {
+    "at": 300982,
+    "iso": "2026-10-12T08:17:22.397Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 401,
+     "daemon": {
+      "running": true,
+      "slot": 8982,
+      "pid": 917590,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8982,\"pid\":917590,\"port\":8982,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 306271,
+    "iso": "2026-10-12T08:17:27.687Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 284,
+     "daemon": {
+      "running": true,
+      "slot": 8982,
+      "pid": 917590,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8982,\"pid\":917590,\"port\":8982,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 311564,
+    "iso": "2026-10-12T08:17:32.980Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 282,
+     "daemon": {
+      "running": true,
+      "slot": 8982,
+      "pid": 917590,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8982,\"pid\":917590,\"port\":8982,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 316848,
+    "iso": "2026-10-12T08:17:38.263Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 273,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 322138,
+    "iso": "2026-10-12T08:17:43.553Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 275,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 327423,
+    "iso": "2026-10-12T08:17:48.838Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 276,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 332709,
+    "iso": "2026-10-12T08:17:54.124Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 283,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 337994,
+    "iso": "2026-10-12T08:17:59.409Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 270,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 343277,
+    "iso": "2026-10-12T08:18:04.691Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 266,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 348558,
+    "iso": "2026-10-12T08:18:09.973Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 271,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 353845,
+    "iso": "2026-10-12T08:18:15.260Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 272,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 359149,
+    "iso": "2026-10-12T08:18:20.564Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 288,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 364557,
+    "iso": "2026-10-12T08:18:25.972Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 393,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 369840,
+    "iso": "2026-10-12T08:18:31.255Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8982 · :8982 · pid 917590 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 917590,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:17:18",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 274,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 375114,
+    "iso": "2026-10-12T08:18:36.529Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8962 · :8962 · pid 930015 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 930015,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:18:34",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 272,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 380398,
+    "iso": "2026-10-12T08:18:41.813Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8962 · :8962 · pid 930015 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 930015,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:18:34",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 277,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 385678,
+    "iso": "2026-10-12T08:18:47.093Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8962 · :8962 · pid 930015 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 930015,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:18:34",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 274,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 391183,
+    "iso": "2026-10-12T08:18:52.597Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8962 · :8962 · pid 930015 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 930015,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:18:34",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 498,
+     "daemon": {
+      "running": true,
+      "slot": 8962,
+      "pid": 930015,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8962,\"pid\":930015,\"port\":8962,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":1},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 396479,
+    "iso": "2026-10-12T08:18:57.894Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8962 · :8962 · pid 930015 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 930015,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:18:34",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 291,
+     "daemon": {
+      "running": true,
+      "slot": 8982,
+      "pid": 938333,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8982,\"pid\":938333,\"port\":8982,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   },
+   {
+    "at": 401778,
+    "iso": "2026-10-12T08:19:03.193Z",
+    "panel": {
+     "present": true,
+     "line": "daemon slot 8962 · :8962 · pid 930015 · 0.2.0-rc.2 · keys 0",
+     "running": true,
+     "pid": 930015,
+     "version": null,
+     "keys": 0,
+     "snapshotBadge": "快照 16:18:34",
+     "loadingHint": null,
+     "errorVisible": false
+    },
+    "groundTruthApi": {
+     "ok": true,
+     "httpStatus": 200,
+     "ms": 292,
+     "daemon": {
+      "running": true,
+      "slot": 8982,
+      "pid": 938333,
+      "version": "0.2.0-rc.2",
+      "keys": 0
+     },
+     "rawHead": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8982,\"pid\":938333,\"port\":8982,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspa",
+     "error": null
+    }
+   }
+  ],
+  "refreshProbe": {
+   "ok": true,
+   "latencyMs": 27,
+   "before": "daemon slot 8962 · :8962 · pid 930015 · 0.2.0-rc.2 · keys 0|快照 16:18:34",
+   "after": "daemon slot 8962 · :8962 · pid 930015 · 0.2.0-rc.2 · keys 0|",
+   "changed": true,
+   "timeoutMs": 8000
+  },
+  "note": "phase1 stop-no-refresh(≥69s 陈旧,无自愈) → phase2 refresh 28ms 但显示他人槽位 8962 → phase3 重启自有 8982 后再刷新"
+ }
+}

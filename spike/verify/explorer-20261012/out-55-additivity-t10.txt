@@ -1,0 +1,6 @@
+① 加法基线（T10 重跑）
+
+无插件实例 8934 的 boot graph: entry dsh-remote-wsl 命中 = 0（期望 0）
+带插件实例 8931 的 boot graph: 命中心号 = 4（T4 已存档 out-04-boot-graph.json；本轮 rail DOM 另行抽取）
+
+判据：基线为 0 且带插件实例有该 entry ⇒ ① 的加法断言有区分力

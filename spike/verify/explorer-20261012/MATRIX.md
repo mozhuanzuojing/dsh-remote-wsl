@@ -209,3 +209,43 @@
 |---|---|---|
 | T3 | 「停止/重启」要**二次确认** + **aria-label** | ① 面板上任何 stop/restart 控件**不入我的自动化**（⑤ 只做观测，不点它，避免误停）；② 控件必须有 `aria-label`（`extract-panel.js` 的 rail/控件扫描已按 aria-label/title 取值，缺失会落进 `domHints`+`rawText` 供复核）；③ 若存在确认对话框，它属于 P1 语义，本报告只记录"是否存在/是否可绕过"，不作为 P0 判据 |
 | T2 | **注册失败不得带下插件** | 已有**正向对照**（准备期实测，probe stub 无 `webServer`）：插件打印 `remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）`，随后**照常注册 6 个工具**、`wsl_status` 正常返回 ⇒ 未"带下"插件本体。原始输出：`out-20-daemon-start.txt`、`out-20-status-running.raw.txt`。开工后按 T2 最终实现**复核一次**（若实现改为 throw，则本条转红并单独列证据） |
+
+## 18. T10 预备：两条**刻意语义变更**的判定口径（lead 2026-10-12 预备通知；**尚未 claim T10**）
+
+> 目的：把"更严"判成"正确"，不要当回归；同时不许把"更严"当挡箭牌放过真回归。
+
+### 18.1 F32/F33 —— `snapshot.daemon` 只报配置槽位
+
+- 新语义：`snapshot.daemon` 只看 `cfg.daemonPort`；本槽位无守护 ⇒ **`running:false`，不回落 `live[0]`**；其它槽位进**加法字段 `others[]`**。
+- 对照：`wsl_status` 的 `daemon:` 行**仍**走 `daemonStatus()`/`live[0]`（任何槽位）。
+- ⇒ **唯一允许不一致的场景**：「配置槽位无守护、别处有守护」。此时正确形态 = `snapshot.running=false` **且** `wsl_status` 报的那个别槽**出现在 `others[]`**；**其余场景仍要求逐项一致**。
+- 我的实现（已就位、默认关闭，避免改动已冻结的 T4 结论）：
+  - `diff-panel-vs-status.ps1` 新增 `-Snapshot <route JSON>` + `-F33StrictSlot`；判定函数 `Test-F33Scope()`。
+  - 判定：`status.daemon.slot == 配置槽` ⇒ 要求 `snapshot.running=true` 且 `snapshot.slot == 配置槽`，否则**红**；
+    `status.daemon.slot != 配置槽` ⇒ 要求 `snapshot.running=false` **且** `others[]` 含该槽 ⇒ `f33.snapshot-scope=MATCH`（原来是判红/unknown 的槽位闸改为"已解释的 unknown"，由 `f33.snapshot-scope` 承担强证据）。
+  - **自测已覆盖**：case **F**（F33 成立 ⇒ exit 0）、case **G**（snapshot 把别槽当自己报 `running=true` ⇒ **exit 1**）⇒ 该口径本身有区分力。
+  - 用法（T10）：`-Panel <抽取> -Status <wsl_status> -Snapshot <out-2x-snapshot-http.json> -ExpectedSlot 8932 -F33StrictSlot`
+- 反向风险（必须一起看）：若 T8 顺手把 `wsl_status` 的 daemon 行也改成只报配置槽位，则"唯一允许不一致"的场景消失 ⇒ 一律要求逐项一致；发现这种情况**不是回归**，但要在报告里写明口径已变。
+
+### 18.2 `explorer.daemon({action,slot})` 非配置槽位 ⇒ 400/E_ARG
+
+- 纳入错误码矩阵（T10 逐条跑）：
+
+| 输入 | 期望 | 备注 |
+|---|---|---|
+| `{action:'ensure'\|'status'\|'stop'\|'restart', slot: <配置槽>}` | 200 | 正常路径 |
+| `{action:'ensure', slot: <非配置槽，如 8962>}` | **400 / E_ARG** | 报错文案形如 `slot 8962 不是本插件配置的槽位（8962≠8982）…`；**且不得对该槽位产生副作用**（用 WSL 侧 `ss -ltn :8962` + `pgrep --port 8962` 做阴性对照） |
+| `{action:'__bogus__'}` | 400 / E_ARG | 已有实测（T4） |
+| 未知 method / 空 method / 原型链 `constructor` | 400 | 已有实测（T4） |
+| 非配置槽位的 `slot` 类型错（字符串/负数/超大） | 400 / E_ARG | 边界 |
+
+- 纪律（沿用 F-1 更正）：**真占用必须在 WSL 里占**（NAT，Windows 占端口不挡 WSL bind）；本条的"无副作用"判据只看 **WSL 侧** `ss`/`pgrep`。
+
+### 18.3 T10 开工时的增量（等 go）
+
+1. **先重冻结**：锚点集不变（`src/**` 8 + `client/**` 4 + `package.json`），但内容会变 ⇒ `revision.ps1 -Mode Write -ConfirmFreeze`。
+2. A 组回归：①②⑤ + **③ 差集必须重跑**（③ 现在多了 `-Snapshot`/`-F33StrictSlot` 两个口径）。
+3. 7 条新缺陷断言逐条（F32/F33/F15/F14b/F31/F34/F25）+ T9 的 F35(RTL)/F36(主行动零反馈)。
+4. **至少两条故意红**（沿用 R3 页面内 fetch 扰动 + R5 停守护；F33 建议再加一条：把 `others[]` 掏空让 `f33.snapshot-scope` 变红）。
+5. 收尾清理 + `-Mode Check`。
+

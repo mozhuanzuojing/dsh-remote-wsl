@@ -1,0 +1,22 @@
+id                      verdict    panel  |  status
+distros                 MATCH      debian-u8-1  |  [debian-u8-1]
+status.daemon.slot.expectedMATCH      8932  |  8932
+daemon.pid              MATCH      979116  |  979116
+daemon.port             MATCH      8932  |  8932
+daemon.version          MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+daemon.keys             MATCH(weak)[]  |  []
+                          note: key 名集合（session 见 note） symdiff panel-only=[] status-only=[]
+daemon.keys.count       MATCH      0  |  0
+drift                   unknown      |  
+                          note: 面板未给出 drift 明细 => unknown
+webHosts.ports          MATCH(weak)[]  |  []
+                          note: web host 端口集合（status 行格式未知时 => unknown） symdiff panel-only=[] status-only=[]
+status.internal.port    MATCH      8932  |  8932
+status.internal.slot    MATCH      8932  |  8932
+workspaces.paths        unknown    /home/g  |  
+                          note: wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过
+f33.snapshot.daemon.runningMATCH      snapshot.daemon.running  |  True
+f33.snapshot.others     MATCH      others[] slots  |  [8972]
+f33.snapshot-scope      MATCH      snapshot running=True slot=8932  |  status slot=8932
+summary: match=13 (strong=11) mismatch=0 unknown=2
+

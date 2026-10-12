@@ -1,0 +1,158 @@
+{
+  "generatedAt": "2026-10-12 16:43:03",
+  "panelFile": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\out-52-panel-extract-f33.json",
+  "statusFile": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\out-52-status-f33.txt",
+  "expectedSlot": 8932,
+  "summary": {
+    "match": 7,
+    "mismatch": 2,
+    "unknown": 6,
+    "strongMatch": 5
+  },
+  "exitCode": 1,
+  "items": [
+    {
+      "id": "distros",
+      "panel": "debian-u8-1",
+      "status": [
+        "debian-u8-1"
+      ],
+      "verdict": "match",
+      "weak": false,
+      "note": "集合对称差必须为空 symdiff panel-only=[] status-only=[]"
+    },
+    {
+      "id": "status.daemon.slot.expected",
+      "panel": 8731,
+      "status": 8932,
+      "verdict": "mismatch",
+      "weak": false,
+      "note": "真相源报的守护槽位必须是**我方**槽位 8932；实测停掉我方守护后 probe 立刻改报**同队其它槽位**（8912 ∈ T2 端口段 8911–8920 / 8731 插件默认口；属主未确认）—— 不设此闸，pid/port 会被非本方槽位的守护带跑"
+    },
+    {
+      "id": "daemon.pid",
+      "panel": null,
+      "status": null,
+      "verdict": "unknown",
+      "weak": false,
+      "note": "真相源报的是**非本方**槽位 => daemon.* 判 unknown（不得当通过）；需先让本方槽位守护起来"
+    },
+    {
+      "id": "daemon.port",
+      "panel": null,
+      "status": null,
+      "verdict": "unknown",
+      "weak": false,
+      "note": "同上"
+    },
+    {
+      "id": "daemon.version",
+      "panel": null,
+      "status": null,
+      "verdict": "unknown",
+      "weak": false,
+      "note": "同上"
+    },
+    {
+      "id": "daemon.keys",
+      "panel": [],
+      "status": [],
+      "verdict": "match",
+      "weak": true,
+      "note": "key 名集合（session 见 note） symdiff panel-only=[] status-only=[]"
+    },
+    {
+      "id": "daemon.keys.count",
+      "panel": null,
+      "status": 0,
+      "verdict": "unknown",
+      "weak": false,
+      "note": "计数"
+    },
+    {
+      "id": "drift",
+      "panel": null,
+      "status": null,
+      "verdict": "unknown",
+      "weak": false,
+      "note": "面板未给出 drift 明细 => unknown"
+    },
+    {
+      "id": "webHosts.ports",
+      "panel": [],
+      "status": [],
+      "verdict": "match",
+      "weak": true,
+      "note": "web host 端口集合（status 行格式未知时 => unknown） symdiff panel-only=[] status-only=[]"
+    },
+    {
+      "id": "status.internal.port",
+      "panel": 8731,
+      "status": 8731,
+      "verdict": "match",
+      "weak": false,
+      "note": "两条 status 行互相印证（daemon: actualPort vs daemon ports: actual）；不一致 = 工具自己两套数"
+    },
+    {
+      "id": "status.internal.slot",
+      "panel": 8731,
+      "status": 8731,
+      "verdict": "match",
+      "weak": false,
+      "note": "槽位一致性"
+    },
+    {
+      "id": "workspaces.paths",
+      "panel": "/home/g",
+      "status": null,
+      "verdict": "unknown",
+      "weak": false,
+      "note": "wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过"
+    },
+    {
+      "id": "f33.snapshot.daemon.running",
+      "panel": "snapshot.daemon.running",
+      "status": true,
+      "verdict": "match",
+      "weak": false,
+      "note": "snapshot 只报配置槽位"
+    },
+    {
+      "id": "f33.snapshot.others",
+      "panel": "others[] slots",
+      "status": [],
+      "verdict": "match",
+      "weak": false,
+      "note": "加法字段：别槽守护清单"
+    },
+    {
+      "id": "f33.snapshot-scope",
+      "panel": "snapshot running=True others=[]",
+      "status": "status slot=8731（≠配置槽 8932）",
+      "verdict": "mismatch",
+      "weak": false,
+      "note": "F33 更严语义：配置槽位无守护 ⇒ snapshot 报 running=false，且 status 报的那个别槽必须出现在 others[]"
+    }
+  ],
+  "unknowns": [
+    "daemon.pid",
+    "daemon.port",
+    "daemon.version",
+    "daemon.keys.count",
+    "drift",
+    "workspaces.paths"
+  ],
+  "statusUnmappedLines": [
+    "target: debian-u8-1  wslHome=/home/g  cwd=/home/g",
+    "wsl ip: 172.30.190.198",
+    "shell env injection (useShellEnvironment): on（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）",
+    "localhost forwarding: true  <- wslconfig（networkingMode=mirrored 时该键被忽略）",
+    "version this plugin uses: 0.2.0-rc.2",
+    "dlx dsh versions in WSL: 0.2.0-rc.2",
+    "backend: daemon（默认：运行时由 WSL 侧常驻守护持有，关客户端 ≠ 会话结束）",
+    "daemon idle/linger/queue: idleMs=1800000（到期回收运行时 ⇒ 上下文丢失）/ lingerMs=600000（无 key 且无客户端持续这么久 ⇒ 守护自退）/ queueLimit=4（同 key 并发 FIFO，超出明确拒绝）",
+    "daemon state dir (WSL): /home/g/.dsh/remote-wsl（元数据**按槽位**：daemon.<slot>.json / daemon.<slot>.token，0600；日志 daemon.log；本插件不把守护的东西落 /tmp）",
+    "resident runtimes (in-host backend only): (none)",
+    "pid files in WSL /tmp: 0（>0 表示可能有 in-host 孤儿运行时；首次有副作用的调用会清）"
+  ]
+}

@@ -1,0 +1,33 @@
+### D1  F32：同一次 registerExplorer 内 inject 回调触发两次（第二次 duplicate）
+逃到最外层的抛错=(none) ✅
+stderr=["remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）\n","remote-wsl(explorer): explorer http route unavailable: webserver: duplicate exact route \"/remote-wsl/api\"（面板数据面降级；6 个 agent 工具不受影响）\n"]
+routes: before dispose = 1（期望 1）｜after dispose = 0（**期望 0**；改前实测为 1）
+verdict=PASS —— F32 已修（dispose 后路由归零）
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
+remote-wsl(explorer): explorer http route unavailable: webserver: duplicate exact route "/remote-wsl/api"（面板数据面降级；6 个 agent 工具不受影响）
+### D1b 额外：两次回调拿到**不同** webServer 实例（T8 新增的"释放上一次"分支）
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
+throw=(none)
+旧 server routes: 0 → dispose 后 0（期望 0 → 0）
+新 server routes: 1 → dispose 后 0（期望 1 → 0）
+verdict=PASS（换 server 时旧路由被释放、只留一条，且可归零）
+### D3  F15：inject 永不回调 ⇒ 应出现一次性降级日志（接缝 300ms）；正常回调 ⇒ 不得出现
+remote-wsl(explorer): webServer 未就绪 ⇒ explorer.* HTTP 路由未注册（方法表仍可用）
+A(不回调) 700ms 后 stderr=["remote-wsl(explorer): webServer 未就绪 ⇒ explorer.* HTTP 路由未注册（方法表仍可用）\n"]
+  ⇒ 出现"未就绪"降级日志 = true
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
+B(正常回调) 700ms 后 stderr=["remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）\n"]
+  ⇒ 出现"未就绪"降级日志 = false（**期望 false**）
+verdict=PASS —— F15 已修（该日志只在永不就绪时出现一次，正常路径不打）
+### D2  F33：配置槽位(8972)无守护、别槽(8973)有守护 ⇒ running=false + others[]；stop 别槽 ⇒ 400/E_ARG 且 pid 不变
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
+前置：配置槽位 8972 无守护；别槽 8973 已起守护 pid=962850 ok=true
+snapshot.daemon = {"running":false,"keys":[],"orphans":0,"others":[{"slot":8731,"pid":944726,"port":8731,"version":"0.2.0-rc.2","note":"非本槽位（configured daemonPort=8972）；未复用、未打扰"},{"slot":8973,"pid":962850,"port":8973,"version":"0.2.0-rc.2","note":"非本槽位（configured daemonPort=8972）；未复用、未打扰"},{"slot":8982,"pid":961517,"port":8982,"version":"0.2.0-rc.2","note":"非本槽位（configured daemonPort=8972）；未复用、未打扰"}]}
+判据① running=false 且未回落别槽 = true ；判据② others[] 含 8973 且带"非本槽位"note = true
+explorer.daemon stop slot=8973 ⇒ HTTP 400 code=E_ARG msg=remote-wsl: slot 8973 不是本插件配置的槽位（8973≠8972）；本插件只操作自己的槽位
+别槽 pid: before=962850 after=962850 ⇒ 未变 = true（**硬证明**）
+verdict=PASS —— F33 已修（面板只认配置槽位 + 动作面拒绝别槽，且别槽守护确实没被动）
+收尾：直接停别槽 8973 ⇒ ok=true alreadyStopped=false
+
+DELTA(main) 完成；汇总见 out-D2-delta-summary.json

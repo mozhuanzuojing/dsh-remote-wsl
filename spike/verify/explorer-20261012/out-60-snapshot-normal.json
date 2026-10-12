@@ -1,0 +1,52 @@
+{
+  "capturedAt": "2026-10-12 16:45:49",
+  "status": 200,
+  "bodyJson": {
+    "ok": true,
+    "result": {
+      "distros": [
+        {
+          "name": "debian-u8-1",
+          "default": true,
+          "reachable": true
+        }
+      ],
+      "target": {
+        "distro": "debian-u8-1",
+        "wslHome": "/home/g",
+        "cwd": "/home/g"
+      },
+      "daemon": {
+        "running": true,
+        "slot": 8932,
+        "pid": 979116,
+        "port": 8932,
+        "version": "0.2.0-rc.2",
+        "keys": [],
+        "orphans": 0,
+        "others": [
+          {
+            "slot": 8972,
+            "pid": 975619,
+            "port": 8972,
+            "version": "0.2.0-rc.2",
+            "note": "非本槽位（configured daemonPort=8932）；未复用、未打扰"
+          }
+        ]
+      },
+      "drift": {
+        "drifted": false
+      },
+      "workspaces": [
+        {
+          "distro": "debian-u8-1",
+          "path": "/home/g",
+          "label": "g",
+          "kind": "folder"
+        }
+      ],
+      "webHosts": []
+    }
+  },
+  "bodyRaw": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8932,\"pid\":979116,\"port\":8932,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0,\"others\":[{\"slot\":8972,\"pid\":975619,\"port\":8972,\"version\":\"0.2.0-rc.2\",\"note\":\"非本槽位（configured daemonPort=8932）；未复用、未打扰\"}]},\"drift\":{\"drifted\":false},\"workspaces\":[{\"distro\":\"debian-u8-1\",\"path\":\"/home/g\",\"label\":\"g\",\"kind\":\"folder\"}],\"webHosts\":[]}}"
+}

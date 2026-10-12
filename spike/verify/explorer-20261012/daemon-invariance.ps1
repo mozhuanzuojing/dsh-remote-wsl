@@ -58,7 +58,8 @@ function Capture($port) {
   if (-not (Test-Path -LiteralPath $Probe)) { throw "找不到 probe: $Probe" }
   $tmp = Join-Path $OutDir ("tmp-probe-daemon-{0}.txt" -f (Get-Date -Format 'HHmmss'))
   $q = '"' + $Probe + '" --mode daemon --action status --port ' + $port
-  $p = Start-Process -FilePath $Node -ArgumentList $q -NoNewWindow -PassThru -RedirectStandardOutput $tmp -RedirectStandardError "$tmp.err"
+  # ⚠️ 用户可见窗口硬规矩（lead 2026-10-12）：起外部进程一律 `-WindowStyle Hidden`（`-NoNewWindow` 不算安全）
+  $p = Start-Process -FilePath $Node -ArgumentList $q -WindowStyle Hidden -PassThru -RedirectStandardOutput $tmp -RedirectStandardError "$tmp.err"
   $p.WaitForExit()
   $probeText = if (Test-Path -LiteralPath $tmp) { (Get-Content -LiteralPath $tmp -Raw) } else { '' }
   $probeParsed = Parse-Probe $probeText

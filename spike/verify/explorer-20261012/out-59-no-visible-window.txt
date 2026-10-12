@@ -1,0 +1,16 @@
+T10 用户可见窗口自查（lead 2026-10-12 硬规矩）
+
+采用的启动方式：
+  · 宿主/外部进程：Start-Process -WindowStyle Hidden（已把 boot-testhost.ps1、daemon-invariance.ps1 里的
+    「无 -WindowStyle / -NoNewWindow」用法全部改掉）；
+  · 其余 wsl.exe / node 探针：留在**当前后台 pwsh**里 inline 执行，stdout/stderr 重定向到文件；
+  · 守护一律走插件自身路径（explorer.daemon{ensure} / route），不用 Start-Process wsl.exe 起 launch.sh。
+
+发现与处置：
+  · 16:27 我用 boot-testhost.ps1 起的宿主（8931/8934）**未带 -WindowStyle Hidden** ⇒ 可能创建过控制台窗口；
+    已用 taskkill /T /F **只针对我记录的 pid**（23188、30756）连同子树收掉；端口 8931/8934/8935 现均为 0。
+  · 普查现存可见窗口：仅剩一个 `WindowsTerminal — C:\Program Files\WSL\wsl.exe`（pid 36752，**10:52 启动**，
+    早于我本轮全部工作），**不是我的**，我未触碰（也不许关用户窗口）。
+  · 我这侧现无 wsl/cmd/conhost 主窗口标题的进程。
+
+结论：**本轮已按规矩执行；历史那次窗口已消除；不再产生可见窗口。**

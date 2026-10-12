@@ -157,7 +157,8 @@ interface ExplorerSnapshot {
 3. **热更与落地顺序**：client 半改动需要 profile 重启（手头记录：client 改动要 `pnpm run dev:web` 在跑才热更；否则重启宿主）。⚠️ **落地顺序锁死**：T1 契约 → T3 的 `client/**` 真存在 → **T2 最后**才把 `dsh.client` 写进 `package.json` → 立刻 `--dump-config` 复验。理由：官方明确 *"missing bundle fails activation loudly"* —— 先声明 `dsh.client` 而 `client/` 不存在，会让插件在 profile 里**加载失败**。
 4. **安全边界**：P0 经**同源 HTTP 路由**取数（不是开放 RPC、也不是跨源 API）⇒ 必须按 §4 的五条硬要求实现（同源校验 / 方法白名单 / 仅 POST+JSON / 无 `all=` 类能力 / 不回传凭据）；面板动作继续走既有鉴权与身份校验路径（token、`/proc` 身份扫描、只回收自有资源）。
 5. **不做全局副作用**：面板的"清理"只作用于自己的槽位/自有资源；**禁止** `stop all=true` 这类会连带他人守护的动作进 UI（或必须二次确认并写明后果）。
-6. **同源**：面板上的每个数字都必须能在 `wsl_status` 找到同一个来源值（避免"界面显示一套、工具说另一套"）。
+6. **同源（2026-10-12 精确定义，F33 修复后）**：两者必须来自**同一个 `daemonSnapshot()`**，但**允许不同的选择器** —— `daemonStatus`（`wsl_status`）是**发现语义**（任何槽位；优先自己槽位、缺失则回落 `live[0]`），`explorer.snapshot` 是**所有权语义**（只报 `cfg.daemonPort`）。**当且仅当「配置槽位无守护、别处有守护」时两者允许不同**（面板 `running:false` + 别槽进**只读** `others[]`）—— 这是**有意的收窄**，目的是**杜绝跨实例误停**（`live[0]` 回落会让面板「停止 slot N」对准别人的守护，实测发生过），**不是回归**；其余场景一律逐项一致。原纪律保留如下。
+   原纪律：面板上的每个数字都必须能在 `wsl_status` 找到同一个来源值（避免"界面显示一套、工具说另一套"）。
 
 ---
 

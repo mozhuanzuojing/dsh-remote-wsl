@@ -329,6 +329,10 @@ function killWslPid(cfg, pid) {
 function launchScript(cfg, port, version) {
   return [
     'set -uo pipefail',
+    // F31（task-8）：`launch-stderr.log` 是**Windows 侧** `openSync(..., 'a', 0o600)` 建的，而经 UNC
+    // （9p/drvfs）的 chmod **实测不生效**（改前 0644、改了还是 0644；同目录 daemon.log 是 0600）。
+    // 所以由 **WSL 侧**在守护起来之前显式收紧：只改 mode，**不动内容、不动属主**。
+    `chmod 600 ${JSON.stringify(`${stateDirLinux(cfg)}/launch-stderr.log`)} 2>/dev/null || true`,
     'export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"',
     `cd ${JSON.stringify(cfg.wslHome)} 2>/dev/null || true`,
     `exec node ${JSON.stringify(daemonScriptWsl())} --port ${port} --meta-port ${port} --version ${version} --cwd ${JSON.stringify(cfg.cwd)} ` +
@@ -382,8 +386,17 @@ export function launchDaemon(cfg, port, version, log = () => {}) {
   // （默认回落到 cfg.daemonPort）⇒ 回退槽位写的是 launch.8752.sh、跑的却是 launch.8751.sh，
   // 于是"回退槽位元数据永远不出现 + 脚本泄漏"。包装层 stderr 也落文件，避免再次静默。
   let stderrFd = null;
+  const stderrLogLocal = unc(cfg.distro, `${stateDirLinux(cfg)}/launch-stderr.log`);
   try {
-    stderrFd = openSync(unc(cfg.distro, `${stateDirLinux(cfg)}/launch-stderr.log`), 'a');
+    // F31（task-8）：本目录其余文件都是 0600，只有这个文件因为 `openSync(..., 'a')` 的默认
+    // 0666&~umask 变成了 0644（reliability 实测 `-rw-r--r--`）。这里创建时就给 0600；
+    // 对**已存在**的旧文件再显式 chmod 一次（只改 mode，**不动内容、不动属主**）。
+    stderrFd = openSync(stderrLogLocal, 'a', 0o600);
+    try {
+      chmodSync(stderrLogLocal, 0o600);
+    } catch {
+      /* drvfs 上 chmod 可能无效；文件里只有包装层 stderr，没有密钥 */
+    }
   } catch {
     stderrFd = null;
   }

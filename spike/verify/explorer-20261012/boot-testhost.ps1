@@ -109,7 +109,9 @@ foreach ($n in $scrub) { if (Test-Path "env:$n") { $saved[$n] = (Get-Item "env:$
 try {
   $args = @('--profile', $profileName, '--port', "$Port", '--no-open')
   Write-Host "启动：$DshCmd $($args -join ' ')  (log=$logFile)"
-  $proc = Start-Process -FilePath $DshCmd -ArgumentList $args -PassThru -RedirectStandardOutput $logFile -RedirectStandardError "$logFile.err"
+  # ⚠️ 用户可见窗口硬规矩（lead 2026-10-12，用户投诉后）：**必须** -WindowStyle Hidden；
+  # `-NoNewWindow` 只在调用方本身无控制台时才安全，这里一律不用。
+  $proc = Start-Process -FilePath $DshCmd -ArgumentList $args -WindowStyle Hidden -PassThru -RedirectStandardOutput $logFile -RedirectStandardError "$logFile.err"
   $proc.Id | Set-Content -LiteralPath $pidFile -Encoding utf8
   Write-Host "host pid=$($proc.Id) -> $pidFile"
 } finally {

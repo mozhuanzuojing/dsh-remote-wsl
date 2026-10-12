@@ -198,6 +198,28 @@ token 不符 ⇒ `{"ok":false,"error":"unauthorized"}` 并断开（本机任意�
 
 > **0.1.0 原冻结集**（历史对照）：当时只有 `src/` 7 个 —— 其中 **6 个与上表逐字相同**（P0 未碰），`index.ts` 当时是 **75,545 / `773d0aac…`**（P0 加注册与注释后变 76,751 / `c87b7bde…`）；`explorer.ts` / `client/**` / `package.json` 当时都不存在。P0 之前那轮（改用注释补 `wsl_daemon`）的重跑证据仍在：夹具回归 `test.ts` exit 0、`adversarial` **PASS 32 / FAIL 0**、守护直控 smoke 全 exit 0。
 
+**冻结 revision —— P0.1（2026-10-12 P1 修复轮，**当前**，13 个锚点）**：与 P0 表比**恰好 4 个变**（`src/explorer.ts`、`src/daemon-client.ts`、`client/client.panel.js`、`client/index.js`），其余 9 个逐字相同。独立验证者 `p0-verify` **16:31 冻结 / 17:0x 复算 13/13 一致** ⇒ 本次验证有效（报告：`spike/verify/explorer-20261012/REPORT-fix-p1.md`）。
+
+| 文件 | 大小 | SHA256 |
+|---|---:|---|
+| `src/daemon-client.ts` | 37,581 | `184f6b87ef2ebc78b53b57bb13ebcecc28c546ccf1aee029c21daca19280098f` |
+| `src/daemon.ts` | 23,299 | `1c5284e56a7affdbe3578148e31dcb98252ad6d286ba8d978efd023905967d96` |
+| `src/explorer.ts` | 34,016 | `a2c6b8b9a19a215316625053bdef5eabf76769cb2d2aeea84bb9c1ce209fba8c` |
+| `src/index.ts` | 76,751 | `c87b7bde74280a2a1078cb3c0813f1693a30826516c933bdd472a217b34694ee` |
+| `src/sdk-runtime.ts` | 11,433 | `74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e` |
+| `src/selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
+| `src/shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
+| `src/version.ts` | 14,386 | `ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275` |
+| `client/client.api.js` | 10,661 | `4f98663dd203c52eb00a22133dca2985c052868946141932571fea2c67990fc3` |
+| `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
+| `client/client.panel.js` | 34,915 | `bb0a24babcf581d40cc00921b468b072e4abfa0e903f3d3c076c7ff7a3e52abf` |
+| `client/index.js` | 14,841 | `62ab2f0c799d33541a645e607d5fcf9e8d6bd3036bdb44f371c82f6212501264` |
+| `package.json` | 1,452 | `36f70175f9fe4ea2f9b04712fea09687b25778fdae31e2be7f30462e66ac4492` |
+
+**这一轮修掉并独立复验通过的 9 条**（P0 验收里记为 P1 的 + 可用性/稳定性新报的）：**F32** 路由残留（inject 二次触发后 `dispose` 计数 **0**，改前为 1）｜**F33** 跨槽位串台（**显示层 + 动作面 + 渲染层三层**：snapshot 只报配置槽位、别槽进只读 `others[]`、非配置槽位动作 **400/E_ARG 且无副作用**）｜**F15** `webServer` 永不就绪时的降级日志｜**F14b** 500 → **503** 统一｜**F31** `launch-stderr.log` **0600**（根因：UNC/9p 上 `chmod` **静默失败** ⇒ 改由 WSL 侧 launcher `chmod 600`）｜**F34** 首挂载不再误报"读取失败后已撤下"｜**F25** 动作失败按 `ok===false` 渲染失败 + 重试｜**F35** 路径不再按 RTL 渲染（`direction:ltr` + `unicode-bidi:plaintext`）｜**F36** 主行动的可见反馈不再被它自己触发的刷新清空。**故意红 3 条全部按预期变红**；A 组回归 ①②③⑤ 全 PASS（③ 正常场景 strong=11 逐项 MATCH）。
+
+**仍余（不装成已解决）**：① **两条文案瑕**（结果条透传 host `note` 里的实现者词汇如 `上游 daemon`/`本方法`；加载期戳记把"尚未取得快照"渲染两次）；② **`wsl_status` 字段改名 `discoveredDaemon`** 属 **P2**（要动 6 个工具 + `selftest`，"同源 + 明确选择器"的定义本轮已写进设计稿 §8.6 与本文）；③ **P2 性能**：12,000 行树 → 72,445 节点、树首帧 237–310ms（虚拟滚动未做；本轮未使其变差）；④ **未复核项**：`keys>0` 形态、`webHosts` 非空、desktop(Electron) 宿主、`fixPin` 真实失败渲染（桩级已验）、F14b 的自然故障路径（用端口占用逼出）、`client.<name>.js` 的 served URL 形态、`order/id` 的 served 验证、像素截图未落盘。⑤ **回退深度与名义 `daemonPortTries=3` 不一致**（Windows 侧试 3 个、WSL 侧扫到 +10 才 FATAL）—— 实测现象，属实现行为，记为未复核。
+
 ## 安装（link 进 profile）
 
 ```powershell
@@ -401,6 +423,7 @@ dsh --profile remote-wsl-test '请调用 wsl_agent 工具（参数 key="rc2"，t
    随后 `selftest status --port 8895` 会照它去连 8896 并报 `refused`（exit 1）。
    处置：确认该 slot 无活守护后，删 `daemon.<slot>.json` / `.token`（`status` 的 `orphans` 面也会报）。
    与「§9 第 13 条 槽位迁移」同源 —— 这里补的是**收尾**那半边。
+3. **起进程不要弹可见窗口（用户明确要求过）**：用 PowerShell 起 `wsl.exe` / `dsh.cmd` / `node` 时，**必须** `Start-Process -WindowStyle Hidden`，或者干脆留在后台脚本里执行并把 stdout/stderr **重定向到文件**（不要前台流式打印）。**不要**用 `Start-Process wsl.exe -- bash launch.<slot>.sh` 这类会创建控制台的写法 —— 实测它会弹出一个标题为 `C:\Program Files\WSL\wsl.exe` 的窗口，把守护日志刷满屏，**干扰用户正在做的事**。起守护请走插件自己的路径（`detached + stdio ignore/文件`，不开窗）。收尾自查：`Get-Process | Where-Object { $_.MainWindowTitle }` 里不该出现 `wsl` / `cmd` / `conhost` 相关标题。
 
 ### 新增/即将新增的配置键（照 VS Code 对位）
 

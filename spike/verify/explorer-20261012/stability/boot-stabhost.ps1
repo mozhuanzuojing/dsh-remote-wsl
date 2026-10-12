@@ -60,7 +60,10 @@ if ($Stop) {
 # ---------- 0) 活宿主基线 ----------
 $livePid = Get-LiveHostPid
 if (Test-Path -LiteralPath $liveFile) {
-  $recorded = (Get-Content -LiteralPath $liveFile -Raw) -replace '[^\d]', ''
+  # 修正：原来把整份文本的非数字全删 ⇒ 把"记录时间 + 端口"里的数字也拼进来 ⇒ Int32 溢出。
+  # 只认基线行的 `19387 pid=<pid>` 字段。
+  $mm2 = [regex]::Match((Get-Content -LiteralPath $liveFile -Raw), '19387\s+pid=(\d+)')
+  $recorded = if ($mm2.Success) { [int]$mm2.Groups[1].Value } else { 0 }
   Write-Host "活宿主基线文件已存在（记录 pid=$recorded），当前 pid=$livePid —— 必须相等"
   if ($recorded -and ([int]$recorded -ne [int]$livePid)) { Write-Host "!! 用户宿主 pid 变了：先报 lead，不要继续跑测试"; exit 4 }
 } else {
@@ -150,7 +153,19 @@ try {
 $deadline = (Get-Date).AddSeconds(90)
 $ready = $false
 while ((Get-Date) -lt $deadline) {
-  try { $r = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { $ready = $true; break } } catch { Start-Sleep -Milliseconds 700 }
+  try {
+    $r = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 3
+    $ready = $true; break
+  } catch {
+    # 401 = 服务已在听（web UI 要 ?token=）⇒ 视为就绪（上次误判 exit 3 的原因）
+    $code = $null; try { $code = $_.Exception.Response.StatusCode.value__ } catch {}
+    if ($code -eq 401) { $ready = $true; break }
+    Start-Sleep -Milliseconds 700
+  }
+}
+if (Test-Path -LiteralPath $logFile) {
+  $mm = [regex]::Match((Get-Content -LiteralPath $logFile -Raw), 'dsh web: (http://127\.0\.0\.1:\d+/\?token=\S+)')
+  if ($mm.Success) { $mm.Groups[1].Value | Set-Content -LiteralPath (Join-Path $OutDir 'out-02-url.txt') -Encoding utf8; Write-Host "tokenURL 已落盘 out-02-url.txt" }
 }
 Write-Host "ready=$ready  url=http://127.0.0.1:$Port/"
 if (-not $ready) { Write-Host "未就绪：看 $logFile / $logFile.err"; exit 3 }

@@ -1,0 +1,20 @@
+（检测到 /collect 包装，解包 .data）
+analyze-growth  —  输入=D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\stability\collect\out-13-delta-cycle-samples.json  overall=LEAK  mode=mount-unmount  有效轮次=20/20
+  domAll               verdict=no-leak          slope=0 ci=[0,0] net=0 tol=8.08
+      why: |slope|=0 ≤ 0.5 且 CI 含 0 且 |net|=0 ≤ tol=8.08
+      series: 808,808,808,808,808,808,808,808,808,808,808,808,808,808,808,808,808,808,808,808
+  listenersOutstanding verdict=leak             slope=9.3188 ci=[9.2741,9.3635] net=176 tol=4.22
+      why: slope=9.3188 > 0.5 且 CI 下界 9.2741 > 0
+      series: 334,343,352,361,370,379,389,399,408,418,427,437,446,455,464,473,482,492,501,510
+  timersOutstanding    verdict=structural-zero  slope=0 ci=[0,0] net=0 tol=3
+      why: 全零序列：client 半无定时器 ⇒ 该指标不构成证据（正面证据要另找）
+      series: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  apiInFlight          verdict=no-leak          slope=0 ci=[0,0] net=0 tol=3
+      why: |slope|=0 ≤ 0.5 且 CI 含 0 且 |net|=0 ≤ tol=3
+      series: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+  heapUsed             verdict=advisory         slope=16617.6639 ci=[-25967.5431,59202.871] net=614102 tol=413451.4055
+      why: 无强制 GC ⇒ 只作旁证，不参与 leak/no-leak 判定
+      series: 41160921,40950865,41520037,41375101,42020413,40387053,41019485,41629269,40737141,41321645,41898249,40899833,41466801,42027549,41061781,41618305,42304421,40516060,41212859,41775023
+  仪表健康: listeners=True timers=True fetch=True
+警告：结果落盘失败（**不影响**判定）：The process cannot access the file 'D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\stability\out-14-delta-growth-analysis.txt' because it is being used by another process.
+VERDICT=LEAK exit=1

@@ -1,0 +1,5 @@
+### D1b 额外：两次回调拿到**不同** webServer 实例（T8 新增的"释放上一次"分支）
+throw=(none)
+旧 server routes: 0 → dispose 后 0（期望 0 → 0）
+新 server routes: 1 → dispose 后 0（期望 1 → 0）
+verdict=PASS（换 server 时旧路由被释放、只留一条，且可归零）

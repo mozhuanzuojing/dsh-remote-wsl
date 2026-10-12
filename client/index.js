@@ -69,7 +69,11 @@ window.__ModuleLoader__.load({
 			".dsh-rw-workspace{display:flex;align-items:center;gap:10px;padding:4px 6px;border-radius:4px}",
 			".dsh-rw-workspace:hover{background:var(--dsw-alias-bg-layer-2)}",
 			".dsh-rw-workspace-label{flex:none;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-			".dsh-rw-workspace-path{flex:1;min-width:0;color:var(--dsw-alias-label-secondary);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}",
+			// F35：路径必须显式 LTR。之前这里写 `direction:rtl`（本意是让长路径露出尾部），
+			// 结果 `/home/g/project/dsh1` 被渲染成 `home/g/project/dsh1/`（DOM 文本没问题，是方向错）。
+			".dsh-rw-workspace-path{flex:1;min-width:0;color:var(--dsw-alias-label-secondary);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:plaintext;text-align:left}",
+			// F35 自查：其它会内嵌 WSL 路径 / 命令 / JSON 的文本容器一律显式 LTR（CJK 不受影响）
+			".dsh-rw-pre,.dsh-rw-note,.dsh-rw-error-body,.dsh-rw-confirm-body,.dsh-rw-hint,.dsh-rw-other-note{direction:ltr;unicode-bidi:plaintext}",
 			".dsh-rw-workspace-actions{display:flex;gap:8px;flex:none}",
 			".dsh-rw-link{background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;cursor:pointer;padding:0}",
 			".dsh-rw-link:hover:enabled{text-decoration:underline}",
@@ -87,6 +91,11 @@ window.__ModuleLoader__.load({
 			".dsh-rw-confirm-title{color:var(--dsw-alias-state-warn-primary);font-weight:600}",
 			".dsh-rw-confirm-body{white-space:pre-wrap;word-break:break-word}",
 			".dsh-rw-confirm-actions{display:flex;gap:8px}",
+			".dsh-rw-others{margin:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:4px}",
+			".dsh-rw-others-title{color:var(--dsw-alias-label-secondary);font-size:12px}",
+			".dsh-rw-other{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}",
+			".dsh-rw-other-main{font-weight:600}",
+			".dsh-rw-other-note{color:var(--dsw-alias-label-secondary);font-size:12px}",
 			".dsh-rw-btn--danger{border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}",
 			".dsh-rw-btn--danger:hover:enabled{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-layer-1)}",
 			".dsh-rw-raw{margin:8px;color:var(--dsw-alias-label-secondary)}",

@@ -1,0 +1,28 @@
+id                      verdict    panel  |  status
+distros                 MATCH      debian-u8-1  |  [debian-u8-1]
+status.daemon.slot.expectedMISMATCH   8731  |  8932
+                          note: 真相源报的守护槽位必须是**我方**槽位 8932；实测停掉我方守护后 probe 立刻改报**同队其它槽位**（8912 ∈ T2 端口段 8911–8920 / 8731 插件默认口；属主未确认）—— 不设此闸，pid/port 会被非本方槽位的守护带跑
+daemon.pid              unknown      |  
+                          note: 真相源报的是**非本方**槽位 => daemon.* 判 unknown（不得当通过）；需先让本方槽位守护起来
+daemon.port             unknown      |  
+                          note: 同上
+daemon.version          unknown      |  
+                          note: 同上
+daemon.keys             MATCH(weak)[]  |  []
+                          note: key 名集合（session 见 note） symdiff panel-only=[] status-only=[]
+daemon.keys.count       unknown      |  0
+                          note: 计数
+drift                   unknown      |  
+                          note: 面板未给出 drift 明细 => unknown
+webHosts.ports          MATCH(weak)[]  |  []
+                          note: web host 端口集合（status 行格式未知时 => unknown） symdiff panel-only=[] status-only=[]
+status.internal.port    MATCH      8731  |  8731
+status.internal.slot    MATCH      8731  |  8731
+workspaces.paths        unknown    /home/g  |  
+                          note: wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过
+f33.snapshot.daemon.runningMATCH      snapshot.daemon.running  |  False
+f33.snapshot.others     MATCH      others[] slots  |  []
+f33.snapshot-scope      MISMATCH   snapshot running=False others=[]  |  status slot=8731（≠配置槽 8932）
+                          note: F33 更严语义：配置槽位无守护 ⇒ snapshot 报 running=false，且 status 报的那个别槽必须出现在 others[]
+summary: match=7 (strong=5) mismatch=2 unknown=6
+
