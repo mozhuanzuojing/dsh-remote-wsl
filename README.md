@@ -445,6 +445,8 @@ dsh --profile remote-wsl-test '请调用 wsl_agent 工具（参数 key="rc2"，t
    处置：确认该 slot 无活守护后，删 `daemon.<slot>.json` / `.token`（`status` 的 `orphans` 面也会报）。
    与「§9 第 13 条 槽位迁移」同源 —— 这里补的是**收尾**那半边。
 3. **起进程不要弹可见窗口（用户明确要求过）**：用 PowerShell 起 `wsl.exe` / `dsh.cmd` / `node` 时，**必须** `Start-Process -WindowStyle Hidden`，或者干脆留在后台脚本里执行并把 stdout/stderr **重定向到文件**（不要前台流式打印）。**不要**用 `Start-Process wsl.exe -- bash launch.<slot>.sh` 这类会创建控制台的写法 —— 实测它会弹出一个标题为 `C:\Program Files\WSL\wsl.exe` 的窗口，把守护日志刷满屏，**干扰用户正在做的事**。起守护请走插件自己的路径（`detached + stdio ignore/文件`，不开窗）。收尾自查：`Get-Process | Where-Object { $_.MainWindowTitle }` 里不该出现 `wsl` / `cmd` / `conhost` 相关标题。
+   - ⚠️ **归属判定别凭标题猜（2026-10-12 踩过）**：那次复发的窗口标题与"用户自己的终端"**完全一样**，于是被验证者误判成"用户自己的"（连 pid 都记错了归属）。正确做法：**记录自己启动的每个外部进程的 (pid, 启动时间, 父 pid)**，收尾枚举窗口时按"**启动时间落在自己的运行窗口内** 且/或 **进程树可追溯到自己**"归属，并在报告里明写"本轮我方产生的可见窗口数 = N（应为 0）"。判别技巧：窗口与你的包装层**同一秒**出现、且你的进程一停窗口就消失 ⇒ 是你的。
+4. **别在守护活着时删它的元数据**：一次实际的收尾里，`daemon.<slot>.json` 被删掉而守护仍在跑 ⇒ 它成了 **`wsl_status` 看不见的孤儿**（能占端口与运行时）。`selftest stop --port <slot>` 仍能按端口找到并停掉它（这点是好的），但**删元数据必须在停掉守护之后**，否则等于制造隐形残留。
 
 ### 新增/即将新增的配置键（照 VS Code 对位）
 
