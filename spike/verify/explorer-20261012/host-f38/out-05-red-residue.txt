@@ -1,0 +1,21 @@
+=== mode=scenario-on wantSlot=8911 tries=3（DSH_REMOTE_WSL_SYSTEMD=on）===
+[before] launch 残留:
+---meta---
+0
+[before] 守护进程数 = 0
+RESULT {"ok":false,"reused":false,"mode":null,"warning":null,"slot":null,"pid":null,"tried":[8911,8912,8913],"error":"远端守护在 Windows 侧不可达：试过端口 8911, 8912, 8913 —— remote-wsl: DSH_REMOTE_WSL_SYSTEMD=on 但 systemd 托管失败（找不到 systemd-run（发行版可能未启用 systemd））；按显式配置**不**回退。这些端口在 Windows 命名空间里可能被别的程序占用（WSL 侧 bind 成功不代表 Windows 侧能连上）。请释放其中一个端口，或把 co"}
+notes 里是否仍含 mode/告警: []
+[after] launch 残留:
+-rw------- launch.8911.sh
+-rw------- launch.8912.sh
+-rw------- launch.8913.sh
+---meta---
+0
+[after] 守护进程数 = 0
+[watch] 观测到的启动脚本权限采样（应无 6 开头以外）:
+600 /home/g/.dsh/remote-wsl/launch.8911.sh
+600 /home/g/.dsh/remote-wsl/launch.8912.sh
+600 /home/g/.dsh/remote-wsl/launch.8913.sh
+采样行数=59
+[scenario] 是否残留 launch.* = 3
+[scenario] 是否起了守护 = 0

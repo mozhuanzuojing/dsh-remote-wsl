@@ -1,0 +1,11 @@
+
+round                             winDelta survivedHostExit verdict
+-----                             -------- ---------------- -------
+1 首次启动(fresh, systemd 主路径)        0             True PASS
+2 已有守护复用                           0             True PASS
+3 restart 对齐                           0             True PASS
+4 restart 后复用                         0             True PASS
+5 stop 停守护                            0             True PASS
+6 stop 后再首次启动                      0             True PASS
+7 硬杀宿主+包装层                        0             True PASS
+

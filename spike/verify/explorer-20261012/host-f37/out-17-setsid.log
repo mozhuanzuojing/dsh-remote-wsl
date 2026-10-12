@@ -1,0 +1,6 @@
+# slot 8912 not ready from Windows side: refused（3ms）
+# slot 8913 not ready from Windows side: refused（1ms）
+# slot 8914 not ready from Windows side: refused（1ms）
+LAUNCHED ok=false pid=undefined port=undefined me=37008
+WRAPPER 
+KEEPALIVE-DONE

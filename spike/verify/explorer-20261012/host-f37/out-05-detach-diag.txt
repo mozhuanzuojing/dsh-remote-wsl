@@ -1,0 +1,22 @@
+### A setsid nohup (原配方)
+    status=0 stdout="LAUNCHED" stderr=""
+    marker="NO_MARKER" | LOG="" | sleep存活=0
+### B 纯 nohup 不 setsid
+    status=0 stdout="LAUNCHED" stderr=""
+    marker="NO_MARKER" | LOG="" | sleep存活=0
+### C setsid --fork
+    status=0 stdout="LAUNCHED" stderr=""
+    marker="NO_MARKER" | LOG="" | sleep存活=0
+### D 双 fork 子 shell
+    status=0 stdout="LAUNCHED" stderr=""
+    marker="NO_MARKER" | LOG="" | sleep存活=0
+### E systemd-run --user
+    status=0 stdout="Running as unit: t15d46468.service; invocation ID: 356ca63cb8f349aa91b2e81e1d6cfb40\nLAUNCHED" stderr=""
+    marker="alive-1048728" | LOG="" | sleep存活=1
+### F 只 & 不重定向 stdin
+    status=0 stdout="LAUNCHED" stderr=""
+    marker="NO_MARKER" | LOG="" | sleep存活=1
+### G disown
+    status=0 stdout="LAUNCHED" stderr=""
+    marker="NO_MARKER" | LOG="" | sleep存活=1
+DONE

@@ -1,0 +1,2 @@
+RESULT {"ok":true,"slot":8912,"port":8912,"pid":1056742,"version":"0.2.0-rc.2","reused":false,"started":true,"alreadyStopped":false,"error":null,"notes":["槽位 8912 由 Windows 侧握手确认就绪（实际端口 8912，4ms）"],"ms":910}
+STATE ["launch-stderr.log","daemon.log","daemon.8912.json","daemon.8912.token"]

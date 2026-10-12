@@ -1,0 +1,8 @@
+
+variant       winDeltaAB hostDeltaAB terminalDelta windowAppeared
+-------       ---------- ----------- ------------- --------------
+w-hide-only            0           5             3           True
+w-detach-only          1           7             5           True
+w-neither              0           4             2           True
+w-hide-detach          1           7             5           True
+

@@ -56,6 +56,33 @@ dsh --profile <profile> '调 wsl_agent，key=rc1，task="刚才让你记的数�
 
 ## 常驻守护（默认后端）：关客户端 ≠ 会话结束
 
+### 启动方式有两条路（F-37：既要"不弹窗"，又要"关客户端 ≠ 会话结束"）
+
+起守护时必须**同时**满足两件事：**(a) 不得弹出可见控制台窗口**（Win11 默认终端是 Windows Terminal 时，
+`spawn(..., {detached:true})` 会让 `wsl.exe` 申请新控制台 ⇒ WT 开窗，`windowsHide` 拦不住）；
+**(b) 守护必须脱离 Windows 侧包装层的生死**（否则宿主一退会话就结束）。这两条在"直接 spawn `wsl.exe`"这一条路上**互斥**，
+所以本插件分两条路径：
+
+| 路径 | 何时走 | (a) 无窗 | (b) 独立于 Windows 侧 | 说明 |
+|---|---|---|---|---|
+| **systemd 主路径**（推荐） | 发行版启用了 systemd（`/etc/wsl.conf` 里 `[boot] systemd=true`）且 user bus 可达 | ✅ | ✅ | Windows 侧只发一条**短命**命令，守护交给 WSL 的 `systemd-run --user`，unit 名按槽位（`dsh-rwsl-<slot>.service`，`--collect` 自动清理；同槽位重入会先 `stop`+`reset-failed`） |
+| **兼容回退路径** | systemd 不可用/托管失败（或缺 `systemd-run`） | ⚠️ **可能弹窗** | ✅ | 退回 `detached:true + windowsHide:true` 直接 spawn；**一定**在返回值/`notes`/日志里带告警，并建议开启 systemd |
+
+告警原文（会出现在 `wsl_daemon` / `explorer.daemon` 的 notes 里）：
+
+> ⚠️ 未能由 systemd 托管守护（<原因>）⇒ 已回退到**兼容启动**：守护仍可脱离客户端存活（约束 b 保住），
+> 但在 Win11 + Windows Terminal 下**可能弹出一个可见控制台窗口**（约束 a 不保证）。
+> 建议在发行版 `/etc/wsl.conf` 里打开 `[boot] systemd=true`，执行 `wsl --shutdown` 重启发行版后再用。
+
+排查用环境变量（也是验证接缝）：`DSH_REMOTE_WSL_SYSTEMD=auto`（默认，失败即回退并告警）/ `off`（强制走兼容路径）/
+`on`（**要求** systemd，托管失败即报错、**不**回退）。
+
+> 就绪判据两条路都一样：**由 Windows 侧 hello+token 握手**确认（不是看日志、也不是看 unit 状态）。
+> **存活语义按路径分开写（2026-10-12 实测，别把两句合并）**：
+> - **systemd 主路径**：unit 归**用户 systemd**，与 Windows 侧**完全解耦** ⇒ **杀包装层 / 硬杀宿主 / 宿主优雅退出，三件都不带走守护**（独立复验各一轮：pid 不变、unit 仍 `active`、新宿主 `ensure` 报 `reused`）。这条路径下 Windows 侧**根本没有长驻包装层**（只发一条短命命令）。
+> - **兼容回退路径**：靠 `detached:true` 的 **job breakaway** 保活（宿主退出后守护仍在、`meta.pid` 不变），**代价 = 在 Win11 + Windows Terminal 下可能弹出可见窗口**；⚠️ 但**直接杀包装层**时本机 WSL 会连带回收会话内进程 ⇒ 守护随之结束（这条旧限制**只在兼容路径**成立，不是全局结论）。
+> `daemon.ts` 里忽略 `SIGHUP` 只是 `nohup` 语义的加固，**不是**存活的依靠。
+
 **这是本插件与"每个宿主进程自己 spawn 一个运行时"的分水岭。** 上游事实（spike + 独立验证双重复现）：
 `sessionId` 由客户端指定，服务端用它判重并且**落盘占用** —— 另一个进程（哪怕原持有者已正常退出、
 运行时已消失）再用同一 id 一定收到 `JSON-RPC -32603: session "…" already exists`。
@@ -447,6 +474,9 @@ dsh --profile remote-wsl-test '请调用 wsl_agent 工具（参数 key="rc2"，t
 3. **起进程不要弹可见窗口（用户明确要求过）**：用 PowerShell 起 `wsl.exe` / `dsh.cmd` / `node` 时，**必须** `Start-Process -WindowStyle Hidden`，或者干脆留在后台脚本里执行并把 stdout/stderr **重定向到文件**（不要前台流式打印）。**不要**用 `Start-Process wsl.exe -- bash launch.<slot>.sh` 这类会创建控制台的写法 —— 实测它会弹出一个标题为 `C:\Program Files\WSL\wsl.exe` 的窗口，把守护日志刷满屏，**干扰用户正在做的事**。起守护请走插件自己的路径（`detached + stdio ignore/文件`，不开窗）。收尾自查：`Get-Process | Where-Object { $_.MainWindowTitle }` 里不该出现 `wsl` / `cmd` / `conhost` 相关标题。
    - ⚠️ **归属判定别凭标题猜（2026-10-12 踩过）**：那次复发的窗口标题与"用户自己的终端"**完全一样**，于是被验证者误判成"用户自己的"（连 pid 都记错了归属）。正确做法：**记录自己启动的每个外部进程的 (pid, 启动时间, 父 pid)**，收尾枚举窗口时按"**启动时间落在自己的运行窗口内** 且/或 **进程树可追溯到自己**"归属，并在报告里明写"本轮我方产生的可见窗口数 = N（应为 0）"。判别技巧：窗口与你的包装层**同一秒**出现、且你的进程一停窗口就消失 ⇒ 是你的。
 4. **别在守护活着时删它的元数据**：一次实际的收尾里，`daemon.<slot>.json` 被删掉而守护仍在跑 ⇒ 它成了 **`wsl_status` 看不见的孤儿**（能占端口与运行时）。`selftest stop --port <slot>` 仍能按端口找到并停掉它（这点是好的），但**删元数据必须在停掉守护之后**，否则等于制造隐形残留。
+   - **根因已查明（2026-10-12）**：`src/selftest.ts` 的 **`reclaim` 夹具**（`321`）**不带 `--port` 就会用默认 `daemonPort`（8731）**，接着 `333` 用 `ensure --port <port> --isolated` **真起一个守护**，然后 `349` **按设计 `rm -f daemon.<port>.json/.token`** 并打印"**进程仍活着、端口仍占着**" ⇒ **它就是专门造孤儿的夹具**。⇒ **别在共享的默认槽位上跑 `reclaim`；要跑就显式 `--port <不冲突的槽位>`**，跑完自己收尾。
+   - 另一条**独立**路径（P1 候选，未修）：`src/daemon-client.ts:668` 的 `stopDaemon` **无条件** `removeMetaFiles`，其兜底 `killWslPid`（`667` → `319-326`）虽有身份闸（cmdline 必须含 `daemon.ts`）但**不等待/不验证退出** ⇒ `shutdown` 失败且身份闸拒绝杀时会留下"元数据已删、进程还在"。建议修法：清元数据前后**重新扫描 `/proc`** 确认该槽位已无本方守护。
+   - ✅ 值得记的正面性质：`scanDaemonProcesses()` 读 `/proc/<pid>/cmdline` **认身份、不依赖元数据** ⇒ 孤儿**可发现**（会出现在 `snapshot.daemon.others[]`）且**可回收**（`stop --port <slot>` 能收掉它）。
 
 ### 新增/即将新增的配置键（照 VS Code 对位）
 
@@ -607,3 +637,41 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 **下一步（已具备落地条件，尚未做）**：**A1**「添加为 WSL 工作区」—— 实测 WSL 路径**能**成为工作区，但**只能用 UNC**（`\\wsl.localhost\<distro>\<path>`；发行版内路径 `/home/g` 被拒 `Workspace path is not fully qualified`；路径必须已存在；`workspaceRegistry.create()` **不经被禁的 picker 能力**）⇒ 落地时必须并列写明"工作区路径是 UNC ⇒ 文件工具读写走 **9P**"。**A4** i18n —— `ctx.get('locale')` 实测可用（`document.documentElement.lang === "zh-CN"`），**不必改 `inject`**。**A7** `wsl-doctor` 式工具链体检：按成本再定。
 
 **未复核（不许当通过）**：`keys>0`/多 key｜`webHosts` 非空｜desktop(Electron) 宿主｜**"发行版未运行"分支**（用兄弟分支覆盖，未真构造）｜`/mnt/*` 上 Windows 隐藏属性不参与 `hidden` 判定（刻意取舍）｜`wsl_path` 超长输入（4KB+）｜注入负例的"字面量保留"判据偏粗（决定性证据是标记/进程零痕迹 + 实现自报 argv）｜像素截图未落盘｜UNC 工作区**真开会话**的 9P 写入路径｜客户端热更是否需 `dev:web`。
+
+---
+
+## 弹窗修复轮（P0.3）：冻结 revision 与结果 —— F-37 / F-38
+
+**起因（用户投诉过两次）**：点面板「启动守护」会弹出一个标题为 `C:\Program Files\WSL\\wsl.exe` 的可见控制台窗口刷守护日志。
+
+**根因（实测，非推测）**：**`spawn(..., { detached: true })` 是我们自己的参数。** Windows 上它让 libuv 用 **`DETACHED_PROCESS`**（该进程**无控制台**）⇒ `wsl.exe` 是控制台程序 ⇒ **申请新控制台** ⇒ Win11 默认终端是 Windows Terminal 时 **WT 接管并开窗**；`windowsHide:true` 走 `CREATE_NO_WINDOW`，**与 DETACHED 互斥**，拦不住。判别矩阵（长驻 8s，只变 spawn 选项）：`{windowsHide}` → 无窗｜`{detached}` → **开窗**｜`{windowsHide,detached}`（旧配置）→ **开窗**｜`{}` → 无窗；**短命** `wsl -l -v` 从不开窗 ⇒ 正好解释"只有起守护才弹"。
+
+**⚠️ 中间差点发布一个错误修复（值得记住的过程）**：第一版修法是**去掉 `detached`** —— 窗口确实修好了（6 轮 ∆=0），但独立复验的 A/B 证明它**打掉了本插件的头号卖点**：杀掉宿主 ⇒ 包装层与守护**都死**（而加回 `detached` 的对照**都活**）。**判定 REJECT、未发布**。根因是 `detached` 在 Windows 上同时给了 **job breakaway（父死子活）**。
+⇒ 最终分成**两条路径**（见上文「启动方式有两条路」），代价被显式写在返回值/`notes`/日志/本节里。
+
+**冻结 revision —— P0.3（2026-10-12，13 个锚点）**：与 P0.2 比变 **4 个**（`src/daemon-client.ts`、`src/daemon.ts`、`src/explorer.ts`、`src/index.ts`）；`client/**` 4 个与 `package.json` **逐字未变**。独立验证者 `p0-verify` **GO 后冻结 / 收尾复算 13/13 一致 ⇒ 验证有效**（报告：`spike/verify/explorer-20261012/REPORT-t21-f38-verify.md`）。
+
+| 文件 | 大小 | SHA256 |
+|---|---:|---|
+| `src/daemon-client.ts` | 50,702 | `4d5c2ebf955cbaabb4ec8a2a64e6ef528b98790c1ef0de8d8c87e9d126d88e7f` |
+| `src/daemon.ts` | 24,754 | `e471a5807054f00869b763a7b2f1383412104faabc4f562ae352bfdf04e5bffc` |
+| `src/explorer.ts` | 41,510 | `906b9554df9abc68e7a061fd5923d2f6c2d4f9f45cd24e34f167a72230f12e1e` |
+| `src/index.ts` | 85,909 | `a8bdb70c61acacbc07906307e2954d1f9b4f6c9fa97d167eecde349536fc43d7` |
+| `src/sdk-runtime.ts` | 11,433 | `74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e` |
+| `src/selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
+| `src/shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
+| `src/version.ts` | 14,386 | `ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275` |
+| `client/client.api.js` | 11,234 | `4ca5c7ba1a9523632dcdd40a0a4a00eb3dfd2817fa2eae014375203e01c53901` |
+| `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
+| `client/client.panel.js` | 50,840 | `86f24076d6cd6a0dcde1017734e8e7b2a811b5246c28de2093ec3f4e6775907e` |
+| `client/index.js` | 17,685 | `0588b3d32ded5fd4b80e3a96970c9740ae18a1607eb9ff3a6f6d29b92353b416` |
+| `package.json` | 1,548 | `ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087` |
+
+**本轮修掉并独立复验通过的 4 条**
+- **F-37 弹窗**：主路径 `systemd-run --user`（短命 `wsl.exe` ⇒ **无窗**；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦）+ 回退 `detached:true`（保活、**可能弹窗**、**必带告警**）。实测：主路径窗口 **∆=0**（3 轮含**真面板点「启动守护」**）；**杀包装层/硬杀宿主/宿主优雅退出三件都不带走守护**（pid 不变、unit `active`、新宿主 `reused`）；compat 路径 `=off` **产生过 1 个**窗口（该路径固有代价，收尾存在 **0**）。**故意红**双向都成立（强制 `detached` ⇒ 真出现 WT；强制"无 detached" ⇒ 存活断言红）。
+- **F-38a 启动脚本残留**：失败路径（`=on` 拒绝回退 / 托管失败 / 整轮失败）回收**本次所有尝试槽位**的 `launch.<slot>.sh`。**故意红**：副本禁用回收 ⇒ 残留 3 ⇒ 断言红。
+- **F-38b 权限**：启动脚本**创建即 0600**（根因：UNC/9p 上 `chmodSync` **静默无效** ⇒ 改在 **WSL 侧** `umask 077; base64 -d > "$P"; chmod 600 "$P"`，脚本内容走 argv）。证据：**红态残留 `ls -la` = `-rw-------`**，而同场景改前是 `-rw-r--r--`。
+- **F-38c 机器可读字段**：`explorer.daemon` / `wsl_daemon` 结果带 `mode`（`systemd`/`compat-detached`/`reused`/失败 `null`）与 `warning`（`string|null`），`notes[]` 照旧保留；**失败走错误信封**（503/`E_UNAVAILABLE`/无 `result`）——这是既有约定，**不是缺陷**。
+- 附：**双前缀文案**（`remote-wsl: remote-wsl: …`）已修 —— 判据必须用 **`includes` 而非 `startsWith`**（内层标记经聚合后落在**句中**），且**只能"守卫"不能"无条件删"**（故意红证明删了会让无标记路径丢掉前缀）。改后失败文本 `remote-wsl:` 计数 **2 → 1**。
+
+**代价 / 未复核（不许当通过）**：主路径启动耗时 **p50 1122ms / max 1144ms**（比之前多了 1 次 `wsl.exe` 调用，用于 WSL 侧写脚本+chmod）；真实"**未启用 systemd 的发行版**"未在真机上验（用副本改名等价构造）；`--collect` unit 落盘未穷尽计数；compat 弹窗的"必然性"只 1 轮观测；`keys>0`/`webHosts` 非空/desktop(Electron) 宿主/像素截图沿用历轮未复核。

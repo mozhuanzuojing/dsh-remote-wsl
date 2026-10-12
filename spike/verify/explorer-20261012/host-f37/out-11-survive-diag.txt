@@ -1,0 +1,42 @@
+[0] 清场后 state 目录:
+total 256
+drwx------  2 g g   4096 Oct 12 18:24 .
+drwx------ 19 g g   4096 Oct 12 09:19 ..
+-rw-------  1 g g 241969 Oct 12 18:24 daemon.log
+-rw-------  1 g g   2475 Oct 12 18:24 launch-stderr.log
+[1] ensure ok=true slot=8912 port=8912 pid=1055912
+[1] 包装层: wrap-pid=13908 ppid=48516 | wrap-pid=45768 ppid=13908
+[1] daemon.log:
+[daemon pid=1055172 2026-10-12T10:24:12.858Z] listening 127.0.0.1:8912 pid=1055172 dsh@0.2.0-rc.2 cwd=/home/g idleMs=1800000 queue=4 lingerMs=600000
+[daemon pid=1055172 2026-10-12T10:24:12.860Z] 已清理启动脚本 /home/g/.dsh/remote-wsl/launch.8912.sh
+[daemon pid=1055172 2026-10-12T10:24:12.875Z] 客户端断开（运行时保持存活）peer=win-pid-27984
+[daemon pid=1055912 2026-10-12T10:25:01.946Z] listening 127.0.0.1:8912 pid=1055912 dsh@0.2.0-rc.2 cwd=/home/g idleMs=1800000 queue=4 lingerMs=600000
+[daemon pid=1055912 2026-10-12T10:25:01.948Z] 已清理启动脚本 /home/g/.dsh/remote-wsl/launch.8912.sh
+[daemon pid=1055912 2026-10-12T10:25:03.079Z] 客户端断开（运行时保持存活）peer=win-pid-48516
+
+[2] 父进程仍活着（已过 9000ms）
+[2] 包装层: wrap-pid=13908 ppid=48516 | wrap-pid=45768 ppid=13908
+[2] readDaemonRecord = slot=8912 pid=1055912 port=8912
+[2] daemon.log:
+[daemon pid=1055172 2026-10-12T10:24:12.858Z] listening 127.0.0.1:8912 pid=1055172 dsh@0.2.0-rc.2 cwd=/home/g idleMs=1800000 queue=4 lingerMs=600000
+[daemon pid=1055172 2026-10-12T10:24:12.860Z] 已清理启动脚本 /home/g/.dsh/remote-wsl/launch.8912.sh
+[daemon pid=1055172 2026-10-12T10:24:12.875Z] 客户端断开（运行时保持存活）peer=win-pid-27984
+[daemon pid=1055912 2026-10-12T10:25:01.946Z] listening 127.0.0.1:8912 pid=1055912 dsh@0.2.0-rc.2 cwd=/home/g idleMs=1800000 queue=4 lingerMs=600000
+[daemon pid=1055912 2026-10-12T10:25:01.948Z] 已清理启动脚本 /home/g/.dsh/remote-wsl/launch.8912.sh
+[daemon pid=1055912 2026-10-12T10:25:03.079Z] 客户端断开（运行时保持存活）peer=win-pid-48516
+[2] state 目录:
+total 264
+drwx------  2 g g   4096 Oct 12 18:25 .
+drwx------ 19 g g   4096 Oct 12 09:19 ..
+-rw-------  1 g g    254 Oct 12 18:25 daemon.8912.json
+-rw-------  1 g g     65 Oct 12 18:25 daemon.8912.token
+-rw-------  1 g g 242332 Oct 12 18:25 daemon.log
+-rw-------  1 g g   2970 Oct 12 18:25 launch-stderr.log
+[2] handshake ok=true kind=ok pid=1055912
+[2] 收尾 stop
+[3] 最终 state:
+total 256
+drwx------  2 g g   4096 Oct 12 18:25 .
+drwx------ 19 g g   4096 Oct 12 09:19 ..
+-rw-------  1 g g 242751 Oct 12 18:25 daemon.log
+-rw-------  1 g g   3389 Oct 12 18:25 launch-stderr.log

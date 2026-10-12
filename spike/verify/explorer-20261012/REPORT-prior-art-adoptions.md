@@ -76,3 +76,54 @@
 9. **F25 / F14b / F31 / F33 等 T10 项本轮未重跑**（T14 是聚焦复验；这些不在本轮任务面内）。
 10. **像素级截图未落盘**（chrome-devtools-mcp 的 `filePath` 只能写它自己的 workspace root）⇒ 视觉证据用 DOM 抽取 + 计算样式替代。
 11. **本轮我自己的 harness 修了 3 处**（留档）：`probe-listdir.ps1` 里 compare 的 stdout 重定向撞上它自己要写的文件；`-replace` 写进参数列表导致解析错；副本补丁的引号构造错两次 —— 都不是被验对象的问题。
+
+---
+
+# 追加更正（lead 2026-10-12 指出；不改动上面已完成的判定）
+
+## A. 归属方法更正：我先前**凭标题猜**，判错了
+
+- **错在哪**：我写"可见窗口只剩**用户自己的**程序（含用户自己的 `WindowsTerminal` pid **32024**）"。
+  按 lead 的证据链，pid 32024 的 WT **启动时间 17:44:10** 与 `wsl.exe … launch.8731.sh` 两个包装层（pid 22508/29436）**同一秒**，
+  且 lead 停掉该守护后窗口立即消失 ⇒ **该窗口是本队产生的，不是用户的**。
+- **更正后的可复算方法**（已重做）：
+  **(a) 账本**：记录我启动的每个外部进程 `(pid, 启动时间, 父 pid)`；
+  **(b) 归属判据**：`启动时间 ∈ 我的运行窗口` ∧/∨ `进程树可追溯到我的账本 pid` —— **不看标题、不看"像不像用户的"**；
+  **(c) 明确数字**：**本轮我方（= 我这个账号）产生的可见窗口数 = 0**（我的窗口起点 = 17:49:33 T14 GO；争议窗口 17:44:10 早于它，且追溯不到我的 pid 43040/48636/34592）。
+- 详见 `out-82-window-attribution-correction.md`（含逐条枚举表：启动时间/父 pid/追溯结论）。
+- T10 报告里同类措辞（`WindowsTerminal` pid 36752 "不是我的 ⇒ 用户的"）也已更正为"**不可归我；属主未坐实**"。
+
+## B. 回答 ②：17:44:10 那次 `launch.8731.sh` **不是我起的**
+
+4 条证据：① 我的槽位账本全在 8932/8934/8935，8731 在我产物里只作"别槽位观察"；② 我的运行窗口起点 17:49:33 晚于 17:44:10；
+③ 日志里拉起它的 Windows 对端是 `win-pid-44496`，与我 T10/T14 宿主的子进程对端（51136/42216）不是同一支；
+④ 我 17:44 那一轮只做 `--dump-config-schema`×3 + 只读抓取 + 字节扫描。
+**被证伪的假设（留档）**：H1「我的 schema dump 触发了 `backgroundWarm` 自动 ensure」——若成立，第一个 dump 用的 `remote-wsl-test-web`（slot 8932）必会在 8932 起守护；
+但日志显示 8932 在 17:00:49Z–17:53:53Z 之间**无任何守护**，下一个是我 17:53:53 的 route ensure 新建的 fresh pid 1033761 ⇒ H1 不成立。
+详见 `out-84-not-mine-and-launch-hygiene.md`。
+
+## C. ③ 8731"活着却没元数据"的判定（根因 + 出处，不改代码）
+
+- **本次现象的最匹配成因 = `selftest` 的 `reclaim` 夹具**（`src/selftest.ts:321-351`）：
+  `324: const port = Number(argv[1] ?? cfg.daemonPort)`（不传 `--port` ⇒ **默认 8731**）→ `333` 用 `ensure --port <port> --isolated` **真起一个守护** →
+  `349: rm -f daemon.<port>.json daemon.<port>.token daemon.<port>.json.tmp` → `350` 明确打印"进程仍活着、端口仍占着"。
+  ⇒ 这是**夹具的既定副作用**，不是偶发越界；夹具中断/失败即留下同款孤儿。
+  **测试卫生问题**（应显式 `--port` 或改用临时槽位）；`stop --port` 仍能收掉它，是因为 `scanDaemonProcesses()` 读 `/proc/<pid>/cmdline` 认身份、**不依赖元数据**（这点是好的）。
+- **另有一条**能自动产生同款孤儿的**无条件路径**（独立性 P1 候选）：`daemon-client.ts:668` `removeMetaFiles(cfg, rec.slot, rec.legacy)` 在 `stopDaemon` 里**无条件**执行，
+  而 `667` 的兜底 `killWslPid`（`319-326`）有**身份闸**（cmdline 必须含 `daemon.ts`）且**不等待/不验证退出** ⇒ `shutdown` 失败 + 身份闸拒绝杀时，
+  就会"元数据已删、进程还在"。建议（只记不改）：清元数据前/后需重新扫描 `/proc` 确认该槽位无本方守护。
+  对本次：日志显示它在 lead 停掉之前**从未收到 `op=shutdown`**（唯一一次 shutdown 即 lead 那次成功 stop）⇒ "停到一半失败"对本次不成立，两条结论不冲突。
+- 出处与原始日志行：`out-83-8731-orphan-forensics.md`（含 `daemon.log:2253-2257`、`op` 统计 `status×12 / shutdown×1`）。
+
+## D. 追加未复核项
+
+12. **⑫（已坐实，2026-10-12 追加更正）** 17:44:10 那个可见窗口的生产者 = **插件自身的 `ensure` 路径（F-37）**，不是"带控制台起进程的操作者"。
+    **我原来那句"更可能是某个以带控制台方式启动 `wsl.exe … launch.<slot>.sh` 的操作者"已被证伪**（留档，避免重走弯路）。
+    交叉证据：① `client-panel` 的追补 `ADDENDUM-T13-window-audit.md` **承认**是它点了面板「启动守护」（真 host `explorer.daemon ensure`），宿主 **pid 44496**；
+    ② 我从 WSL `daemon.log` 读到的对端正是 **`peer=win-pid-44496`**（`out-83` 记录了 `daemon.log:2255-2257`）⇒ 逐字吻合；
+    ③ 它的全部启动方式均 `-WindowStyle Hidden`/后台重定向，**没有一次带控制台**，而插件 spawn 是 `windowsHide:true, detached:true`（`daemon-client.ts:403-406`）**仍开窗**。
+    ⇒ 结论 = **F-37：Win11 默认终端为 Windows Terminal 时，长驻 `wsl.exe` 的控制台被 WT 接管开窗**（短命 `wsl.exe -l -v` 不会）。
+    **T15 正在做根因 A/B 与修复，T16 将独立复验 ∆可见窗口 = 0。**
+    ⇒ 我原来要求的"`win-pid-44496` 的属主证据"**现已到手**（= client-panel 的宿主 pid）⇒ 该项从"未复核"移到"**已坐实**"。
+13. **`selftest reclaim` 夹具在共用默认槽位（8731）上的实际调用者**：我未用 `selftest`，无法指认；只能给出"该夹具会产生该现象"的机制证据 ⇒ **调用者未坐实**。
+14. **`stopDaemon` 无条件清元数据**这条 P1 候选**未做复现**（属实现缺陷面，超出 T14 任务面，且 `src/` 已冻结）⇒ 仅给结论与调用点。

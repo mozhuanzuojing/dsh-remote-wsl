@@ -1,0 +1,23 @@
+NOTE: src/**/*.ts = 8（原冻结 7 + 额外 1）：src/explorer.ts
+      -> 已一并纳入锚点（lead 2026-10-12 Q1 裁决：P0 冻结集含新增文件）。
+--- 契约体检 ---
+  PREFLIGHT OK: exports["./client"] = ./client/index.js
+  PREFLIGHT OK: dsh.client.platform = web
+  PREFLIGHT OK: 入口文件在场 client/index.js（17685 bytes）
+  PREFLIGHT OK: package.json files 含 "client"
+[Write] 已写 D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\REVISION.txt
+  src/**/*.ts = 8  client/** = 4  package.json = 1
+
+4d5c2ebf955cbaabb4ec8a2a64e6ef528b98790c1ef0de8d8c87e9d126d88e7f      50702  src/daemon-client.ts
+e471a5807054f00869b763a7b2f1383412104faabc4f562ae352bfdf04e5bffc      24754  src/daemon.ts
+906b9554df9abc68e7a061fd5923d2f6c2d4f9f45cd24e34f167a72230f12e1e      41510  src/explorer.ts
+a8bdb70c61acacbc07906307e2954d1f9b4f6c9fa97d167eecde349536fc43d7      85909  src/index.ts
+74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e      11433  src/sdk-runtime.ts
+1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94      21772  src/selftest.ts
+9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1      12480  src/shell-env.ts
+ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275      14386  src/version.ts
+4ca5c7ba1a9523632dcdd40a0a4a00eb3dfd2817fa2eae014375203e01c53901      11234  client/client.api.js
+e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431       2209  client/client.icon.js
+86f24076d6cd6a0dcde1017734e8e7b2a811b5246c28de2093ec3f4e6775907e      50840  client/client.panel.js
+0588b3d32ded5fd4b80e3a96970c9740ae18a1607eb9ff3a6f6d29b92353b416      17685  client/index.js
+ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087       1548  package.json

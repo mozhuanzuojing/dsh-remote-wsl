@@ -1,0 +1,4 @@
+# ⚠️ 未能由 systemd 托管守护（DSH_REMOTE_WSL_SYSTEMD=off（显式关闭 systemd 托管））⇒ 已回退到**兼容启动**：守护仍可脱离客户端存活（约束 b 保住），但在 Win11 + Windows Terminal 下**可能弹出一个可见控制台窗口**（约束 a 不保证）。建议在发行版 /etc/wsl.conf 里打开 `[boot] systemd=true`，执行 `wsl --shutdown` 重启发行版后再用（那样既无窗、又独立）。
+LAUNCHED mode=fresh ok=true pid=1101023 port=8912 reused=false me=35544
+WRAPPER 11640,40592
+KEEPALIVE-DONE

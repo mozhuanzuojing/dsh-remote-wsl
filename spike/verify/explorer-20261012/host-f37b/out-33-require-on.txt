@@ -1,0 +1,8 @@
+[copy] C:\Users\l\AppData\Local\Temp\t17-sysd-copy patched（systemd-run 出现 10 处，已替换脚本内 3 处）
+RESULT {"ok":false,"notes":["端口 8912: remote-wsl: DSH_REMOTE_WSL_SYSTEMD=on 但 systemd 托管失败（找不到 systemd-run-DOES-NOT-EXIST（发行版可能未启用 systemd））；按显式配置**不**回退","端口 8913: remote-wsl: DSH_REMOTE_WSL_SYSTEMD=on 但 systemd 托管失败（找不到 systemd-run-DOES-NOT-EXIST（发行版可能未启用 systemd））；按显式配置**不**回退","端口 8914: remote-wsl: DSH_REMOTE_WSL_SYSTEMD=on 但 systemd 托管失败（找不到 systemd-run-DOES-NOT-EXIST（发行版可能未启用 systemd））；按显式配置**不**回退"]}
+AFTER {"handshakeOk":false,"pid":null}
+[copy] 已删除临时副本
+(node:34384) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/l/AppData/Local/Temp/t17-sysd-copy/daemon-client.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

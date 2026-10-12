@@ -1,0 +1,70 @@
+[
+  {
+    "round": "1 首次启动(fresh)",
+    "winDelta": 2,
+    "handshakeOk": true,
+    "daemonPid": 1073777,
+    "launcherLeft": false,
+    "stderrMode": "-rw-------",
+    "verdict": "FAIL"
+  },
+  {
+    "round": "2 已有守护复用(ensure)",
+    "winDelta": 0,
+    "handshakeOk": true,
+    "daemonPid": 1073777,
+    "launcherLeft": false,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "3 restart 对齐",
+    "winDelta": 2,
+    "handshakeOk": true,
+    "daemonPid": 1074331,
+    "launcherLeft": false,
+    "stderrMode": "-rw-------",
+    "verdict": "FAIL"
+  },
+  {
+    "round": "4 复用(restart 后)",
+    "winDelta": 0,
+    "handshakeOk": true,
+    "daemonPid": 1074331,
+    "launcherLeft": false,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "5 stop 停守护",
+    "winDelta": 0,
+    "handshakeOk": false,
+    "daemonPid": null,
+    "launcherLeft": false,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "6 stop 后再首次启动",
+    "winDelta": 2,
+    "handshakeOk": true,
+    "daemonPid": 1074914,
+    "launcherLeft": false,
+    "stderrMode": "-rw-------",
+    "verdict": "FAIL"
+  },
+  {
+    "round": "7 裸 SIGHUP 存活",
+    "winDelta": 0,
+    "handshakeOk": true,
+    "daemonPid": 1074914,
+    "verdict": "PASS"
+  },
+  {
+    "round": "8 杀包装层(限制记录)",
+    "winDelta": 0,
+    "handshakeOk": false,
+    "daemonPid": null,
+    "verdict": "PASS(窗口)"
+  }
+]

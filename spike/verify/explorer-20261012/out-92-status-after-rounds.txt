@@ -1,0 +1,18 @@
+distros: debian-u8-1
+target: debian-u8-1  wslHome=/home/g  cwd=/home/g
+wsl ip: 172.30.190.198
+shell env injection (useShellEnvironment): on（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）
+localhost forwarding: true  <- wslconfig（networkingMode=mirrored 时该键被忽略）
+desktop dsh version: 0.2.0-rc.2  <- C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\primary-runtime\runtime.json
+version this plugin uses: 0.2.0-rc.2
+wsl pin: 0.2.0-rc.2
+drift: no
+dlx dsh versions in WSL: 0.2.0-rc.2
+backend: daemon（默认：运行时由 WSL 侧常驻守护持有，关客户端 ≠ 会话结束）
+daemon: running pid=1084479 actualPort=8932 slot=8932 version=0.2.0-rc.2 uptime=3s idleMs=1800000 lingerMs=600000 keys=0 [(none)]
+daemon idle/linger/queue: idleMs=1800000（到期回收运行时 ⇒ 上下文丢失）/ lingerMs=600000（无 key 且无客户端持续这么久 ⇒ 守护自退）/ queueLimit=4（同 key 并发 FIFO，超出明确拒绝）
+daemon ports: configured=8932(+3 回退) actual=8932 slot=8932
+daemon state dir (WSL): /home/g/.dsh/remote-wsl（元数据**按槽位**：daemon.<slot>.json / daemon.<slot>.token，0600；日志 daemon.log；本插件不把守护的东西落 /tmp）
+resident runtimes (in-host backend only): (none)
+web hosts: (none)
+pid files in WSL /tmp: 0（>0 表示可能有 in-host 孤儿运行时；首次有副作用的调用会清）

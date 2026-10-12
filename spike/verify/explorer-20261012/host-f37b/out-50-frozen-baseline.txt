@@ -1,0 +1,2 @@
+[frozen] ① 窗口∆=0   ② 宿主退出后存活=True (hs1.pid=1123583 hs2.pid=1123583)  ③ systemd标记=False 回退告警=False
+       宿主首行: LAUNCHED mode=fresh ok=true pid=1123583 port=8912 reused=false me=15844

@@ -1,0 +1,27 @@
+(node:10372) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
+remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）
+dsh: startup failed: 2 required plugins did not activate
+
+Failed plugins (1):
+  webserver (required)
+    Package: @deepseek-ai/dsh-host-webserver
+    Error: listen EADDRINUSE: address already in use 127.0.0.1:3092
+        at Server.setupListenHandle [as _listen2] (node:net:2009:16)
+        at listenInCluster (node:net:2066:12)
+        at node:net:2275:7
+        at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+
+Plugins waiting for services (9):
+  Plugin                 Missing services
+  connection (required)  webRuntime
+  session-log-download   connection
+  open-in-app            webServer, connection
+  directory-picker       webServer
+  session-controller     fileUploads
+  web-runtime            webServer
+  client-hmr             webServer
+  file-upload            connection
+  ui-deliverables        connection, sessionController
+
+Full diagnostics: C:\Users\l\.dsh\logs\startup-2026-10-12T11-41-46.498Z-5dbd2702-ffcf-46a1-909a-8a1fc0d23998.log

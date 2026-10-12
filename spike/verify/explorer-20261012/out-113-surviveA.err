@@ -1,0 +1,4 @@
+(node:33300) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir）
+remote-wsl(explorer): daemon shutdown on slot 8932 (port 8932): ok=true 

@@ -344,6 +344,40 @@ function launchScript(cfg, port, version) {
   ].join('\n');
 }
 
+/**
+ * ★★ F-37 双约束（task-17）：WSL 侧 **systemd-run --user** 的启动脚本。
+ *
+ * 为什么必须这样：`detached` 与 `windowsHide` 在 Windows 上互斥（前者给 job breakaway + DETACHED_PROCESS
+ * ⇒ wsl.exe 申请新控制台 ⇒ Win11+WT 开窗），所以"直接 spawn wsl.exe"这一条路上，约束 (a) 无窗 与
+ * (b) 守护脱离宿主生死 **不可兼得**。改成"Windows 侧只发一条短命令、把守护交给 WSL 的用户 systemd"后：
+ *   · Windows 侧 `wsl.exe` 是**短命**的（≈0.5s）⇒ 按 T15 的四态矩阵，短命形态**不开窗**（(a) ✓）；
+ *   · 守护是 systemd 的 unit（`Type=simple`，进程归 user manager）⇒ 与 Windows 侧任何进程的生死**解耦**（(b) ✓）。
+ *
+ * 纪律：
+ *   · 所有可变数据（启动脚本路径 / unit 名 / stderr 日志路径）都走 **argv 位置参数**（`"$1" "$2" "$3"`），
+ *     脚本里没有任何字符串拼接 —— 与 `wsl_path` 同一条安全纪律；
+ *   · **同槽位重入**：先 `stop` + `reset-failed`（清掉 inactive/failed 残留），再起，避免 unit 冲突静默失败；
+ *   · 只有真的拿到 `SYSTEMD_OK` 才算成功；任何失败都把原因（systemd-run 的输出）回给调用方去**降级并告警**。
+ */
+const SYSTEMD_LAUNCH_SCRIPT = [
+  'set -uo pipefail',
+  'L="$1"; U="$2"; E="$3"',
+  'if ! command -v systemd-run >/dev/null 2>&1; then echo "SYSTEMD_FAIL: 找不到 systemd-run（发行版可能未启用 systemd）"; exit 7; fi',
+  'systemctl --user stop "$U" >/dev/null 2>&1 || true',
+  'systemctl --user reset-failed "$U" >/dev/null 2>&1 || true',
+  'if out=$(systemd-run --user --unit="$U" --collect --quiet \\',
+  '    --property=StandardOutput=append:"$E" --property=StandardError=append:"$E" \\',
+  '    bash "$L" 2>&1); then',
+  '  echo "SYSTEMD_OK"',
+  'else',
+  '  echo "SYSTEMD_FAIL: ${out:-（systemd-run 无输出）}"',
+  '  exit 7',
+  'fi',
+].join('\n');
+
+/** 用户 systemd 里的 unit 名：**按槽位确定性命名**（同槽位重入靠它；也便于收尾清理）。 */
+export const systemdUnit = (port) => `dsh-rwsl-${port}.service`;
+
 /** 元数据/脚本目录必须先存在（Windows 侧通过 UNC 建，避免第一次启动时 WSL 侧还没有目录）。 */
 function ensureStateDir(cfg) {
   try {
@@ -358,33 +392,93 @@ function ensureStateDir(cfg) {
  * 起一个守护进程。**不做就绪判断** —— 就绪永远由调用方用 Windows 侧握手确认。
  * @returns {{ok:boolean, error?:string}}
  */
+/**
+ * ★★ F-38b（task-19）：**在 WSL 侧**写启动脚本，`umask 077` ⇒ **创建即 0600**。
+ *
+ * 为什么要改：原来走 UNC（`writeFileSync` + `chmodSync`），而 **UNC/9p 上 `chmodSync` 静默无效**
+ * （T15/T17 已实测；F31 也是同一个坑），于是**没被执行的**启动脚本会以 **0644** 留在状态目录里
+ * （T18 在 `DSH_REMOTE_WSL_SYSTEMD=on` + 托管失败 + 端口回退的场景实测到 `launch.8936.sh/launch.8937.sh`
+ * 为 `-rw-r--r--`）。在 WSL 侧 `umask 077` 创建 + 显式 `chmod 600` 是 Linux 语义，**真的生效**。
+ *
+ * 脚本内容经 **base64 作为 argv 位置参数**传入（不含任何 shell 元字符，安全）。
+ */
+const WRITE_LAUNCHER_SCRIPT = [
+  'set -uo pipefail',
+  'P="$1"; B="$2"',
+  'umask 077',
+  'printf %s "$B" | base64 -d > "$P" || { echo "LAUNCHER_WRITE_FAIL"; exit 8; }',
+  'chmod 600 "$P" 2>/dev/null || true',
+  'echo LAUNCHER_OK',
+].join('\n');
+
+/**
+ * WSL 侧落启动脚本。返回 `{ok, error?}`。
+ * 原子性说明：这里直接 `>` 截断写（不再是 UNC 上的 tmp+rename）；写入期间脚本**不会**被任何进程执行
+ * —— 只有写完（拿到 LAUNCHER_OK）之后调用方才去 `systemd-run` / `spawn`，所以不存在"读到半截脚本"的窗口。
+ */
+export function writeLauncherWsl(cfg, launcherWslPath, body) {
+  const r = spawnSync(
+    'wsl.exe',
+    ['-d', cfg.distro, '-e', 'bash', '-c', WRITE_LAUNCHER_SCRIPT, '_', launcherWslPath, Buffer.from(body, 'utf8').toString('base64')],
+    { encoding: 'utf8', windowsHide: true, timeout: 20000 },
+  );
+  const stdout = String(r.stdout || '').replace(/\0/g, '');
+  if (r.status === 0 && stdout.includes('LAUNCHER_OK')) return { ok: true };
+  const tail =
+    String(r.stderr || '')
+      .replace(/\0/g, '')
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter((s) => s && !/WSL|localhost|NAT|wsl:/i.test(s))
+      .slice(-1)[0] || '';
+  return { ok: false, error: `WSL 侧写启动脚本失败（exit ${r.status}${stdout.includes('LAUNCHER_WRITE_FAIL') ? ', LAUNCHER_WRITE_FAIL' : ''}）${tail ? `：${tail}` : ''}` };
+}
+
+/**
+ * 回收**指定槽位**的启动脚本（失败路径用；成功路径靠守护起来后自删）。
+ * `force:true` ⇒ 不存在也不报错；UNC 删除在 9p 上可用（与 chmod 不同）。
+ */
+export function removeLauncher(cfg, port) {
+  try {
+    rmSync(unc(cfg.distro, launchLinux(cfg, port)), { force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function launchDaemon(cfg, port, version, log = () => {}) {
   if (!ensureStateDir(cfg)) {
     return { ok: false, error: `无法创建 WSL 侧状态目录 ${stateDirLinux(cfg)}（发行版 "${cfg.distro}" 是否在跑？）` };
   }
-  const local = unc(cfg.distro, launchLinux(cfg, port));
   const body = launchScript(cfg, port, version);
-  // 原子写：先写 `launch.<slot>.sh.tmp` 再 rename ⇒ 并发/半截脚本都不会被 bash 读到
-  try {
-    const tmp = `${local}.tmp`;
-    writeFileSync(tmp, body, { mode: 0o600 });
-    renameSync(tmp, local);
-  } catch {
-    try {
-      writeFileSync(local, body, { mode: 0o600 }); // rename 在个别 9p 挂载上不可用 ⇒ 退回直写
-    } catch (e) {
-      return { ok: false, error: `无法写入启动脚本 ${local}: ${e.message}` };
-    }
+  // ★ F-38b：WSL 侧创建（umask 077 ⇒ 0600）。三条路径（systemd 主 / compat 回退 / 端口回退）共用这一处。
+  const written = writeLauncherWsl(cfg, launchLinux(cfg, port), body);
+  if (!written.ok) {
+    return { ok: false, error: `${written.error}（启动脚本 ${launchLinux(cfg, port)}）` };
   }
-  try {
-    chmodSync(local, 0o600);
-  } catch {
-    /* drvfs 上 chmod 可能无效；文件里没有密钥 */
-  }
-  // 守护要活过本宿主进程 ⇒ detached + unref；守护自己的诊断走 state 目录里的 daemon.log。
+  // 守护要活过本宿主进程；守护自己的诊断走 state 目录里的 daemon.log。
   // ⚠️ spawn 必须跑**同一个槽位**的脚本（`launchLinux(cfg, port)`）：这里曾经写成 `launchLinux(cfg)`
   // （默认回落到 cfg.daemonPort）⇒ 回退槽位写的是 launch.8752.sh、跑的却是 launch.8751.sh，
   // 于是"回退槽位元数据永远不出现 + 脚本泄漏"。包装层 stderr 也落文件，避免再次静默。
+  //
+  // ★★ F-37（task-15）：**这里绝对不能加 `detached: true`** —— 它是"起守护弹可见控制台窗口"的根因。
+  // 2026-10-12 本机 A/B 实测（spawn 选项矩阵，长驻 `wsl.exe -d <d> -- bash -c 'sleep 8'`）：
+  //   · { windowsHide:true }                  → 无带窗口进程、**无 WindowsTerminal**
+  //   · { detached:true }                     → 出现 `WindowsTerminal`（标题 `C:\Program Files\WSL\wsl.exe`）
+  //   · { windowsHide:true, detached:true }   → 同样出现（**windowsHide 挡不住**，这是本次的旧配置）
+  //   · {}（都不加）                          → 无带窗口进程
+  //   机理：`detached` 让 libuv 用 DETACHED_PROCESS 起子进程（**没有控制台**）；`wsl.exe` 是控制台子系统
+  //   程序 ⇒ 它申请**新控制台**，而 Win11 的默认终端应用是 Windows Terminal ⇒ WT 接管并**开一个可见窗口**
+  //   （WT 不遵守 CREATE_NO_WINDOW/hidden）。短命形态（`wsl -l -v` 约 0.3s）不会开窗，是因为握手还没完成
+  //   进程就退了 —— 这也是"为什么只有起守护才弹窗"的解释。归属判据见报告：`WindowsTerminal` 的父是
+  //   **svchost.exe**（默认终端 host 机制），不是我们的 wsl.exe ⇒ 只能靠**启动时间同秒 + A/B 对照**判定。
+  // 为什么不能改成"WSL 侧 setsid/nohup 分离 + 包装层立刻退出"（task-15 的候选 ④）：本机实测**不可行** ——
+  //   `wsl.exe -e bash -c 'bash <脚本> &'` / `setsid` / `setsid nohup` / `systemd-run --user` 四种写法，
+  //   包装层 0.45s 就退了，而脚本连**第一行都没执行**（tick 文件都不存在）；只有**前台**跑（包装层活到脚本
+  //   结束，4.5s、10 行 tick 全写）才真的跑完 ⇒ 本机 WSL 会回收 `wsl.exe` 会话里的后台进程。
+  //   加上"包装层被杀 ≠ Linux 侧进程死"是本仓已实测的另一条事实（index.ts reapWsl 注释），
+  //   所以包装层继续前台活到守护结束是**必须**的，唯一要做的就是把 detached 去掉。
   let stderrFd = null;
   const stderrLogLocal = unc(cfg.distro, `${stateDirLinux(cfg)}/launch-stderr.log`);
   try {
@@ -400,24 +494,104 @@ export function launchDaemon(cfg, port, version, log = () => {}) {
   } catch {
     stderrFd = null;
   }
-  const child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', launchLinux(cfg, port)], {
-    stdio: ['ignore', 'ignore', stderrFd ?? 'ignore'],
-    windowsHide: true,
-    detached: true,
-  });
-  if (stderrFd !== null) {
-    try {
-      closeSync(stderrFd);
-    } catch {
-      /* 子进程已持有该 fd */
+  const launcherLinux = launchLinux(cfg, port);
+  const unit = systemdUnit(port);
+  /** WSL 侧路径（systemd 的 `append:` 属性要用 Linux 路径，不是 UNC）。 */
+  const stderrLogLinuxPath = `${stateDirLinux(cfg)}/launch-stderr.log`;
+
+  /** 统一的 fd 收尾（systemd 路径不把 fd 交给任何子进程；兼容路径要交给包装层）。 */
+  const closeStderrFd = () => {
+    if (stderrFd !== null) {
+      try {
+        closeSync(stderrFd);
+      } catch {
+        /* 子进程已持有该 fd */
+      }
     }
+  };
+
+  /**
+   * 回退路径（task-17 要求"必须实现且不许静默"）：Windows 侧直接 spawn `wsl.exe -- bash <launch>`
+   * 并 `detached:true` ⇒ (b) 保住（父死子活），(a) **可能不满足**（Win11 + WT 下可能弹窗）。
+   * 因此调用方会把它作为告警带回（`warning`），并由 `ensureDaemon` 推进 notes ⇒ 工具输出里可见。
+   */
+  const spawnCompat = (why) => {
+    // ★ 防御（T17 回退面测试实测踩到）：这个 fd 可能**已经被关掉**（本函数会在 systemd 尝试之后被调用）。
+    //   拿已关闭的 fd 号去 spawn 会抛 `EBADF` ⇒ 回退路径自己先崩，比不动手更糟。失败就退回 'ignore'。
+    let child;
+    try {
+      child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', launcherLinux], {
+        stdio: ['ignore', 'ignore', stderrFd ?? 'ignore'],
+        windowsHide: true,
+        detached: true, // ★ 这一条是 (b) 的代价来源：job breakaway 必须的，但它同时带来 DETACHED_PROCESS
+      });
+    } catch (e) {
+      log(`兼容启动的 spawn 失败（stdio 里可能含已关闭的 fd）: ${e?.message ?? String(e)}；改用 ignore 重试`);
+      child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', launcherLinux], {
+        stdio: ['ignore', 'ignore', 'ignore'],
+        windowsHide: true,
+        detached: true,
+      });
+    }
+    closeStderrFd();
+    child.on('error', (e) => log(`启动守护失败（spawn）: ${e.message}`));
+    child.on('exit', (code) => {
+      if (code !== 0) log(`守护启动包装层退出 code=${code}（详见 launch-stderr.log）`);
+    });
+    child.unref();
+    const warning =
+      `⚠️ 未能由 systemd 托管守护（${why}）⇒ 已回退到**兼容启动**：守护仍可脱离客户端存活（约束 b 保住），` +
+      `但在 Win11 + Windows Terminal 下**可能弹出一个可见控制台窗口**（约束 a 不保证）。` +
+      `建议在发行版 /etc/wsl.conf 里打开 \`[boot] systemd=true\`，执行 \`wsl --shutdown\` 重启发行版后再用（那样既无窗、又独立）。`;
+    log(warning);
+    return { ok: true, launcher: launcherLinux, mode: 'compat-detached', warning, systemdError: why };
+  };
+
+  /** 主路径：WSL 侧 systemd-run --user（短命包装层 ⇒ 无窗；unit 归 systemd ⇒ 与 Windows 侧解耦）。 */
+  const trySystemd = () => {
+    // ⚠️ 这里**不能**先 closeStderrFd()：systemd 失败时还要走 spawnCompat，而它需要这个 fd
+    //    （先关掉会让回退 spawn 抛 EBADF —— T17 回退面测试就抓到了这个 bug）。成功/显式失败后再关。
+    const r = spawnSync(
+      'wsl.exe',
+      ['-d', cfg.distro, '-e', 'bash', '-c', SYSTEMD_LAUNCH_SCRIPT, '_', launcherLinux, unit, stderrLogLinuxPath],
+      { encoding: 'utf8', windowsHide: true, timeout: 25000 }, // 短命包装层：非 detached + windowsHide = 无窗
+    );
+    const stdout = String(r.stdout || '').replace(/\0/g, '');
+    const stderrTail =
+      String(r.stderr || '')
+        .replace(/\0/g, '')
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter((s) => s && !/WSL|localhost|NAT|wsl:/i.test(s))
+        .slice(-1)[0] || '';
+    if (r.status === 0 && stdout.includes('SYSTEMD_OK')) {
+      log(`守护已由 systemd 托管（unit=${unit}）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦`);
+      return { ok: true, launcher: launcherLinux, mode: 'systemd', unit, warning: null };
+    }
+    const why = ((stdout.match(/SYSTEMD_FAIL:\s*(.*)/) || [])[1] || stderrTail || `systemd-run 失败（exit ${r.status}）`)
+      .trim()
+      .slice(0, 300);
+    return { ok: false, why };
+  };
+
+  const mode = String(process.env.DSH_REMOTE_WSL_SYSTEMD ?? 'auto').toLowerCase();
+  if (mode === 'off') return spawnCompat('DSH_REMOTE_WSL_SYSTEMD=off（显式关闭 systemd 托管）');
+  const attempt = trySystemd();
+  if (attempt.ok) {
+    closeStderrFd(); // systemd 自己 append 到该文件；我们的 fd 不再需要
+    return attempt;
   }
-  child.on('error', (e) => log(`启动守护失败（spawn）: ${e.message}`));
-  child.on('exit', (code) => {
-    if (code !== 0) log(`守护启动包装层退出 code=${code}（详见 launch-stderr.log）`);
-  });
-  child.unref();
-  return { ok: true, launcher: launchLinux(cfg, port) };
+  if (mode === 'on') {
+    closeStderrFd();
+    return {
+      ok: false,
+      error: `remote-wsl: DSH_REMOTE_WSL_SYSTEMD=on 但 systemd 托管失败（${attempt.why}）；按显式配置**不**回退`,
+      mode: 'systemd-required',
+      warning: null,
+      launcher: launchLinux(cfg, port), // 交给调用方在失败路径回收（F-38a）
+    };
+  }
+  return spawnCompat(attempt.why);
 }
 
 /**
@@ -481,6 +655,10 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
       reused,
       started: !reused,
       notes,
+      // F-38c（task-19）：`mode`/`warning` 是**机器可读字段**。
+      // 复用既有守护时没有"启动方式"这回事 ⇒ `mode: 'reused'`、`warning: null`（下面复用分支会覆盖成这个值）。
+      mode: 'reused',
+      warning: null,
       versionMismatch: compat.version,
       configHardMismatch: compat.hard,
       configSoftMismatch: compat.soft,
@@ -543,6 +721,17 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
   const tries = Math.max(1, Number(cfg.daemonPortTries) || 3);
   const tried = [];
   let last = notes.join('；');
+  /**
+   * ★★ F-38a（task-19）：失败路径**必须回收本次所有尝试槽位**写下的启动脚本。
+   * 为什么：端口回退会为每个尝试过的槽位各写一个 `launch.<slot>.sh`；一旦守护没起来，
+   * "起来后自删"就不会发生 ⇒ T18 实测 `=on` + 托管失败时留下 `launch.8936.sh`/`launch.8937.sh`。
+   * 成功路径语义不变（脚本由守护自己删；这里只清理**没起来**的那些）。
+   */
+  const reclaimLaunchers = (ports) => {
+    for (const p of ports) {
+      if (removeLauncher(cfg, p)) notes.push(`回收启动脚本 launch.${p}.sh（该槽位未起来，避免残留）`);
+    }
+  };
   for (let i = 0; i < tries; i++) {
     const port = wantSlot + i;
     tried.push(port);
@@ -579,8 +768,18 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
     if (!launched.ok) {
       last = launched.error;
       notes.push(`端口 ${port}: ${launched.error}`);
+      // ★ F-38a：启动环节就失败（例如 `=on` 拒绝回退）⇒ 这一轮写下的启动脚本必须立刻回收
+      reclaimLaunchers([port]);
       continue;
     }
+    // F-37 双约束（task-17）：把"走的是哪条启动路径"如实带回调用方 ——
+    // systemd 主路径无事；兼容回退**必须**让告警一路浮到工具输出（不许静默降级）。
+    if (launched.mode === 'systemd') {
+      notes.push(`启动方式: systemd-run --user（unit ${launched.unit}；包装层短命 ⇒ 无窗口，且与 Windows 侧生死解耦）`);
+    } else if (launched.mode === 'compat-detached') {
+      notes.push('启动方式: 兼容 spawn（detached:true + windowsHide:true）—— 见上面那条告警');
+    }
+    if (launched.warning) notes.push(launched.warning);
     const deadline = Date.now() + Number(cfg.daemonStartTimeoutMs ?? 20000);
     let hs = null;
     while (Date.now() < deadline) {
@@ -597,7 +796,11 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
           );
         }
         notes.push(`槽位 ${port} 由 Windows 侧握手确认就绪（实际端口 ${hs.info.port}，${hs.ms}ms）`);
-        return adopt({ slot: port, meta: rec.meta, token: rec.token }, hs, false);
+        // ★ F-38c（task-19）：`mode`/`warning` 作为**机器可读字段**随结果返回（notes 照旧保留）。
+        const ready = adopt({ slot: port, meta: rec.meta, token: rec.token }, hs, false);
+        ready.mode = launched.mode ?? null; // 'systemd' | 'compat-detached'
+        ready.warning = launched.warning ?? null; // 回退时非空字符串；主路径为 null
+        return ready;
       }
       if (hs.kind === 'refused') {
         // 元数据存在但守护已死（pid 不在进程表）⇒ 清掉再等新守护写自己的，别把 20s 白等在一个死 pid 上
@@ -616,21 +819,21 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
     for (const o of ownDaemonsOnPorts(cfg, [port])) killWslPid(cfg, o.pid);
     if (rec2 || ownDaemonsOnPorts(cfg, [port]).length) await sleep(700);
     removeMetaFiles(cfg, port);
-    if (launched.launcher) {
-      try {
-        rmSync(unc(cfg.distro, launched.launcher), { force: true }); // 没起来的启动脚本别leak（守护起来会自删）
-      } catch {
-        /* ignore */
-      }
-    }
+    // ★ F-38a：该槽位没起来 ⇒ 回收**这个槽位**的启动脚本（成功路径由守护自删，语义不变）
+    reclaimLaunchers([port]);
     last = `槽位 ${port} ${why}`;
   }
 
   const tail = readDaemonLogTail(cfg, 6);
+  // ★ F-38a：整轮都失败 ⇒ **兜底回收所有尝试过的槽位**的启动脚本（它们全都"没起来"，不会自删）
+  reclaimLaunchers(tried);
   return {
     ok: false,
     notes,
     tried,
+    // F-38c：失败时也给出这两个字段（调用方不必解析 notes 即可判定"没起来/没回退"）
+    mode: null,
+    warning: null,
     error:
       `远端守护在 Windows 侧不可达：试过端口 ${tried.join(', ')} —— ${last}。` +
       `这些端口在 Windows 命名空间里可能被别的程序占用（WSL 侧 bind 成功不代表 Windows 侧能连上）。` +

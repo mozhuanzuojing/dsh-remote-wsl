@@ -1,0 +1,62 @@
+[
+  {
+    "round": "1 首次启动(fresh, systemd 主路径)",
+    "winDelta": 0,
+    "hostAliveHs": 1098074,
+    "afterHostExitHs": 1098074,
+    "survivedHostExit": true,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "2 已有守护复用",
+    "winDelta": 0,
+    "hostAliveHs": 1098074,
+    "afterHostExitHs": 1098074,
+    "survivedHostExit": true,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "3 restart 对齐",
+    "winDelta": 0,
+    "hostAliveHs": 1098471,
+    "afterHostExitHs": 1098471,
+    "survivedHostExit": true,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "4 restart 后复用",
+    "winDelta": 0,
+    "hostAliveHs": 1098471,
+    "afterHostExitHs": 1098471,
+    "survivedHostExit": true,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "5 stop 停守护",
+    "winDelta": 0,
+    "hostAliveHs": null,
+    "afterHostExitHs": null,
+    "survivedHostExit": true,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "6 stop 后再首次启动",
+    "winDelta": 0,
+    "hostAliveHs": 1099280,
+    "afterHostExitHs": 1099280,
+    "survivedHostExit": true,
+    "stderrMode": "-rw-------",
+    "verdict": "PASS"
+  },
+  {
+    "round": "7 硬杀宿主+包装层",
+    "winDelta": 0,
+    "survivedHostExit": true,
+    "verdict": "PASS"
+  }
+]

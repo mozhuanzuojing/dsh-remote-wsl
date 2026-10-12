@@ -69,7 +69,10 @@ import {
 // 人面（侧栏面板）的 host 数据面：explorer.snapshot / openSession / daemon / fixPin。
 // 它只**复用**下面这些已有实现（daemonSnapshot / ensureDaemon / stopDaemon / resolveVersion / writePin /
 // listDistros / webHosts），不新开第二条扫描或孤儿判定路径 —— 见 explorer.ts 头部"分层"与 §8.6 同源纪律。
-import { registerExplorer } from './explorer.ts';
+// `withModulePrefix`：F-38 同族收口（task-22）—— 上游 `ensureDaemon` 的聚合错误在组合条件下**已含** `remote-wsl:`
+// 且落在**句中**（`远端守护… —— remote-wsl: …`），直接再拼一次就会出两份标记；helper 用 `includes` 守卫
+// （`startsWith` 对句中标记永远不命中）。
+import { registerExplorer, withModulePrefix } from './explorer.ts';
 
 /** Stable Loader identity. */
 export const name = 'dsh-remote-wsl';
@@ -1019,7 +1022,9 @@ export function apply(ctx, rawConfig = {}) {
     const r = await ensureDaemon(config, { version: version.version, restart, log: logDaemon });
     daemonState.notes = r.notes ?? [];
     if (daemonState.notes.some((n) => /未通过|影子|占用|被拒|超时/.test(n))) daemonState.collisions = daemonState.notes;
-    if (!r.ok) throw new Error(`remote-wsl: ${r.error}`);
+    // task-22：上游 `r.error` 在组合条件下已含 `remote-wsl:`（落在句中）⇒ 用 `withModulePrefix` 守卫，
+    // 不再无条件拼前缀（否则会得到两份 `remote-wsl:`）。非标记文案仍会被补上恰好一份。
+    if (!r.ok) throw new Error(withModulePrefix(r.error));
     daemonState.info = r.info;
     daemonState.port = r.port;
     return r;
@@ -1502,6 +1507,9 @@ ${command}
             version: r.info?.version,
             extra: `reused=${r.reused === true}`,
           }),
+          // F-38c（task-19）：启动方式是**机器可读**的一行（`machine:` 行的字段语义保持冻结，不动它）。
+          // mode: 'systemd'（无窗、独立） / 'compat-detached'（保活、可能弹窗） / 'reused'（复用既有守护）
+          `launch: mode=${r.mode ?? '-'} warning=${r.warning ? r.warning : 'null'}`,
           `notes: ${(r.notes ?? []).join(' | ') || '(none)'}`,
           `元数据 (WSL): ${stateDirLinux(config)}/daemon.<slot>.json（slot=${r.slot ?? r.port}）`,
         ].join('\n');

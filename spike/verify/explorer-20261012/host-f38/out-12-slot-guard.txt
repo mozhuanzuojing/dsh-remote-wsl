@@ -1,0 +1,4 @@
+slot=9999（非配置槽位，配置=8911）=> throw code=E_ARG OK :: remote-wsl: slot 9999 不是本插件配置的槽位（9999≠8911）；本插件只操作自己的槽位
+state 目录 before=[daemon.log launch-stderr.log]
+state 目录 after =[daemon.log launch-stderr.log]
+无副作用（前后一致）= true

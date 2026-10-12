@@ -110,6 +110,24 @@ const failNotFound = (message) => {
 };
 
 /**
+ * 只保留**一份** `remote-wsl: ` 模块标记。
+ *
+ * 为什么需要：上游 `daemon-client` 的部分 error 文案**自带**前缀（`=on` 拒绝回退那句），
+ * 而它会被并进聚合错误（`远端守护在 Windows 侧不可达：… —— ${last}`）。外层若再无脑加一层，
+ * 同一条消息里就会出现**两次** `remote-wsl:`（T20 复验发现的组合型缺陷）。
+ *
+ * 判据用 `includes` 而非 `startsWith`：上游前缀在聚合错误里落**句中**（`—— remote-wsl: …`），
+ * 只看开头会漏判。本函数只决定"要不要加"，**不改**上游文案（内层前缀是"错误源自谁"的语义标记，
+ * `wsl_exec`/`wsl_daemon` 等路径也在用 —— lead 2026-10-12 裁决：改外层，别动内层）。
+ * @param message 上游 error 或自撰文案
+ * @returns 恰好含一份模块标记的文案
+ */
+export function withModulePrefix(message) {
+  const text = str(message).trim();
+  return text.includes('remote-wsl:') ? text : `remote-wsl: ${text}`;
+}
+
+/**
  * `explorer.listDir` 的入参校验：只接受**干净**的 WSL 绝对 POSIX 路径。
  *
  * 为什么这么严：路径经 `unc()` 变成 `\\wsl.localhost\<distro>\…` 后由 Windows 侧
@@ -379,7 +397,7 @@ export function createExplorerHandlers(deps) {
     const ensured = await ensureDaemon(cfg, { version: v.version, log });
     // F14b（task-8）：与 `daemon` 分支**同一失败语义** —— 都走 E_UNAVAILABLE(503)。
     // 改前这里是裸 Error ⇒ HTTP 500，而同类的 daemon ensure 失败是 503（调用方无法按 code 分流）。
-    if (!ensured.ok) failUnavailable(`remote-wsl: ${ensured.error}`);
+    if (!ensured.ok) failUnavailable(withModulePrefix(ensured.error));
     const daemonInfo = { slot: ensured.slot ?? null, port: ensured.port ?? null, pid: ensured.info?.daemonPid ?? null };
 
     // ── warm 分支：仅在显式 warm:true 下走（P0 UI 不暴露）──────────────────────
@@ -454,11 +472,18 @@ export function createExplorerHandlers(deps) {
       if (!v.version) failUnavailable('remote-wsl: 无法确定 dsh 版本（桌面 runtime.json 不可读且未配 dshVersion）');
       const r = await ensureDaemon(eff, { version: v.version, restart: action === 'restart', log });
       // 失败原因原样带出（daemon-client 已含"端口被占/握手超时/daemon.log 尾部"这类可操作诊断）
-      if (!r.ok) failUnavailable(`remote-wsl: ${r.error}`);
+      if (!r.ok) failUnavailable(withModulePrefix(r.error));
       return {
         action,
         ok: true,
         idempotent: true,
+        // ★ F-38c（task-20）：把 daemon 层的**机器可读**启动方式透传出来 ——
+        //   `mode`: 'systemd'（主路径：无窗 + 与 Windows 侧生死解耦）| 'compat-detached'（回退：**可能弹窗**）| 'reused'
+        //   `warning`: 回退时是完整可展示的一句告警（含 /etc/wsl.conf `systemd=true` 建议），其余为 null。
+        //   调用方（面板/脚本/T21）据此**不必解析 notes[]** 就能判定本次走的是哪条路。
+        //   `notes[]` 照旧保留（人读版，含"启动方式…"与同一条告警）：两者并存，互不替代。
+        mode: r.mode ?? null,
+        warning: r.warning ?? null,
         slot: r.slot ?? null,
         port: r.port ?? null,
         pid: r.info?.daemonPid ?? null,

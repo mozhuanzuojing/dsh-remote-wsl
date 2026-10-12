@@ -1,0 +1,194 @@
+[
+  {
+    "variant": "w-hide-only",
+    "winDeltaAB": 0,
+    "hostDeltaAB": 5,
+    "terminalDelta": 3,
+    "windowAppeared": true,
+    "runner": "{\"variant\":\"w-hide-only\",\"wrapperPid\":3652,\"spawnAt\":\"10:18:52.067\",\"exitAt\":\"10:19:00.135\",\"livedMs\":8068,\"exitCode\":0,\"stdoutTail\":\"\",\"stderrTail\":\"\"}",
+    "newWins": null,
+    "newHosts": [
+      {
+        "pid": 29064,
+        "ppid": 51096,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:18:51"
+      },
+      {
+        "pid": 3652,
+        "ppid": 38624,
+        "name": "wsl.exe",
+        "created": "10/12/2026 18:18:52"
+      },
+      {
+        "pid": 36636,
+        "ppid": 3652,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:18:52"
+      },
+      {
+        "pid": 40196,
+        "ppid": 3652,
+        "name": "wsl.exe",
+        "created": "10/12/2026 18:18:52"
+      },
+      {
+        "pid": 24888,
+        "ppid": 29648,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:18:52"
+      }
+    ]
+  },
+  {
+    "variant": "w-detach-only",
+    "winDeltaAB": 1,
+    "hostDeltaAB": 7,
+    "terminalDelta": 5,
+    "windowAppeared": true,
+    "runner": "{\"variant\":\"w-detach-only\",\"wrapperPid\":49872,\"spawnAt\":\"10:19:03.543\",\"exitAt\":\"10:19:11.919\",\"livedMs\":8376,\"exitCode\":0,\"stdoutTail\":\"\",\"stderrTail\":\"\"}",
+    "newWins": {
+      "pid": 30496,
+      "name": "WindowsTerminal",
+      "title": "C:\\Program Files\\WSL\\\\wsl.exe",
+      "start": "18:19:03.628"
+    },
+    "newHosts": [
+      {
+        "pid": 24992,
+        "ppid": 34356,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:19:03"
+      },
+      {
+        "pid": 49872,
+        "ppid": 20592,
+        "name": "wsl.exe",
+        "created": "10/12/2026 18:19:03"
+      },
+      {
+        "pid": 9280,
+        "ppid": 49872,
+        "name": "wsl.exe",
+        "created": "10/12/2026 18:19:03"
+      },
+      {
+        "pid": 14788,
+        "ppid": 9280,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:19:03"
+      },
+      {
+        "pid": 16556,
+        "ppid": 1700,
+        "name": "OpenConsole.exe",
+        "created": "10/12/2026 18:19:03"
+      },
+      {
+        "pid": 30496,
+        "ppid": 1700,
+        "name": "WindowsTerminal.exe",
+        "created": "10/12/2026 18:19:03"
+      },
+      {
+        "pid": 25260,
+        "ppid": 32212,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:19:03"
+      }
+    ]
+  },
+  {
+    "variant": "w-neither",
+    "winDeltaAB": 0,
+    "hostDeltaAB": 4,
+    "terminalDelta": 2,
+    "windowAppeared": true,
+    "runner": "{\"variant\":\"w-neither\",\"wrapperPid\":35040,\"spawnAt\":\"10:19:15.311\",\"exitAt\":\"10:19:23.385\",\"livedMs\":8074,\"exitCode\":0,\"stdoutTail\":\"\",\"stderrTail\":\"\"}",
+    "newWins": null,
+    "newHosts": [
+      {
+        "pid": 51100,
+        "ppid": 29936,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:19:15"
+      },
+      {
+        "pid": 35040,
+        "ppid": 38604,
+        "name": "wsl.exe",
+        "created": "10/12/2026 18:19:15"
+      },
+      {
+        "pid": 5812,
+        "ppid": 35040,
+        "name": "wsl.exe",
+        "created": "10/12/2026 18:19:15"
+      },
+      {
+        "pid": 34292,
+        "ppid": 41908,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:19:15"
+      }
+    ]
+  },
+  {
+    "variant": "w-hide-detach",
+    "winDeltaAB": 1,
+    "hostDeltaAB": 7,
+    "terminalDelta": 5,
+    "windowAppeared": true,
+    "runner": "{\"variant\":\"w-hide-detach\",\"wrapperPid\":46972,\"spawnAt\":\"10:19:26.798\",\"exitAt\":\"10:19:35.168\",\"livedMs\":8370,\"exitCode\":0,\"stdoutTail\":\"\",\"stderrTail\":\"\"}",
+    "newWins": {
+      "pid": 43864,
+      "name": "WindowsTerminal",
+      "title": "C:\\Program Files\\WSL\\\\wsl.exe",
+      "start": "18:19:26.884"
+    },
+    "newHosts": [
+      {
+        "pid": 12784,
+        "ppid": 44520,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:19:26"
+      },
+      {
+        "pid": 46972,
+        "ppid": 32112,
+        "name": "wsl.exe",
+        "created": "10/12/2026 18:19:26"
+      },
+      {
+        "pid": 17100,
+        "ppid": 46972,
+        "name": "wsl.exe",
+        "created": "10/12/2026 18:19:26"
+      },
+      {
+        "pid": 12996,
+        "ppid": 17100,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:19:26"
+      },
+      {
+        "pid": 44072,
+        "ppid": 1700,
+        "name": "OpenConsole.exe",
+        "created": "10/12/2026 18:19:26"
+      },
+      {
+        "pid": 43864,
+        "ppid": 1700,
+        "name": "WindowsTerminal.exe",
+        "created": "10/12/2026 18:19:26"
+      },
+      {
+        "pid": 44144,
+        "ppid": 35428,
+        "name": "conhost.exe",
+        "created": "10/12/2026 18:19:27"
+      }
+    ]
+  }
+]

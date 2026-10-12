@@ -620,6 +620,25 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
   });
 }
 
+/**
+ * ★★ F-37（task-15）：**忽略 SIGHUP** —— 否则守护的寿命会被绑死在 Windows 侧包装层上。
+ *
+ * 实测（2026-10-12，本机 WSL）：`kill -HUP <daemon pid>` ⇒ 进程立刻消失、**没有** `收到 shutdown`
+ * 之类的收尾日志（SIGHUP 的默认动作就是终止）；同理，**只杀 Windows 侧 `wsl.exe` 包装层**（宿主进程
+ * 仍活着）也会让守护在 3s 内变成 `refused` —— 即"包装层一死，会话就结束"，这与本文件的头号语义
+ * 「关客户端 **≠** 会话结束」直接冲突（设计稿 §1 / README 都把它写成卖点）。
+ *
+ * 为什么是忽略而不是"优雅收尾"：SIGHUP 在这里的语义是"控制终端/会话首进程没了"，**不是**有人要结束会话。
+ * `nohup(1)` 的做法就是忽略它。会话的三种结束方式**一个都没变**：显式 `shutdown` op、空闲闸门
+ * `--idle-ms`、寿命闸门 `--linger-ms`；`SIGINT`/`SIGTERM` 仍然走上面的优雅回收路径。
+ *
+ * ⚠️ 副作用（如实记录）：宿主进程被硬杀时，守护会**继续活着**（这正是要的），于是它会以"有元数据的
+ * 活守护"身份被下一次 `daemonSnapshot()` 认出来并被复用；要收掉它得显式 `stop`（或等 idle/linger）。
+ */
+process.on('SIGHUP', () => {
+  log('收到 SIGHUP（Windows 侧包装层/控制终端消失）⇒ 按"关客户端 ≠ 会话结束"忽略，会话继续');
+});
+
 main().catch((e) => {
   log(`FATAL: ${e?.message ?? String(e)}`);
   cleanupFiles();
