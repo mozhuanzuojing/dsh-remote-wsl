@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-10-12 18:04:05",
+  "before": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\out-72-listdir-facts-before.json",
+  "after": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\out-72-listdir-facts-after.json",
+  "exitCode": 0,
+  "items": [
+    {
+      "id": "daemon.alive(mine)",
+      "before": true,
+      "after": true,
+      "verdict": "match",
+      "level": "hard",
+      "note": "我方槽位 8932 的守护进程是否存在（pgrep --port 8932）"
+    },
+    {
+      "id": "daemon.slotScoped(probe)",
+      "before": true,
+      "after": true,
+      "verdict": "match",
+      "level": "hard",
+      "note": "真相源是否作用域到我方槽位（False => 下列 probe 值记 unknown，不能当通过）"
+    },
+    {
+      "id": "daemon.pid(probe,scoped)",
+      "before": 1040506,
+      "after": 1040506,
+      "verdict": "match",
+      "level": "hard",
+      "note": "probe 读到的守护 pid（仅当作用域命中我方槽位）"
+    },
+    {
+      "id": "daemon.port(scoped)",
+      "before": 8932,
+      "after": 8932,
+      "verdict": "match",
+      "level": "hard",
+      "note": "守护端口（仅当作用域命中我方槽位）"
+    },
+    {
+      "id": "daemon.version(scoped)",
+      "before": "0.2.0-rc.2",
+      "after": "0.2.0-rc.2",
+      "verdict": "match",
+      "level": "hard",
+      "note": "守护版本（仅当作用域命中我方槽位）"
+    },
+    {
+      "id": "daemon.pgrepPids",
+      "before": [
+        1040506
+      ],
+      "after": [
+        1040506
+      ],
+      "verdict": "match",
+      "level": "hard",
+      "note": "WSL 侧 pgrep -af 'daemon.ts --port 8932'（按槽位，天然排除其它槽位守护） symdiff before-only=[] after-only=[]"
+    },
+    {
+      "id": "daemon.keys",
+      "before": [],
+      "after": [],
+      "verdict": "match",
+      "level": "hard",
+      "note": "keys 集合（key@session）；两侧都空 => 弱证据，需配合 alive/listener symdiff before-only=[] after-only=[]"
+    },
+    {
+      "id": "listener.port",
+      "before": true,
+      "after": true,
+      "verdict": "match",
+      "level": "hard",
+      "note": "WSL 侧 ss 是否仍监听 8932"
+    },
+    {
+      "id": "keys.runtimePid",
+      "before": [],
+      "after": [],
+      "verdict": "match",
+      "level": "warn",
+      "note": "runtimePid 变化允许，但必须记录解释 symdiff before-only=[] after-only=[]"
+    },
+    {
+      "id": "otherSlotDaemons",
+      "before": [
+        "pid=1026481 slot=8731"
+      ],
+      "after": [
+        "pid=1026481 slot=8731"
+      ],
+      "verdict": "match",
+      "level": "info",
+      "note": "同发行版里**其它槽位**守护（同队其它测试实例；属主未确认；信息项，不参与判红/判绿） symdiff before-only=[] after-only=[]"
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "entry": "D:/project/dsh1/vendor/dsh-remote-wsl/src/index.ts",
+  "distro": "debian-nope",
+  "toolRegistered": true,
+  "toolNames": [
+    "wsl_status",
+    "wsl_exec",
+    "wsl_agent",
+    "wsl_daemon",
+    "wsl_open_ui",
+    "wsl_sync_version",
+    "wsl_path"
+  ],
+  "cases": [
+    {
+      "label": "to-wsl: D:\\project\\net1",
+      "args": {
+        "path": "D:\\project\\net1",
+        "direction": "to-wsl"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "to-windows: /mnt/d/project/net1",
+      "args": {
+        "path": "/mnt/d/project/net1",
+        "direction": "to-windows"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "both 默认（不带 direction）",
+      "args": {
+        "path": "D:\\project\\net1"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "含空格: D:\\project\\my dir\\x.txt",
+      "args": {
+        "path": "D:\\project\\my dir\\x.txt",
+        "direction": "to-wsl"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "含空格反向: /mnt/d/my dir/x.txt",
+      "args": {
+        "path": "/mnt/d/my dir/x.txt",
+        "direction": "to-windows"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "注入: $(id)",
+      "args": {
+        "path": "/mnt/c/Users/l/$(id).txt"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "注入: 反引号 `id`",
+      "args": {
+        "path": "/mnt/c/`id`.txt"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "注入: 分号 ;",
+      "args": {
+        "path": "/mnt/c/a;echo T14-INJECTED"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "注入: 管道 |",
+      "args": {
+        "path": "/mnt/c/a|echo T14-PIPE"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "注入: 混引号",
+      "args": {
+        "path": "D:\\a\"b'c"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "RED"
+    },
+    {
+      "label": "注入: touch 探针",
+      "args": {
+        "path": "/mnt/c/$(touch /tmp/t14-pwned-a).txt"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "see-marker-check"
+    },
+    {
+      "label": "注入: sleep 探针",
+      "args": {
+        "path": "/mnt/c/$(sleep 37).txt"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "see-process-check"
+    },
+    {
+      "label": "空路径",
+      "args": {
+        "path": ""
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: wsl_path 需要非空 path（Windows 路径或 WSL 路径）",
+      "verdict": "PASS"
+    },
+    {
+      "label": "NUL",
+      "args": {
+        "path": "/mnt/c/a\u0000b"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: wsl_path 的 path 含 NUL 字符，拒绝执行",
+      "verdict": "PASS"
+    },
+    {
+      "label": "不认识 direction",
+      "args": {
+        "path": "/mnt/c",
+        "direction": "__nope__"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: wsl_path 不认识 direction=__nope__（可选 to-wsl|to-windows|both）",
+      "verdict": "PASS"
+    },
+    {
+      "label": "发行版不存在(debian-nope)",
+      "args": {
+        "path": "/mnt/c"
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: 在发行版 \"debian-nope\" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。",
+      "verdict": "PASS(可读错误且未回显原串)"
+    }
+  ]
+}

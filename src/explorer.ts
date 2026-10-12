@@ -7,7 +7,7 @@
  *
  * ## 分层（lead 2026-10-12 裁决：传输层与数据面分开）
  *
- *   1. `createExplorerHandlers(deps)` —— **数据面**（无传输、无 `req/res`）：四个方法名逐字，
+ *   1. `createExplorerHandlers(deps)` —— **数据面**（无传输、无 `req/res`）：方法名逐字，
  *      依赖全部由 index.ts 注入既有实现（所以"同源"是接线方式，不是承诺）。
  *   2. `createExplorerHttpAdapter(webServer)` —— **传输层**：只做 HTTP 语义（动词/头/同源/白名单/
  *      错误映射），业务一律转给上面的方法表。
@@ -36,7 +36,7 @@
  *
  * · (a) **同源**：POST 必须带 `Origin` 且与请求 `Host` 同源；再校验 `Sec-Fetch-Site`（若存在）
  *   必须为 `same-origin`；Host 缺失或非同源 ⇒ **403，且一个方法都不执行**。
- * · (b) **硬编码白名单**：`method` 只能命中方法表里的四个字符串，未知 ⇒ **400**（绝不把输入
+ * · (b) **硬编码白名单**：`method` 只能命中方法表里那几个**字面量**字符串，未知 ⇒ **400**（绝不把输入
  *   反射成任意函数，也不用 `handlers[method]` 之外的属性查找）。
  * · (c) **动词与类型**：POST 无 `content-type: application/json` ⇒ 415；其它动词 ⇒ 405。
  *   （GET 只回方法清单，是纯只读发现，同样过同源检查；lead 第 1 条要它。）
@@ -53,15 +53,16 @@
  * @module dsh-remote-wsl/explorer
  */
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 
-/** 四个 RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
+/** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
   'explorer.snapshot',
   'explorer.openSession',
   'explorer.daemon',
   'explorer.fixPin',
+  'explorer.listDir',
 ];
 
 /** 面板数据面的 HTTP 路由（见文件头"传输层"）。 */
@@ -104,12 +105,66 @@ const failArg = (message) => {
 const failUnavailable = (message) => {
   throw explorerError('E_UNAVAILABLE', message);
 };
+const failNotFound = (message) => {
+  throw explorerError('E_NOTFOUND', message);
+};
+
+/**
+ * `explorer.listDir` 的入参校验：只接受**干净**的 WSL 绝对 POSIX 路径。
+ *
+ * 为什么这么严：路径经 `unc()` 变成 `\\wsl.localhost\<distro>\…` 后由 Windows 侧
+ * `readdirSync` 解析，任何 `..` / 反斜杠 / NUL 都可能把它变成"发行版外"的另一个位置；
+ * 面板只需要浏览，不需要穿越。校验失败一律 `E_ARG`(400)，且**回显被拒的原串**。
+ *
+ * @param value 请求里的 `path`
+ * @returns 归一化后的路径（合并重复 `/`、去尾 `/`、根保持 `/`）
+ */
+function assertSafeWslPath(value) {
+  const raw = str(value);
+  if (raw.length === 0) failArg('remote-wsl: explorer.listDir 需要 path（WSL 绝对路径，例如 /home/g）');
+  if (raw.includes('\0')) failArg('remote-wsl: explorer.listDir 的 path 含 NUL 字节，拒绝');
+  if (!raw.startsWith('/')) {
+    failArg(`remote-wsl: explorer.listDir 的 path 必须是 WSL 绝对路径（以 / 开头），收到 "${raw}"（Windows 盘符请写成 /mnt/c/...）`);
+  }
+  if (raw.includes('\\')) {
+    failArg(`remote-wsl: explorer.listDir 的 path 不得含反斜杠（那是 Windows 分隔符），收到 "${raw}"`);
+  }
+  const segments = raw.split('/');
+  for (const segment of segments) {
+    if (segment === '..') failArg(`remote-wsl: explorer.listDir 的 path 不得含 ".." 段，收到 "${raw}"`);
+  }
+  return `/${segments.filter((segment) => segment.length > 0).join('/')}`;
+}
+
+/** 目录项类型（设计稿：面板只需要 dir/file/other 三分类）。 */
+function entryKindOf(dirent) {
+  if (dirent.isDirectory()) return 'dir';
+  if (dirent.isFile()) return 'file';
+  return 'other';
+}
+
+/**
+ * `/mnt/<盘符>` → Windows 盘符路径；其余返回 `null`。
+ *
+ * 为什么需要这个特例（T13 实测）：`/mnt` 本身经 UNC 能列（7 项：c d e f g wsl wslg），
+ * 但 **`\\wsl.localhost\<distro>\mnt\c` 列不出来**（9p 不暴露 drvfs 挂载根 ⇒ `ok:false`），
+ * 于是"快捷 chip 点进去是死路"。而 `/mnt/<letter>` **本来就是** Windows 的那个卷 ⇒ 直接按
+ * `C:\…` 读：同一份数据、本机路径。
+ *
+ * 边界：**只用于读**（explorer.listDir 全文只读）。设计稿 §7 警告的是"在 UNC 上跑写型 Windows
+ * 工具会写坏 ext4 属主/权限"，那条针对发行版内的 ext4 路径；`/mnt/c` 恰恰是 Windows 卷。
+ */
+function windowsDriveForMount(path) {
+  const match = /^\/mnt\/([a-z])(\/.*)?$/.exec(path);
+  if (match === null) return null;
+  const rest = (match[2] ?? '').replace(/^\/+/, '').replace(/\//g, '\\');
+  return `${match[1].toUpperCase()}:\\${rest}`;
+}
 
 /** Linux 路径的显示名（面板树上的 label 缺省值）。 */
 function baseName(p) {
   const s = str(p).replace(/\/+$/, '');
-  const i = s.lastIndexOf('/');
-  return i >= 0 ? s.slice(i + 1) || s : s;
+  const i = s.lastIndexOf('/');  return i >= 0 ? s.slice(i + 1) || s : s;
 }
 
 /** 路径 → 面板树的 kind（设计稿 §4：'folder' | 'code-workspace'）。 */
@@ -465,11 +520,69 @@ export function createExplorerHandlers(deps) {
     };
   }
 
+  /**
+   * `explorer.listDir({path})` —— 给面板目录浏览器（A3）列**一层**目录。
+   *
+   * 纪律（lead 2026-10-12 裁决 + 设计稿 §7）：
+   * · **只读、零副作用**：复用既有 `unc()` 读法（与 `readFavorites` 同一套约定：经 UNC 读）；
+   *   **不启动发行版** —— 关着的发行版 UNC 访问本来就会失败，这里先按 `wsl -l -v` 的
+   *   `STATE=Running` 判一次并给**精确**的可读错误，避免把"发行版没开"误报成"路径不存在"。
+   * · **一次返回全部条目（含隐藏）**：隐藏文件开关在 client 侧过滤，切换即时、不重发请求。
+   * · 顺序**确定性**：`name` 升序（dir/file 分组由 client 做）。
+   * · 失败给可读错误并**带上那个 path**：路径不存在/不是目录 ⇒ `E_NOTFOUND`(404)；
+   *   发行版不在列表/未运行/无权限/其它 ⇒ `E_UNAVAILABLE`(503)。
+   * @param args `{ path }`
+   * @returns `{ path, distro, entries: [{ name, kind: 'dir'|'file'|'other', hidden }] }`
+   */
+  async function listDir(args) {
+    const path = assertSafeWslPath(args?.path);
+
+    // 发行版前置判定（只读：`wsl -l -q` + `wsl -l -v` 的 STATE，两者都零副作用）
+    const names = deps.listDistros();
+    const flags = distroFlags();
+    if (!names.includes(cfg.distro)) {
+      failUnavailable(
+        `remote-wsl: 配置的发行版 "${cfg.distro}" 不在 wsl -l -q 的输出里 ⇒ 无法读取 ${path}。` +
+          `面板是只读的，不会为了浏览而启动发行版；请检查 config.distro 或先手动启动它。`,
+      );
+    }
+    if (!flags.running.has(cfg.distro)) {
+      failUnavailable(
+        `remote-wsl: 发行版 "${cfg.distro}" 此刻未运行（wsl -l -v 的 STATE ≠ Running）⇒ 无法读取 ${path}。` +
+          `面板是只读的，不会为了浏览而启动发行版；请先手动启动它。`,
+      );
+    }
+
+    const winPath = windowsDriveForMount(path) ?? unc(cfg.distro, path);
+    let dirents;
+    try {
+      dirents = readdirSync(winPath, { withFileTypes: true });
+    } catch (e) {
+      const code = str(e?.code);
+      const detail = `${code || 'no-code'}: ${e?.message ?? String(e)}`;
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        failNotFound(`remote-wsl: 列目录失败：路径 ${path} 不存在或不是目录（${detail}）`);
+      }
+      failUnavailable(`remote-wsl: 列目录失败：无法读取 ${path}（${detail}）`);
+    }
+
+    const entries = dirents
+      .map((dirent) => ({
+        name: dirent.name,
+        kind: entryKindOf(dirent),
+        hidden: dirent.name.startsWith('.'),
+      }))
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
+    return { path, distro: cfg.distro, entries };
+  }
+
   const handlers = {
     'explorer.snapshot': snapshot,
     'explorer.openSession': openSession,
     'explorer.daemon': daemonAction,
     'explorer.fixPin': fixPin,
+    'explorer.listDir': listDir,
   };
   return { handlers, log };
 }
@@ -528,8 +641,10 @@ function sendJson(res, status, body) {
   }
 }
 
-/** 失败 `code` → HTTP 状态码（lead 加固 2：错误路径必须是可读结构化响应，不是 500 裸栈）。 */
-const STATUS_BY_CODE = { E_ARG: 400, E_UNAVAILABLE: 503 };
+/** 失败 `code` → HTTP 状态码（lead 加固 2：错误路径必须是可读结构化响应，不是 500 裸栈）。
+ *  `E_NOTFOUND`(404) 是 A3 的加法，与 `explorer.listDir` 的"路径不存在"一类**成对**存在：
+ *  状态码表新增一项，方法表也新增一项，两边都不单独扩张。 */
+const STATUS_BY_CODE = { E_ARG: 400, E_NOTFOUND: 404, E_UNAVAILABLE: 503 };
 
 /**
  * 把方法表装进 HTTP。**本层不做任何业务判断**，只做动词/头/白名单/错误映射。

@@ -390,6 +390,112 @@ true
   }
 }
 
+// ── 路径互转（Windows ↔ WSL）：包一层发行版自带的 wslpath ─────────────────────
+//
+// ★★ 安全硬要求：**path 是用户输入**，永远只作为 **argv 位置参数** 传进 bash，
+//    绝不拼进脚本串。实测（2026-10-12，本机 debian-u8-1，见 _t12-host/out-A6-argv-forms.txt）：
+//      · `wsl.exe -d <d> -e bash -c '<script>' _ <path>`  → **真 argv 透传**：含空格/引号/`$(id)`/反引号
+//        的路径原样成为 bash 的 `$1`（`ARG=[...]` 逐字相等，`$(id)` 未被求值）；
+//      · `wsl.exe -d <d> -- bash -c '<script>' _ <path>`  → **参数被丢弃**（`$1` 为空）⇒ 不得使用此形态
+//        （这也解释了本仓 F4 那条教训：`--` 形态不是 argv-exec）；
+//      · 把路径拼进脚本串（`... -c "wslpath -a -u '$path'"`）→ 脚本被外层 shell 破坏（exit 2）。
+//    所以下面脚本里**只有固定的 `"$1"`**；路径经 `spawnSync` 的 args 数组进入，`windowsHide: true`
+//    （不弹可见窗口）。
+const WSLPATH_SCRIPT = [
+  'if ! command -v wslpath >/dev/null 2>&1; then echo "NOWSLPATH"; exit 4; fi',
+  'p=$1',
+  'o=$(wslpath -a -u -- "$p" 2>/dev/null); r=$?; printf "WSL %s %s\\n" "$r" "$(printf %s "$o" | base64 -w0)"',
+  'o=$(wslpath -w -- "$p" 2>/dev/null); r=$?; printf "WIN %s %s\\n" "$r" "$(printf %s "$o" | base64 -w0)"',
+].join('\n');
+
+/**
+ * 两种路径形态互转。只读、无副作用、不要求路径真实存在（`wslpath` 是纯字符串转换，已实测）。
+ * 失败一律抛**可读**错误（空路径 / 发行版不存在或未运行 / `wslpath` 不可用），绝不静默回原串。
+ */
+function wslPathConvert(cfg, rawPath, direction) {
+  const path = typeof rawPath === 'string' ? rawPath : rawPath == null ? '' : String(rawPath);
+  if (!path.trim()) throw new Error('remote-wsl: wsl_path 需要非空 path（Windows 路径或 WSL 路径）');
+  if (path.includes('\0')) throw new Error('remote-wsl: wsl_path 的 path 含 NUL 字符，拒绝执行');
+
+  const res = spawnSync('wsl.exe', ['-d', cfg.distro, '-e', 'bash', '-c', WSLPATH_SCRIPT, '_', path], {
+    encoding: 'utf8',
+    windowsHide: true, // 纪律：不许弹可见窗口
+    timeout: 20000,
+  });
+  const stderrTail = String(res.stderr || '')
+    .replace(/\0/g, '')
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter((s) => s && !/WSL|localhost|NAT|wsl:/i.test(s))
+    .slice(-1)[0];
+  const stdout = String(res.stdout || '').replace(/\0/g, '');
+
+  if (res.error) {
+    throw new Error(`remote-wsl: wsl_path 无法启动 wsl.exe: ${res.error.message}`);
+  }
+  if (/^NOWSLPATH$/m.test(stdout) || res.status === 4) {
+    throw new Error(
+      `remote-wsl: 发行版 "${cfg.distro}" 里没有 wslpath（它由 WSL 提供，通常在任何发行版里都有；` +
+        `若被裁剪请改用 wsl_exec 自行转换）`,
+    );
+  }
+  const conv = {};
+  for (const line of stdout.split(/\r?\n/)) {
+    const m = /^(WSL|WIN) (\d+) (\S*)$/.exec(line.trim());
+    if (!m) continue;
+    let value = '';
+    try {
+      value = Buffer.from(m[3], 'base64').toString('utf8');
+    } catch {
+      value = '';
+    }
+    conv[m[1]] = { rc: Number(m[2]), value };
+  }
+  if (!conv.WSL && !conv.WIN) {
+    // 一个结果都拿不到 ⇒ 最常见的两类原因：发行版名不对/没在运行，或 wsl.exe 本身不可用
+    throw new Error(
+      `remote-wsl: 在发行版 "${cfg.distro}" 里执行 wslpath 失败（exit ${res.status}）` +
+        `${stderrTail ? `：${stderrTail}` : ''}。请用 \`wsl -l -v\` 确认发行版名并确认它在运行。`,
+    );
+  }
+
+  const looksWindows = /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('\\\\');
+  const looksWsl = path.startsWith('/');
+  const shape = looksWindows ? 'Windows' : looksWsl ? 'WSL' : 'unknown';
+  const want = direction === 'to-wsl' ? ['to-wsl'] : direction === 'to-windows' ? ['to-windows'] : ['to-wsl', 'to-windows'];
+  const picked = want.map((d) => ({ dir: d, ...(conv[d === 'to-wsl' ? 'WSL' : 'WIN'] ?? { rc: null, value: '' }) }));
+  if (picked.every((p) => p.rc !== 0)) {
+    throw new Error(
+      `remote-wsl: wsl_path 转换失败（${picked.map((p) => `${p.dir} rc=${p.rc ?? '?'}`).join('、')}）` +
+        `；path=${JSON.stringify(path)}。若路径形态与 direction 不匹配请改用另一个方向或省略 direction。`,
+    );
+  }
+  // ★ 形态感知：`wslpath` 对**同形态**输入不是恒等变换 —— 实测 `wslpath -w 'D:\a\b'` 会把反斜杠当转义
+  // 吃掉（`Dab`）、`wslpath -a -u /mnt/d/x` 会得到 `/mnt/d/mnt/d/x`。所以问错方向的**值**不回显
+  // （但如实说明为什么），免得把垃圾当结果交给调用方。
+  const meaningful = (d) => (d === 'to-wsl' ? shape !== 'WSL' : shape !== 'Windows') || shape === 'unknown';
+  const lines = [`path: ${path}`, `direction: ${direction}（输入形态: ${shape}）`];
+  for (const p of picked) {
+    if (p.rc !== 0) {
+      lines.push(`${p.dir.padEnd(11)}: (转换失败 rc=${p.rc})`);
+    } else if (meaningful(p.dir)) {
+      lines.push(`${p.dir.padEnd(11)}: ${p.value}${shape !== 'unknown' ? '   <- 生效' : '   <- 生效（输入形态未知，按原样尝试）'}`);
+    } else {
+      lines.push(
+        `${p.dir.padEnd(11)}: (不回显：输入已是 ${shape} 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，` +
+          `该值无意义。需要另一种形态请用 ${shape === 'Windows' ? 'to-wsl' : 'to-windows'}。)`,
+      );
+    }
+  }
+  // 实际执行的命令（逐条列全，不用 "a / b" 这种拼出来的假命令）
+  lines.push('commands executed (path 走位置参数 argv，无字符串拼接):');
+  for (const d of want) {
+    const flag = d === 'to-wsl' ? 'wslpath -a -u -- "$1"' : 'wslpath -w -- "$1"';
+    lines.push(`  wsl.exe -d ${cfg.distro} -e bash -c '${flag}' _ ${JSON.stringify(path)}`);
+  }
+  return lines.join('\n');
+}
+
 /**
  * 从持久化 session 日志取回正文（事件流偶发丢尾帧时的兜底）。
  * 必须交给 **WSL 侧 node**：日志是多帧 zstd，Windows 自带 node 24 只解第一帧（实测）。
@@ -1480,6 +1586,41 @@ ${command}
         lines.push(`wsl pin after: ${v.version ?? '(unresolved)'}${wrote ? ' (written)' : ' (write failed)'}`);
         lines.push(`drift was: ${v.drift ? `YES (desktop ${v.drift.desktop} / pin ${v.drift.pin})` : 'no'}`);
         return lines.join('\n');
+      },
+    });
+
+    // 第 7 个工具：路径互转。与 `dsh-wsl-tool` 的 `wsl-path` 是**同类能力**（那边用连字符，
+    // 本插件沿用自己既有的 snake_case 命名）。纯字符串转换、只读、无副作用、不要求路径存在。
+    tools.register({
+      name: 'wsl_path',
+      description:
+        'Convert a path between Windows and WSL forms by wrapping the distro\'s own `wslpath` — the same capability as `dsh-wsl-tool`\'s `wsl-path`, under this plugin\'s existing snake_case naming. ' +
+        'direction=to-wsl returns the WSL absolute path (`wslpath -a -u`), direction=to-windows returns the Windows path (`wslpath -w`), and the default `both` reports both forms, the exact command that ran, and which direction is effective for the input\'s shape. ' +
+        'Read-only and cheap: it translates the string only — nothing is written, and the path does not have to exist. ' +
+        'The path is passed as a positional argv argument (`-e bash -c \'wslpath -a -u -- "$1"\' _ <path>`), never interpolated into a shell string, so spaces, quotes and `$(...)` stay literal. ' +
+        'Failures are explicit (empty path, unknown/not-running distro, missing wslpath); an unconvertible path is never silently echoed back.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            description: 'Windows path (e.g. D:\\project\\net1 or \\\\wsl.localhost\\<distro>\\...) or WSL path (e.g. /mnt/d/project/net1).',
+          },
+          direction: {
+            type: 'string',
+            enum: ['to-wsl', 'to-windows', 'both'],
+            description: 'Which conversion(s) to report (default both).',
+          },
+        },
+        required: ['path'],
+      },
+      output: { schema: { type: 'string' }, render: renderText },
+      execute: async (args) => {
+        const direction = args?.direction ? String(args.direction) : 'both';
+        if (direction !== 'to-wsl' && direction !== 'to-windows' && direction !== 'both') {
+          throw new Error(`remote-wsl: wsl_path 不认识 direction=${direction}（可选 to-wsl|to-windows|both）`);
+        }
+        return wslPathConvert(config, args?.path, direction);
       },
     });
   });

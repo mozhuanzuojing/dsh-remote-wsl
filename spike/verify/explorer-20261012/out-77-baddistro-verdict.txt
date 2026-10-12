@@ -1,0 +1,7 @@
+A6 失败面④：发行版不存在
+
+探针把 config.distro 改成 debian-nope（**未碰 debian-u8-1**）：
+  用例 verdict = PASS(可读错误且未回显原串)
+  text = THROW: remote-wsl: 在发行版 "debian-nope" 里执行 wslpath 失败（exit 4294967295）。请用 `wsl -l -v` 确认发行版名并确认它在运行。
+
+wsl -l -v 前后逐字一致 = True（未启动任何发行版）

@@ -249,3 +249,74 @@
 4. **至少两条故意红**（沿用 R3 页面内 fetch 扰动 + R5 停守护；F33 建议再加一条：把 `others[]` 掏空让 `f33.snapshot-scope` 变红）。
 5. 收尾清理 + `-Mode Check`。
 
+## 19. T14 预备：A2 / A6 / A3 的断言设计（lead 2026-10-12 预备通知；**尚未 claim**）
+
+> 先读 `docs/prior-art-dsh-wsl.md`（§2 官方约定 / §3 采纳清单，已读）与 §4 刻意分歧。
+
+### 19.1 A2 `dsh.compatibility.dshReleases` —— **schema 佐证不可得（已实测，先说清）**
+
+- **先例形状（权威、可复现，无需安装）**：`web_fetch https://registry.npmjs.org/dsh-wsl-workspace/0.7.7` ⇒
+  `"dsh":{"compatibility":{"dshReleases":{"0.1.0-rc.7":"compatible",…,"0.2.0-rc.2":"compatible"}}}`（11 个版本，值都是 `"compatible"`）。
+- **但 `--dump-config-schema` 与合法取值无关**（实测，本目录 `T14-PREP-dump-config-schema.txt`，873KB）：
+  `compatibility` **0 次**、`dshReleases` **0 次**；唯三处 `compat` 是别的插件 config 里的 `{supportsStore:…}`，与包清单字段无关。
+  该 dump 的标题即 *"Cordis configuration for profile …"* —— 它只描述**profile 的 patch/entry 列表**，不描述 `package.json` 的 `dsh` 字段。
+- **安装树里也没有这个字符串**：对 `resources\**` 做原始字节扫描，`dshReleases` 与 `dsh.compatibility` 均**未命中** ⇒ 该字段在本构建里既不校验、也无从"用 schema 佐证"。
+- ⇒ **T14 对 A2 的断言改为**（逐条可红）：
+  1. 形状合法：`dsh.compatibility.dshReleases` 是 **string→string** 的对象（对齐先例形状）；
+  2. **只许声明实测过的版本**：键集合 ⊆ 本项目本次真正跑过的 DSH 版本（当前 = `0.2.0-rc.2`，来源 `runtime.json` + `wsl_status` 的 `desktop dsh version`）；**出现未实测版本即判红**；
+  3. 值域：只允许 `"compatible"`（不写 `unknown`/空值/占位符）；
+  4. 无副作用：加了该字段后 `--dump-config` 仍 exit 0、插件仍加载（`wsl_status` 6 工具照常注册）；
+  5. **诚实标注**：本字段**不阻断，也无本地校验**（见上）⇒ 报告里写"声明性、无 schema 背书"，不得写成"已被宿主校验通过"。
+- 已留原始输出：`T14-PREP-dump-config-schema.txt`（含 `compatibility/dshReleases` 命中 0 的事实）。
+
+### 19.2 A6 新工具 `wsl_path` —— 重点：**注入负例必须被当字面量**
+
+| # | 输入（注入探针） | 期望 | 判红条件 |
+|---|---|---|---|
+| 1 | `/mnt/c/Users/l/$(id).txt` | 输出里 `$(id)` **原样保留**（可逆） | 出现 `uid=`/`gid=`/用户名等**命令执行痕迹** |
+| 2 | 反引号 `` `/mnt/c/`id`.txt `` | 同上 | 出现命令替换结果 |
+| 3 | `'`/`"` 混合：`/mnt/c/a'b"c.txt` | 字面量往返一致 | 引号被吞/被解释 |
+| 4 | `;`/`|`/`&&`/换行：`/mnt/c/a;id`、`/mnt/c/a|id`、`a\nb` | 字面量 | 出现第二条命令的痕迹 |
+| 5 | 空格与中文：`/mnt/c/我的 目录/x` | 字面量；全程用**参数数组**而非拼 shell 串 | 词分割错误/编码损坏 |
+| 6 | `..` 与越界：`/mnt/c/../../etc/passwd` | 按字面转换（**不解析、不读文件**） | 试图读文件（如出现 `/etc/passwd` 内容） |
+| 7 | `\\wsl.localhost\debian-u8-1\home\g\x` ↔ `/home/g/x` | 互转往返一致（`-a/-u/-w` 语义） | 往返不稳定 |
+| 8 | 空串 / 非字符串 / 超长（4KB+） | 明确 4xx/工具错误，**不 panic、不执行** | 崩溃/静默截断 |
+- **副作用阴性对照（每条注入用例都跑）**：WSL 侧 `pgrep -af 'id$'` 无新增、`/tmp` 无我的标记文件、探针目录无新文件、`wsl_path` 不启守护（`daemon.<slot>.json` mtime 不变）。
+- **正向对照**：`wslpath` 直调（`wsl.exe -d … -- wslpath -a '/mnt/c/…'`）给出同一结果 ⇒ 证明断言读的是**真行为**而不是硬编码。
+- 工具名/参数形状以 T12/T13 落地为准（若参数名不同，按实现改探针，不改判据）。
+
+### 19.3 A3 面板目录浏览器四能力（DOM 可观测判据）
+
+| # | 能力 | 判据（DOM/行为） | 能红的形式 |
+|---|---|---|---|
+| 1 | 快捷 chips | 面板内存在 ≥3 个 chip，文案含 `Home`/`/`/`/mnt`（或中英双语），点击后路径输入/面包屑跳到该处 | 把 chips 容器删掉/改名 ⇒ 断言红 |
+| 2 | 常显路径输入 | 输入框**始终可见**（不依赖 hover/展开），回车跳转生效（面包屑随之变化） | 需要 hover 才出现 ⇒ 红 |
+| 3 | 从 `/` 起的完整面包屑 | 面包屑首段是 `/`，逐级可点，末段 = 当前目录；深路径不省略 | 只显示末两段/首段不是 `/` ⇒ 红 |
+| 4 | 隐藏文件开关 | 有开关控件（aria-label 含"隐藏/."），切换后 `.` 开头条目出现/消失 | 无控件或切换后列表不变 ⇒ 红 |
+- 回归叠加：**F34**（首挂载只有读取态，无"已撤下/失败"）、**F35**（新元素里含路径的也要 `direction:ltr`+`unicode-bidi:plaintext`）、**`others[]` 只读区零按钮**（该区不得有任何可点动作按钮）、**二次确认**（停止/重启仍需确认，不因新 UI 退化）、**aria**（新控件都要有 aria-label）、**light/dark**、**③ 差集**（按既定 F33 口径，`-Snapshot` + `-F33StrictSlot`）。
+
+### 19.4 T14 开工增量（等正式 GO）
+
+1. 重冻结（新锚点集；`src/**` 8 + `client/**` 4 + `package.json`，内容会变）。
+2. A2/A6/A3 逐条断言 → 回归（19.3 末段清单）→ **故意红 ≥2 条**（建议：A6 注入用例把实现换成 shell 拼接；A3 把 chips/面包屑容器改名）→ 收尾清理 + 枚举可见窗口 + `-Mode Check`。
+3. 纪律：端口 8931–8960；**不跑 npm/pnpm install**（A2 的形状证据走 registry 只读抓取）；`Start-Process` 必带 `-WindowStyle Hidden`；不碰 19387。
+
+### 19.5 新增 host 只读方法 `explorer.listDir`（lead 2026-10-12 补充；A3 的前置）
+
+**为什么必须有它**：T13 实测官方 `directoryPicker.list` 在本宿主恒为 **`native`**（loopback + win32）⇒ `ctx.workspaces.listDirectory` 与先例的浏览路线**在本机不可用**；A3 的四能力需要自建只读列目录。
+
+- **契约**：`explorer.listDir({path})` → `{path, distro, entries:[{name, kind:'dir'|'file'|'other', hidden:boolean}]}`；**一次返回全部条目（含隐藏）**，隐藏开关由 client 侧过滤。
+- 依赖：T13 已获授权改 `src/explorer.ts`（**仅此一个 src 文件**）⇒ 重冻结必须在 T12/T13 都 complete **之后**做。
+
+| # | 断言 | 判据（能红的形式） |
+|---|---|---|
+| ① | **白名单 + 传输面不松** | `GET /remote-wsl/api` 的 `methods[]` 必须含 `explorer.listDir`（缺 ⇒ 红）；伪造/缺失 Origin ⇒ **403 且未执行**（用 `listDir` 自身 + WSL 侧阴性对照）；非 POST ⇒ 405、非 JSON content-type ⇒ 415；响应/错误**不含 token/凭据**（复用 `probe-transport.ps1`，用真实 token 做针） |
+| ② | **路径穿越/非法形态** | `../`、`/home/g/../../etc`、相对路径 `foo`、空串 `''`、含 NUL、Windows 风格 `C:\`、UNC `\\wsl.localhost\…` ⇒ 全部 **400/E_ARG**、**不得返回任何条目**；并**不得读到发行版之外**（返回体里不得出现越界路径条目；用**正向对照**证明合法路径上确实能列出条目，排除"接口本来就坏"） |
+| ③ | **路径不存在** | 可读错误（**body 含请求的那个 path**），**不是 500**、不抛栈 |
+| ④ | **发行版不存在** | 用**自建副本 profile** 把 `distro` 改成不存在的名字（**绝不停 `debian-u8-1`**）⇒ 可读错误；且**未启动任何发行版**（`wsl -l -v` 的 STATE 前后一致、无新 WSL 进程） |
+| ⑤ | **零副作用** | 调用前后 `daemon-invariance` facts 全 MATCH（pid/端口/version/keys/pgrepMine/监听）、`daemon.<slot>.json` mtime 不变、无新 WSL 进程、`/tmp` 无新文件 |
+| ⑥ | **确定性顺序** | 同一路径连续两次 ⇒ 条目顺序**逐字相同**（并记录观察到的排序规则；若实现未定义排序则只断言"稳定"，不断言具体规则） |
+- **故意红（不碰被验对象）**：照 T10 R6 的做法，把插件包**复制**到 `%TEMP%` 副本、在副本里去掉 `..` 校验、用副本起测试实例 ⇒ **② 必须变红**；删副本后复绿（原对象全程只读）。若时间不允许副本实例，则退化为"合成响应喂同一断言函数"的桩级对照，并在报告里注明降级。
+- **A3 的桩/真机分界（lead 强调）**：client-panel 会用 fetch 层桩先验四能力 DOM —— **我复验必须用真 host 再跑一遍**，桩级证据**不算交付判据**；若某条无法在不打扰用户的前提下构造（例如"发行版未运行"），**如实记未复核**，不写成通过。
+
+

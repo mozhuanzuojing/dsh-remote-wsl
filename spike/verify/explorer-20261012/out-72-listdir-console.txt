@@ -1,0 +1,85 @@
+############ listDir 复验（http://127.0.0.1:8931/remote-wsl/api）2026-10-12 18:04:01 ############
+
+[0] GET methods = explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir
+  [PASS] methods 含 explorer.listDir → True (期望 True)
+captured -> D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\out-72-listdir-facts-before.json
+  running=True pid=1040506 port=8932 slot=8932 keys=0 pgrepMine=[1040506] listener=True
+  NOTE: 同发行版还有**其它槽位**守护（同队其它测试实例，属主未确认；未纳入比对）：pid=1026481 slot=8731
+
+[1] 基线：WSL 进程数=000089  /tmp 条目=0000320
+
+[2] 缺失 Origin → 403
+  [PASS] 缺 Origin=403 → 403 (期望 403)
+    伪造 Origin → 403
+  [PASS] 伪造 Origin=403 → 403 (期望 403)
+
+[3] 合法路径（正向对照）
+  /                      status=200 条目=46 首项=bin
+  [PASS] 合法 / = 200 → 200 (期望 200)
+  /home/g                status=200 条目=72 首项=.agents
+  [PASS] 合法 /home/g = 200 → 200 (期望 200)
+  /home/g/project/dsh1   status=200 条目=13 首项=.docs
+  [PASS] 合法 /home/g/project/dsh1 = 200 → 200 (期望 200)
+  /mnt                   status=200 条目=7 首项=c
+  [PASS] 合法 /mnt = 200 → 200 (期望 200)
+  /mnt/c                 status=200 条目=22 首项=$QAXHoneypot
+  [PASS] 合法 /mnt/c = 200 → 200 (期望 200)
+  /mnt/d                 status=200 条目=29 首项=$QAXHoneypot
+  [PASS] 合法 /mnt/d = 200 → 200 (期望 200)
+  /mnt/c/Users           status=200 条目=6 首项=All Users
+  [PASS] 合法 /mnt/c/Users = 200 → 200 (期望 200)
+  /mnt/wslg              status=200 条目=13 首项=.X11-unix
+  [PASS] 合法 /mnt/wslg = 200 → 200 (期望 200)
+
+[4] 盘符映射一致性
+  listDir('/mnt/c') 条目=22 ｜ C:\ 条目=22 ｜ 仅WSL侧= ｜ 仅Windows侧=
+  [PASS] 映射集合相等 → True (期望 True)
+  listDir('/mnt/c/Users') 条目=6 ｜ C:\Users 条目=6 ｜ 差集=/
+  [PASS] Users 映射集合相等 → True (期望 True)
+
+[5] 边界挂载
+  /mnt/z → status=404 code=E_NOTFOUND body={"ok":false,"error":"remote-wsl: 列目录失败：路径 /mnt/z 不存在或不是目录（ENOENT: ENOENT: no such file or directory, scandir 'Z:\\'）","code":"E_NOTFOUND"}
+  [PASS] /mnt/z 可读错误（≠200） → True (期望 True)
+  /mnt/wslg → status=200 条目数=13（应为 UNC 路线，不是盘符）
+
+[6] 非法形态 ⇒ 400 E_ARG
+  ../etc         status=400 code=E_ARG 含条目=False
+  [PASS] ../etc = 400 → 400 (期望 400)
+  [PASS] ../etc 不返回条目 → False (期望 False)
+  相对路径 foo       status=400 code=E_ARG 含条目=False
+  [PASS] 相对路径 foo = 400 → 400 (期望 400)
+  [PASS] 相对路径 foo 不返回条目 → False (期望 False)
+  空串             status=400 code=E_ARG 含条目=False
+  [PASS] 空串 = 400 → 400 (期望 400)
+  [PASS] 空串 不返回条目 → False (期望 False)
+  反斜杠            status=400 code=E_ARG 含条目=False
+  [PASS] 反斜杠 = 400 → 400 (期望 400)
+  [PASS] 反斜杠 不返回条目 → False (期望 False)
+  ..-段           status=400 code=E_ARG 含条目=False
+  [PASS] ..-段 = 400 → 400 (期望 400)
+  [PASS] ..-段 不返回条目 → False (期望 False)
+  NUL            status=400 code=E_ARG 含条目=False
+  [PASS] NUL = 400 → 400 (期望 400)
+  [PASS] NUL 不返回条目 → False (期望 False)
+  Windows 盘符     status=400 code=E_ARG 含条目=False
+  [PASS] Windows 盘符 = 400 → 400 (期望 400)
+  [PASS] Windows 盘符 不返回条目 → False (期望 False)
+
+[7] 路径不存在 ⇒ 404（body 必须含该 path）
+  status=404 code=E_NOTFOUND body 含 path=True
+  body: {"ok":false,"error":"remote-wsl: 列目录失败：路径 /home/g/no-such-dir-xyz-t14 不存在或不是目录（ENOENT: ENOENT: no such file or directory, scandir '\\\\wsl.localhost\\debian-u8-1\\home\\g\\no-such-dir-xyz-t14'）","code":"E_NOTFOUND"}
+  [PASS] 不存在路径 = 404 → 404 (期望 404)
+  [PASS] body 含该 path → True (期望 True)
+
+[8] 确定性顺序
+  两次 body 相同=True
+  [PASS] 同路径两次逐字相同 → True (期望 True)
+  观察到的顺序（前 8）：.agents, .atuin, .bash-preexec.sh, .bash_history, .bash_logout, .bashrc, .bashrc.bak-20260923_1340, .biome
+captured -> D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\out-72-listdir-facts-after.json
+  running=True pid=1040506 port=8932 slot=8932 keys=0 pgrepMine=[1040506] listener=True
+  NOTE: 同发行版还有**其它槽位**守护（同队其它测试实例，属主未确认；未纳入比对）：pid=1026481 slot=8731
+
+[9] 零副作用：daemon facts compare exit=0（期望 0）｜WSL 进程 000089→000089 ｜/tmp 0000320→0000320
+  [PASS] daemon facts 不变 exit=0 → 0 (期望 0)
+
+############ 汇总：失败断言数 = 0 ############

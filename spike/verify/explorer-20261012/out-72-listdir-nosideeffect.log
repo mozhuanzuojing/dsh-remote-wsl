@@ -1,0 +1,12 @@
+daemon.alive(mine)     MATCH     hard  before=True  after=True
+daemon.slotScoped(probe) MATCH     hard  before=True  after=True
+daemon.pid(probe,scoped) MATCH     hard  before=1040506  after=1040506
+daemon.port(scoped)    MATCH     hard  before=8932  after=8932
+daemon.version(scoped) MATCH     hard  before=0.2.0-rc.2  after=0.2.0-rc.2
+daemon.pgrepPids       MATCH     hard  before=[1040506]  after=[1040506]
+daemon.keys            MATCH     hard  before=[]  after=[]
+listener.port          MATCH     hard  before=True  after=True
+keys.runtimePid        MATCH     warn  before=[]  after=[]
+otherSlotDaemons       MATCH     info  before=[pid=1026481 slot=8731]  after=[pid=1026481 slot=8731]
+
+exit=0 -> D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\out-72-listdir-nosideeffect.json

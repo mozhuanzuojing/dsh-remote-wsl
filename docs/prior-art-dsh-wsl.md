@@ -59,6 +59,39 @@
 10. **安全立场（最值得警惕的一条）**：`dsh-wsl-tool` 明写 *"`wsl` 调用位于 DSH 沙箱层之下，文件策略约束不到它"*；`dsh-plugin-wsl-env` 的对策是**发行版内 bubblewrap、fail-closed、绝不 unconfined**。
     ⇒ **对我们**：我们的 `wsl_exec` / `wsl_agent` **同样在 DSH 沙箱之下**（守护在 WSL 里跑，宿主文件策略管不到）。**这是必须在 README 明写的边界**（见 §3-A5）。
 
+## 2.4 实测更正与新增结论（T11，2026-10-12 当天）
+
+> `client-contract` 的只读取证，报告：`spike/verify/explorer-20261012/prior-art/REPORT-prior-art-probe.md`（每条标了「实测到 / 读代码推断 / 未复核」）。**下面两条更正就是冲着本文件 §2 写的。**
+
+**更正 1（§2.2）**：`listDirectory` / `createDirectory` **不在 `ctx.workspaces`**（它只有 CRUD/projection），而在 **`ctx.uiWorkspace`**。
+**更正 2（§2.3）**：`@deepseek-ai/dsh-client-runtime` **在 `0.2.0-rc.2` 不存在** —— 把它当"官方客户端包名"是错的（先例的 `inject` 值不能照抄，这也解释了为什么我们 `inject: []` 是对的）。
+**更正 3（§2.2 的"复用官方 browse"）**：在本机的 web 组合下**做不到** —— `dsh-web-app` 挂 `dsh-host-directory-picker-auto`，win32 + loopback + 非 SSH ⇒ 组合出 **native**，而 `list`/`createDirectory` 是 **browse-gated** ⇒ `DirectoryBrowseError: directory-picker/unavailable`。这是**组合依赖**，不是普适事实；⇒ **面板列目录必须自建**（我方做法：新增 host 只读方法 `explorer.listDir`，经 UNC 读、不启动发行版）。
+
+**新增结论 1｜A1 可行：WSL 路径能成为 DSH 工作区，但只能用 UNC**（实测到）
+- host 服务名 **`workspaceRegistry`**（不是 `workspaces`），`create(path, title)`（arity 2）。
+- `\\wsl.localhost\debian-u8-1\home\g` ✅ 创建成功；`\\wsl$\debian-u8-1\home\g` ✅ 也成功；**发行版内路径 `/home/g` ❌** `TypeError: Workspace path is not fully qualified`（`dsh-workspace/lib/index.js:20-24` 在 win32 下把 root=`/` 判非全限定）。
+- 路径**必须已存在**（不存在 ⇒ ENOENT realpath）。
+- 创建路径三条：host `registry.create()`（**不经 picker 能力**）｜client `ctx.workspaces.create({path})`（`WorkspaceCreateRequest = {path}`）。
+- ⇒ **A1 可做**，但 README 必须并列写明：**该工作区路径是 UNC ⇒ 文件工具的读写走 9P**（与设计稿 §7 的"经 UNC 读"是同一条约定，代价要写清）。
+
+**新增结论 2｜`directoryFlow` 槽的"最低优先级者渲染"双向实测成立**（实测到）
+- 两槽都是 `single`/`root`；官方 occupant = `@deepseek-ai/dsh-client-ui-directory-picker-native` 的 `NativeDirectoryFlow`，**注册时不写 priority ⇒ 0**，且 renderless。
+- 同一份 bundle 只改 priority：**+10 ⇒ 官方赢**；**−10 ⇒ 我们赢**；第三次对照（无人注册该槽）⇒ 计数 0（排除"元素本来就在页面上"）。全程未打开任何菜单 ⇒ 没触发 OS 选择框。
+- owner props 契约：`{open, busy, onPicked(path), onCancel(), onError(msg)}`，occupant 自 inject `{pick}`。
+- ⇒ 先例"在 −10 顶替官方 picker"**机制上成立**。但我方**仍不抢这两个槽**：我们的面板不是目录选择器（见 §3-A3 与更正 3）。
+
+**新增结论 3｜手写 bundle 的 require 表：16/17 可达**（实测到）
+- 可达：9 个平台种子（react / react-dom / react/jsx-runtime / react-dom/client / cordis / client-store / ui-slots / ui-primitives / **ui-dockkit**）+ 7 个图行（client-locale / ui-sidebar / ui-workspace / ui-layout / ui-renderer / client-connection / client-modules）。
+- **`ctx.get('locale')` 实测可用**（`register/bind/translate/lookup/setLocale`…），`document.documentElement.lang === "zh-CN"` ⇒ **A4（i18n）可走官方 locale，且不必改 `dsh.client.inject`**。
+- ⚠️ `dsh-client-ui-dockkit` 是**种子名但没有对应 npm 包** ⇒ **别用"包存在性"推断种子表**。
+
+**新增结论 4｜`immediately` 我们不需要**（实测到 + 读代码推断）
+- 语义 = "插件树 boot **之前**先执行该行所在 batch"；外壳 `prefetchImmediateTier(){…filter(e=>e.immediately).map(e=>modules.prefetch(e.id))}`。
+- `prefetch` 拉的是**共享 batch URL**（不会多请求：实测 script 请求 5 条，无单包 combo）。
+- **对照运行**（把唯一的 immediately 包从 bundles 移除）：同步 `require` 结果**完全相同** 16/17 ⇒ 同 batch 下**无可观测差异** ⇒ leaf 插件不需要用它。
+
+**未复核（T11 报告 §6）**：UNC 工作区**真开会话**的文件工具路径、跨 batch 的 `inject`/`require.async` 行为、9P 写入的性能与语义风险。
+
 ## 3. 采纳清单（按价值/成本排序）
 
 | # | 采纳项 | 为什么 | 怎么做（具体） | 成本 | 风险 |

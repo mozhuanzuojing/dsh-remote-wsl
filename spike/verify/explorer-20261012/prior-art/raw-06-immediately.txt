@@ -1,0 +1,59 @@
+== RAW: `dsh.client.immediately` —— 声明位置 / 行为 / 对照实验
+
+--- 1. 声明与校验（**读代码**，asar 内路径可核）---
+`dsh-client-modules/lib/index.js:61-75` parseDshClient：
+  `inject`/`external` 为 string[]，`immediately` 必须 boolean，返回 {platform, inject?, external?, immediately?}。
+`dsh-client-modules/lib/index.js:720-727` resolveMeta：`immediately: decl.immediately === true`。
+`dsh-client-modules/lib/index.js:394-403` graphRow：
+  `...fields.immediately ? { immediately: true } : {}`   ← 只在该字段为真时写进 wire row。
+
+--- 2. 行为（**读代码 + 实测 wire**）---
+wire 侧解析：`dsh-client-modules/lib/client.js:135-139`
+  plugins.push({ id, inject, immediately: row.immediately === true });
+真正消费它的地方在 **web 外壳**（`dsh-web-frontend/dist/assets/index-5SrrfWpU.js`，字符串偏移 ~631064 与 ~631652）：
+  boot():
+    ...this.modules = o.create({boot: __DSH_BOOT__, staticModules: rM(), ...});
+    this.manifest = this.modules.manifest;
+    const a = this.prefetchImmediateTier();
+    this.ctx = u; this.page.setTotal(...); await a; await JS({ctx, modules, manifest, ...});  // 然后才 boot 插件树
+    ...
+  async prefetchImmediateTier(){
+    await Promise.all(this.manifest.plugins.filter(e => e.immediately).map(e => this.modules.prefetch(e.id).catch(n => {})))
+  }
+`dsh-client-modules/lib/client.js:758-764` prefetch(id)：
+  取 `graphRows.get(id)` -> `arriveGraphRow(row)`；`arrive(row)` 的 `preferred = row.initialUrl`（= **batch URL**，
+  `:614`），所以 prefetch 拉的是**共享 batch**，不是"该包单独一个文件"；`loadShared` 去重（`:619`）。
+  `:612` `if (this.loadCache.has(id) || this.factories.has(id)) return;` 已注册就直接返回。
+
+⇒ 语义：**把该行所属的 application batch 提前到"插件树 boot 之前"执行完**，从而保证该包在树激活时
+   factory 已注册（`arriveGraphRow` 也会先按其 `inject` 抵达依赖）。它**不**执行模块副作用
+   （lazy-CJS：副作用在 materialize 时跑）。
+
+--- 3. 实测 wire（两次运行都取到）---
+RUN1/RUN2（bundles 含三个探针包）：
+  {"id":"dsh-t11-client-im",   "url":"plugins/??dsh-t11-client-im/client.js&rev=7ced3ad4da25",
+   "inject":[...7 项...], "immediately":true}
+  {"id":"dsh-t11-client-lz",   "url":"...","inject":[...7 项...]}          <- 无 immediately
+  {"id":"dsh-t11-client-plain","url":"..."}                                <- 无 inject 无 immediately
+RUN3（把 im 从 bundles 移除）：只剩 lz / plain，二者均无 immediately。
+
+--- 4. 对照实验（**实测**）：immediately 到底带来什么可观测差异？---
+  RUN1/RUN2（有 immediately 包）：lz 与 plain 的 sync require 表 = 16/17 成功
+  RUN3（没有 immediately 包）：  lz 与 plain 的 sync require 表 = 16/17 成功（完全相同）
+  唯一失败项都是不存在的 `@deepseek-ai/dsh-client-runtime`。
+  网络请求（RUN2，页面 script 请求全量 5 条）：
+    GET /plugins/??<56 个包含三个探针>/client.js&rev=...   [200]   <- application batch #1
+    GET /plugins/??<另一批 8 个包>/client.js&rev=...        [200]   <- application batch #2
+    GET /plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=f561689b6761 [200]  <- bootstrap
+    GET /assets/index-5SrrfWpU.js [200]
+    GET /assets/vendor-CCJJTK99.js [200]
+    —— **没有任何"单个包的 combo"请求**：im 的 prefetch 命中的是它自己所在的共享 batch，
+       而那个 batch 本来就要被加载 ⇒ 参数默认组合下 immediate 与非 immediate **无可观测差异**。
+
+== 结论 ==
+- 「何时加载」= 插件树 boot 之前就把该行所在 batch 执行完（代码证据，见上）。
+- 「是否多拉文件」= 不会；它拉的是共享 batch（实测：无单独 URL 请求）。
+- 我们该不该用：**不需要**。我们的 client 半是 leaf（没有任何包在激活期 require 我们），
+  且实测在同 batch 下 immediate 与非 immediate 的 require 可达性完全一致。
+  只有当"其它包在激活期必须 require 我们"时才值得加（那是 kernel tier 的用法：
+  client-modules / ui-renderer / client-hmr / client-connection / api-gateway / api-remotes / typert-registry 都用了它）。

@@ -1,0 +1,97 @@
+{
+  "savedAt": "2026-10-12T09:30:47.063Z",
+  "dshHome": "C:\\Users\\l\\AppData\\Local\\Temp\\rwsl-t11\\home",
+  "service": "workspaceRegistry",
+  "proto": [
+    "archiveSession(1)",
+    "bootstrap(1)",
+    "create(2)",
+    "createCanonical(2)",
+    "delete(1)",
+    "deleteKnown(1)",
+    "enqueueOperation(1)",
+    "get archivedSessionIds",
+    "get pinnedSessionIds",
+    "get(1)",
+    "indexHeader(1)",
+    "indexHeaders(1)",
+    "indexLiveSessions(0)",
+    "initializeDefault(1)",
+    "insertBefore(2)",
+    "list(0)",
+    "listStoredHeaders(0)",
+    "pinSession(1)",
+    "readSessionHeader(1)",
+    "rebuildEntities(0)",
+    "recoverPendingMutation(0)",
+    "replaceHeaderIndex(1)",
+    "reportFilteredCandidates(0)",
+    "requireState(0)",
+    "requireTable(0)",
+    "resolveByPath(1)",
+    "sessionKnown(1)",
+    "setState(1)",
+    "stopSessionActivity(1)",
+    "unarchiveSession(1)",
+    "unpinSession(1)",
+    "validateStoredState(1)"
+  ],
+  "createArity": 2,
+  "cases": [
+    {
+      "label": "unc-wsl.localhost",
+      "path": "\\\\wsl.localhost\\debian-u8-1\\home\\g",
+      "result": "ok",
+      "workspace": {
+        "workspaceId": null,
+        "path": "\\\\wsl.localhost\\debian-u8-1\\home\\g",
+        "title": "g"
+      },
+      "resolveByPath": {
+        "path": "\\\\wsl.localhost\\debian-u8-1\\home\\g"
+      }
+    },
+    {
+      "label": "unc-wsl-legacy",
+      "path": "\\\\wsl$\\debian-u8-1\\home\\g",
+      "result": "ok",
+      "workspace": {
+        "workspaceId": null,
+        "path": "\\\\wsl$\\debian-u8-1\\home\\g",
+        "title": "g"
+      },
+      "resolveByPath": {
+        "path": "\\\\wsl$\\debian-u8-1\\home\\g"
+      }
+    },
+    {
+      "label": "linux-distro-path",
+      "path": "/home/g",
+      "result": "threw",
+      "errorName": "TypeError",
+      "errorMessage": "Workspace path is not fully qualified: '/home/g'",
+      "resolveByPath": "threw: Workspace path is not fully qualified: '/home/g'"
+    },
+    {
+      "label": "windows-control",
+      "path": "C:\\Users\\l\\AppData\\Local\\Temp\\rwsl-t11\\win-control-dir",
+      "result": "threw",
+      "errorName": "Error",
+      "errorMessage": "ENOENT: no such file or directory, realpath 'C:\\Users\\l\\AppData\\Local\\Temp\\rwsl-t11\\win-control-dir'",
+      "resolveByPath": "threw: ENOENT: no such file or directory, realpath 'C:\\Users\\l\\AppData\\Local\\Temp\\rwsl-t11\\win-control-dir'"
+    }
+  ],
+  "projection": [
+    {
+      "workspaceId": null,
+      "path": "\\\\wsl$\\debian-u8-1\\home\\g",
+      "title": "g"
+    },
+    {
+      "workspaceId": null,
+      "path": "\\\\wsl.localhost\\debian-u8-1\\home\\g",
+      "title": "g"
+    }
+  ],
+  "done": true
+}

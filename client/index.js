@@ -72,8 +72,34 @@ window.__ModuleLoader__.load({
 			// F35：路径必须显式 LTR。之前这里写 `direction:rtl`（本意是让长路径露出尾部），
 			// 结果 `/home/g/project/dsh1` 被渲染成 `home/g/project/dsh1/`（DOM 文本没问题，是方向错）。
 			".dsh-rw-workspace-path{flex:1;min-width:0;color:var(--dsw-alias-label-secondary);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:plaintext;text-align:left}",
-			// F35 自查：其它会内嵌 WSL 路径 / 命令 / JSON 的文本容器一律显式 LTR（CJK 不受影响）
-			".dsh-rw-pre,.dsh-rw-note,.dsh-rw-error-body,.dsh-rw-confirm-body,.dsh-rw-hint,.dsh-rw-other-note{direction:ltr;unicode-bidi:plaintext}",
+			// F35 自查：其它会内嵌 WSL 路径 / 命令 / JSON 的文本容器一律显式 LTR（CJK 不受影响）。
+			// A3 新增的路径文本（chips / 面包屑 / 路径输入框 / 条目名）一并纳入。
+			".dsh-rw-pre,.dsh-rw-note,.dsh-rw-error-body,.dsh-rw-confirm-body,.dsh-rw-hint,.dsh-rw-other-note,.dsh-rw-crumb,.dsh-rw-chip,.dsh-rw-path-input,.dsh-rw-entry-name{direction:ltr;unicode-bidi:plaintext}",
+			// —— A3 目录浏览器（快捷 chips / 面包屑 / 常显路径输入 / 条目列表）——
+			".dsh-rw-browser{margin:8px 8px 4px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:6px}",
+			".dsh-rw-browser-head{display:flex;align-items:center;justify-content:space-between;gap:8px}",
+			".dsh-rw-browser-title{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600}",
+			".dsh-rw-chips{display:flex;flex-wrap:wrap;gap:6px}",
+			".dsh-rw-chip{background:none;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;padding:2px 9px;cursor:pointer}",
+			".dsh-rw-chip:hover{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}",
+			".dsh-rw-chip--on{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}",
+			".dsh-rw-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;overflow-x:auto;font-size:12px}",
+			".dsh-rw-crumb{background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;cursor:pointer;padding:1px 3px;border-radius:3px}",
+			".dsh-rw-crumb:hover{text-decoration:underline}",
+			".dsh-rw-crumb--current{color:var(--dsw-alias-label-primary);font-weight:600;cursor:default}",
+			".dsh-rw-crumb--current:hover{text-decoration:none}",
+			".dsh-rw-crumb-sep{color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-path-form{display:flex;align-items:center;gap:6px}",
+			".dsh-rw-path-input{flex:1;min-width:0;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;padding:3px 6px;font:inherit;font-size:12px}",
+			".dsh-rw-path-input::placeholder{color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-entries{display:flex;flex-direction:column;max-height:220px;overflow:auto}",
+			".dsh-rw-entry{display:flex;align-items:center;gap:8px;padding:2px 4px;border-radius:4px}",
+			".dsh-rw-entry:hover{background:var(--dsw-alias-bg-layer-1)}",
+			".dsh-rw-entry-nav{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;padding:0;text-align:left;flex:1;min-width:0}",
+			".dsh-rw-entry-nav:hover{color:var(--dsw-alias-brand-primary)}",
+			".dsh-rw-entry-inert{display:flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);font-size:12px;flex:1;min-width:0}",
+			".dsh-rw-entry-icon{flex:none}",
+			".dsh-rw-entry-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
 			".dsh-rw-workspace-actions{display:flex;gap:8px;flex:none}",
 			".dsh-rw-link{background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;cursor:pointer;padding:0}",
 			".dsh-rw-link:hover:enabled{text-decoration:underline}",

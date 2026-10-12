@@ -1,0 +1,16 @@
+T14 预备附带：`--dump-config-schema` exit=1 的归属（lead 2026-10-12 要求顺手定位）
+
+结论：**与我们的插件无关** —— 三个 profile 完全同样的 4 条 error + 2 条 warning，索引都是 [/179..182]：
+  · remote-wsl-test-web        （base + web-app + 我们的插件） exit=1 errors=4 warnings=2
+  · remote-wsl-test-web-base   （base + web-app，**不含**插件）  exit=1 errors=4 warnings=2
+  · remote-wsl-test            （T9 改过 bundles 的队友 profile） exit=1 errors=4 warnings=2
+
+索引归属（用 --dump-config 的 184 条条目对齐）：
+  1-based: 179=agent-preset-registry, 180=preset-standard, 181=preset-ptc, 182=preset-minimal
+  0-based: 179=preset-standard, 180=preset-ptc, 181=preset-minimal, 182=preset-cordis
+  ⇒ 都是 **agent-preset 那一族条目**（来自 base/web-app bundle），错误文案是
+    `unrecognized Loader tree carrier; use cordis:group or cordis:include for native child collection`
+    （该 pass 不认 preset 条目里的原生子列表）——**这是宿主 schema-dump 与 preset 条目之间的既有问题**。
+
+影响：**不阻断 T14**（`--dump-config` 仍 exit 0；插件加载/6 工具照常）。只记一句，不作为缺陷。
+原始输出：本次会话已核对 exit/errors/索引三元组；大体积 dump 已删，只保留 T14-PREP-dump-config-schema.txt（A2 证据）。

@@ -45,6 +45,11 @@
     "client": {
       "platform": "web",
       "inject": []
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.2.0-rc.2": "compatible"
+      }
     }
   },
   "license": "MIT"

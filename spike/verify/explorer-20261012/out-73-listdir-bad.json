@@ -1,0 +1,37 @@
+{
+  "../etc": {
+    "status": 400,
+    "code": "E_ARG",
+    "returnedEntries": false
+  },
+  "相对路径 foo": {
+    "status": 400,
+    "code": "E_ARG",
+    "returnedEntries": false
+  },
+  "空串": {
+    "status": 400,
+    "code": "E_ARG",
+    "returnedEntries": false
+  },
+  "反斜杠": {
+    "status": 400,
+    "code": "E_ARG",
+    "returnedEntries": false
+  },
+  "..-段": {
+    "status": 400,
+    "code": "E_ARG",
+    "returnedEntries": false
+  },
+  "NUL": {
+    "status": 400,
+    "code": "E_ARG",
+    "returnedEntries": false
+  },
+  "Windows 盘符": {
+    "status": 400,
+    "code": "E_ARG",
+    "returnedEntries": false
+  }
+}

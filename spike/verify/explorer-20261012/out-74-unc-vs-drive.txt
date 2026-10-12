@@ -1,0 +1,6 @@
+UNC \\wsl.localhost\debian-u8-1\mnt   -> OK (7 项: c,d,e,f,g,wsl,wslg)
+UNC \\wsl.localhost\debian-u8-1\mnt\c -> FAILED: Access to the path '\\wsl.localhost\debian-u8-1\mnt\c' is denied..Substring(0,[Math]::Min(140,([string]Access to the path '\\wsl.localhost\debian-u8-1\mnt\c' is denied.).Length))
+UNC \\wsl.localhost\debian-u8-1\mnt\wslg -> OK (13 项: .X11-unix,distro,doc,run,runtime-dir)
+Windows C:\（同刻） -> OK (22 项: .pnpm-store,$QAXHoneypot,$Recycle.Bin,图吧工具箱,Documents and Settings)
+
+结论：/mnt 本身经 UNC 可列，但 /mnt/c 经 UNC 列不出来（9p 不暴露 drvfs 挂载根）⇒ 实现用 windowsDriveForMount() 映射到 C:\… 是**必须**的；/mnt/wslg 不是单盘符 ⇒ 仍走 UNC 且可列。

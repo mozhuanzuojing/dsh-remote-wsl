@@ -30,7 +30,7 @@ dsh --profile <profile> '调 wsl_agent，key=rc1，task="刚才让你记的数�
 #   ⇒ 77 · 同一 sessionId / runtimePid · turns=2
 ```
 
-## 六个工具（对应 VS Code 侧的概念）
+## 七个工具（对应 VS Code 侧的概念）
 
 | 工具 | 对应概念 | 做什么 |
 |---|---|---|
@@ -40,6 +40,19 @@ dsh --profile <profile> '调 wsl_agent，key=rc1，task="刚才让你记的数�
 | `wsl_daemon` | 远端会话生命周期 | `status` / `start`（幂等）/ `stop`（显式结束会话）/ `restart`（对齐新版本） |
 | `wsl_open_ui` | 远端 UI 窗口 | WSL 里跑 `dsh web`，Windows 开应用窗口（浏览器 client 能连远端 origin，桌面壳不能） |
 | `wsl_sync_version` | server 供给 | 读桌面版本 → 比对 WSL pin → 可选预热该版本 → 修复 pin |
+| `wsl_path` | 路径映射 | 包一层发行版自带的 `wslpath`：`D:\project\net1` ⇄ `/mnt/d/project/net1`（`direction` 默认 `both`）。只读、无副作用、不要求路径存在；路径**走 argv 位置参数**（不拼 shell 串），含空格/引号/`$(…)` 也当字面量。与 `dsh-wsl-tool` 的 `wsl-path` 是**同类能力**（那边用连字符），本插件沿用自己既有的 `snake_case` 命名 |
+
+> `wsl_path` 只做字符串转换：它**不会**创建目录、**不会**改文件，`wslpath` 对不存在的路径同样给出映射（已实测）。
+> 同形态输入（拿 Windows 路径问 `to-windows`）不是恒等变换 —— `wslpath` 会把反斜杠当转义 ⇒ 这种**无意义的方向不回显值**，只说明原因。
+
+## 兼容性声明（`dsh.compatibility.dshReleases`）
+
+`package.json` 里声明了 `dsh.compatibility.dshReleases = { "0.2.0-rc.2": "compatible" }`：
+
+- **含义**：我们**在这个 DSH 版本上跑过并通过了验收**。仅此而已。
+- **只写实测过的版本**：目前**只有 `0.2.0-rc.2`**（P0/P1 全部验收的基线）。没实测过的版本**一律不写** —— 宁可缺项，也不把"没测过"写成 `compatible`。
+- ⚠️ **该字段是声明性的，宿主不校验**：本构建（`0.2.0-rc.2`）的 `resources/**` 与 `--dump-config-schema` 里 **`dshReleases`/`dsh.compatibility` 均 0 命中** ⇒ 写它**不会**让宿主做任何检查，也不会改变加载行为（与生态先例 `dsh-wsl-workspace` 的形状对齐）。它的价值在**人/工具读清单时**，不在运行时。
+- 版本约束仍然以 `engines.dsh`（`>=0.2.0-rc.2`）为准；**更高版本未验证、不承诺**。
 
 ## 常驻守护（默认后端）：关客户端 ≠ 会话结束
 
@@ -277,7 +290,7 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 同域在 npm 上**已有一批真插件在跑**（`dsh-wsl-workspace`、`dsh-plugin-wsl-env`、`dsh-wsl-workspace-picker`、`dsh-wsl-tool`、`dsh-wsl-projects`、`dsh-wsl-desktop`、`dsh-wsl-tray`/`dsh-web-tray`/`dsh-wsl-launcher`、`dsh-wsl-expose`、`dsh-network-settings`…）。完整清单、官方约定（`directoryFlow` 槽、`ctx.workspaces.*`、`dsh.client.inject`、`dsh.compatibility.dshReleases`）与我们的采纳/分歧清单见 **[docs/prior-art-dsh-wsl.md](docs/prior-art-dsh-wsl.md)**。三条与使用者直接相关：
 
 1. **⚠️ 沙箱边界（务必先读）**：`wsl_exec` / `wsl_agent` 跑在 **WSL 侧**，因此**位于 DSH 的沙箱层与文件策略之下** —— 宿主的文件策略**约束不到**这两条路径里的命令（同类插件 `dsh-wsl-tool` 也明写这一点）。要隔离请用 WSL 侧手段（对照 `dsh-plugin-wsl-env` 的 **bubblewrap、fail-closed、绝不 unconfined** 立场）。本插件**不内置沙箱**：它的语义就是"在**你自己**的 WSL 里跑一条命令"。
-2. **与 `dsh-wsl-tool` 并存时的分工**：那套工具叫 `wsl` / `wsl-path` / `wsl-env` / `wsl-doctor` / `wsl-bootstrap` / `wsl-term`（**连字符**，一次性命令 + 体检为主）；我们是 `wsl_status` / `wsl_exec` / `wsl_agent` / `wsl_daemon` / `wsl_open_ui` / `wsl_sync_version`（**snake_case**，**常驻守护 + 跨宿主会话**为主）。两套可同时安装、名字不冲突，但**模型可能选错** —— 一句话分工：**要"关客户端 ≠ 会话结束"的持久会话，用我们；要一次性 Linux 命令/路径转换/发行版体检，用它们。**
+2. **与 `dsh-wsl-tool` 并存时的分工**：那套工具叫 `wsl` / `wsl-path` / `wsl-env` / `wsl-doctor` / `wsl-bootstrap` / `wsl-term`（**连字符**，一次性命令 + 体检为主）；我们是 `wsl_status` / `wsl_exec` / `wsl_agent` / `wsl_daemon` / `wsl_open_ui` / `wsl_sync_version` / `wsl_path`（**snake_case**，**常驻守护 + 跨宿主会话**为主）。两套可同时安装、名字不冲突，但**模型可能选错** —— 一句话分工：**要"关客户端 ≠ 会话结束"的持久会话，用我们；要发行版体检/按配方补装/侧栏终端，用它们。**（路径转换两边都有：我们的 `wsl_path` 对位它的 `wsl-path`。）
 3. **路线差异（不是对错）**：`dsh-wsl-workspace` / `dsh-plugin-wsl-env` 把 WSL 当**工作区/会话执行环境**（文件工具、终端、目录选择器都在发行版内）—— 好处是路径语义天然正确、没有 `/mnt` 的性能与语义坑；我们把 WSL 当**远端运行时宿主**（守护持有 runtime），换来的是会话持久性、跨宿主重连与显式生命周期。两者**互补而非互斥**；想要"发行版内文件工具"，请用它们（或等我们的 A1：走官方工作区路线）。
 
 ## 设计要点（都是踩出来的，不是猜的）
@@ -555,3 +568,40 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 > **历史样本与规范形态**：下面各节验证表里 `daemon: pid=… port=…` 与 `daemon: pid=… actualPort=…` 两种写法并存 —— 那是不同 revision 的原始输出，**按「原文保留」不改**；**规范形态以上表为准**。（漂移清单见 `spike/verify/explorer-20261012/DOC-DRIFT.md`。）
 
 **关于"计划补进"**：本节此前列过三项（shell-env 注入状态 / `localhostForwarding` 探测结果 / WSL 里已装的 dlx 版本）—— 2026-10-12 核对发现**三项都已实现**，已并入上表；本处不再保留"待补"清单（当前没有新的待补诊断项）。
+
+---
+
+## 先例对齐轮（P0.2）：冻结 revision 与结果
+
+**动机**：用户要求"参考现有 DSH WSL 插件设计"。调研（npm registry 经代理 + 3 份 README）发现同域已有 10+ 个真插件，其**官方约定**与**成熟解法**见 [docs/prior-art-dsh-wsl.md](docs/prior-art-dsh-wsl.md)（含 T11 的只读实测与三处事实更正）。
+
+**冻结 revision —— P0.2（2026-10-12，13 个锚点）**：与 P0.1 比变 **6 个**（`src/explorer.ts`、`src/index.ts`、`client/client.panel.js`、`client/index.js`、`client/client.api.js`、`package.json`），其余 7 个逐字相同。独立验证者 `p0-verify` **17:49 冻结 / 18:0x 复算 13/13 一致 ⇒ 验证有效**（报告：`spike/verify/explorer-20261012/REPORT-prior-art-adoptions.md`）。
+
+| 文件 | 大小 | SHA256 |
+|---|---:|---|
+| `src/daemon-client.ts` | 37,581 | `184f6b87ef2ebc78b53b57bb13ebcecc28c546ccf1aee029c21daca19280098f` |
+| `src/daemon.ts` | 23,299 | `1c5284e56a7affdbe3578148e31dcb98252ad6d286ba8d978efd023905967d96` |
+| `src/explorer.ts` | 39,787 | `6c414cb375e3b77ffd1c742f676ebeed831a2657232eb8ffed7594974b1b12a0` |
+| `src/index.ts` | 84,949 | `4c8946d16a66de0b9a691a9f69ddc2c1f484f916538974e09c8186ed8d72d334` |
+| `src/sdk-runtime.ts` | 11,433 | `74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e` |
+| `src/selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
+| `src/shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
+| `src/version.ts` | 14,386 | `ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275` |
+| `client/client.api.js` | 11,234 | `4ca5c7ba1a9523632dcdd40a0a4a00eb3dfd2817fa2eae014375203e01c53901` |
+| `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
+| `client/client.panel.js` | 50,840 | `86f24076d6cd6a0dcde1017734e8e7b2a811b5246c28de2093ec3f4e6775907e` |
+| `client/index.js` | 17,685 | `0588b3d32ded5fd4b80e3a96970c9740ae18a1607eb9ff3a6f6d29b92353b416` |
+| `package.json` | 1,548 | `ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087` |
+
+**本轮采纳（全部独立复验通过）**
+- **A2 `dsh.compatibility.dshReleases`** = `{"0.2.0-rc.2":"compatible"}` —— **只声明我们真跑过的版本**。诚实标注：**该字段是声明性的，本构建既不读也不校验**（`--dump-config-schema` 与 121MB asar 原始字节扫描里 `compatibility`/`dshReleases` **0 命中**），所以它**不代表宿主校验通过**，含义只是"我们在这个版本上做过验收"。没实测过的版本**一个都没写**（也不写 `unknown`：拿不到允许枚举就不发明值）。改完 `--dump-config` 与改前**逐行相同**（exit 0 / 0 `Error:` / 7 工具照常）。
+- **A6 新工具 `wsl_path`**（**第 7 个工具**）：Windows↔WSL 路径互转（`wslpath`）。**安全关键**：路径一律**位置参数**传递（`-e bash -c '<脚本>' _ <path>`），**绝不做 shell 拼接**。验证：4 条功能 + **8 类注入负例全部当字面量、零执行痕迹**；独立复验的**故意红**把实现换成双引号拼接后，注入用例**真的创建了 `/tmp/t14-pwned-a`**（而现版零痕迹）⇒ 证明防护承重。失败面可读（空路径/NUL/非法 `direction`/发行版不存在），且**不启动任何发行版**。
+- **A3 目录浏览器对齐先例**（`dsh-wsl-workspace-picker`）：**快捷 chips**（Home / `/` / `/mnt` / 探测到的 `/mnt/<盘符>`）、**常显路径输入**（回车跳转、非法给可读错误）、**从 `/` 起的完整面包屑**（不折叠）、**隐藏文件开关**（默认关，**纯前端过滤** `listCallsDelta=0`）。为此新增 host 只读方法 **`explorer.listDir`**（全量返回含隐藏；`..`/NUL/空/相对/反斜杠 ⇒ 400 `E_ARG`；不存在 ⇒ **404 `E_NOTFOUND`**；发行版不存在/未运行 ⇒ 503 且**不启动发行版**；name 升序；复用 `unc()`）。
+  - **实现中打到的真缺陷**：`/mnt/c`、`/mnt/d` **经 UNC 列不出来**（9p 不暴露 drvfs 挂载根）⇒ 盘符 chip 本来是死路；修法是 `windowsDriveForMount()` 把 `/mnt/<单字母>`（及其后代）映射到 `C:\…`（同卷、只读）。`/mnt/wslg` 等仍走 UNC。
+- 回归全绿：F34 首挂载只有读取态｜F35 的 LTR 覆盖**全部新增路径文本**｜`others[]` 只读**零按钮**｜停止/重启仍二次确认｜aria/title 齐全｜light/dark 双份｜③ 差集 exit 0（strong=11）。
+
+**刻意**未采纳（理由见 prior-art §4）：`dsh.client.inject` **保持 `[]`**（实测：`@deepseek-ai/dsh-client-runtime` 在 0.2.0-rc.2 **根本不存在**，先例的 inject 值不可照抄）；`immediately` **不用**（对照运行显示同 batch 下无可观测差异）；**不抢** `directoryFlow` 两个槽（我们不是目录选择器）。
+
+**下一步（已具备落地条件，尚未做）**：**A1**「添加为 WSL 工作区」—— 实测 WSL 路径**能**成为工作区，但**只能用 UNC**（`\\wsl.localhost\<distro>\<path>`；发行版内路径 `/home/g` 被拒 `Workspace path is not fully qualified`；路径必须已存在；`workspaceRegistry.create()` **不经被禁的 picker 能力**）⇒ 落地时必须并列写明"工作区路径是 UNC ⇒ 文件工具读写走 **9P**"。**A4** i18n —— `ctx.get('locale')` 实测可用（`document.documentElement.lang === "zh-CN"`），**不必改 `inject`**。**A7** `wsl-doctor` 式工具链体检：按成本再定。
+
+**未复核（不许当通过）**：`keys>0`/多 key｜`webHosts` 非空｜desktop(Electron) 宿主｜**"发行版未运行"分支**（用兄弟分支覆盖，未真构造）｜`/mnt/*` 上 Windows 隐藏属性不参与 `hidden` 判定（刻意取舍）｜`wsl_path` 超长输入（4KB+）｜注入负例的"字面量保留"判据偏粗（决定性证据是标记/进程零痕迹 + 实现自报 argv）｜像素截图未落盘｜UNC 工作区**真开会话**的 9P 写入路径｜客户端热更是否需 `dev:web`。

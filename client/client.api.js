@@ -37,12 +37,13 @@ window.__ModuleLoader__.load({
 		/** 单次调用超时：路由被挂住/网关卡住时，UI 必须在可预期时间内进"读失败"态。 */
 		const REQUEST_TIMEOUT_MS = 9000;
 
-		/** 契约里的四个方法名（逐字，来自 docs/remote-explorer-design.md §4 的落地方案）。 */
+		/** 契约里的方法名（逐字）。前四个来自设计稿 §4；`listDir` 是 A3 目录浏览器的加法。 */
 		const METHODS = Object.freeze({
 			snapshot: "explorer.snapshot",
 			openSession: "explorer.openSession",
 			daemon: "explorer.daemon",
 			fixPin: "explorer.fixPin",
+			listDir: "explorer.listDir",
 		});
 
 		/** daemon 动作白名单。UI 侧不存在 `stop all=true` 这类会连带他人的动作。 */
@@ -227,6 +228,17 @@ window.__ModuleLoader__.load({
 				/** 修 version pin（对齐 wsl_sync_version 的 warm+pin；不自动杀守护）。 */
 				fixPin(options) {
 					return request(METHODS.fixPin, {}, options);
+				},
+
+				/**
+				 * 列**一层** WSL 目录（A3 目录浏览器）。
+				 * 契约（lead 2026-10-12 裁决）：`{ path }` → `{ path, distro, entries:[{name,kind,hidden}] }`；
+				 * **一次返回全部条目（含隐藏）**，隐藏文件过滤在 client 侧做（切换即时、不重发请求）。
+				 * 只读、零副作用；host 侧不启动发行版。
+				 */
+				listDir(input, options) {
+					const path = requireString(input && input.path, "path");
+					return request(METHODS.listDir, { path }, options);
 				},
 			};
 			return Object.freeze(api);

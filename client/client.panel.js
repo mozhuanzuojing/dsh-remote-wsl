@@ -110,6 +110,54 @@ window.__ModuleLoader__.load({
 		}
 
 		/**
+		 * 归一化一个 WSL 绝对路径（去掉尾斜杠；根保持 `/`）。
+		 * 面板只接受 WSL 侧路径；Windows 路径请写成 `/mnt/c/...`。
+		 */
+		function normalizeWslPath(path) {
+			let value = String(path).trim().replace(/\/{2,}/g, "/");
+			if (value.length > 1 && value.endsWith("/")) value = value.replace(/\/+$/, "");
+			return value.length === 0 ? "/" : value;
+		}
+
+		/** 拼一个子条目路径（根目录不产生 `//`）。 */
+		function joinWslPath(parent, name) {
+			const base = normalizeWslPath(parent);
+			return base === "/" ? `/${name}` : `${base}/${name}`;
+		}
+
+		/**
+		 * 从 `/` 起的**完整**面包屑（刻意不折叠家目录 —— 这正是官方 picker 的可用性死角之一）。
+		 * @returns [{ label, path }]，最后一段是当前目录。
+		 */
+		function breadcrumbOf(path) {
+			const full = normalizeWslPath(path);
+			const crumbs = [{ label: "/", path: "/" }];
+			if (full === "/") return crumbs;
+			const segments = full.split("/").filter((segment) => segment.length > 0);
+			let acc = "";
+			for (const segment of segments) {
+				acc = `${acc}/${segment}`;
+				crumbs.push({ label: segment, path: acc });
+			}
+			return crumbs;
+		}
+
+		/** 家目录 chip 的目标：优先用快照里的 wslHome，否则从当前目录里认出 /home/<user>。 */
+		function homePathOf(target, cwd) {
+			if (isRecord(target) && typeof target.wslHome === "string" && target.wslHome.startsWith("/")) {
+				return normalizeWslPath(target.wslHome);
+			}
+			const match = typeof cwd === "string" ? /^(\/home\/[^/]+)/.exec(cwd) : null;
+			return match === null ? "/home" : match[1];
+		}
+
+		/**
+		 * `/mnt` 盘符探测结果**按页面生命周期缓存一次**（模块作用域）：
+		 * 反复切面板不该每次都重列 /mnt —— 那是无效流量（T7 会量挂载次数与请求增长）。
+		 */
+		let mountsCache = null;
+
+		/**
 		 * 造面板组件。
 		 * @param ctx - client 受限 cordis 上下文（当前只用于留出扩展位）。
 		 * @param api - client.api.js 的 createExplorerApi() 句柄：面板不对 URL/JSON 说话。
@@ -133,11 +181,21 @@ window.__ModuleLoader__.load({
 				// 危险动作（停止/重启守护）的二次确认：null = 没有待确认项。
 				// 不可逆、会中断正在跑的会话，所以**不**靠一次点击直接执行。
 				const [pending, setPending] = React.useState(null);
+				// —— A3 目录浏览器（对齐 dsh-wsl-workspace-picker 的成熟解）——
+				// 四个能力：快捷 chips / 常显路径输入（回车跳转）/ 从 `/` 起的完整面包屑 / 隐藏文件开关（默认关）。
+				const [browse, setBrowse] = React.useState({ cwd: null, status: "idle", entries: [], error: null });
+				const [showHidden, setShowHidden] = React.useState(false); // 默认关
+				const [pathInput, setPathInput] = React.useState("");
+				const [pathError, setPathError] = React.useState(null);
+				const [mounts, setMounts] = React.useState([]); // 探测到的 /mnt/<盘符>
 
 				const readSeq = React.useRef(0); // 读取序号：只有最新一次允许写状态（防乱序覆盖）
 				const readAbort = React.useRef(null); // 最新一次读取的 AbortController
 				const actionAbort = React.useRef(null); // 最新一次动作的 AbortController
 				const lastRun = React.useRef(null); // 最近一次动作（失败时给"重试"入口）
+				const browseSeq = React.useRef(0); // 列目录序号：同一套乱序/卸载防护
+				const browseAbort = React.useRef(null);
+				const mountsProbed = React.useRef(false);
 
 				const load = React.useCallback(() => {
 					const mySeq = readSeq.current + 1;
@@ -184,6 +242,10 @@ window.__ModuleLoader__.load({
 							actionAbort.current.abort();
 							actionAbort.current = null;
 						}
+						if (browseAbort.current !== null) {
+							browseAbort.current.abort();
+							browseAbort.current = null;
+						}
 					};
 				}, [load]);
 
@@ -223,6 +285,69 @@ window.__ModuleLoader__.load({
 						);
 				}, [load]);
 
+				/**
+				 * 列一个 WSL 目录（A3 的核心读操作）。与 `load()` 同一套纪律：
+				 * 自增序号（旧响应不许写状态）+ abort 上一次在飞 + 卸载 abort + host 错误原样可读。
+				 * host 一次返回**全部**条目（含隐藏）；隐藏与否在 client 侧过滤 ⇒ 开关切换不重发请求。
+				 * @param path - WSL 绝对路径。
+				 */
+				const listPath = React.useCallback((path) => {
+					const want = normalizeWslPath(path);
+					const mySeq = browseSeq.current + 1;
+					browseSeq.current = mySeq;
+					if (browseAbort.current !== null) {
+						browseAbort.current.abort();
+						browseAbort.current = null;
+					}
+					const controller = newAbortController();
+					browseAbort.current = controller;
+					// 换目录就清空旧条目：绝不把上一个目录的内容显示成这个目录的（同"撤下未确认事实"纪律）。
+					setBrowse((prev) => ({ status: "loading", cwd: want, entries: prev.cwd === want ? prev.entries : [], error: null }));
+					api.listDir({ path: want }, signalOf(controller)).then(
+						(result) => {
+							if (mySeq !== browseSeq.current) return; // 旧响应：丢弃
+							const entries = asArray(result && result.entries).filter((entry) => isRecord(entry) && typeof entry.name === "string");
+							setBrowse({ status: "ready", cwd: want, entries, error: null });
+						},
+						(error) => {
+							if (mySeq !== browseSeq.current) return;
+							if (error && error.kind === "aborted") return;
+							setBrowse({ status: "error", cwd: want, entries: [], error });
+						},
+					);
+				}, []);
+
+				/** chips / 面包屑 / 目录行的统一跳转入口。 */
+				const jumpTo = React.useCallback((path) => {
+					const want = normalizeWslPath(path);
+					setPathInput(want);
+					setPathError(null);
+					listPath(want);
+				}, [listPath]);
+
+				/** 路径输入框回车（或点「跳转」）：先客户端校验，非法给**可读**错误，不静默。 */
+				const submitPath = React.useCallback(() => {
+					const raw = String(pathInput).trim();
+					if (raw.length === 0) {
+						setPathError("请输入 WSL 绝对路径（例如 /home/g/project）。");
+						return;
+					}
+					if (!raw.startsWith("/")) {
+						setPathError(`必须是 WSL 绝对路径（以 / 开头）；收到 "${raw}"。Windows 盘符路径请写成 /mnt/c/... 形式。`);
+						return;
+					}
+					setPathError(null);
+					listPath(raw);
+				}, [listPath, pathInput]);
+
+				/**
+				 * 隐藏文件开关：默认关。**只改本地过滤**（host 一次返回全区条目），
+				 * 所以切换即时、不重发请求；配合 `showHidden` 与 `visibleEntries` 派生。
+				 */
+				const toggleHidden = React.useCallback(() => {
+					setShowHidden((prev) => !prev);
+				}, []);
+
 				const snapshot = state.snapshot;
 				// ★ 事实只在这两种情况下渲染：读成功；或刷新中且**从未失败过**（旧数据仍是真实读数）。
 				const factsVisible =
@@ -253,6 +378,43 @@ window.__ModuleLoader__.load({
 				const otherWorkspaces = workspaces.filter((row) => isRecord(row) && row.distro !== activeDistro);
 
 				const toggle = (name) => setCollapsed((prev) => ({ ...prev, [name]: !(prev[name] === true) }));
+
+				// —— A3：目录浏览器初始化。快照首次 ready 时把 cwd 定到 target.cwd（否则 wslHome / 家目录）——
+				React.useEffect(() => {
+					if (state.status !== "ready" || browse.cwd !== null) return;
+					const fromTarget = typeof target.distro === "string" && typeof target.cwd === "string" && target.cwd.startsWith("/") ? target.cwd : null;
+					const initial = fromTarget === null ? homePathOf(target, null) : normalizeWslPath(fromTarget);
+					setPathInput(initial);
+					listPath(initial);
+				}, [state.status, browse.cwd, target.cwd, target.distro, listPath]);
+
+				// —— A3：探测 `/mnt` 下**真实存在**的盘符（只探测一次，按页面缓存；失败就不显示那些 chip）——
+				React.useEffect(() => {
+					if (state.status !== "ready" || mountsProbed.current) return;
+					mountsProbed.current = true;
+					if (mountsCache !== null) {
+						setMounts(mountsCache);
+						return undefined;
+					}
+					const controller = newAbortController();
+					api.listDir({ path: "/mnt" }, signalOf(controller)).then(
+						(result) => {
+							const letters = asArray(result && result.entries)
+								.filter((entry) => isRecord(entry) && entry.kind === "dir" && /^[a-z]$/.test(String(entry.name)))
+								.map((entry) => `/mnt/${entry.name}`)
+								.sort();
+							mountsCache = letters;
+							setMounts(letters);
+						},
+						() => {
+							// 探测不到就**不显示** `/mnt/<盘符>` chips（它们只是快捷方式；这不是错误态）
+							mountsCache = [];
+						},
+					);
+					return () => {
+						if (controller !== null) controller.abort();
+					};
+				}, [state.status]);
 
 				const body = [];
 
@@ -295,6 +457,193 @@ window.__ModuleLoader__.load({
 					} else if (distros.length === 0) {
 						body.push(React.createElement("div", { key: "empty", className: "dsh-rw-empty" }, "wsl.exe -l -v 没有返回任何发行版（WSL 未安装，或没有已安装的发行版）。"));
 					}
+				}
+
+				// —— A3 目录浏览器（四个能力：chips / 常显路径输入 / 从 `/` 起的完整面包屑 / 隐藏开关）——
+				if (factsVisible && snapshot !== null) {
+					const visibleEntries = browse.entries.filter((entry) => showHidden || entry.hidden !== true);
+					const hiddenCount = browse.entries.filter((entry) => entry.hidden === true).length;
+					const crumbs = browse.cwd === null ? [] : breadcrumbOf(browse.cwd);
+					const homePath = homePathOf(target, browse.cwd);
+					const distroLabel = typeof target.distro === "string" && target.distro.length ? target.distro : "?";
+					const chip = (label, path, description) =>
+						React.createElement(
+							"button",
+							{
+								key: `chip:${path}`,
+								type: "button",
+								className: "dsh-rw-chip" + (browse.cwd === normalizeWslPath(path) ? " dsh-rw-chip--on" : ""),
+								"aria-label": `${description}：跳转到 ${path}`,
+								title: `${description}：跳转到 ${path}`,
+								onClick: () => jumpTo(path),
+							},
+							label,
+						);
+
+					body.push(
+						React.createElement(
+							"section",
+							{ key: "browser", className: "dsh-rw-browser", "aria-label": `WSL 目录浏览（发行版 ${distroLabel}）` },
+							React.createElement(
+								"div",
+								{ className: "dsh-rw-browser-head" },
+								React.createElement("span", { className: "dsh-rw-browser-title" }, `浏览目录（WSL: ${distroLabel}）`),
+								React.createElement(
+									"button",
+									{
+										type: "button",
+										className: "dsh-rw-chip" + (showHidden ? " dsh-rw-chip--on" : ""),
+										"aria-pressed": String(showHidden),
+										"aria-label": showHidden ? "隐藏 . 开头的条目（当前：显示）" : "显示 . 开头的隐藏条目（当前：隐藏）",
+										title: showHidden ? "点击改为隐藏 . 开头的条目" : "点击显示 . 开头的隐藏条目（默认关）",
+										onClick: toggleHidden,
+									},
+									showHidden ? `隐藏文件：显示（${hiddenCount}）` : "隐藏文件：不显示",
+								),
+							),
+							// ① 快捷 chips（Home / `/` / `/mnt` / 探测到的 `/mnt/<盘符>`）
+							React.createElement(
+								"div",
+								{ className: "dsh-rw-chips", role: "group", "aria-label": "快捷目录" },
+								[chip("Home", homePath, "家目录"), chip("/", "/", "根目录"), chip("/mnt", "/mnt", "Windows 盘符挂载点")].concat(
+									mounts.map((mount) => chip(mount, mount, "Windows 盘符")),
+								),
+							),
+							// ② 从 `/` 起的**完整**面包屑（不折叠家目录；每层可点）
+							React.createElement(
+								"nav",
+								{ className: "dsh-rw-crumbs", "aria-label": "当前路径（从 / 起，可点跳转）" },
+								browse.cwd === null
+									? React.createElement("span", { className: "dsh-rw-crumb dsh-rw-crumb--current" }, "（尚未浏览）")
+									: crumbs.map((crumb, index) =>
+										React.createElement(
+											React.Fragment,
+											{ key: `crumb:${crumb.path}` },
+											// 根 crumb 自己就显示 `/`，所以第一个分隔符要从**第二段**（index 2）才开始，
+											// 否则会渲染成 `/ / home / g`。
+											index > 1 ? React.createElement("span", { className: "dsh-rw-crumb-sep", "aria-hidden": "true" }, "/") : null,
+											React.createElement(
+												"button",
+												{
+													type: "button",
+													className: "dsh-rw-crumb" + (index === crumbs.length - 1 ? " dsh-rw-crumb--current" : ""),
+													"aria-label": `跳转到 ${crumb.path}`,
+													title: `跳转到 ${crumb.path}`,
+													"aria-current": index === crumbs.length - 1 ? "true" : undefined,
+													onClick: () => jumpTo(crumb.path),
+												},
+												crumb.label,
+											),
+										),
+									),
+							),
+							// ③ 常显路径输入（回车即跳转；非法给可读错误）
+							React.createElement(
+								"form",
+								{
+									className: "dsh-rw-path-form",
+									onSubmit: (event) => {
+										event.preventDefault();
+										submitPath();
+									},
+								},
+								React.createElement("input", {
+									type: "text",
+									className: "dsh-rw-path-input",
+									value: pathInput,
+									placeholder: "/home/g/project",
+									"aria-label": "WSL 绝对路径（回车跳转）",
+									title: "输入 WSL 绝对路径，回车跳转（例如 /home/g 或 /mnt/d/project）",
+									spellCheck: false,
+									autoComplete: "off",
+									onChange: (event) => {
+										setPathInput(event.target.value);
+										setPathError(null);
+									},
+									onKeyDown: (event) => {
+										if (event.key === "Enter") {
+											event.preventDefault();
+											submitPath();
+										}
+									},
+								}),
+								React.createElement("button", { type: "submit", className: "dsh-rw-btn", "aria-label": "跳转到输入的路径", title: "跳转到输入的路径" }, "跳转"),
+								React.createElement(
+									"button",
+									{
+										type: "button",
+										className: "dsh-rw-btn",
+										disabled: browse.cwd === null || action.busy !== null,
+										"aria-label": browse.cwd === null ? "在浏览的目录打开远端会话（尚未选定目录）" : `在 ${browse.cwd} 打开新的远端会话`,
+										title: "在此目录打开新的远端会话（不预热：首次发消息时才建立）",
+										onClick: () => {
+											if (browse.cwd === null) return;
+											run(`openbrowse:${browse.cwd}`, (signal) => api.openSession({ distro: activeDistro, path: browse.cwd }, signal), { describe: openSessionNote });
+										},
+									},
+									"在此目录开会话",
+								),
+							),
+							pathError === null ? null : React.createElement("div", { className: "dsh-rw-note dsh-rw-note--error", role: "alert" }, pathError),
+							browse.status === "loading" ? React.createElement("div", { className: "dsh-rw-hint" }, `正在列目录 ${browse.cwd || ""}…`) : null,
+							browse.status === "error"
+								? React.createElement(
+									"div",
+									{ className: "dsh-rw-error", role: "alert" },
+									React.createElement("div", { className: "dsh-rw-error-title" }, `列目录失败（${browse.cwd || "?"}）`),
+									React.createElement("div", { className: "dsh-rw-error-body" }, errorText(browse.error)),
+									React.createElement(
+										"button",
+										{
+											type: "button",
+											className: "dsh-rw-btn",
+											"aria-label": "重试列目录",
+											title: "重试列目录",
+											onClick: () => {
+												if (browse.cwd !== null) listPath(browse.cwd);
+											},
+										},
+										"重试",
+									),
+								)
+								: null,
+							browse.status === "ready"
+								? visibleEntries.length === 0
+									? React.createElement("div", { className: "dsh-rw-hint" }, showHidden ? "该目录为空。" : `该目录没有非隐藏条目${hiddenCount > 0 ? `（还有 ${hiddenCount} 个隐藏条目，可打开「隐藏文件」查看）` : ""}。`)
+									: React.createElement(
+										"div",
+										{ className: "dsh-rw-entries", role: "list", "aria-label": `${browse.cwd || ""} 的条目` },
+										visibleEntries.map((entry) => {
+											const childPath = browse.cwd === null ? entry.name : joinWslPath(browse.cwd, entry.name);
+											return React.createElement(
+												"div",
+												{ key: `entry:${entry.name}`, className: "dsh-rw-entry", role: "listitem" },
+												entry.kind === "dir"
+													? React.createElement(
+														"button",
+														{
+															type: "button",
+															className: "dsh-rw-entry-nav",
+															"aria-label": `进入目录 ${childPath}`,
+															title: `进入 ${childPath}`,
+															onClick: () => jumpTo(childPath),
+														},
+														React.createElement("span", { className: "dsh-rw-entry-icon", "aria-hidden": "true" }, "📁"),
+														React.createElement("span", { className: "dsh-rw-entry-name" }, entry.name),
+													)
+													: React.createElement(
+														"span",
+														{ className: "dsh-rw-entry-inert", title: "文件（此处只浏览目录层级；要用它请在收藏路径行里操作）" },
+														React.createElement("span", { className: "dsh-rw-entry-icon", "aria-hidden": "true" }, entry.kind === "file" ? "📄" : "•"),
+														React.createElement("span", { className: "dsh-rw-entry-name" }, entry.name),
+													),
+												entry.hidden === true ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--muted" }, "隐藏") : null,
+											);
+										}),
+									)
+								: null,
+						),
+					);
 				}
 
 				// —— 树 ——
