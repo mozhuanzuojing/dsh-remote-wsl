@@ -1,0 +1,8 @@
+2026-10-12T15:52:28.0121294+08:00  bundle route probe
+200  len=  13930  plugins/??dsh-remote-wsl/client.js&rev=cc5a610f9149
+ 404              plugins/??dsh-remote-wsl/client.js
+ 404              plugins/??dsh-remote-wsl/client.panel.js
+ 404              plugins/??dsh-remote-wsl/client.api.js
+ 404              plugins/??dsh-remote-wsl/client.icon.js
+ 404              plugins/??dsh-remote-wsl/client.js&rev=cc5a610f9149&token=
+ 404              3nQqKJpfkJla4ab7m9Lm6bXPvXeP31M_DJEgY2MNd74

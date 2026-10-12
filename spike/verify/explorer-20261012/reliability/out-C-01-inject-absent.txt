@@ -1,0 +1,6 @@
+### C1 inject 永不回调（条件注入未触发 / 无 webServer 组合）
+throw=(none)
+methods=["explorer.snapshot","explorer.openSession","explorer.daemon","explorer.fixPin"] route=/remote-wsl/api
+stderr=[]
+日志是否出现=false（实测：inject 不回调 ⇒ **无任何日志**）
+verdict=PASS-BUT-SILENT(F15-可诊断性缺口)

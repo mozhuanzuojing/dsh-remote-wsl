@@ -1,0 +1,19 @@
+{
+  "note": "INJ-A before 归一化状态（人工补写：我按面板/接口逐步做了 A 相，未整跑 capture 相 ⇒ 该文件用于让 verify 的 no-stale-pid 断言有真实基线）",
+  "at": "2026-10-12T16:00:49+08:00",
+  "ok": true,
+  "daemonRunning": true,
+  "daemonSlot": 8972,
+  "daemonPid": 914091,
+  "daemonVersion": "0.2.0-rc.2",
+  "daemonPort": 8972,
+  "keys": [],
+  "distros": ["debian-u8-1"],
+  "workspaces": ["debian-u8-1:/home/g"],
+  "webHosts": [],
+  "target": { "distro": "debian-u8-1", "wslHome": "/home/g", "cwd": "/home/g" },
+  "evidence": {
+    "panelBefore": "out-A-02-panel-before.json（面板状态条：daemon slot 8972 · :8972 · pid 914091）",
+    "apiSnapshotBefore": "out-B-01-host.log 里 ensure 的返回 pid=914091；out-A-03-stop.json 的 result.pid=914091 亦交叉印证"
+  }
+}

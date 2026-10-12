@@ -1,0 +1,12 @@
+{
+  "schema": "dsh-rw-extract/1",
+  "_note": "R3 强制红：页面内 fetch 包装把 explorer.snapshot 的 distros 替换为 PERTURBED-XX 后抽取（未改被验对象）",
+  "capturedAt": "2026-10-12T15:57:00+08:00",
+  "url": "http://127.0.0.1:8931/",
+  "rows": [
+    { "kind": "distro", "name": "PERTURBED-XX", "default": false, "reachable": false, "badges": ["已停止 · 0 路径"] }
+  ],
+  "statusBar": { "line": "daemon slot 8932 · :8932 · pid 899039 · 0.2.0-rc.2 · keys 0 · orphans 1", "pid": 899039, "port": 8932, "slot": 8932, "version": "0.2.0-rc.2", "keys": 0, "keysDetail": [], "drift": null },
+  "webHosts": [],
+  "rawText": "▾ PERTURBED-XX 已停止 · 0 路径 该发行版下还没有收藏路径。 原始 snapshot（与 wsl_status 同源）"
+}

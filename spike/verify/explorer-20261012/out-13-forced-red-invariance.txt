@@ -1,0 +1,18 @@
+daemon.alive(mine)     MISMATCH  hard  before=True  after=False
+    note: 我方槽位 8932 的守护进程是否存在（pgrep --port 8932）
+daemon.slotScoped(probe) MISMATCH  hard  before=True  after=False
+    note: 真相源是否作用域到我方槽位（False => 下列 probe 值记 unknown，不能当通过）
+daemon.pid(probe,scoped) UNKNOWN   hard  before=899039  after=
+    note: probe 读到的守护 pid（仅当作用域命中我方槽位）
+daemon.port(scoped)    UNKNOWN   hard  before=8932  after=
+    note: 守护端口（仅当作用域命中我方槽位）
+daemon.version(scoped) UNKNOWN   hard  before=0.2.0-rc.2  after=
+    note: 守护版本（仅当作用域命中我方槽位）
+daemon.pgrepPids       MISMATCH  hard  before=[899039]  after=[]
+    note: WSL 侧 pgrep -af 'daemon.ts --port 8932'（按槽位，天然排除其它槽位守护） symdiff before-only=[899039] after-only=[]
+daemon.keys            MATCH     hard  before=[]  after=[]
+listener.port          MISMATCH  hard  before=True  after=False
+    note: WSL 侧 ss 是否仍监听 8932
+keys.runtimePid        MATCH     warn  before=[]  after=[]
+otherSlotDaemons       MATCH     info  before=[]  after=[]
+

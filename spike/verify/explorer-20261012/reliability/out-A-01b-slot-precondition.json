@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-12T15:52:19.8447317+08:00",
+  "expectedSlot": 8912,
+  "daemonPort": 8972,
+  "stage": "status-only",
+  "statusHasConfigured": false
+}

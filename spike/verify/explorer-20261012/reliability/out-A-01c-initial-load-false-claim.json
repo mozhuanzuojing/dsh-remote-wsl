@@ -1,0 +1,17 @@
+{
+  "finding": "F34 —— **初次加载（从未失败）时状态条就宣称「读取失败后已撤下」**（负事实，同 F22 家族）",
+  "at": "2026-10-12T16:01:5x（面板刚打开、fetch 尚未返回时）",
+  "how": "chrome-devtools MCP take_snapshot：点开面板后立刻取快照，此刻 `reqid=43 POST /remote-wsl/api` 仍在飞",
+  "observedSnapshotRows": [
+    "uid=2_5 StaticText \"正在读取 explorer.snapshot（/remote-wsl/api，超时 9000ms）…\"",
+    "uid=2_6 StaticText \"数据不可用：读取失败后已撤下，不显示守护/漂移状态。\"",
+    "uid=2_7 StaticText \"尚未取得快照\""
+  ],
+  "whyItIsFalse": "同一时刻其实是 **status='loading' 且从未失败过**（紧接着 reqid=43 返回 200，面板正常渲染出 daemon pid 914091）⇒ 状态条在"没有发生任何失败"时断言了一次"读取失败后已撤下"。",
+  "codeLocation": "client/client.panel.js:420-421 —— `if (!factsVisible) statusLeft.push(\"数据不可用：读取失败后已撤下，不显示守护/漂移状态。\")`；而 factsVisible（:180-181）= `ready || (loading && snapshot!==null && lastFailureAt===null)`，**首次挂载时 snapshot===null ⇒ factsVisible=false ⇒ 命中该分支**。",
+  "impact": "短暂误报（一次正常请求的往返窗口内）；若接口慢或偶发超时，用户会先看到"读取失败后已撤下"再看到正常内容；与"三态纪律"（lead 的 FMEA 裁决：read 失败才可说失败）本意不符。",
+  "severity": "S4（误导显示，且是短暂窗口）",
+  "suggestedFix": "把该分支的条件从 `!factsVisible` 收紧为 `state.status==='error'`（或再加 `state.lastFailureAt!==null`），让"加载中"显示中性文案（如"正在读取…"，与 :210 的 loading 提示一致）。",
+  "coverageAtFreeze": "❌ 未覆盖（实测；`src/`+`client/` 已冻结，P0 不改实现）",
+  "status": "已实测确认；P1 候选"
+}

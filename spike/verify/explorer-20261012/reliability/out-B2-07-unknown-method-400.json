@@ -1,0 +1,20 @@
+{
+  "n": 7,
+  "name": "unknown-method-400",
+  "expected": "400 + methods[]",
+  "actual": 400,
+  "verdict": "PASS",
+  "response": {
+    "status": 400,
+    "json": {
+      "ok": false,
+      "error": "未知方法 explorer.nope",
+      "methods": [
+        "explorer.snapshot",
+        "explorer.openSession",
+        "explorer.daemon",
+        "explorer.fixPin"
+      ]
+    }
+  }
+}

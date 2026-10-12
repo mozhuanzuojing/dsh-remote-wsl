@@ -1,0 +1,28 @@
+{
+  "n": 8,
+  "name": "empty-method-400",
+  "expected": 400,
+  "actual": 400,
+  "verdict": "PASS",
+  "request": {
+    "method": "POST",
+    "path": "/remote-wsl/api",
+    "body": {
+      "args": {}
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "vary": "Accept-Encoding",
+      "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+      "connection": "keep-alive",
+      "keep-alive": "timeout=5",
+      "transfer-encoding": "chunked"
+    },
+    "bodyText": "{\"ok\":false,\"error\":\"未知方法 (空)\",\"methods\":[\"explorer.snapshot\",\"explorer.openSession\",\"explorer.daemon\",\"explorer.fixPin\"]}",
+    "error": null
+  }
+}

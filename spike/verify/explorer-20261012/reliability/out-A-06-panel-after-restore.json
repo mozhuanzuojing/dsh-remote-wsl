@@ -1,0 +1,15 @@
+{
+  "probe": "INJ-A 面板 after-restore（我的 8972 守护已用显式 slot 复原）",
+  "at": "2026-10-12T16:02:42+08:00",
+  "source": "chrome-devtools MCP evaluate_script（点刷新 + 等 2s）",
+  "found": true,
+  "statusBarText": "daemon slot 8972 · :8972 · pid 918242 · 0.2.0-rc.2 · keys 0\n重启…\n停止 slot 8972…\n快照 16:02:40",
+  "text": "远程资源管理器\n目标 debian-u8-1 · /home/g\nWSL 目标\ndebian-u8-1（默认）\n刷新\n▾\ndebian-u8-1\n默认发行版\n运行中 · 1 路径\n当前目标\n📁 g\n/home/g\n在新会话中打开\n复制路径\n原始 snapshot（与 wsl_status 同源）\ndaemon slot 8972 · :8972 · pid 918242 · 0.2.0-rc.2 · keys 0\n重启…\n停止 slot 8972…\n快照 16:02:40",
+  "hasErrorBox": false,
+  "roundTrip": {
+    "before": { "slot": 8972, "pid": 914091, "statusBar": "daemon slot 8972 · :8972 · pid 914091 · 0.2.0-rc.2 · keys 0" },
+    "afterKill": { "statusBar": "daemon 未运行\n启动守护\n快照 16:01:59" },
+    "afterRestore": { "slot": 8972, "pid": 918242, "statusBar": "daemon slot 8972 · :8972 · pid 918242 · 0.2.0-rc.2 · keys 0" }
+  },
+  "verdict": "PASS —— 面板如实跟随守护状态迁移；pid 变更（914091→918242）符合"重启后新进程"的预期，slot 保持在 8972。"
+}

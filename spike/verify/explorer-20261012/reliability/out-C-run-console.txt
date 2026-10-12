@@ -1,0 +1,45 @@
+entry=D:/project/dsh1/vendor/dsh-remote-wsl/src/explorer.ts
+exports: registerExplorer=function
+### C1 inject 永不回调（条件注入未触发 / 无 webServer 组合）
+throw=(none)
+methods=["explorer.snapshot","explorer.openSession","explorer.daemon","explorer.fixPin"] route=/remote-wsl/api
+stderr=[]
+日志是否出现=false（实测：inject 不回调 ⇒ **无任何日志**）
+verdict=PASS-BUT-SILENT(F15-可诊断性缺口)
+### C2 同一 webServer 上 registerExplorer 被调用两次（独立两次）
+第 1 次: throw=(none) routes=1 stderr=["remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）\n"]
+第 2 次: throw=(none) routes=1 stderr=["remote-wsl(explorer): explorer http route unavailable: webserver: duplicate exact route \"/remote-wsl/api\"（面板数据面降级；6 个 agent 工具不受影响）\n"]
+
+观察点：第 2 次抛错是否逃逸 = NO ✅（被 catch）
+       降级日志是否出现 = YES ✅
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
+remote-wsl(explorer): explorer http route unavailable: webserver: duplicate exact route "/remote-wsl/api"（面板数据面降级；6 个 agent 工具不受影响）
+       第 1 个 handle.dispose() 后 routes = 0（期望 0）
+verdict=PASS（加固生效：重复装载不再打倒插件，且第一次的路由仍可释放）
+### C3 inject 回调在**同一次** registerExplorer 内被触发两次（HMR / 服务重提供）
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
+remote-wsl(explorer): explorer http route unavailable: webserver: duplicate exact route "/remote-wsl/api"（面板数据面降级；6 个 agent 工具不受影响）
+回调内捕获到的抛错=[]
+逃到最外层的抛错=(none) ✅
+stderr=["remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）\n","remote-wsl(explorer): explorer http route unavailable: webserver: duplicate exact route \"/remote-wsl/api\"（面板数据面降级；6 个 agent 工具不受影响）\n"]
+
+★ 关键读点：routes before dispose = 1（期望 1，第一次注册成功）
+            handle.dispose() 后 routes = 1
+   第二次就绪时 `createExplorerHttpAdapter` 抛 duplicate ⇒ catch 里 `removeRoute = null`。
+   而 `removeRoute` 是**同一次 registerExplorer 内共享**的变量 ⇒ 它把**第一次成功注册那条路由的 disposer 抹掉了**。
+   ⇒ 若 routesAfterDispose === 1：**路由残留**（卸载/热更后不释放，且仍持旧闭包）。这是 FMEA **F32**。
+
+⚠ 未复核：真实 DSH 的 HMR 是否会重放 inject 回调（若会，"改一次 web 插件"就能触发本路径）。
+### C4 webServer 服务在，但 register 不是函数（形状不对）
+remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
+throw=(none) methods=["explorer.snapshot","explorer.openSession","explorer.daemon","explorer.fixPin"]
+stderr=["remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）\n"]
+verdict=PASS（形状不对也优雅降级）
+### C5 register 抛普通错误（非 duplicate，例如 EACCES/内部错）
+remote-wsl(explorer): explorer http route unavailable: boom: register failed for an unrelated reason（面板数据面降级；6 个 agent 工具不受影响）
+throw=(none) routes=0
+stderr=["remote-wsl(explorer): explorer http route unavailable: boom: register failed for an unrelated reason（面板数据面降级；6 个 agent 工具不受影响）\n"]
+verdict=PASS（catch 不只挡 duplicate；任何注册失败都降级而不打倒插件）
+
+INJ-C 完成（桩级）。逐条结论见 out-C-0*.txt；真实 Cordis 行为仍是未复核项。
+RESTORED: n/a（不启宿主/守护，未占端口，未改被验对象）

@@ -1,0 +1,78 @@
+===== diff-panel-vs-status 自测（比较器区分力）=====
+
+--- A 一致（期望 exit 0） => exit=0 (期望 0) PASS
+id                      verdict    panel  |  status
+distros                 MATCH      [debian-u8-1,Ubuntu-22.04]  |  [debian-u8-1,Ubuntu-22.04]
+daemon.pid              MATCH      158529  |  158529
+daemon.port             MATCH      8932  |  8932
+daemon.version          MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+daemon.keys             MATCH      [k1,k2]  |  [k1,k2]
+daemon.keys.count       MATCH      2  |  2
+drift.drifted           MATCH      False  |  False
+drift.desktop           MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+drift.pin               MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+webHosts.ports          MATCH      [3082]  |  [3082]
+status.internal.port    MATCH      8932  |  8932
+status.internal.slot    MATCH      8932  |  8932
+workspaces.paths        unknown    /home/g/x  |  
+                          note: wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过
+summary: match=12 (strong=12) mismatch=0 unknown=1
+
+
+--- B 换掉一个 distro（期望 exit 1） => exit=1 (期望 1) PASS
+id                      verdict    panel  |  status
+distros                 MISMATCH   [debian-u8-1,Ubuntu-99.99]  |  [debian-u8-1,Ubuntu-22.04]
+                          note: 集合对称差必须为空 symdiff panel-only=[Ubuntu-99.99] status-only=[Ubuntu-22.04]
+daemon.pid              MATCH      158529  |  158529
+daemon.port             MATCH      8932  |  8932
+daemon.version          MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+daemon.keys             MATCH      [k1,k2]  |  [k1,k2]
+daemon.keys.count       MATCH      2  |  2
+drift.drifted           MATCH      False  |  False
+drift.desktop           MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+drift.pin               MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+webHosts.ports          MATCH      [3082]  |  [3082]
+status.internal.port    MATCH      8932  |  8932
+status.internal.slot    MATCH      8932  |  8932
+workspaces.paths        unknown    /home/g/x  |  
+                          note: wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过
+summary: match=11 (strong=11) mismatch=1 unknown=1
+
+
+--- C 改 pid（期望 exit 1） => exit=1 (期望 1) PASS
+id                      verdict    panel  |  status
+distros                 MATCH      [debian-u8-1,Ubuntu-22.04]  |  [debian-u8-1,Ubuntu-22.04]
+daemon.pid              MISMATCH   111111  |  158529
+                          note: 守护进程 pid（面板状态条 vs wsl_status daemon 行）
+daemon.port             MATCH      8932  |  8932
+daemon.version          MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+daemon.keys             MATCH      [k1,k2]  |  [k1,k2]
+daemon.keys.count       MATCH      2  |  2
+drift.drifted           MATCH      False  |  False
+drift.desktop           MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+drift.pin               MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+webHosts.ports          MATCH      [3082]  |  [3082]
+status.internal.port    MATCH      8932  |  8932
+status.internal.slot    MATCH      8932  |  8932
+workspaces.paths        unknown    /home/g/x  |  
+                          note: wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过
+summary: match=11 (strong=11) mismatch=1 unknown=1
+
+
+--- D 面板侧抽不到（全 null）vs 空守护（期望 exit 3，绝不能 0） => exit=3 (期望 3) PASS
+id                      verdict    panel  |  status
+distros                 unknown      |  [debian-u8-1]
+                          note: 集合对称差必须为空
+panel.statusBar         unknown      |  
+                          note: 面板抽取结果缺 statusBar（DOM 契约未知/面板未渲染）=> unknown
+webHosts.ports          unknown      |  []
+                          note: web host 端口集合（status 行格式未知时 => unknown）
+workspaces.paths        unknown      |  
+                          note: wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过
+summary: match=0 (strong=0) mismatch=0 unknown=4
+
+
+--- E 映射完整性（期望全部在场）---
+  实际 id: distros, daemon.pid, daemon.port, daemon.version, daemon.keys, daemon.keys.count, drift.drifted, drift.desktop, drift.pin, webHosts.ports, status.internal.port, status.internal.slot, workspaces.paths
+  全部在场 PASS
+

@@ -1,0 +1,76 @@
+{
+  "generatedAt": "2026-10-12 11:35:47",
+  "before": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\out-11-daemon-before.json",
+  "after": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\out-11-daemon-after.json",
+  "exitCode": 0,
+  "items": [
+    {
+      "id": "daemon.running",
+      "before": true,
+      "after": true,
+      "verdict": "match",
+      "level": "hard",
+      "note": "守护是否在跑（false=>false 属空集证据，本条单独看不够）"
+    },
+    {
+      "id": "daemon.pid(probe)",
+      "before": 750364,
+      "after": 750364,
+      "verdict": "match",
+      "level": "hard",
+      "note": "probe 读到的守护 pid"
+    },
+    {
+      "id": "daemon.pgrepPids",
+      "before": [
+        750364
+      ],
+      "after": [
+        750364
+      ],
+      "verdict": "match",
+      "level": "hard",
+      "note": "WSL 侧 pgrep -af daemon.ts symdiff before-only=[] after-only=[]"
+    },
+    {
+      "id": "daemon.port",
+      "before": 8932,
+      "after": 8932,
+      "verdict": "match",
+      "level": "hard",
+      "note": "守护端口"
+    },
+    {
+      "id": "daemon.version",
+      "before": "0.2.0-rc.2",
+      "after": "0.2.0-rc.2",
+      "verdict": "match",
+      "level": "hard",
+      "note": "守护版本"
+    },
+    {
+      "id": "daemon.keys",
+      "before": [],
+      "after": [],
+      "verdict": "match",
+      "level": "hard",
+      "note": "keys 集合（key@session） symdiff before-only=[] after-only=[]"
+    },
+    {
+      "id": "listener.port",
+      "before": true,
+      "after": true,
+      "verdict": "match",
+      "level": "hard",
+      "note": "WSL 侧 ss 是否仍监听 8932"
+    },
+    {
+      "id": "keys.runtimePid",
+      "before": [],
+      "after": [],
+      "verdict": "match",
+      "level": "warn",
+      "note": "runtimePid 变化允许，但必须记录解释 symdiff before-only=[] after-only=[]"
+    }
+  ]
+}

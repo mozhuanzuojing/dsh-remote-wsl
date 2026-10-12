@@ -1,0 +1,25 @@
+{
+  "n": 11,
+  "name": "get-methods-200",
+  "expected": "200 + methods[]",
+  "actual": 200,
+  "verdict": "PASS",
+  "request": {
+    "method": "GET",
+    "path": "/remote-wsl/api"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "vary": "Accept-Encoding",
+      "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+      "connection": "keep-alive",
+      "keep-alive": "timeout=5",
+      "transfer-encoding": "chunked"
+    },
+    "bodyText": "{\"ok\":true,\"methods\":[\"explorer.snapshot\",\"explorer.openSession\",\"explorer.daemon\",\"explorer.fixPin\"]}",
+    "error": null
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "n": 14,
+  "name": "negative-sideeffect-stop-must-not-run",
+  "expected": "403 且 pid 仍为 914091",
+  "actual": "403 pid=914091",
+  "verdict": "PASS",
+  "request": {
+    "method": "POST",
+    "path": "/remote-wsl/api",
+    "headers": {
+      "origin": "http://evil.example"
+    },
+    "body": {
+      "method": "explorer.daemon",
+      "args": {
+        "action": "stop",
+        "slot": 8972
+      }
+    }
+  },
+  "response": {
+    "status": 403,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "vary": "Accept-Encoding",
+      "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+      "connection": "keep-alive",
+      "keep-alive": "timeout=5",
+      "transfer-encoding": "chunked"
+    },
+    "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}",
+    "error": null
+  },
+  "pidBefore": 914091,
+  "pidAfter": 914091,
+  "note": "这是\"403 时不得执行任何方法\"的唯一硬证明；slot 只用本插件自有槽位"
+}

@@ -1,0 +1,38 @@
+{
+  "n": "A3",
+  "name": "restore-ensure",
+  "expected": "200 且本槽位运行、slot=8972、pid 非空（pid 可变）",
+  "actual": "HTTP 200 mine.running=true slot=8972 pid=912147",
+  "verdict": "PASS",
+  "response": {
+    "ensure": {
+      "status": 200,
+      "json": {
+        "ok": true,
+        "result": {
+          "action": "ensure",
+          "ok": true,
+          "idempotent": true,
+          "slot": 8972,
+          "port": 8972,
+          "pid": 912147,
+          "version": "0.2.0-rc.2",
+          "reused": false,
+          "started": true,
+          "notes": [
+            "另有守护在槽位 8932（端口 8932）—— 不属于本次配置（daemonPort=8972），未复用、未打扰",
+            "槽位 8972 由 Windows 侧握手确认就绪（实际端口 8972，4ms）"
+          ]
+        }
+      }
+    },
+    "mine": {
+      "running": true,
+      "slot": 8972,
+      "pid": 912147,
+      "port": 8972
+    },
+    "pidA": 910995,
+    "pidB": 912147
+  }
+}

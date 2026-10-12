@@ -16,10 +16,12 @@
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./client": "./client/index.js"
   },
   "files": [
     "src",
+    "client",
     "cordis.patch.yml",
     "README.md",
     "package.json"
@@ -39,6 +41,10 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
     }
   },
   "license": "MIT"

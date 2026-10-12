@@ -1,0 +1,11 @@
+⑥ explorer.openSession（默认路径，不含 warm）
+
+HTTP status = 200
+sessionId=  created=False  reused=False  warm=False  cwd=/home/g
+note=守护已就绪，但该 cwd 尚无远端会话：上游 daemon 只在收到一轮 prompt 时才物化 runtime+sessionId。首次用 wsl_agent（cwd=/home/g）发一轮后，本方法即返回该 sessionId；或显式 openSession({warm:true})。
+
+UI 显示（浏览器抽取的 aria-label / title 原文）：
+  aria-label: 在远端会话中打开 /home/g（首次发消息时才物化会话）
+  title:      在新会话中打开 /home/g（不预热：首次发消息时才建立远端会话）
+
+面板 warm/预热 控件扫描（DOM 全文本）：唯一命中即上面那条“不预热”文案本身 ⇒ P0 UI 未暴露 warm:true 分支

@@ -1,0 +1,30 @@
+{
+  "probe": "INJ-A 面板 after（我的 8972 守护已被自己停掉）",
+  "at": "2026-10-12T16:02:06+08:00",
+  "source": "chrome-devtools MCP evaluate_script，对 [data-dsh-remote-wsl=\"panel\"] 抽取（测试宿主 8971）；先点了「重新读取 explorer.snapshot」再等 2s",
+  "found": true,
+  "text": "远程资源管理器\n目标 debian-u8-1 · /home/g\nWSL 目标\ndebian-u8-1（默认）\n刷新\n▾\ndebian-u8-1\n默认发行版\n运行中 · 1 路径\n当前目标\n📁 g\n/home/g\n在新会话中打开\n复制路径\n原始 snapshot（与 wsl_status 同源）\ndaemon 未运行\n启动守护\n快照 16:01:59",
+  "statusBarText": "daemon 未运行\n启动守护\n快照 16:01:59",
+  "hasErrorBox": false,
+  "hasAlertRole": false,
+  "buttons": [
+    "重新读取 explorer.snapshot",
+    "发行版 debian-u8-1（运行中，1 路径）",
+    "在远端会话中打开 /home/g（首次发消息时才物化会话）",
+    "复制 WSL 路径 /home/g",
+    "启动守护（幂等；不会停止任何已有守护）"
+  ],
+  "nodes": 35,
+  "height": 2035,
+  "assertions": {
+    "nonBlank": "PASS（35 节点 / 2035px，非白屏）",
+    "mentionsDaemonStopped": "PASS（明确写 daemon 未运行）",
+    "noStalePid": "PASS（面板全文不含旧 pid 914091）",
+    "hasRecoveryEntry": "PASS（启动守护 按钮在场，且 aria 明说幂等、不停任何已有守护）",
+    "freshTimestamp": "PASS（快照 16:01:59，刷新后重取；不是陈旧值）"
+  },
+  "对比 before（out-A-02-panel-before.json）": {
+    "beforeStatusBar": "daemon slot 8972 · :8972 · pid 914091 · 0.2.0-rc.2 · keys 0",
+    "afterStatusBar": "daemon 未运行"
+  }
+}

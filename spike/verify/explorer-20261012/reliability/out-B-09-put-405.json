@@ -1,0 +1,25 @@
+{
+  "n": 9,
+  "name": "put-405",
+  "expected": 405,
+  "actual": 405,
+  "verdict": "PASS",
+  "request": {
+    "method": "PUT",
+    "path": "/remote-wsl/api"
+  },
+  "response": {
+    "status": 405,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "vary": "Accept-Encoding",
+      "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+      "connection": "keep-alive",
+      "keep-alive": "timeout=5",
+      "transfer-encoding": "chunked"
+    },
+    "bodyText": "{\"ok\":false,\"error\":\"只接受 GET（方法清单）与 POST（调用）；收到 PUT\"}",
+    "error": null
+  }
+}

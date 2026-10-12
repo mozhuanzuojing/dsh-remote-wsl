@@ -1,0 +1,14 @@
+{
+  "n": 2,
+  "name": "no-origin-403",
+  "expected": 403,
+  "actual": 403,
+  "verdict": "PASS",
+  "response": {
+    "status": 403,
+    "json": {
+      "ok": false,
+      "error": "跨站请求被拒（Origin/Host 不同源）"
+    }
+  }
+}

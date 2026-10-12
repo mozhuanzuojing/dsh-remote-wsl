@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-12T07:58:40.137Z",
+  "backToStart": true,
+  "mine": {
+    "running": false,
+    "slot": 8972,
+    "pid": null,
+    "port": null
+  },
+  "liveSlotsAll": [
+    {
+      "slot": 8932,
+      "pid": 909039
+    }
+  ],
+  "liveFirst": {
+    "slot": 8932,
+    "pid": 909039
+  },
+  "note": "本实验只动自己的槽位；未触碰 live[0] 里别人的守护（8932）。uid 之外的槽位保持原样。"
+}

@@ -1,0 +1,51 @@
+{
+  "capturedAt": "2026-10-12 11:39:29",
+  "port": 8932,
+  "distro": "debian-u8-1",
+  "probeExit": 0,
+  "probeRaw": "[probe pid=27516] mode=daemon port=8932 dshVersion=(desktop)\n注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version\n注册/服务痕迹: (none captured by stub)\n\n########## wsl_daemon action=status ##########\ndaemon: pid=758411 actualPort=8731 slot=8731 version=0.2.0-rc.2 cwd=/home/g profile=sdk\nmachine: slot=8731 pid=758411 port=8731 version=0.2.0-rc.2 keys=0 orphans=0\nuptime=142s idleMs=1800000 lingerMs=600000 queueLimit=4\nkeys (0): (none)\nready 判据: 本次调用由 Windows 侧 hello+token 握手核实（4ms），不是守护自己的 listening 日志\nstate (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（0600）、daemon.<slot>.token（0600），slot=8731\n\n[probe pid=27516] cleanup disposers=1\n",
+  "probeFile": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\tmp-probe-daemon-113928.txt",
+  "status": {
+    "pid": 758411,
+    "port": 8731,
+    "slot": 8731,
+    "version": "0.2.0-rc.2",
+    "running": true,
+    "keys": [],
+    "keyCount": 0,
+    "scopedToSlot": false,
+    "unscopedNote": "probe 报的守护在 slot=8731 port=8731（≠ 我方 8932）=> pid/port/version 一律记 unknown，不得当通过",
+    "raw": "daemon: pid=758411 actualPort=8731 slot=8731 version=0.2.0-rc.2 cwd=/home/g profile=sdk\nmachine: slot=8731 pid=758411 port=8731 version=0.2.0-rc.2 keys=0 orphans=0\nkeys (0): (none)"
+  },
+  "pgrep": [
+    "w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000",
+    "N/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020",
+    "\u0000",
+    "\u0000"
+  ],
+  "pgrepPids": [],
+  "pgrepAll": [
+    "w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000",
+    "N/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020",
+    "\u0000",
+    "755717 /home/g/.local/share/mise/installs/node/26.10.0/bin/node /mnt/d/project/dsh1/vendor/dsh-remote-wsl/src/daemon.ts --port 8912 --meta-port 8912 --version 0.2.0-rc.2 --cwd /home/g --idle-ms 1800000 --queue-limit 4 --profile sdk --proxy-port 9910 --linger-ms 600000 --state-dir /home/g/.dsh/remote-wsl --launcher /home/g/.dsh/remote-wsl/launch.8912.sh",
+    "758411 /home/g/.local/share/mise/installs/node/26.10.0/bin/node /mnt/d/project/dsh1/vendor/dsh-remote-wsl/src/daemon.ts --port 8731 --meta-port 8731 --version 0.2.0-rc.2 --cwd /home/g --idle-ms 1800000 --queue-limit 4 --profile sdk --proxy-port 9910 --linger-ms 600000 --state-dir /home/g/.dsh/remote-wsl --launcher /home/g/.dsh/remote-wsl/launch.8731.sh",
+    "\u0000"
+  ],
+  "pgrepAllPids": [
+    755717,
+    758411
+  ],
+  "otherSlotDaemons": [
+    "pid=755717 slot=8912",
+    "pid=758411 slot=8731"
+  ],
+  "listeners": [
+    "w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000",
+    "N/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020",
+    "\u0000",
+    "(no listener on 8932)",
+    "\u0000"
+  ],
+  "hasListener": false
+}

@@ -1,0 +1,24 @@
+NOTE: src/**/*.ts = 8（原冻结 7 + 额外 1）：src/explorer.ts
+      -> 已一并纳入锚点（lead 2026-10-12 Q1 裁决：P0 冻结集含新增文件）。
+--- 契约体检 ---
+  PREFLIGHT OK: exports["./client"] = ./client/index.js
+  PREFLIGHT OK: dsh.client.platform = web
+  PREFLIGHT OK: 入口文件在场 client/index.js（13859 bytes）
+  PREFLIGHT OK: package.json files 含 "client"
+锚点一致 = True ｜ advisory 一致 = False
+锚点文件数 = 8 src + 4 client + package.json
+
+===== advisory 漂移（cordis.patch.yml / README / docs）=====
+  - # --- 非锚点（advisory）：只告警，不判无效 ---
+66a6f9930ffc5416dd8f273525cb2a4a7db068ff028148f09f56e2c0ac6fae91        589  cordis.patch.yml
+52298c0cfd449c20cd30ef88e37870fd5a3a285afcb0af9696bb75f2a80ae199      47603  README.md
+ac456fdeeff86427ef03aaa90d494e0509eba1f16dc0b65ff59fc6480f02e269      13641  docs/2026-10-10-wsl-dsh-sdk-bridge.md
+c3df8fd654470298d57d4a672b2dbc3b95131f05cf8d30000df9264be12ceec2      33091  docs/client-contract.md
+892cfd6f05531e2d745d74a382fddba2d903902b279eefc9de4322d1633a157b      18750  docs/remote-explorer-design.md
+  + 66a6f9930ffc5416dd8f273525cb2a4a7db068ff028148f09f56e2c0ac6fae91        589  cordis.patch.yml
+82bf4e293deeabd6813374de0133523fbe2285f866bc02ff264acde138e74dce      49137  README.md
+ac456fdeeff86427ef03aaa90d494e0509eba1f16dc0b65ff59fc6480f02e269      13641  docs/2026-10-10-wsl-dsh-sdk-bridge.md
+c3df8fd654470298d57d4a672b2dbc3b95131f05cf8d30000df9264be12ceec2      33091  docs/client-contract.md
+892cfd6f05531e2d745d74a382fddba2d903902b279eefc9de4322d1633a157b      18750  docs/remote-explorer-design.md
+
+结论：锚点未变，但 advisory 输入变了 => 需解释（exit 3）

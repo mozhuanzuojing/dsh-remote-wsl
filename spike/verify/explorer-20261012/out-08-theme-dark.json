@@ -1,0 +1,38 @@
+{
+  "schema": "theme-sample/1",
+  "mode": "dark",
+  "capturedAt": "2026-10-12T15:54:45+08:00",
+  "howSwitched": "设置 → 深色（应用自身的主题控件 aria-pressed）",
+  "htmlStyle": "color-scheme: dark;",
+  "htmlThemeSource": "dark",
+  "colorScheme": "dark",
+  "panelBg": "rgb(35, 35, 36)",
+  "panelFg": "rgb(249, 250, 251)",
+  "titleFg": "rgb(249, 250, 251)",
+  "statusFg": "rgb(207, 211, 214)",
+  "panelPresent": true,
+  "tokens": {
+    "--dsw-alias-bg-base": "#151517",
+    "--dsw-alias-bg-layer-1": "#232324",
+    "--dsw-alias-bg-layer-2": "#2c2c2e",
+    "--dsw-alias-bg-overlay": "#61666b",
+    "--dsw-alias-border-l1": "#ffffff0f",
+    "--dsw-alias-border-l2": "#ffffff1f",
+    "--dsw-alias-label-primary": "#f9fafb",
+    "--dsw-alias-label-secondary": "#cfd3d6",
+    "--dsw-specific-sidebar-fill": "#1b1b1c"
+  },
+  "tokensMissing": [],
+  "comparisonWithLight": {
+    "distinguishable": true,
+    "colorSchemeDiffers": true,
+    "panelBgDiffers": true,
+    "tokenValuesDiffer": "全部 9 个 token 的取值在两种模式下都不同（例：--dsw-alias-bg-base #fff → #151517）"
+  },
+  "restored": "采样后点回「跟随系统」→ colorScheme=light、panelBg=rgb(255,255,255)",
+  "R4_forced_red": {
+    "attemptA": "在 <html> 上内联 style.setProperty('--dsw-alias-bg-base','#123456') ⇒ **未生效**：面板祖先链上有更近的作用域定义该变量，解析值仍是主题色（inlineHtmlStyle 显示已注入，tokBgBase 仍 #fff/#151517）⇒ 该注入点无效，留档",
+    "attemptB": "改为钉面板根本身背景色 root.style.backgroundColor='rgb(1,2,3)' ⇒ light 与 dark 的 panelBg 都变成 rgb(1,2,3) ⇒ distinguishable=false ⇒ **断言正确变红**；移除后恢复 rgb(255,255,255)",
+    "verdict": "RED(断言正确变红)"
+  }
+}

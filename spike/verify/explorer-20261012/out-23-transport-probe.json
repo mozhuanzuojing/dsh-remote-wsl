@@ -1,0 +1,25 @@
+{
+  "generatedAt": "2026-10-12 15:51:07",
+  "route": "http://127.0.0.1:8931/remote-wsl/api",
+  "results": {
+    "a_same_origin_post": 200,
+    "b_forged_origin": 403,
+    "b_side_effect_none": true,
+    "b_missing_origin": 403,
+    "b_positive_control_ok": true,
+    "b_negative_control_clean": true,
+    "c_unknown_method": 400,
+    "d_verb_PUT": 405,
+    "d_verb_DELETE": 405,
+    "d_verb_PATCH": 405,
+    "d_content_type_textplain": 415,
+    "d_invalid_json": 400,
+    "e_token_leak": true
+  },
+  "methods": [
+    "explorer.snapshot",
+    "explorer.openSession",
+    "explorer.daemon",
+    "explorer.fixPin"
+  ]
+}

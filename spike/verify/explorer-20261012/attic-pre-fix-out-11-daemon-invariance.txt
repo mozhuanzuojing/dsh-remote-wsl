@@ -1,0 +1,9 @@
+daemon.running         MATCH     hard  before=True  after=True
+daemon.pid(probe)      MATCH     hard  before=750364  after=750364
+daemon.pgrepPids       MATCH     hard  before=[750364]  after=[750364]
+daemon.port            MATCH     hard  before=8932  after=8932
+daemon.version         MATCH     hard  before=0.2.0-rc.2  after=0.2.0-rc.2
+daemon.keys            MATCH     hard  before=[]  after=[]
+listener.port          MATCH     hard  before=True  after=True
+keys.runtimePid        MATCH     warn  before=[]  after=[]
+

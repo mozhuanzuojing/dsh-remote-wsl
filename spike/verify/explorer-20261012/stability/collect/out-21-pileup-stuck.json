@@ -1,0 +1,236 @@
+{
+ "receivedAt": "2026-10-12T08:11:13.162Z",
+ "name": "out-21-pileup-stuck",
+ "data": {
+  "t2c": {
+   "path": "T2c",
+   "switches": 20,
+   "delayMs": 800,
+   "peakInFlight": 8,
+   "residualAfterUnmount300ms": 5,
+   "timeline": [
+    {
+     "i": 0,
+     "inflight": 0,
+     "at": 138672
+    },
+    {
+     "i": 1,
+     "inflight": 1,
+     "at": 138760
+    },
+    {
+     "i": 2,
+     "inflight": 2,
+     "at": 138859
+    },
+    {
+     "i": 3,
+     "inflight": 3,
+     "at": 138953
+    },
+    {
+     "i": 4,
+     "inflight": 4,
+     "at": 139046
+    },
+    {
+     "i": 5,
+     "inflight": 5,
+     "at": 139140
+    },
+    {
+     "i": 6,
+     "inflight": 6,
+     "at": 139233
+    },
+    {
+     "i": 7,
+     "inflight": 7,
+     "at": 139327
+    },
+    {
+     "i": 8,
+     "inflight": 8,
+     "at": 139421
+    },
+    {
+     "i": 9,
+     "inflight": 8,
+     "at": 139515
+    },
+    {
+     "i": 10,
+     "inflight": 8,
+     "at": 139609
+    },
+    {
+     "i": 11,
+     "inflight": 8,
+     "at": 139703
+    },
+    {
+     "i": 12,
+     "inflight": 8,
+     "at": 139794
+    },
+    {
+     "i": 13,
+     "inflight": 8,
+     "at": 139889
+    },
+    {
+     "i": 14,
+     "inflight": 8,
+     "at": 139982
+    },
+    {
+     "i": 15,
+     "inflight": 8,
+     "at": 140075
+    },
+    {
+     "i": 16,
+     "inflight": 8,
+     "at": 140169
+    },
+    {
+     "i": 17,
+     "inflight": 8,
+     "at": 140261
+    },
+    {
+     "i": 18,
+     "inflight": 8,
+     "at": 140354
+    },
+    {
+     "i": 19,
+     "inflight": 8,
+     "at": 140448
+    }
+   ],
+   "verdict": "PILEUP-AFTER-UNMOUNT"
+  },
+  "stuck": {
+   "path": "stuck",
+   "seconds": 14,
+   "verdict": "LOADING-STUCK-NO-ESCAPE",
+   "timeline": [
+    {
+     "t": 1014,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 2025,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 3027,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 4033,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 5044,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 6052,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 7060,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 8066,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 9073,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 10079,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 11088,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 12099,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 13109,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    },
+    {
+     "t": 14116,
+     "loadingHint": null,
+     "refresh": "刷新中…(disabled)",
+     "errorVisible": false,
+     "retry": null,
+     "pendingApi": 1
+    }
+   ],
+   "note": "闸门 never 模拟\"host 永不返回\"；red 判据见 MATRIX §2 ② (d)"
+  }
+ }
+}

@@ -1,0 +1,55 @@
+# out-00 —— 锚点交叉复核（task-6 的只读加分项，非注入实验）
+
+- **时间**：2026-10-12 **11:42:41**（Asia/Shanghai；以本文件 mtime 为准 —— preview 生成于 11:40:54，复核紧随其后。**更正**：初稿误写 11:52，属我的时间戳笔误，此处以客观 mtime 为准）
+- **目的**：关闭 FMEA 未复核项 #8「p0-verify 的 `revision.ps1` 锚点是否覆盖 `client/**` 全量」；按 lead 建议**独立复算**一遍再与 `REVISION.preview.txt` 比对。
+- **方法**：只读。独立实现一遍锚点定义（`src/**/*.ts` 递归 + `client/**` 全量 + `package.json`），SHA256 + size，与 `..\REVISION.preview.txt`（生成于 11:40:54）的 `#@ANCHOR-BEGIN..END` 段按**相对路径为键**做集合与值比对。
+- **未改任何被验对象**；未运行 `revision.ps1 -Write`（且它要求 `-ConfirmFreeze`）。
+
+## 1. 完整性（这一条是本复核的主要目的）
+
+| 项 | 我算 | preview | 结论 |
+|---|---|---|---|
+| 锚点文件数 | **13** | 13 | ✅ 一致 |
+| 分解 | src 8 + client 4 + package.json 1 | src=8 client=4 package.json=1 | ✅ 一致 |
+| 仅我算到、锚点漏掉的 | **（空）** | — | ✅ **无遗漏** |
+| preview 有、我算不到 | **（空）** | — | ✅ 无幻影条目 |
+| `client/**` 是否全量入锚点 | 4/4 文件逐一在场（`index.js` / `client.api.js` / `client.icon.js` / `client.panel.js`） | 同 | ✅ **未复核项 #8 关闭** |
+
+**未入锚点、但可能影响 client 契约的面（逐一判定）**：
+
+| 面 | 是否需入锚点 | 判定 |
+|---|---|---|
+| `package.json` | **是** | ✅ 已在锚点（`exports["./client"]` + `dsh.client` 是 client 半的注册契约） |
+| `cordis.patch.yml` / `README.md` / `docs/*.md` | 否（advisory，漂移 ⇒ exit 3 需解释） | ✅ 设计已如此（`revision.ps1:32,106-111`） |
+| `GAP-AUDIT.md`、`LICENSE` | 否 | ⚠️ **两头都不在**（既非锚点、也非 advisory）⇒ 漂移不会被察觉。判定：**不影响 client 契约**（纯文档/许可证），**不建议为它改脚本**；列入观察即可 |
+
+## 2. 漂移（说明"现在还不能冻结"，不是脚本缺陷）
+
+| 文件 | preview（11:40:54） | 我算（11:42:41） |
+|---|---|---|
+| `src/explorer.ts` | `17294c4f…` 27593 B | `32cf994b…` **28026 B** |
+| `client/client.panel.js` | `1b825409…` 18285 B | `e367b195…` **22666 B** |
+| 其余 11 项 | — | 逐字节一致 |
+
+⇒ T2/T3 **正在写**（`client.panel.js` 单文件 +4.4 KB，形态上像是 lead 要求的 F22/F23 修）。**冻结必须等 task-2/task-3 complete**，与 lead 的 go 口径一致。
+
+## 3. 对本报告可信度的直接影响（必须写进最终报告）
+
+1. **我 FMEA/REPORT 里的 `文件:行` 引用，基于 2026-10-12 11:26–11:36 的 revision**；此后 `src/explorer.ts` 与 `client/*.js` 都已变化 ⇒ **开工后第一件事是按冻结后的 revision 复核每条引用的行号与语义**，改判要写"因 revision 变化"。
+2. 冻结锚点本身**完整可信**（13/13，无遗漏）⇒ 我"被验对象未变"的守卫有可靠依据；开工时以 `revision.ps1 -Mode Write -ConfirmFreeze` 的产物为准，我只引用不自算（自算仅用于本文件这次交叉验证）。
+3. `docs/client-contract.md` **已落地**（29649 B，advisory 段可见）⇒ RUNBOOK P3 的前置解除。
+
+## 4. 命令（可复现）
+
+```powershell
+# 独立复算锚点（只读）
+$root='D:\project\dsh1\vendor\dsh-remote-wsl'
+$items = @() + (Get-ChildItem -File -Recurse -LiteralPath "$root\src" -Filter '*.ts') +
+               (Get-ChildItem -File -Recurse -LiteralPath "$root\client") +
+               (Get-Item -LiteralPath "$root\package.json")
+$items | ForEach-Object { '{0} {1,9} {2}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLower(),
+  $_.Length, ($_.FullName.Substring($root.Length+1) -replace '\\','/') } | Sort-Object
+# 与 ..\REVISION.preview.txt 的 #@ANCHOR-BEGIN..END 段按相对路径为键比对（同上脚本）
+```
+
+**结论：锚点覆盖完整（未复核项 #8 关闭）；被验对象仍在漂移 ⇒ 继续待命，冻结后再做引用复核与注入实验。**

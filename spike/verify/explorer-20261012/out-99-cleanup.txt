@@ -1,0 +1,15 @@
+收尾清理记录
+
+时间：2026-10-12 16:04:00
+停掉（均为我自建/我起的）：
+  · 测试宿主 8931（remote-wsl-test-web）
+  · 基线宿主 8934（remote-wsl-test-web-base，强制红 R2）
+  · R6 宿主 8935（一次性，缺 client/index.js 的副本 profile）
+  · 我方守护 slot 8932（经 route explorer.daemon{action:stop}）
+  · 删除 %TEMP%\rwsl-verify-noclient 与 profile remote-wsl-test-web-noclient
+
+保留（供复核，未删）：
+  · profile remote-wsl-test-web / remote-wsl-test-web-base（junction + package.json + cordis.yml + cordis.patch.yml）
+  · 全部原始输出与脚本
+
+未做：任何 npm/pnpm install（Lead 硬规矩②）；未碰 reliability/stability/usability 子目录；未动 19387 活宿主。

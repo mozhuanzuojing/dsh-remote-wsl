@@ -1,0 +1,52 @@
+############ B 组：传输安全（http://127.0.0.1:8931/remote-wsl/api） ############
+时间：2026-10-12 15:51:00  同源 Origin=http://127.0.0.1:8931
+
+[前置] 我方槽位 8932 起守护前：pids=[]  listen_count=0
+
+[a] 同源 POST explorer.snapshot → status=200
+    body(head 600): {"ok":true,"result":{"distros":[{"name":"debian-u8-1","default":true,"reachable":true}],"target":{"distro":"debian-u8-1","wslHome":"/home/g","cwd":"/home/g"},"daemon":{"running":false,"keys":[],"orphans":0},"drift":{"drifted":false},"workspaces":[{"distro":"debian-u8-1","path":"/home/g","label":"g","kind":"folder"}],"webHosts":[]}}
+
+[a2] GET 无 Origin → status=403  body=
+[a2] GET 带同源 Origin → status=200  body={"ok":true,"methods":["explorer.snapshot","explorer.openSession","explorer.daemon","explorer.fixPin"]}
+
+[b] 伪造 Origin 的 daemon ensure → status=403  body=
+    伪造后：pids=[]  listen_count=0  （必须与前置相同 = 未执行）
+[b-missing] 缺 Origin 的 daemon ensure → status=403  body=
+[b-site] 同源 Origin 但 Sec-Fetch-Site: cross-site → status=403  body=
+
+[b-positive] 同源 daemon ensure → status=200  body={"ok":true,"result":{"action":"ensure","ok":true,"idempotent":true,"slot":8932,"port":8932,"pid":899039,"version":"0.2.0-rc.2","reused":false,"started":true,"notes":["槽位 8932 由 Windows 侧握手确认就绪（实际端口 8932，5ms）"]}}
+    阳性对照结果：listen_count=1  pids=[899039]  ⇒ 同源调用确实能起我方守护（证明 [b] 的阴性判据有区分力）
+
+[c] 未知 method → status=400  body=
+[c2] 原型链探针 method='constructor' → status=400  body=
+[c3] 空 method → status=400
+
+[d] PUT → status=405  body=
+
+[d] DELETE → status=405  body=
+
+[d] PATCH → status=405  body=
+[d] POST + content-type: text/plain → status=415（实现=415；任务文本写 405 ⇒ 差异记录）  body=
+[d] POST + 非法 JSON → status=400  body=
+[d] 合法 method + 非法 action → status=400（期望 400 E_ARG）  body=
+
+[e] 凭据泄漏检查（用**真实** daemon.token 值做针，绝不打印该值）
+    daemon.token 在场=yes len=197 ｜ 响应体中命中针数=0 <= 未泄漏
+    另查常见凭据字样：
+
+############ 汇总 ############
+  a_same_origin_post           = 200
+  b_forged_origin              = 403
+  b_side_effect_none           = True
+  b_missing_origin             = 403
+  b_positive_control_ok        = True
+  b_negative_control_clean     = True
+  c_unknown_method             = 400
+  d_verb_PUT                   = 405
+  d_verb_DELETE                = 405
+  d_verb_PATCH                 = 405
+  d_content_type_textplain     = 415
+  d_invalid_json               = 400
+  e_token_leak                 = True
+  methods(GET) = explorer.snapshot,explorer.openSession,explorer.daemon,explorer.fixPin
+

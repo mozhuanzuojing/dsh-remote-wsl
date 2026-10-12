@@ -1,0 +1,428 @@
+{
+  "at": "2026-10-12T08:00:11.364Z",
+  "port": 8971,
+  "slot": 8972,
+  "exitCode": 0,
+  "steps": [
+    {
+      "n": 1,
+      "name": "same-origin-snapshot-200",
+      "expected": 200,
+      "actual": 200,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "origin": "http://127.0.0.1:8971"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:10 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":true,\"result\":{\"distros\":[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true}],\"target\":{\"distro\":\"debian-u8-1\",\"wslHome\":\"/home/g\",\"cwd\":\"/home/g\"},\"daemon\":{\"running\":true,\"slot\":8972,\"pid\":914091,\"port\":8972,\"version\":\"0.2.0-rc.2\",\"keys\":[],\"orphans\":0},\"drift\":{\"drifted\":false},\"workspaces\":[{\"distro\":\"debian-u8-1\",\"path\":\"/home/g\",\"label\":\"g\",\"kind\":\"folder\"}],\"webHosts\":[]}}",
+        "error": null
+      },
+      "note": ""
+    },
+    {
+      "n": 2,
+      "name": "no-origin-403",
+      "expected": 403,
+      "actual": 403,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "method": "explorer.daemon",
+          "args": {
+            "action": "ensure"
+          }
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}",
+        "error": null
+      }
+    },
+    {
+      "n": 3,
+      "name": "foreign-origin-403",
+      "expected": 403,
+      "actual": 403,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "headers": {
+          "origin": "http://evil.example",
+          "content-type": "application/json"
+        },
+        "body": {
+          "method": "explorer.daemon",
+          "args": {
+            "action": "ensure"
+          }
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}",
+        "error": null
+      }
+    },
+    {
+      "n": 4,
+      "name": "cross-site-403",
+      "expected": 403,
+      "actual": 403,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "headers": {
+          "origin": "http://127.0.0.1:8971",
+          "sec-fetch-site": "cross-site",
+          "content-type": "application/json"
+        },
+        "body": {
+          "method": "explorer.daemon",
+          "args": {
+            "action": "ensure"
+          }
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}",
+        "error": null
+      }
+    },
+    {
+      "n": 5,
+      "name": "wrong-port-origin-403",
+      "expected": 403,
+      "actual": 403,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "headers": {
+          "origin": "http://127.0.0.1:9999",
+          "content-type": "application/json"
+        },
+        "body": {
+          "method": "explorer.daemon",
+          "args": {
+            "action": "ensure"
+          }
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}",
+        "error": null
+      }
+    },
+    {
+      "n": 6,
+      "name": "unknown-method-400",
+      "expected": "400 + methods[]",
+      "actual": 400,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "body": {
+          "method": "explorer.nope",
+          "args": {}
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"未知方法 explorer.nope\",\"methods\":[\"explorer.snapshot\",\"explorer.openSession\",\"explorer.daemon\",\"explorer.fixPin\"]}",
+        "error": null
+      }
+    },
+    {
+      "n": 7,
+      "name": "malformed-json-400",
+      "expected": 400,
+      "actual": 400,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "body": "{\"method\":"
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"请求体不是合法 JSON: Unexpected end of JSON input\"}",
+        "error": null
+      }
+    },
+    {
+      "n": 8,
+      "name": "empty-method-400",
+      "expected": 400,
+      "actual": 400,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "body": {
+          "args": {}
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"未知方法 (空)\",\"methods\":[\"explorer.snapshot\",\"explorer.openSession\",\"explorer.daemon\",\"explorer.fixPin\"]}",
+        "error": null
+      }
+    },
+    {
+      "n": 9,
+      "name": "put-405",
+      "expected": 405,
+      "actual": 405,
+      "verdict": "PASS",
+      "request": {
+        "method": "PUT",
+        "path": "/remote-wsl/api"
+      },
+      "response": {
+        "status": 405,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"只接受 GET（方法清单）与 POST（调用）；收到 PUT\"}",
+        "error": null
+      }
+    },
+    {
+      "n": 10,
+      "name": "non-json-ctype-415(实测)",
+      "expected": "415（实现较设计稿更严）",
+      "actual": 415,
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "content-type": "text/plain"
+      },
+      "response": {
+        "status": 415,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"POST 需要 content-type: application/json（收到 \\\"text/plain\\\"）\"}",
+        "error": null
+      }
+    },
+    {
+      "n": 11,
+      "name": "get-methods-200",
+      "expected": "200 + methods[]",
+      "actual": 200,
+      "verdict": "PASS",
+      "request": {
+        "method": "GET",
+        "path": "/remote-wsl/api"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":true,\"methods\":[\"explorer.snapshot\",\"explorer.openSession\",\"explorer.daemon\",\"explorer.fixPin\"]}",
+        "error": null
+      }
+    },
+    {
+      "n": 12,
+      "name": "trailing-slash(实测)",
+      "expected": "404 或 200-非JSON（SPA fallback）",
+      "actual": "405 json=false",
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api/"
+      },
+      "response": {
+        "status": 405,
+        "headers": {
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "",
+        "error": null
+      },
+      "note": "F11：若为 200-HTML，则\"接口看似通了\"是最易误判形态；client 侧 readBody 会给出 protocol 错误（client.api.js:96-103）"
+    },
+    {
+      "n": 13,
+      "name": "http10-no-host(实测)",
+      "expected": "403（我们的闸门）或 400（http 层）",
+      "actual": "无状态行：closed",
+      "verdict": "UNKNOWN",
+      "request": {
+        "method": "POST (HTTP/1.0, 无 Host)",
+        "path": "/remote-wsl/api"
+      },
+      "response": {
+        "status": null,
+        "headers": {},
+        "bodyText": "HTTP/1.1 403 Forbidden\r\nContent-Type: application/json; charset=utf-8\r\nCache-Control: no-store\r\nVary: Accept-Encoding\r\nDate: Mon, 12 Oct 2026 08:00:11 GMT\r\nConnection: close\r\n\r\n{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}",
+        "error": null,
+        "rawNoHost": true
+      },
+      "note": "HTTP/1.1 必需 Host ⇒ 该边界的真实意义有限；重点是我们不会因缺 Host 而放行"
+    },
+    {
+      "n": 14,
+      "name": "negative-sideeffect-stop-must-not-run",
+      "expected": "403 且 pid 仍为 914091",
+      "actual": "403 pid=914091",
+      "verdict": "PASS",
+      "request": {
+        "method": "POST",
+        "path": "/remote-wsl/api",
+        "headers": {
+          "origin": "http://evil.example"
+        },
+        "body": {
+          "method": "explorer.daemon",
+          "args": {
+            "action": "stop",
+            "slot": 8972
+          }
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "date": "Mon, 12 Oct 2026 08:00:11 GMT",
+          "connection": "keep-alive",
+          "keep-alive": "timeout=5",
+          "transfer-encoding": "chunked"
+        },
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}",
+        "error": null
+      },
+      "pidBefore": 914091,
+      "pidAfter": 914091,
+      "note": "这是\"403 时不得执行任何方法\"的唯一硬证明；slot 只用本插件自有槽位"
+    },
+    {
+      "n": 15,
+      "name": "credential-leak-scan",
+      "expected": "响应体不含 token/凭据字段",
+      "actual": "无命中",
+      "verdict": "PASS",
+      "request": {
+        "note": "对前 14 步的原始响应做关键字扫描"
+      },
+      "response": {
+        "hits": []
+      },
+      "note": "关键字扫描是粗筛；精筛需按 daemon-client 的 token 形状（非明文比对）复核 ⇒ 未复核项"
+    }
+  ]
+}

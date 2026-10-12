@@ -82,9 +82,11 @@ token 不符 ⇒ `{"ok":false,"error":"unauthorized"}` 并断开（本机任意�
    握手默认 **3s** 超时。身份不符/超时 ⇒ 清掉那个"影子守护"（WSL 侧 bind 成功但 Windows 侧不可达）并**换端口**
    （`daemonPort` +1，最多 `daemonPortTries` 次）；全占则给**可读报错**并让用户释放端口。
 2. **不落 `/tmp`（缺陷 #12）**。守护的元数据 / token / 启动脚本 / 日志全部在
-   `~/.dsh/remote-wsl/`（目录 0700、文件 0600）：`daemon.json`（pid/port/version/keys，**不含 token**）、
-   `daemon.token`、`launch.sh`（守护起来后自删）、`daemon.log`（有界，256KB 截断）。
-   守护**绝不创建** `/tmp/dsh-rwsl-*`；退出时清理 `daemon.json`/`daemon.token`/`launch.sh`（只留 `daemon.log`）。
+   `~/.dsh/remote-wsl/`（目录 0700、文件 0600），且**按槽位分文件**：`daemon.<slot>.json`
+   （pid/port/version/keys，**不含 token**）、`daemon.<slot>.token`、`launch.<slot>.sh`（守护起来后自删）、
+   `daemon.log`（有界，256KB 截断）。**不是**单个 `daemon.json` / `launch.sh` —— 那样两个守护并存会**互相覆盖**
+   （见下面「并发隔离与过渡期兼容」；`wsl_status` 现在直接打印 `daemon state dir (WSL): …` 一行说明这一点）。
+   守护**绝不创建** `/tmp/dsh-rwsl-*`；退出时清理**自己槽位**的 `daemon.<slot>.json` / `.token` / `launch.<slot>.sh`（只留 `daemon.log`）。
 3. **不自动杀守护（语义 #5）**。`status` 带守护持有的 dsh `version`；与桌面版本或 WSL pin 不一致 ⇒
    `wsl_status` 出**报警行**（`daemon drift: ⚠️ …`）但**不自动重启**（那会无声中断用户正在进行的会话），
    换版本走显式 `wsl_daemon action=restart`。
@@ -176,19 +178,25 @@ token 不符 ⇒ `{"ok":false,"error":"unauthorized"}` 并断开（本机任意�
 | `engines.dsh` | `>=0.2.0-rc.2` —— **验证基线**：本轮全部验收都在 dsh `0.2.0-rc.2` + node 26.10 上完成；更高版本**未验证、不承诺** |
 | 许可 | MIT（见 `LICENSE`） |
 
-**冻结 revision（2026-10-12，`src/` 7 个）**：复验必须以此做**首尾双断言**（开工取哈希 → 收尾复算，不同即判「验证无效」）。
+**冻结 revision —— P0（2026-10-12，**13 个锚点** = `src/**` 8 + `client/**` 4 + `package.json`）**：复验必须以此做**首尾双断言**（开工取哈希 → 收尾复算，不同即判「验证无效」）。独立验证者 `p0-verify` 已于 **15:44 冻结 / 16:05 复算 13/13 一致** ⇒ P0 验收有效（报告：`spike/verify/explorer-20261012/REPORT-explorer.md`）。
 
 | 文件 | 大小 | SHA256 |
 |---|---:|---|
-| `daemon-client.ts` | 36,596 | `366498843ca1c7b68647625dda3d21c66419743182c82e4f67734adfa95fa395` |
-| `daemon.ts` | 23,299 | `1c5284e56a7affdbe3578148e31dcb98252ad6d286ba8d978efd023905967d96` |
-| `index.ts` | 75,673 | `ad1cc4ed5f3887e5f65a3f275461acda92b479dbeaa0324801c59e955be4ae38` |
-| `sdk-runtime.ts` | 11,433 | `74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e` |
-| `selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
-| `shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
-| `version.ts` | 14,386 | `ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275` |
+| `src/daemon-client.ts` | 36,596 | `366498843ca1c7b68647625dda3d21c66419743182c82e4f67734adfa95fa395` |
+| `src/daemon.ts` | 23,299 | `1c5284e56a7affdbe3578148e31dcb98252ad6d286ba8d978efd023905967d96` |
+| `src/explorer.ts` | 29,545 | `86f29d83fa055393fa3c086ede4feb8830a8b97c671189fa44f47fbc2ab42ad5` |
+| `src/index.ts` | 76,751 | `c87b7bde74280a2a1078cb3c0813f1693a30826516c933bdd472a217b34694ee` |
+| `src/sdk-runtime.ts` | 11,433 | `74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e` |
+| `src/selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
+| `src/shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
+| `src/version.ts` | 14,386 | `ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275` |
+| `client/index.js` | 13,859 | `a0c9656809759c8ba23235376e5f8f3e37f52d6ff86ce5ca5eeccc6e6b9d4a9b` |
+| `client/client.api.js` | 10,661 | `4f98663dd203c52eb00a22133dca2985c052868946141932571fea2c67990fc3` |
+| `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
+| `client/client.panel.js` | 29,111 | `8f5ce575f50f182fa94f584a47b8a9401e7f580c5206c5bd2e3483867957439e` |
+| `package.json` | 1,452 | `36f70175f9fe4ea2f9b04712fea09687b25778fdae31e2be7f30462e66ac4492` |
 
-> 上一版（task-15/16）里 `index.ts` 是 **75,545 / `773d0aac…`**。2026-10-12 只改了 `index.ts` 的**头部注释**（工具清单 5 → 6：原先漏了 `wsl_daemon`）⇒ 上表已为新值。改后**重跑**了夹具回归（`test.ts` exit 0、`adversarial` **PASS 32 / FAIL 0**）与守护直控 smoke（`ensure` 幂等 / `status` / `stop` 全 exit 0），并做首尾双断言（7/7 未被改动）。
+> **0.1.0 原冻结集**（历史对照）：当时只有 `src/` 7 个 —— 其中 **6 个与上表逐字相同**（P0 未碰），`index.ts` 当时是 **75,545 / `773d0aac…`**（P0 加注册与注释后变 76,751 / `c87b7bde…`）；`explorer.ts` / `client/**` / `package.json` 当时都不存在。P0 之前那轮（改用注释补 `wsl_daemon`）的重跑证据仍在：夹具回归 `test.ts` exit 0、`adversarial` **PASS 32 / FAIL 0**、守护直控 smoke 全 exit 0。
 
 ## 安装（link 进 profile）
 
@@ -217,6 +225,30 @@ dsh --profile <profile> --dump-config | Select-String 'remote-wsl'
 | `daemonQueueLimit` | `4` | 同 key 并发 prompt 的**等待位上限**，超出明确拒绝 |
 | `daemonHandshakeTimeoutMs` | `3000` | Windows 侧握手判据超时（身份不符必须快速失败，绝不等 `timeoutMs`） |
 | `daemonStartTimeoutMs` | `20000` | 起守护后等"Windows 侧握手确认就绪"的上限 |
+
+## 亲眼看到面板（P0，测试实例）
+
+> ⚠️ **先记这一条，它坑过我们全队**：应用 CLI 的用法是 `dsh [--profile] <name> [options] [app-args...]` ——
+> **`dsh web` 里的 `web` 就是 profile 名**。所以 `dsh --profile X web --port N` 会被判"多余位置参数"：
+> `error: too many arguments. Expected 0 arguments but got 1: web.`
+> **起自定义 profile 的正确写法不带 `web` token。**
+
+```powershell
+$dsh = 'C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
+
+# 1) 起测试实例（不带 web；--patch 可叠加自己的覆盖层，例如换 daemonPort）
+& $dsh --profile remote-wsl-test --port 3096 --no-open
+
+# 2) 实例日志里会打印带 token 的 URL —— 必须用它打开，裸 http://127.0.0.1:3096/ 只会得到 401
+#    GET /            ⇒ 401
+#    GET /?token=…    ⇒ 303 + Set-Cookie ⇒ 200（含 __DSH_BOOT__）
+```
+
+打开后：**左侧栏 rail 会多出一个「远程资源管理器」图标**（与「插件」「定时」并排），点它切到中央面板 ——
+distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/keys/drift），行内动作「在新会话中打开」等。
+面板数据面是 `POST /remote-wsl/api`（方法表：`explorer.snapshot|openSession|daemon|fixPin`；同源 + 硬白名单）。
+
+> `wsl_open_ui` 开的是**另一件事**：WSL 里那份 dsh 的 Web UI（浏览器应用窗口）；本节的实例是**宿主自己的 Web 前端**，面板属于宿主 UI。
 
 ## 设计要点（都是踩出来的，不是猜的）
 
@@ -465,25 +497,30 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 ### 诊断面：`wsl_status` 报告什么
 
-`wsl_status` 是只读、廉价的入口——**在怪远端之前先调它**。它现在报告（字段名以 `src/index.ts` 实际输出为准）：
+`wsl_status` 是只读、廉价的入口——**在怪远端之前先调它**。**下表是 2026-10-12 从真实输出逐行核对的形态**（字段名以 `src/index.ts` 实际输出为准）：
 
 | 输出行 | 内容 |
 |---|---|
 | `distros:` | `wsl -l -q` 列出的发行版 |
 | `target:` | 当前 `distro` / `wslHome` / `cwd` |
-| `wsl ip:` | WSL 内 `hostname -I` |
-| `desktop dsh version:` | 桌面 dsh 版本 + 来源路径（`<-` 后面那段；来源按 §7 的分层解析） |
+| `wsl ip:` | WSL 内 `hostname -I` —— **只是 WSL 内网 IP，不能证明 Windows `localhost` 可达** |
+| `shell env injection (useShellEnvironment):` | 登录 shell 环境注入的开关与**作用范围**（只注入常驻运行时 `wsl_agent`/`wsl_open_ui`；`wsl_exec` 的一次性路径不注入） |
+| `localhost forwarding:` | 从 `.wslconfig` 读到的 `localhostForwarding`（NAT 模式下它才是「Windows→WSL `127.0.0.1` 可达」的依据；`networkingMode=mirrored` 时该键被忽略） |
+| `desktop dsh version:` | 桌面 dsh 版本 + 来源路径（`<-` 后面那段；来源按分层解析） |
 | `version this plugin uses:` | 本插件这次实际用的版本 |
-| `wsl pin:` / `drift:` | WSL 侧 pin；不一致时 `YES (desktop x / pin y)` |
-| `resident runtimes:` | 本插件持有的常驻运行时及各自 `turn` 数 |
+| `wsl pin:` / `drift:` | WSL 侧 pin；不一致时 `drift: YES (desktop x / pin y)` |
+| `dlx dsh versions in WSL:` | WSL 里**已装（缓存）**的 dsh 版本（此前只知道"插件要用哪个版本"） |
+| `backend:` | `daemon`（默认：运行时由 WSL 侧常驻守护持有）或 `in-host`（逃生舱） |
+| `daemon:` | `running pid=… actualPort=… slot=… version=… uptime=… idleMs=… lingerMs=… keys=N [(key(turn N,pid P)), …]`；没守护时是 `not running …` |
+| `daemon idle/linger/queue:` | 三个闸门**当前生效值** + 各自后果（空闲回收 / 自退 / 并发上限） |
+| `daemon ports:` | `configured=<port>(+N 回退) actual=<port> slot=<slot>` —— **配置值与实际值分开报**，不一致时一眼可见 |
+| `daemon state dir (WSL):` | 状态目录 + 「元数据**按槽位** `daemon.<slot>.json` / `.token`（0600）」的说明（本插件不把守护的东西落 `/tmp`） |
+| `resident runtimes (in-host backend only):` | **仅 `in-host` 后端**持有的常驻运行时；`daemon` 后端下恒为 `(none)`（运行时在守护里） |
 | `web hosts:` | `wsl_open_ui` 起的 host（按端口） |
 | `pid files in WSL /tmp:` | 孤儿运行时计数（只数不杀；首次有副作用的调用会清） |
 
-计划补进同一处的诊断项（**字段名未定，下面是概念不是字段名**）：
+`wsl_daemon action=status` 另外给：`daemon:`（同上）、**`machine:` 机器行**（`slot= pid= port= version= keys= orphans=`）、`uptime/idleMs/lingerMs/queueLimit` 续行、`keys (N): …`、以及 **`ready 判据:`** 一行（明写"本次调用由 Windows 侧 hello+token 握手核实，不是守护自己的 listening 日志"）。
 
-- **shell-env 注入状态**——即 `useShellEnvironment` 生效与否、注入是否成功（对位 §9 第 7 项）；
-- **`localhostForwarding` 探测结果**——WSL2 的 localhost 转发由 WSL 自身提供，扩展只能遵从
-  （§8 第 8 项、§9 第 8 项）；**用户关掉转发时本插件会静默失败**，所以这项要探测后再报，
-  不能假定转发一定在（现在 `wsl ip:` 报的是 WSL 内网 IP，本身不能证明 Windows `localhost` 可达）；
-- **WSL 里已装的 dlx 版本**——现在只知道"插件要用哪个版本"，不知道"WSL 里已经有哪些"；
-  对位 §9 第 5 项的版本供给面（自动 + 后台 + 预供给）。
+> **历史样本与规范形态**：下面各节验证表里 `daemon: pid=… port=…` 与 `daemon: pid=… actualPort=…` 两种写法并存 —— 那是不同 revision 的原始输出，**按「原文保留」不改**；**规范形态以上表为准**。（漂移清单见 `spike/verify/explorer-20261012/DOC-DRIFT.md`。）
+
+**关于"计划补进"**：本节此前列过三项（shell-env 注入状态 / `localhostForwarding` 探测结果 / WSL 里已装的 dlx 版本）—— 2026-10-12 核对发现**三项都已实现**，已并入上表；本处不再保留"待补"清单（当前没有新的待补诊断项）。

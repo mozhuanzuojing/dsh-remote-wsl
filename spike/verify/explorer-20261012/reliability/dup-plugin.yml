@@ -1,0 +1,22 @@
+# task-6 / INJ-D5 用的 --patch 覆盖层：**故意**把同一个包装载两次（FMEA F16/F20/SP2）
+#
+# 目的：让第二个 entry 也去 register 同一条 (kind:'exact', path:'/remote-wsl/api')
+#   ⇒ 官方语义是 **throw**：webserver: duplicate exact route "/remote-wsl/api"
+#      （@deepseek-ai/dsh-host-webserver/lib/index.js:177-184）
+#   我们要测的**不是**"会不会抛"（源码已定），而是：
+#     (a) 宿主是否还能起来？(b) 我们的路由是否仍 200（先注册者是否存活）？
+#     (c) 第二个 entry 的 6 个 agent 工具是否在场？(d) stderr 是否出现 duplicate route？
+#     (e) 若 Cordis 把抛错的那次注入判为失败并回滚，先注册的**那条路由是否被释放**（SP7）？
+#
+# 用法：
+#   dsh --profile remote-wsl-test web --port 8971 --no-open \
+#       --patch ./patch-daemonport.yml --patch ./dup-plugin.yml
+#   （第二实例口径：若要在**同一 host** 内双装载，两个 entry 必须在同一组合树里 ⇒ 同一个 --patch 文件里给两条也行，
+#     但为了 A/B 清晰，D5 用"带 dup / 不带 dup"两次启动做对照。）
+#
+# ⚠ 纪律：本文件只影响**我另起的**测试宿主（8971）；绝不用它去启动/影响 19387 上的用户宿主。
+- id: remote-wsl-dup
+  name: dsh-remote-wsl
+  config:
+    distro: debian-u8-1
+    daemonPort: 8973

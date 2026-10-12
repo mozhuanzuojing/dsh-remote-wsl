@@ -1,0 +1,24 @@
+id                      verdict    panel  |  status
+distros                 MATCH      debian-u8-1  |  [debian-u8-1]
+status.daemon.slot.expectedMISMATCH   8932  |  8912
+                          note: 真相源报的守护槽位必须是**我方**槽位 8912；实测停掉我方守护后 probe 立刻改报他人槽位（8912）—— 不设此闸，pid/port 会被别人的守护带跑
+daemon.pid              unknown    750364  |  
+                          note: 真相源报的是**他人**槽位 => daemon.* 判 unknown（不得当通过）；需先让本方槽位守护起来
+daemon.port             unknown    8932  |  
+                          note: 同上
+daemon.version          unknown    0.2.0-rc.2  |  
+                          note: 同上
+daemon.keys             MATCH(weak)[]  |  []
+                          note: key 名集合（session 见 note） symdiff panel-only=[] status-only=[]
+daemon.keys.count       MATCH      0  |  0
+drift.drifted           MATCH      False  |  False
+drift.desktop           MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+drift.pin               MATCH      0.2.0-rc.2  |  0.2.0-rc.2
+webHosts.ports          MATCH(weak)[]  |  []
+                          note: web host 端口集合（status 行格式未知时 => unknown） symdiff panel-only=[] status-only=[]
+status.internal.port    MATCH      8932  |  8932
+status.internal.slot    MATCH      8932  |  8932
+workspaces.paths        unknown      |  
+                          note: wsl_status 无收藏路径来源（来自插件 explorer.json）=> 恒为 unknown，禁止写成通过
+summary: match=9 (strong=7) mismatch=1 unknown=4
+

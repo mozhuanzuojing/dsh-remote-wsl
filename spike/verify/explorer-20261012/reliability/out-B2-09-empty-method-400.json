@@ -1,0 +1,20 @@
+{
+  "n": 9,
+  "name": "empty-method-400",
+  "expected": 400,
+  "actual": 400,
+  "verdict": "PASS",
+  "response": {
+    "status": 400,
+    "json": {
+      "ok": false,
+      "error": "未知方法 (空)",
+      "methods": [
+        "explorer.snapshot",
+        "explorer.openSession",
+        "explorer.daemon",
+        "explorer.fixPin"
+      ]
+    }
+  }
+}

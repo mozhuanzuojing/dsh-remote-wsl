@@ -1,0 +1,8 @@
+R2 强制红：**不带插件**的基线实例（8934）
+
+判据：A1 的注册面断言 = boot graph 里存在 entry id=dsh-remote-wsl
+
+基线实测命中 entry 次数 = 0
+结论：RED（断言在缺失场景下正确变红）
+
+原始输出：out-14-R2-base-bootgraph.txt / out-04-boot-graph-base.json

@@ -1,0 +1,4 @@
+### C4 webServer 服务在，但 register 不是函数（形状不对）
+throw=(none) methods=["explorer.snapshot","explorer.openSession","explorer.daemon","explorer.fixPin"]
+stderr=["remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）\n"]
+verdict=PASS（形状不对也优雅降级）

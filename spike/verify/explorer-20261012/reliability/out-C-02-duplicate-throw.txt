@@ -1,0 +1,8 @@
+### C2 同一 webServer 上 registerExplorer 被调用两次（独立两次）
+第 1 次: throw=(none) routes=1 stderr=["remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）\n"]
+第 2 次: throw=(none) routes=1 stderr=["remote-wsl(explorer): explorer http route unavailable: webserver: duplicate exact route \"/remote-wsl/api\"（面板数据面降级；6 个 agent 工具不受影响）\n"]
+
+观察点：第 2 次抛错是否逃逸 = NO ✅（被 catch）
+       降级日志是否出现 = YES ✅
+       第 1 个 handle.dispose() 后 routes = 0（期望 0）
+verdict=PASS（加固生效：重复装载不再打倒插件，且第一次的路由仍可释放）

@@ -1,0 +1,19 @@
+{
+  "n": 13,
+  "name": "http10-no-host(实测)",
+  "expected": "403（我们的闸门）或 400（http 层）",
+  "actual": "无状态行：closed",
+  "verdict": "UNKNOWN",
+  "request": {
+    "method": "POST (HTTP/1.0, 无 Host)",
+    "path": "/remote-wsl/api"
+  },
+  "response": {
+    "status": null,
+    "headers": {},
+    "bodyText": "HTTP/1.1 403 Forbidden\r\nContent-Type: application/json; charset=utf-8\r\nCache-Control: no-store\r\nVary: Accept-Encoding\r\nDate: Mon, 12 Oct 2026 08:00:11 GMT\r\nConnection: close\r\n\r\n{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}",
+    "error": null,
+    "rawNoHost": true
+  },
+  "note": "HTTP/1.1 必需 Host ⇒ 该边界的真实意义有限；重点是我们不会因缺 Host 而放行"
+}

@@ -1,0 +1,569 @@
+{
+  "schema": "dsrw-cycle/1",
+  "mode": "mount-unmount",
+  "target": {
+    "cycles": 20
+  },
+  "cycles": [
+    {
+      "i": 1,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 2,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 3,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 4,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 5,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 6,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 7,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 8,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 9,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 10,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 11,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 12,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 13,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 14,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 15,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 16,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 17,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 18,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 19,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1004,
+        "panelNodes": 100,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1004,
+        "panelNodes": 0,
+        "listenersOutstanding": 32,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    },
+    {
+      "i": 20,
+      "steps": {
+        "mounted": true,
+        "unmounted": true,
+        "mountTransitionsDelta": 2,
+        "mountWaitMs": 20,
+        "unmountWaitMs": 20
+      },
+      "afterMount": {
+        "domAll": 1000,
+        "panelNodes": 100,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 100
+      },
+      "afterUnmount": {
+        "domAll": 1000,
+        "panelNodes": 0,
+        "listenersOutstanding": 30,
+        "timersOutstanding": 0,
+        "apiInFlight": 0,
+        "heapUsed": 1000000,
+        "preTextLen": 0
+      }
+    }
+  ]
+}

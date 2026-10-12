@@ -66,6 +66,10 @@ import {
   readDaemonMeta,
   stateDirLinux,
 } from './daemon-client.ts';
+// 人面（侧栏面板）的 host 数据面：explorer.snapshot / openSession / daemon / fixPin。
+// 它只**复用**下面这些已有实现（daemonSnapshot / ensureDaemon / stopDaemon / resolveVersion / writePin /
+// listDistros / webHosts），不新开第二条扫描或孤儿判定路径 —— 见 explorer.ts 头部"分层"与 §8.6 同源纪律。
+import { registerExplorer } from './explorer.ts';
 
 /** Stable Loader identity. */
 export const name = 'dsh-remote-wsl';
@@ -1478,6 +1482,18 @@ ${command}
         return lines.join('\n');
       },
     });
+  });
+
+  // ── 人面（面板）host 数据面 ─────────────────────────────────────────────────
+  // 数据面 = explorer.ts 的四个方法（名字见 EXPLORER_METHODS），传输层 = 它注册的
+  // `POST/GET /remote-wsl/api`（同源 + 硬白名单；为什么不是设计稿 §4 的 `host.call` 见 explorer.ts 头部）。
+  // 注入的全部是上面已有的实现，**没有新增扫描/判定逻辑**（daemon 段仍只来自 daemonSnapshot）。
+  registerExplorer(ctx, {
+    config,
+    listDistros,
+    resolveVersion,
+    writePin,
+    webHosts,
   });
 
   // 插件卸载时回收常驻进程（idle 定时器之外的第二道保险）。
