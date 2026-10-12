@@ -1,0 +1,66 @@
+#!/bin/sh
+# pre-push：推送前确认「GitHub 走 geph 本地代理」这条路通；不通就先自愈，仍不通则拦下。
+#
+# 为什么需要它：本机直连 github.com:443 黑洞（DNS 只给 20.205.243.166，该 IP 的 443 不通），
+# git 的 GitHub 流量统一走 geph 本地 HTTP 代理 127.0.0.1:9910（global git config 里 7 条
+# http.https://<域名>.proxy）。geph 一关，git 会快速失败而不是闷 9 秒 —— 本钩子把这一步
+# 提前并附带自愈。背景与证据见 C:\Users\l\.agents\change-log.md 的 2026-10-12 条。
+#
+# 逃生口：SKIP_GEPH_CHECK=1 git push
+# 可移植性：非 GitHub 远程一律不管；helper 或 PowerShell 不存在（别的机器 / CI 上 clone）
+#           只打印一行提示并**放行**，不会把别人的推送卡死。
+# 安装：git config core.hooksPath .githooks（本仓已设）
+
+remote_name="$1"
+remote_url="$2"
+
+case "$remote_url" in
+  *github.com*) ;;
+  *) exit 0 ;;
+esac
+
+if [ "$SKIP_GEPH_CHECK" = "1" ]; then
+  echo "geph-route: SKIP_GEPH_CHECK=1，跳过检查"
+  exit 0
+fi
+
+helper="${GEPH_ROUTE_HELPER:-$HOME/.agents/scripts/geph-github-route.ps1}"
+if [ ! -f "$helper" ]; then
+  echo "geph-route: 找不到 helper（$helper），跳过检查"
+  exit 0
+fi
+
+runner=""
+if command -v pwsh >/dev/null 2>&1; then
+  runner=pwsh
+elif command -v powershell.exe >/dev/null 2>&1; then
+  runner=powershell.exe
+elif [ -x "/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe" ]; then
+  runner="/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+fi
+if [ -z "$runner" ]; then
+  echo "geph-route: 找不到 pwsh / powershell，跳过检查"
+  exit 0
+fi
+
+echo "geph-route: 检查 GitHub 代理路由（$remote_name → $remote_url）"
+"$runner" -NoProfile -File "$helper" >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+  echo "geph-route: OK（github.com 经 127.0.0.1:9910 可达）"
+  exit 0
+fi
+
+echo "geph-route: 路由不可用，尝试自愈（-Repair）…"
+"$runner" -NoProfile -File "$helper" -Repair
+rc=$?
+if [ $rc -eq 0 ] || [ $rc -eq 10 ]; then
+  echo "geph-route: 自愈成功，继续推送"
+  exit 0
+fi
+
+echo ""
+echo "geph-route: 拦住这次推送 —— GitHub 代理路由仍不可用。"
+echo "  · 看诊断   : pwsh -NoProfile -File \"$helper\""
+echo "  · 临时绕过 : SKIP_GEPH_CHECK=1 git push"
+echo "  · 服务没起（需管理员）: Start-Service GephManager"
+exit 1
