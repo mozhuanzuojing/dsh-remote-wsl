@@ -165,7 +165,30 @@ token 不符 ⇒ `{"ok":false,"error":"unauthorized"}` 并断开（本机任意�
 （那是随包 runtime 的声明值）；而**宿主进程实测跑的是 24.18.1**（独立探针证据：`TS-PLUGIN-LOADED-OK node=v24.18.1`）。
 本插件的原生 TS 路径在**两者上都实测可用**，所以 `engines.node` 写的是 Node **26.10**（WSL 侧守护的运行时口径）。
 **若某个宿主 loader 不吃 `.ts` 入口**：用 `tsc` 编译到 `dist/` 并把 `main` 改成 `./dist/index.js`（本 README
-所记的验收是在"loader 直接吃 `.ts`"的原生路径下完成的）。`lib/` 过渡副本**已删除**（TS 迁移完成；回滚点在 `_backup/`）。
+所记的验收是在"loader 直接吃 `.ts`"的原生路径下完成的）。`lib/` 过渡副本**已删除**（TS 迁移完成；回滚点 `_backup/index.js.bak-auditfix-20261010_141716` 是**本地**回滚点 —— 已 gitignore，**不随仓发布**）。
+
+## 版本 / 兼容性 / 冻结 revision
+
+| 项 | 值 |
+|---|---|
+| 插件版本 | `0.1.0`（`package.json` 里 `private: true` ⇒ 不发布 npm，走 git / `link:` 安装） |
+| `engines.node` | `>=26.10`（**WSL 侧守护**的运行时口径；宿主侧实测 24.18.1 也能加载，见上节） |
+| `engines.dsh` | `>=0.2.0-rc.2` —— **验证基线**：本轮全部验收都在 dsh `0.2.0-rc.2` + node 26.10 上完成；更高版本**未验证、不承诺** |
+| 许可 | MIT（见 `LICENSE`） |
+
+**冻结 revision（2026-10-12，`src/` 7 个）**：复验必须以此做**首尾双断言**（开工取哈希 → 收尾复算，不同即判「验证无效」）。
+
+| 文件 | 大小 | SHA256 |
+|---|---:|---|
+| `daemon-client.ts` | 36,596 | `366498843ca1c7b68647625dda3d21c66419743182c82e4f67734adfa95fa395` |
+| `daemon.ts` | 23,299 | `1c5284e56a7affdbe3578148e31dcb98252ad6d286ba8d978efd023905967d96` |
+| `index.ts` | 75,673 | `ad1cc4ed5f3887e5f65a3f275461acda92b479dbeaa0324801c59e955be4ae38` |
+| `sdk-runtime.ts` | 11,433 | `74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e` |
+| `selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
+| `shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
+| `version.ts` | 14,386 | `ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275` |
+
+> 上一版（task-15/16）里 `index.ts` 是 **75,545 / `773d0aac…`**。2026-10-12 只改了 `index.ts` 的**头部注释**（工具清单 5 → 6：原先漏了 `wsl_daemon`）⇒ 上表已为新值。改后**重跑**了夹具回归（`test.ts` exit 0、`adversarial` **PASS 32 / FAIL 0**）与守护直控 smoke（`ensure` 幂等 / `status` / `stop` 全 exit 0），并做首尾双断言（7/7 未被改动）。
 
 ## 安装（link 进 profile）
 
@@ -331,6 +354,21 @@ dsh --profile remote-wsl-test '请调用 wsl_agent 工具（参数 key="rc2"，t
 
 上面几节讲"为什么是这个形状"。这一节讲**用起来会踩的地方**——都是审计（`GAP-AUDIT.md` §8/§9）
 暴露、而此前 README 没写的。
+
+### 用 CLI / 脚本驱动守护时的两个实测坑（2026-10-12）
+
+1. **不要用「赋值捕获」的方式跑 `selftest.ts ensure`**：`$o = & node src/selftest.ts ensure --port 8895 --isolated 2>&1`
+   实测**会挂住 >10 分钟**（本机复现，作业被人工 kill）；换成**文件重定向**就**秒回** ——
+   `Start-Process … -RedirectStandardOutput <file>` + `WaitForExit` 下 `ensure` 报
+   `isolated daemon ok slot=8895 port=8895 pid=…（Windows 侧握手 5ms）`，`status`/`stop` 同样秒回。
+   ⚠️ **根因未坐实**：现象与"长命守护持有的句柄让调用方的管道等不到 EOF"一致，但 `daemon-client.ts` 的 spawn
+   已是 `stdio:['ignore','ignore', stderrFd ?? 'ignore'] + detached + unref` ⇒ 不能据此宣称根因，只记现象+可用做法。
+   **结论**：用 CLI/脚本起守护时**别捕获输出**，或显式重定向到文件。
+2. **槽位被自家孤儿占用会 `+1` 迁移，陈元数据可能留下**：实测某 slot 的 `daemon.<slot>.json` 里
+   `metaPort: 8895` 而 `port: 8896`（=迁移后的实际端口；文件名仍按**请求槽位**）；那个实例死后**元数据仍在**，
+   随后 `selftest status --port 8895` 会照它去连 8896 并报 `refused`（exit 1）。
+   处置：确认该 slot 无活守护后，删 `daemon.<slot>.json` / `.token`（`status` 的 `orphans` 面也会报）。
+   与「§9 第 13 条 槽位迁移」同源 —— 这里补的是**收尾**那半边。
 
 ### 新增/即将新增的配置键（照 VS Code 对位）
 

@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "description": "Remote-WSL for the DeepSeek Harness: treat a WSL distro as a remote execution host — status, terminal, resident remote dsh agent (SDK), Web UI window, and desktop-version parity. The DSH desktop shell cannot attach to a remote host (its host is spawned locally), so this plugin is the honest equivalent: it drives the WSL side from the Windows host instead of pretending to be a remote-connection UI.",
+  "author": "磨砖做镜 (mozhuanzuojing) <mozhuanzuojing2020@163.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mozhuanzuojing/dsh-remote-wsl.git"
+  },
+  "homepage": "https://github.com/mozhuanzuojing/dsh-remote-wsl#readme",
+  "bugs": {
+    "url": "https://github.com/mozhuanzuojing/dsh-remote-wsl/issues"
+  },
   "type": "module",
   "main": "./src/index.ts",
   "exports": {

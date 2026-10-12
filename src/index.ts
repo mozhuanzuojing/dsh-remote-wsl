@@ -10,11 +10,12 @@
  *
  * 所以本插件不假装自己是"远程连接 UI"，而是把**同一件事的可用形态**做成一等公民：
  * 从 Windows 宿主侧驱动 WSL 那份 dsh，并把它需要的隔离（工具/MCP/skill/产出都在 WSL）与
- * **版本一致性**（跟随桌面版本）一起管起来。五个工具对应 VS Code 侧的五个概念：
+ * **版本一致性**（跟随桌面版本）一起管起来。六个工具对应 VS Code 侧的概念：
  *
  *   · `wsl_status`        —— 连接/远端概况（发行版、桌面版本、pin、漂移、活着的运行时）
  *   · `wsl_exec`          —— 远端终端（在 WSL 里跑命令，cwd 是 Linux 路径）
  *   · `wsl_agent`         —— **常驻远端 agent**（WSL 自己的 skill/MCP/工具，SDK stdio JSON-RPC）
+ *   · `wsl_daemon`        —— **远端会话生命周期**（status / start 幂等 / stop 显式结束 / restart 对齐版本）
  *   · `wsl_open_ui`       —— 远端 UI 窗口（WSL 跑 `dsh web`，Windows 开应用窗口）
  *   · `wsl_sync_version`  —— server 供应/版本对齐（对应 vscode-server 按客户端 commit 供给）
  *
