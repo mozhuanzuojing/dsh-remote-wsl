@@ -272,6 +272,14 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 
 > `wsl_open_ui` 开的是**另一件事**：WSL 里那份 dsh 的 Web UI（浏览器应用窗口）；本节的实例是**宿主自己的 Web 前端**，面板属于宿主 UI。
 
+## 与现有 DSH WSL 插件的关系（2026-10-12 先例调研）
+
+同域在 npm 上**已有一批真插件在跑**（`dsh-wsl-workspace`、`dsh-plugin-wsl-env`、`dsh-wsl-workspace-picker`、`dsh-wsl-tool`、`dsh-wsl-projects`、`dsh-wsl-desktop`、`dsh-wsl-tray`/`dsh-web-tray`/`dsh-wsl-launcher`、`dsh-wsl-expose`、`dsh-network-settings`…）。完整清单、官方约定（`directoryFlow` 槽、`ctx.workspaces.*`、`dsh.client.inject`、`dsh.compatibility.dshReleases`）与我们的采纳/分歧清单见 **[docs/prior-art-dsh-wsl.md](docs/prior-art-dsh-wsl.md)**。三条与使用者直接相关：
+
+1. **⚠️ 沙箱边界（务必先读）**：`wsl_exec` / `wsl_agent` 跑在 **WSL 侧**，因此**位于 DSH 的沙箱层与文件策略之下** —— 宿主的文件策略**约束不到**这两条路径里的命令（同类插件 `dsh-wsl-tool` 也明写这一点）。要隔离请用 WSL 侧手段（对照 `dsh-plugin-wsl-env` 的 **bubblewrap、fail-closed、绝不 unconfined** 立场）。本插件**不内置沙箱**：它的语义就是"在**你自己**的 WSL 里跑一条命令"。
+2. **与 `dsh-wsl-tool` 并存时的分工**：那套工具叫 `wsl` / `wsl-path` / `wsl-env` / `wsl-doctor` / `wsl-bootstrap` / `wsl-term`（**连字符**，一次性命令 + 体检为主）；我们是 `wsl_status` / `wsl_exec` / `wsl_agent` / `wsl_daemon` / `wsl_open_ui` / `wsl_sync_version`（**snake_case**，**常驻守护 + 跨宿主会话**为主）。两套可同时安装、名字不冲突，但**模型可能选错** —— 一句话分工：**要"关客户端 ≠ 会话结束"的持久会话，用我们；要一次性 Linux 命令/路径转换/发行版体检，用它们。**
+3. **路线差异（不是对错）**：`dsh-wsl-workspace` / `dsh-plugin-wsl-env` 把 WSL 当**工作区/会话执行环境**（文件工具、终端、目录选择器都在发行版内）—— 好处是路径语义天然正确、没有 `/mnt` 的性能与语义坑；我们把 WSL 当**远端运行时宿主**（守护持有 runtime），换来的是会话持久性、跨宿主重连与显式生命周期。两者**互补而非互斥**；想要"发行版内文件工具"，请用它们（或等我们的 A1：走官方工作区路线）。
+
 ## 设计要点（都是踩出来的，不是猜的）
 
 1. **零运行时 `@deepseek-ai/*` 依赖**：`link:` 装的插件拿不到依赖，裸包名会 `failed to import`
