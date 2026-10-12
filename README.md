@@ -7,14 +7,30 @@
 
 VS Code Remote-WSL：Windows 只跑 UI，`vscode-server` 跑在 WSL，客户端连过去。
 
-DSH **没有**这一步（2026-10-10 实测，见 `docs/2026-10-10-wsl-dsh-sdk-bridge.md`）：
+DSH **没有**这一步（2026-10-10 实测；取证全文在本仓 `docs/2026-10-10-wsl-dsh-sdk-bridge.md`）：
 桌面 Electron 壳的 host 是它从**本机打包运行时** spawn 的本地进程（`dsh-desktop-host/lib/index.js`），
 `hostUrl = ready.url`、`ws://127.0.0.1/*` 是硬过滤，没有任何 `DSH_*`/flag 能指向远端；
 `dsh web --host 0.0.0.0` 被 CLI 明确拒绝（`it would expose remote code execution to the network`）。
 
 所以本插件做的是**同一件事的可用形态**：从 Windows 宿主侧驱动 WSL 那份 dsh，并把隔离与版本一致性一起管起来。
 
-## 五个工具（对应 VS Code 侧的五个概念）
+## 30 秒上手
+
+1. **装**：profile 的 `package.json` 里把本仓以 `link:` 加进 `dependencies`，并把 `"dsh-remote-wsl"` 加进 `dsh.profile.bundles`；再建一个 junction 到 `~/.dsh/profiles/<profile>/node_modules/dsh-remote-wsl`（**pnpm 对 `link:` 依赖不装依赖**）。完整命令见下面「安装（link 进 profile）」。
+2. **验**：`dsh --profile <profile> --dump-config | Select-String 'remote-wsl'` 应出现本插件的层；**重启 profile** 后工具才出现。
+3. **用**：先 `wsl_status`（只读、廉价的诊断入口）→ 再按需 `wsl_exec`（一次性命令）或 `wsl_agent`（常驻远端 agent，**关客户端 ≠ 会话结束**）。
+4. **收**：`wsl_daemon action=stop` 显式结束会话；不显式停则由 `daemonIdleMs`（默认 30 分钟）回收 ⇒ **上下文丢失**。
+
+前置：WSL 侧要有 `dsh`（插件按 pin 版本自己 `pnpm dlx` 拉）；凭据走 WSL 的 `~/.dsh/.credentials.yaml` seam —— **不要复制任何 key**。
+
+```powershell
+# 跨宿主重连（本插件的分水岭能力）：第二条命令由**另一个宿主进程**发出，上下文仍在
+dsh --profile <profile> '调 wsl_agent，key=rc1，task="记住数字 77，只回 ACK"'
+dsh --profile <profile> '调 wsl_agent，key=rc1，task="刚才让你记的数字？只回数字"'
+#   ⇒ 77 · 同一 sessionId / runtimePid · turns=2
+```
+
+## 六个工具（对应 VS Code 侧的概念）
 
 | 工具 | 对应概念 | 做什么 |
 |---|---|---|
@@ -212,7 +228,7 @@ dsh --profile <profile> --dump-config | Select-String 'remote-wsl'
 
 | 项 | 结果 |
 |---|---|
-| 单元/集成（桩 ctx，直调 5 个工具） | 全过；`wsl_agent` 两轮 → `7` / `turn/end` / turns=2 |
+| 单元/集成（桩 ctx，直调当时注册的全部工具） | 全过；`wsl_agent` 两轮 → `7` / `turn/end` / turns=2 |
 | 真实 DSH agent（临时 profile，headless） | 13.5s 内成功调用 `wsl_status`+`wsl_exec`；17.7s 内成功调用 `wsl_open_ui`+`wsl_sync_version` |
 | `warm` 修正后 | `warm 0.2.0-rc.2: ok` |
 | 回收 | 调用后 WSL 侧无 3082 监听、无 `profile sdk` 进程、`/tmp` 无 `dsh-rwsl-*` 残留 |
