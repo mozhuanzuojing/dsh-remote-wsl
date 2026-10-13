@@ -1,0 +1,15 @@
+client-rev 门禁：FAIL（模式=git）
+  插件根   : D:\project\dsh1\vendor\dsh-remote-wsl
+  入口     : client/index.js（来自 exports["./client"]）
+  当前 rev : 4f7a5746b995   [mtime=2026-10-13T09:00:03.862Z ctime=2026-10-13T09:00:03.867Z size=26397]
+  chunks   : 9 个  client.api.js(5a192b93) client.i18n.js(70fb5540) client.icon.js(e9a824f5) client.panel.actions.js(d45d9f9a) client.panel.browser.js(1f4b7c1a) client.panel.header.js(b5c1a2c0) client.panel.helpers.js(efa1e85c) client.panel.js(bbfd3d86) client.panel.tail.js(77ef3f23)
+  依据     : 自入口最后一次内容变更（1ab2eb8c27ca）以来有 chunk 变了，但入口未随之 bump：client/client.panel.js
+
+  为什么这是缺陷：chunk URL 的 rev 取自入口元数据（mtimeMs/ctimeMs/size），入口不动 ⇒ rev 不变 ⇒ /plugins/<pkg>/<chunk>?rev=4f7a5746b995 这个 URL 与旧的一模一样，而它在 immutable 下最长缓存一年 ⇒ 用户会一直拿到**旧 chunk**。
+
+  必须怎么做（任选其一，然后重跑本门禁）：
+    A) 让入口 rev 变化（推荐，可复现）：改 client/index.js 的内容——最稳定的是加/改一行版本注释，例如：
+         // client-rev: 2026-10-13 chunk=<改动的 chunk 名>
+       （rev = sha1("plugin-artifact", mtimeMs, ctimeMs, size)，内容一变 size/mtime 就变 ⇒ rev 变 ⇒ chunk URL 变 ⇒ 缓存失效）
+    B) 只动元数据也可（touch client/index.js），但**不推荐**：clone/checkout 会重置 mtime，跨机器不可复现，别人拿到手的 rev 又可能撞回旧 URL。
+    C) 基线模式维护者：bump 后跑 `node check-client-rev.mjs --mode baseline --update` 记录新基线。

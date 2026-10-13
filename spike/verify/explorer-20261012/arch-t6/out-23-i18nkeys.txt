@@ -1,0 +1,17 @@
+{
+  "file": "D:/project/dsh1/vendor/dsh-remote-wsl/client/client.i18n.js",
+  "totalLines": 570,
+  "zh": {
+    "blockLine": 30,
+    "keys": 203,
+    "markedNew": 194
+  },
+  "en": {
+    "blockLine": 259,
+    "keys": 203,
+    "markedNew": 194
+  },
+  "paired": true,
+  "onlyZh": [],
+  "onlyEn": []
+}

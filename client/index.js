@@ -263,7 +263,16 @@ window.__ModuleLoader__.load({
 						const createIcon = iconModule && iconModule.createIcon;
 						if (typeof createPanel !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_PANEL, fn: "createPanel" }));
 						if (typeof createIcon !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_ICON, fn: "createIcon" }));
-						return { api, i18n, Panel: createPanel(ctx, api, i18n), Icon: createIcon(ctx) };
+						// T41：面板自己被拆成了子 chunk（client.panel.helpers.js 等）。组件在**首次渲染**里直接
+						// 引用那些纯函数，所以必须在 createPanel() 之前 await 面板的 whenReady()；
+						// 否则 createPanel 内部的就绪断言会抛（宁可显式失败，也不做一个"少功能的面板"）。
+						const whenReady = panelModule && typeof panelModule.whenReady === "function" ? panelModule.whenReady : null;
+						return Promise.resolve(whenReady === null ? undefined : whenReady()).then(() => ({
+							api,
+							i18n,
+							Panel: createPanel(ctx, api, i18n),
+							Icon: createIcon(ctx),
+						}));
 					});
 				});
 			});
@@ -391,3 +400,6 @@ window.__ModuleLoader__.load({
 	},
 });
 // T41: 死键清理（client.i18n.js）后触碰入口，按 docs/client-contract.md §11 换 chunk rev
+
+// T41（2026-10-13）：client.panel.js 拆成 5 个子 chunk（helpers / actions / header / browser / tail）。
+// 按 docs/client-contract.md §11：改了 client/** 就必须 bump 入口（rev 取自入口元数据）⇒ 本次同时改本行。
