@@ -1,0 +1,17 @@
+### 故意红 ③：制造一个 failed user unit（WSL 侧）
+命令: wsl.exe -d debian-u8-1 -- bash -lc "systemd-run --user --unit=t29-failed-probe false"
+precommit(-SkipNetwork) exit=1
+@@FAILED@@
+● t29-failed-probe.service loaded failed failed [systemd-run] /usr/bin/false
+@@FAILEDCOUNT@@
+[FAIL] failed user unit = 0         05e  failed user unit = 1（必须 0；收尾需 stop + reset-failed）
+  FAIL failed user unit = 0         failed user unit = 1（必须 0；收尾需 stop + reset-failed）
+
+### 收尾（必须）：systemctl --user stop + reset-failed t29-failed-probe
+precommit(-SkipNetwork) exit=1
+[PASS] failed user unit = 0         05e  systemctl --user list-units --state=failed 实列 0 行
+  PASS failed user unit = 0         systemctl --user list-units --state=failed 实列 0 行
+
+### 量具自查（重要）：本脚本第一版的 05e 曾对上面这个 failed unit **假绿**（报 PASS 0）。
+### 根因：wsl.exe 自身横幅是 UTF-16（夹 NUL），标记行匹配静默失败 ⇒ 已改为
+### 先归一化（去 NUL/CR）再用正则切段，并做"实列行数 vs wc -l"交叉校验，不一致以实列为准。

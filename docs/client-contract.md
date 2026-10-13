@@ -436,3 +436,67 @@ asar 内关键路径：`dsh/node_modules/@deepseek-ai/dsh-client-modules/lib/ind
 | §1「client 半由 host 侧 `clientModules` 扫描 + bundle route + index injection」 | ✅ 成立，且机制已细化到行号：增量扫描 `:701-731`、combo 路由 `/plugins/??<pkg>/client.js&rev=` `:201-218`、index 注入行 `bootInjections()` `:453-498` | 按 §1.4 写 |
 | §9「`dsh.client` 字段形状需先探一次」 | ✅ 已探完（§1），**且多出一条硬约束**：`exports["./client"]` 指向的文件必须已存在，否则 `modules`(required) 挂掉、startup failed（实测 §1.3） | 顺序写死：先 client 文件后 `dsh.client` |
 | §8.3「client 改动要 `pnpm run dev:web` 在跑才热更；否则重启宿主」 | ⚠ **未复核**（保留为未核实项，见 §7 第 1 行） | 不写入契约 |
+
+---
+
+## 11. chunk 的 `rev` 与 `immutable` 缓存：**只改 chunk 不生效**的机制坑（2026-10-13 实测，task-37）
+
+> 本节只增不改；§1–§10 的内容一字未动。
+> 结论先说：**`client/` 下的 chunk（`client.panel.js` / `client.i18n.js` / `client.api.js` / `client.icon.js`）改了之后，如果入口 `client/index.js` 没有跟着变，宿主与浏览器都可能继续用旧脚本**——改的人以为生效了，用户拿到的是旧代码。
+
+### 11.1 机制：`rev` 是**入口文件的元数据哈希**，不是内容哈希
+
+| 事实 | 出处（app.asar 内） |
+|---|---|
+| `rev = sha1("plugin-artifact", mtimeMs, ctimeMs, size)` —— **只吃入口文件的元数据**，从不哈希任何内容 | `dsh/node_modules/@deepseek-ai/dsh-client-modules/lib/index.js:193-198` |
+| 取的是**入口路径** `meta.clientPath`（即 `exports["./client"]` 指向的文件） | 同上 `:610-611`、`:882` |
+| 入口元数据没变 ⇒ **短路返回同一个 rev**（连 bundle 都不重读） | 同上 `:611-614`（`if (rev === record.entry.rev) return rev;`） |
+| 行的 `rev` = 入口 rev | 同上 `:363-367`、`:882-884` |
+| chunk URL 用**入口行的 rev** 拼：`…/<pkg>/<file>?rev=<row rev>` | `…/lib/client.js:725`（`chunkUrl(row, fileName, … ?? row.rev)`）、`:480-486` |
+| 响应头：`public, max-age=31536000, immutable`（一年、不重验证） | `…/lib/index.js:159` + `:963-971` |
+| `(id,fileName,rev)` 不匹配 ⇒ **404**（"mismatched revisions are rejected instead of serving newer bytes"） | 同上 `:158` 注释 + 实测（见 11.3） |
+
+**复算命令（与平台同算法，可直接对照 serve 出来的 rev）**
+```powershell
+# 平台 serve 的 rev（从页面 boot manifest 抓）
+$page = (Invoke-WebRequest $tokenUrl -UseBasicParsing).Content
+[regex]::Match($page, '\{"id":"dsh-remote-wsl","url":"([^"]+)","rev":"([0-9a-f]+)"').Groups[1..2].Value
+# 本地独立复算（同一算法：sha1("plugin-artifact" + \0 + framed(mtime, ctime, size)) 取前 12 hex）
+node spike/verify/explorer-20261012/tools/check-client-rev.mjs --print-rev
+```
+
+实测两者**逐字相等**（本次 = `07cf221a6f42`），故门禁脚本的复算与平台一致，可用来判定"rev 会不会变"。
+
+### 11.2 两层陈旧（本次实测：**服务器侧也有**，不只是浏览器缓存）
+
+| 层 | 现象 | 实测 |
+|---|---|---|
+| **L1 host 侧快照** | 宿主在扫描时**快照 chunk 字节**；此后只改 chunk（入口未动）⇒ 入口 rev 不变 ⇒ `:611` 短路 ⇒ **不重读** ⇒ 连**空缓存的全新浏览器**也拿到旧字节 | 改 `client.panel.js`（加标记 V2）后，同 URL 仍返回 **旧字节**（55863，无 V2）；再次改（V4）后同 URL **仍**返回 V2（55905）⇒ 快照陈旧 |
+| **L2 浏览器 immutable 缓存** | chunk URL 由入口 rev 决定 ⇒ 入口不动则 URL **一模一样**，而响应是 `immutable`（一年不重验证）⇒ 浏览器**根本不发请求**，直接用本地副本 | 改了 `client.i18n.js` 的 `panel.title` 并**重启宿主**（服务端已是新字节）后，同一浏览器上下文重新加载：四个 chunk 的 `transferSize=0`（**零网络请求**），界面文案仍是旧的 |
+
+L1 的**解法**与 L2 相同：**让入口 rev 变化** ⇒ 新 URL ⇒ 新的快照 + 新的缓存键。
+
+### 11.3 正确姿势（改任何 chunk 时**必须**同时 bump 入口）
+
+1. **改入口 `client/index.js` 的内容**（推荐、可复现）：加/改一行版本注释即可，例如
+   ```js
+   // client-rev: 2026-10-13 chunk=client.panel.js（改了 xxx）
+   ```
+   `rev` 含 `size` 与 `mtime/ctime` ⇒ 内容一变 rev 必变 ⇒ chunk URL 变 ⇒ 缓存失效、宿主重读。
+2. **不推荐只 `touch client/index.js`**：它确实能改 mtime/ctime ⇒ rev 也会变，但 clone/checkout 会重置 mtime，跨机器不可复现（别人拿到手的 rev 可能又撞回旧 URL）。
+3. 改完跑门禁（见 11.4）确认。
+4. 排查"改了没生效"时：先看页面 boot manifest 里的 `rev` 是否变了；没变就是本条坑。
+
+### 11.4 机器门禁：`spike/verify/explorer-20261012/tools/check-client-rev.mjs`
+
+```powershell
+node spike/verify/explorer-20261012/tools/check-client-rev.mjs            # 自动选模式（git→baseline→mtime）
+node spike/verify/explorer-20261012/tools/check-client-rev.mjs --self-test # 自测：副本里"改 chunk ⇒ FAIL / 改入口 ⇒ PASS"
+node spike/verify/explorer-20261012/tools/check-client-rev.mjs --mode baseline --update   # bump 后记录基线
+node spike/verify/explorer-20261012/tools/check-client-rev.mjs --print-rev                # 只算当前入口 rev
+```
+
+- **退出码**：`0` PASS ／ `1` FAIL（chunk 变了而入口未 bump，并打印"必须怎么做"）／`2` 用法或环境错误 ／`3` 判定不可得（既无 git 又无基线）。
+- **三种模式**：`git`（默认，最准：入口最后一次内容变更的提交之后有 chunk 变更、且入口元数据不比它新 ⇒ FAIL）；`baseline`（便携；`--update` 落的 `.client-rev-baseline.json` 记录 rev + 各 chunk 内容 sha256，rev 未变而 chunk 哈希变了 ⇒ FAIL）；`mtime`（保守兜底：存在 chunk 的 mtime 晚于入口 ⇒ FAIL）。
+- **局限（必读）**：它需要**历史**才能判定——纯"当前文件"信息无法区分"chunk 是在入口最后一次变化之前还是之后改的"。故须 git 或基线；`mtime` 模式在**全新 checkout**（所有 mtime 几乎同时）下可能误报，可用 `--mtime-tolerance <ms>` 放宽（放宽会同时放过真缺陷）。
+- **它不做的**：不改任何文件（除 `--update` 写基线）、不做内容哈希推断 rev（那会与平台行为不一致）。

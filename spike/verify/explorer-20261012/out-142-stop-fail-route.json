@@ -1,0 +1,1 @@
+{"ok":true,"result":{"action":"stop","ok":false,"idempotent":true,"alreadyStopped":false,"slot":8932,"port":8932,"pid":1670058,"version":"0.2.0-rc.2","reaped":0,"notes":["remote-wsl: stop 未完成：槽位 8932（端口 8932）的本方守护进程仍在（pid 1670058）。已按 P1 规矩**保留元数据** daemon.8932.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"]}}

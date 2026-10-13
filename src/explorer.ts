@@ -53,7 +53,7 @@
  * @module dsh-remote-wsl/explorer
  */
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
@@ -63,6 +63,7 @@ export const EXPLORER_METHODS = [
   'explorer.daemon',
   'explorer.fixPin',
   'explorer.listDir',
+  'explorer.addWorkspace',
 ];
 
 /** 面板数据面的 HTTP 路由（见文件头"传输层"）。 */
@@ -135,21 +136,22 @@ export function withModulePrefix(message) {
  * 面板只需要浏览，不需要穿越。校验失败一律 `E_ARG`(400)，且**回显被拒的原串**。
  *
  * @param value 请求里的 `path`
+ * @param method 报错文案里用的方法名（缺省 `explorer.listDir` ⇒ 老调用方文案**逐字不变**）
  * @returns 归一化后的路径（合并重复 `/`、去尾 `/`、根保持 `/`）
  */
-function assertSafeWslPath(value) {
+function assertSafeWslPath(value, method = 'explorer.listDir') {
   const raw = str(value);
-  if (raw.length === 0) failArg('remote-wsl: explorer.listDir 需要 path（WSL 绝对路径，例如 /home/g）');
-  if (raw.includes('\0')) failArg('remote-wsl: explorer.listDir 的 path 含 NUL 字节，拒绝');
+  if (raw.length === 0) failArg(`remote-wsl: ${method} 需要 path（WSL 绝对路径，例如 /home/g）`);
+  if (raw.includes('\0')) failArg(`remote-wsl: ${method} 的 path 含 NUL 字节，拒绝`);
   if (!raw.startsWith('/')) {
-    failArg(`remote-wsl: explorer.listDir 的 path 必须是 WSL 绝对路径（以 / 开头），收到 "${raw}"（Windows 盘符请写成 /mnt/c/...）`);
+    failArg(`remote-wsl: ${method} 的 path 必须是 WSL 绝对路径（以 / 开头），收到 "${raw}"（Windows 盘符请写成 /mnt/c/...）`);
   }
   if (raw.includes('\\')) {
-    failArg(`remote-wsl: explorer.listDir 的 path 不得含反斜杠（那是 Windows 分隔符），收到 "${raw}"`);
+    failArg(`remote-wsl: ${method} 的 path 不得含反斜杠（那是 Windows 分隔符），收到 "${raw}"`);
   }
   const segments = raw.split('/');
   for (const segment of segments) {
-    if (segment === '..') failArg(`remote-wsl: explorer.listDir 的 path 不得含 ".." 段，收到 "${raw}"`);
+    if (segment === '..') failArg(`remote-wsl: ${method} 的 path 不得含 ".." 段，收到 "${raw}"`);
   }
   return `/${segments.filter((segment) => segment.length > 0).join('/')}`;
 }
@@ -495,9 +497,13 @@ export function createExplorerHandlers(deps) {
     }
     if (action === 'stop') {
       const r = await stopDaemon(eff, slot === undefined ? { log } : { log, slot });
+      // T30/T26 定位的缺陷：这里曾硬编码 `ok: true`，且只取 `r.note` ——
+      // P1 保护路径下 `stopDaemon` 返回 `ok:false` + 可读 `error` 时会被**静默丢弃**，
+      // 调用方（面板/脚本）被告知"成功"。现在如实透传，并把失败原因带进 notes。
+      const stopNotes = [r.note, r.error].filter((line) => typeof line === 'string' && line.length > 0);
       return {
         action,
-        ok: true,
+        ok: r.ok !== false,
         idempotent: true,
         alreadyStopped: r.alreadyStopped === true,
         slot: r.slot ?? null,
@@ -505,7 +511,7 @@ export function createExplorerHandlers(deps) {
         pid: r.pid ?? null,
         version: r.version ?? null,
         reaped: Array.isArray(r.reaped) ? r.reaped.length : 0,
-        notes: r.note ? [r.note] : [],
+        notes: stopNotes,
       };
     }
     throw explorerError('E_ARG', `remote-wsl: explorer.daemon 不认识 action=${action}（可选 ensure|stop|restart）`);
@@ -602,12 +608,111 @@ export function createExplorerHandlers(deps) {
     return { path, distro: cfg.distro, entries };
   }
 
+  /**
+   * `explorer.addWorkspace({path, title?})` —— 把一个**发行版内路径**登记为 DSH 工作区（采纳项 A1 的 host 半）。
+   *
+   * 依 T11 实测的契约（不重新发明）：
+   * · host 服务是 **`workspaceRegistry`**（不是 `workspaces`），`create(path, title)`（**arity 2**）；
+   * · 上游 `create` 要求路径**全限定**且**已存在**（`realpathNormalize`）—— 在 win32 下 `\\wsl.localhost\<distro>\…`
+   *   这种 UNC 的 `root` 是 `\\host\` ⇒ 通过；而**发行版内路径**（`/home/g`）的 `win32.parse().root === "/"`
+   *   ⇒ 被上游判"非全限定"直接抛 `TypeError`。所以本方法**只收 WSL 绝对路径**，内部转 UNC 后再交给上游；
+   * · `resolveByPath` 用来判"已登记" ⇒ 已登记就**返回既有 id + `alreadyExisted:true`，绝不新建第二个**。
+   *
+   * 为什么 `/mnt/<盘符>` **先拒绝**（与 `explorer.listDir` 的 `windowsDriveForMount` 取舍一致）：
+   * `/mnt/c` 本来就是 **Windows 卷**（不是发行版内的 ext4 路径），把它登成 UNC 工作区会让"同一份数据两条路径"
+   * 并存；`listDir` 那边已经把它特判成 `C:\…`（因为 9p 不暴露 drvfs 挂载根）。所以这里给**可读错误 + 去向**，
+   * 而不是制造一条与面板浏览不一致的登记。
+   *
+   * 副作用边界：**会写 host 侧的工作区存储**（这是本方法的用途），但**不碰守护/端口/发行版**；
+   * 失败（含参数错、路径不存在、服务缺失）都在**写之前**返回 ⇒ 零副作用。
+   *
+   * @param args `{ path, title? }`
+   * @returns `{ ok:true, id, title, uncPath, alreadyExisted }`
+   */
+  async function addWorkspace(args) {
+    const path = assertSafeWslPath(args?.path, 'explorer.addWorkspace');
+    const mount = windowsDriveForMount(path);
+    if (mount !== null) {
+      failArg(
+        `remote-wsl: explorer.addWorkspace 不接受 /mnt/<盘符> 路径（收到 "${path}"）：它本来就是 Windows 卷 ${mount}，` +
+          `与面板浏览（explorer.listDir）把它当 ${mount} 读的取舍必须一致。请改用发行版内的 ext4 路径（例如 /home/…），` +
+          `或在需要 Windows 卷时按 Windows 路径语义登记。`,
+      );
+    }
+
+    // 服务可用性：拿不到就给**可读 503 + 一行降级日志**（照 webServer 那次的写法，不静默）
+    const registry = typeof deps.workspaceRegistry === 'function' ? deps.workspaceRegistry() : undefined;
+    if (!registry || typeof registry.create !== 'function' || typeof registry.resolveByPath !== 'function') {
+      log('workspaceRegistry 服务不可用 ⇒ explorer.addWorkspace 降级（无法登记 DSH 工作区；方法表其余方法不受影响）');
+      failUnavailable(
+        'remote-wsl: host 侧 workspaceRegistry 服务不可用 ⇒ 无法把该路径登记为 DSH 工作区（其余面板功能不受影响）',
+      );
+    }
+
+    const uncPath = unc(cfg.distro, path);
+    // 存在性前置判定：Windows 侧经 9p stat（与上游 realpath 的要求一致），但把 ENOENT 变成**可读 404**
+    try {
+      const st = statSync(uncPath);
+      if (!st.isDirectory()) {
+        failNotFound(`remote-wsl: explorer.addWorkspace 的路径 ${path} 不是目录（UNC ${uncPath}）`);
+      }
+    } catch (e) {
+      const code = str(e?.code);
+      const detail = `${code || 'no-code'}: ${e?.message ?? String(e)}`;
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        failNotFound(`remote-wsl: explorer.addWorkspace 的路径 ${path} 不存在（UNC ${uncPath}；${detail}）`);
+      }
+      failUnavailable(`remote-wsl: explorer.addWorkspace 无法确认路径 ${path}（${detail}）`);
+    }
+
+    const title = str(args?.title).trim() || baseName(path) || path;
+
+    // ★ 已登记 ⇒ 复用（不新建）：这是"点两次不产生第二个工作区"的关键
+    let existing = null;
+    try {
+      existing = await Promise.resolve(registry.resolveByPath(uncPath));
+    } catch {
+      existing = null; // 解析失败按"未登记"处理，让下面的 create 给出真正的错误
+    }
+    const existingId = str(existing?.id) || str(existing?.record?.id);
+    if (existingId) {
+      return {
+        ok: true,
+        id: existingId,
+        title: str(existing?.record?.title) || str(existing?.title) || title,
+        uncPath,
+        alreadyExisted: true,
+      };
+    }
+
+    let created;
+    try {
+      created = await Promise.resolve(registry.create(uncPath, title));
+    } catch (e) {
+      const code = str(e?.code);
+      const detail = `${code || e?.name || 'no-code'}: ${e?.message ?? String(e)}`;
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        failNotFound(`remote-wsl: 登记工作区失败：路径不存在（UNC ${uncPath}；${detail}）`);
+      }
+      if (/not fully qualified/i.test(str(e?.message))) {
+        failArg(`remote-wsl: 登记工作区失败：上游判定路径非全限定（UNC ${uncPath}；${detail}）`);
+      }
+      failUnavailable(`remote-wsl: 登记工作区失败（UNC ${uncPath}；${detail}）`);
+    }
+    const id = str(created?.id) || str(created?.record?.id);
+    if (!id) {
+      failUnavailable(`remote-wsl: 登记工作区后上游未返回 id（UNC ${uncPath}）⇒ 视为失败，未登记`);
+    }
+    return { ok: true, id, title: str(created?.record?.title) || title, uncPath, alreadyExisted: false };
+  }
+
   const handlers = {
     'explorer.snapshot': snapshot,
     'explorer.openSession': openSession,
     'explorer.daemon': daemonAction,
     'explorer.fixPin': fixPin,
     'explorer.listDir': listDir,
+    'explorer.addWorkspace': addWorkspace,
   };
   return { handlers, log };
 }

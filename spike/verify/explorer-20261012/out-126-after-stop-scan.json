@@ -1,0 +1,11 @@
+[probe pid=46548] mode=daemon port=8932 dshVersion=(desktop)
+注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version, wsl_path
+注册/服务痕迹: (none captured by stub)
+
+########## wsl_daemon action=status ##########
+daemon: not running（timeout: 守护调用失败(timeout): no reply within 3000ms（Windows 侧 3000ms 握手判据））
+machine: slot=- pid=- port=- version=- orphans=1
+state dir (WSL): /home/g/.dsh/remote-wsl（元数据按槽位 daemon.<slot>.json / daemon.<slot>.token，0600）
+Orphans: ⚠️ pid1602861@8932（在跑但无元数据）—— 用 wsl_daemon action=stop all=true 回收
+
+[probe pid=46548] cleanup disposers=1

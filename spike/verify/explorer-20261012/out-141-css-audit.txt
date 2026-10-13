@@ -1,0 +1,10 @@
+# css-token-audit: D:\project\dsh1\vendor\dsh-remote-wsl\client\client.panel.js
+# class prefix = .dsh-rw-   allow-list = 17 tokens
+rules                = 0
+distinct --dsw-* vars= 0
+C1 hardcoded colors  = 0  <== PASS
+C1 shadow 豁免（中性半透明黑，α∈[0.04,0.28]）= 0
+C1 soft keywords     = 3 (transparent/currentColor，非硬编码色)
+C2 token set ⊆ allow = PASS
+S1 label-dimmed 域   = OK（未使用，或只用于 :disabled/::placeholder）
+==> EXIT 0（门禁通过）

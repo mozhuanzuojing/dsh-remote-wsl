@@ -1,0 +1,15 @@
+client-rev 门禁：FAIL（模式=mtime）
+  插件根   : C:\Users\l\AppData\Local\Temp\dsrw-chunkrev-live
+  入口     : client/index.js（来自 exports["./client"]）
+  当前 rev : 07cf221a6f42   [mtime=2026-10-13T06:32:37.108Z ctime=2026-10-13T06:32:37.117Z size=25609]
+  chunks   : 4 个  client.api.js(c3600ee5) client.i18n.js(cba40e69) client.icon.js(e9a824f5) client.panel.js(5c2d767c)
+  依据     : 存在 chunk 的 mtime 晚于入口（client.panel.js @ 2026-10-13T06:48:47.733Z > 入口 @ 2026-10-13T06:32:37.108Z）
+
+  为什么这是缺陷：chunk 在入口之后被改过 ⇒ 若入口元数据（rev 来源）没跟着变，浏览器会一直吃旧 chunk。（mtime 模式是保守兜底：全新 checkout 下所有 mtime 接近，可能误报；权威判定请用 git 或 baseline 模式的基线文件。）
+
+  必须怎么做（任选其一，然后重跑本门禁）：
+    A) 让入口 rev 变化（推荐，可复现）：改 client/index.js 的内容——最稳定的是加/改一行版本注释，例如：
+         // client-rev: 2026-10-13 chunk=<改动的 chunk 名>
+       （rev = sha1("plugin-artifact", mtimeMs, ctimeMs, size)，内容一变 size/mtime 就变 ⇒ rev 变 ⇒ chunk URL 变 ⇒ 缓存失效）
+    B) 只动元数据也可（touch client/index.js），但**不推荐**：clone/checkout 会重置 mtime，跨机器不可复现，别人拿到手的 rev 又可能撞回旧 URL。
+    C) 基线模式维护者：bump 后跑 `node check-client-rev.mjs --mode baseline --update` 记录新基线。

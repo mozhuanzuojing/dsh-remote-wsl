@@ -1,0 +1,11 @@
+### ① 正常 stop（期望与改前逐字相同：ok:true + notes 数组 + 元数据清 + 无进程）
+命令: node t30-call.cjs 8922 <token> explorer.daemon stop.json     # stop.json = {"action":"stop"}
+# token exchange status=303 cookie=dsh-auth-8mcg0bKgvAsgj1xZ4fEq-US9sxk9wLv…
+# POST /remote-wsl/api status=200 elapsedMs=787
+{"ok":true,"result":{"action":"stop","ok":true,"idempotent":true,"alreadyStopped":false,"slot":8921,"port":8921,"pid":1651192,"version":"0.2.0-rc.2","reaped":0,"notes":[]}}
+
+### 收尾复核（元数据 / 进程 / unit / failed）
+meta files: daemon.log launch-stderr.log 
+daemon procs: 0
+units: 0
+failed: 0

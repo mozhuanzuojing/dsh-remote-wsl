@@ -843,6 +843,30 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
 }
 
 /**
+ * 有界等待：直到该端口/pid 上**再没有本方守护**为止；返回**仍在**的那些（空数组 = 已清干净）。
+ *
+ * 判据 = `scanDaemonProcesses()`（读 `/proc/<pid>/cmdline` 认 `daemon.ts` + `--state-dir` ⇒ **不依赖元数据**）。
+ * 为什么必须有界：`shutdown` 成功后守护要回收运行时才退（几十~几百 ms）；兜底 `kill -TERM` 也要等它走。
+ * 无限等会把"守护卡住"变成"UI 卡住"，所以给 2s 上限，超时按"可能仍在"处理（调用方保留元数据）。
+ *
+ * 匹配口径：**同一个 pid** 或**同一个 `--port`** 都算"该槽位仍在"（守护可能已按端口 +1 迁移过，
+ * 单看 pid 会漏；单看端口会把"同端口但换了 pid 的新守护"也当残留 —— 那更该报出来，不是漏报）。
+ */
+async function waitForSlotGone(cfg, port, pid) {
+  const wantPid = Number(pid);
+  const deadline = Date.now() + 2000;
+  let survivors = [];
+  for (;;) {
+    survivors = scanDaemonProcesses(cfg).filter(
+      (p) => (Number.isFinite(wantPid) && p.pid === wantPid) || (p.port !== null && p.port === Number(port)),
+    );
+    if (survivors.length === 0) return [];
+    if (Date.now() >= deadline) return survivors;
+    await sleep(300);
+  }
+}
+
+/**
  * 显式停止守护（语义 #4：这是会话结束的三种方式之一）。
  *
  * **默认只停调用方自己槽位（`cfg.daemonPort`）**，不传 slot 时**绝不**去遍历别人的槽位
@@ -868,6 +892,38 @@ export async function stopDaemon(cfg, { log = () => {}, slot, all = false }: any
   });
   log(`daemon shutdown on slot ${rec.slot} (port ${port}): ok=${r.ok} ${r.error ?? ''}`);
   if (!r.ok) killWslPid(cfg, rec.meta?.pid); // 守护已死/端口被占 ⇒ 按 pid 兜底（验身份后）
+
+  // ★★ P1（task-25）：**移除元数据之前**必须复核该槽位真的没有本方守护了。
+  //
+  // 为什么：原来是"`shutdown` 一返回（或兜底 kill 一发）就无条件 `removeMetaFiles`"。可是
+  //   · `shutdown` 成功 ≠ 进程已经退出（守护还要回收运行时最后才 exit）；
+  //   · 兜底 `killWslPid` 只发 `kill -TERM`，**不等待、不验证**，而且身份闸拒杀（cmdline 不含 `daemon.ts`）时它什么都不做；
+  // ⇒ 就得到"**元数据已删、进程还在**"= 对 `wsl_status` / `snapshot.daemon` **不可见**的隐形孤儿
+  // （仍占端口与运行时）。所以这里按有界等待复核（身份判据走 `scanDaemonProcesses()` 读 `/proc/<pid>/cmdline`，
+  // **不依赖元数据**）；仍在 ⇒ **保留元数据**（让孤儿保持可发现）+ 可读失败，绝不把它删成隐形。
+  const survivors = await waitForSlotGone(cfg, port, rec.meta?.pid);
+  if (survivors.length) {
+    log(
+      `stop 未完成：槽位 ${rec.slot}（端口 ${port}）仍有本方守护 pid=${survivors.map((s) => s.pid).join(',')} ` +
+        `⇒ 按 P1 保留元数据（不制造隐形孤儿）`,
+    );
+    return {
+      ok: false,
+      port,
+      slot: rec.slot,
+      pid: rec.meta?.pid ?? null,
+      version: rec.meta?.version ?? null,
+      reaped: r.msg?.reaped ?? [],
+      transport: r.ok ? 'shutdown' : r.kind,
+      alivePids: survivors.map((s) => s.pid),
+      error:
+        `remote-wsl: stop 未完成：槽位 ${rec.slot}（端口 ${port}）的本方守护进程仍在（pid ${survivors
+          .map((s) => s.pid)
+          .join('、')}）。已按 P1 规矩**保留元数据** daemon.${rec.slot}.json` +
+        ` ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；` +
+        `没有变成"元数据已删、进程还在"的隐形孤儿。`,
+    };
+  }
   removeMetaFiles(cfg, rec.slot, rec.legacy);
   return {
     ok: true,

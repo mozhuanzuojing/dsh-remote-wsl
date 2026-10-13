@@ -1,0 +1,6 @@
+client-rev 门禁：PASS（模式=mtime）
+  插件根   : C:\Users\l\AppData\Local\Temp\dsrw-chunkrev-live
+  入口     : client/index.js（来自 exports["./client"]）
+  当前 rev : 9c1bfa68055a   [mtime=2026-10-13T06:48:50.432Z ctime=2026-10-13T06:48:50.432Z size=25662]
+  chunks   : 4 个  client.api.js(013a5f1d) client.i18n.js(cba40e69) client.icon.js(e9a824f5) client.panel.js(5c2d767c)
+  依据     : 入口 mtime 晚于所有 chunk（client.api.js）⇒ 入口在最后一次 chunk 改动之后被 bump 过

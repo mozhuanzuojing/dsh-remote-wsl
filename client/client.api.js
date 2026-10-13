@@ -44,6 +44,7 @@ window.__ModuleLoader__.load({
 			daemon: "explorer.daemon",
 			fixPin: "explorer.fixPin",
 			listDir: "explorer.listDir",
+			addWorkspace: "explorer.addWorkspace",
 		});
 
 		/** daemon 动作白名单。UI 侧不存在 `stop all=true` 这类会连带他人的动作。 */
@@ -85,6 +86,21 @@ window.__ModuleLoader__.load({
 		}
 
 		/**
+		 * A4：文案走注入的 `t`（由 client.i18n.js 造）。缺省时回落中文原句 ——
+		 * 这样 api.js 被脚本/探针直接 require 时行为不变（不把键名当文案）。
+		 */
+		const FALLBACK_TEXT = {
+			"api.timeout": (p) => `explorer 请求超时：${p.ms}ms 内 ${p.route} 没有响应（路由被挂住，或网关卡住）。`,
+			"api.aborted": (p) => `${p.route} 的调用已被取消（面板卸载或已有更新的读取）。`,
+			"api.abortedBeforeStart": (p) => `${p.route} 的调用在发起前已被取消。`,
+			"api.transport": (p) => `无法连接 host 侧 explorer 路由 ${p.route}：${p.detail}`,
+			"api.protocol": (p) => `${p.route} 返回了非 JSON 响应（HTTP ${p.status}）：${p.text}`,
+			"api.hostFailed": (p) => `explorer 调用失败（HTTP ${p.status}）`,
+			"api.argument": (p) => `explorer 调用缺少必填字段 ${p.field}`,
+		};
+		const fallbackTranslate = (key, params) => (FALLBACK_TEXT[key] ? FALLBACK_TEXT[key](params || {}) : key);
+
+		/**
 		 * 发一次请求并归一化结果。
 		 *
 		 * 只用 POST：webServer 的浏览器信任闸门**要求请求带 `Origin` 头**，而浏览器对
@@ -97,10 +113,11 @@ window.__ModuleLoader__.load({
 		 * @param args - 命名参数对象（host 侧按名字取）。
 		 * @param options - 可选 `{ signal }`：调用方生命周期（面板卸载/被新读取取代时 abort）。
 		 */
-		async function request(method, args, options) {
+		async function request(method, args, options, translate) {
+			const tr = typeof translate === "function" ? translate : fallbackTranslate;
 			const external = options && options.signal ? options.signal : undefined;
 			if (external !== undefined && external.aborted) {
-				throw new ExplorerApiError(`${EXPLORER_ROUTE} 的调用在发起前已被取消。`, "aborted");
+				throw new ExplorerApiError(tr("api.abortedBeforeStart", { route: EXPLORER_ROUTE }), "aborted");
 			}
 			const hasAbort = typeof AbortController === "function";
 			const controller = hasAbort ? new AbortController() : null;
@@ -131,15 +148,15 @@ window.__ModuleLoader__.load({
 			} catch (error) {
 				if (timedOut) {
 					throw new ExplorerApiError(
-						`explorer 请求超时：${REQUEST_TIMEOUT_MS}ms 内 ${EXPLORER_ROUTE} 没有响应（路由被挂住，或网关卡住）。`,
+						tr("api.timeout", { ms: REQUEST_TIMEOUT_MS, route: EXPLORER_ROUTE }),
 						"timeout",
 						error,
 					);
 				}
 				if (controller !== null && controller.signal.aborted) {
-					throw new ExplorerApiError(`${EXPLORER_ROUTE} 的调用已被取消（面板卸载或已有更新的读取）。`, "aborted", error);
+					throw new ExplorerApiError(tr("api.aborted", { route: EXPLORER_ROUTE }), "aborted", error);
 				}
-				throw new ExplorerApiError(`无法连接 host 侧 explorer 路由 ${EXPLORER_ROUTE}：${describe(error)}`, "transport", error);
+				throw new ExplorerApiError(tr("api.transport", { route: EXPLORER_ROUTE, detail: describe(error) }), "transport", error);
 			} finally {
 				if (timer !== null) clearTimeout(timer);
 				if (external !== undefined && typeof external.removeEventListener === "function") {
@@ -148,13 +165,13 @@ window.__ModuleLoader__.load({
 			}
 			const { json, text } = await readBody(response);
 			if (json === null) {
-				throw new ExplorerApiError(`${EXPLORER_ROUTE} 返回了非 JSON 响应（HTTP ${response.status}）：${text.slice(0, 400)}`, "protocol", {
+				throw new ExplorerApiError(tr("api.protocol", { route: EXPLORER_ROUTE, status: response.status, text: text.slice(0, 400) }), "protocol", {
 					status: response.status,
 					text,
 				});
 			}
 			if (json.ok !== true) {
-				const message = typeof json.error === "string" && json.error.length ? json.error : `explorer 调用失败（HTTP ${response.status}）`;
+				const message = typeof json.error === "string" && json.error.length ? json.error : tr("api.hostFailed", { status: response.status });
 				// host 半对未知方法是 **400**（src/explorer.ts:530，不是 404），404 留给"路由没注册"。
 				const kind = Array.isArray(json.methods) ? "unknown-method" : response.status === 404 ? "route-missing" : "host";
 				throw new ExplorerApiError(message, kind, json);
@@ -167,9 +184,9 @@ window.__ModuleLoader__.load({
 		}
 
 		/** 断言必填字段，避免把 undefined 当成合法输入发给 host。 */
-		function requireString(value, field) {
+		function requireString(value, field, translate) {
 			if (typeof value !== "string" || value.length === 0) {
-				throw new ExplorerApiError(`explorer 调用缺少必填字段 ${field}`, "argument");
+				throw new ExplorerApiError((typeof translate === "function" ? translate : fallbackTranslate)("api.argument", { field }), "argument");
 			}
 			return value;
 		}
@@ -179,7 +196,10 @@ window.__ModuleLoader__.load({
 		 * 每个方法都接受可选的 `{ signal }`（面板的生命周期/取代信号）。
 		 * @returns 冻结的 api 对象（含 route 与 methods，便于错误态把它显示出来）。
 		 */
-		function createExplorerApi() {
+		function createExplorerApi(i18n) {
+			const t = i18n && typeof i18n.t === "function" ? i18n.t : fallbackTranslate;
+			/** 统一入口：把本包的 t 透给 request（request 在模块作用域，拿不到上面的闭包）。 */
+			const call = (method, args, options) => request(method, args, options, t);
 			const api = {
 				route: EXPLORER_ROUTE,
 				methods: METHODS,
@@ -188,7 +208,7 @@ window.__ModuleLoader__.load({
 
 				/** POST 探测：host 注册了路由就会以 `{ok:false, methods:[…]}` 回 400，读回方法清单。 */
 				methodCatalogue(options) {
-					return request(EXPLORER_METHODS_PROBE, {}, options).then(
+					return call(EXPLORER_METHODS_PROBE, {}, options).then(
 						() => METHODS,
 						(error) => {
 							const detail = error && error.detail;
@@ -201,7 +221,20 @@ window.__ModuleLoader__.load({
 
 				/** → { distros, target, daemon, drift, workspaces, webHosts } */
 				snapshot(options) {
-					return request(METHODS.snapshot, {}, options);
+					return call(METHODS.snapshot, {}, options);
+				},
+
+				/**
+				 * A1：把一个 WSL 目录**登记为工作区**（host 半由 host-explorer 实现，契约见 task-23）。
+				 * `{path, title?}` → `{ok,id,title,uncPath,alreadyExisted}`；失败走 host 的机器可读
+				 * code（`E_ARG`/`E_NOTFOUND`/`E_UNAVAILABLE`）。
+				 * 语义提醒：工作区路径是 **UNC ⇒ 文件工具经 9P**，与 `openSession` 的"远端会话"是两条路。
+				 */
+				addWorkspace(input, options) {
+					const path = requireString(input && input.path, "path", t);
+					const args = { path };
+					if (input && typeof input.title === "string" && input.title.length) args.title = input.title;
+					return call(METHODS.addWorkspace, args, options);
 				},
 
 				/**
@@ -210,8 +243,8 @@ window.__ModuleLoader__.load({
 				 */
 				openSession(input, options) {
 					const distro = requireString(input && input.distro, "distro");
-					const path = requireString(input && input.path, "path");
-					return request(METHODS.openSession, { distro, path }, options);
+					const path = requireString(input && input.path, "path", t);
+					return call(METHODS.openSession, { distro, path }, options);
 				},
 
 				/** 守护动作。slot 只在明确给出时透传；**没有** all/bulk 语义。 */
@@ -222,12 +255,12 @@ window.__ModuleLoader__.load({
 					}
 					const args = { action };
 					if (input && typeof input.slot === "number") args.slot = input.slot;
-					return request(METHODS.daemon, args, options);
+					return call(METHODS.daemon, args, options);
 				},
 
 				/** 修 version pin（对齐 wsl_sync_version 的 warm+pin；不自动杀守护）。 */
 				fixPin(options) {
-					return request(METHODS.fixPin, {}, options);
+					return call(METHODS.fixPin, {}, options);
 				},
 
 				/**
@@ -237,8 +270,8 @@ window.__ModuleLoader__.load({
 				 * 只读、零副作用；host 侧不启动发行版。
 				 */
 				listDir(input, options) {
-					const path = requireString(input && input.path, "path");
-					return request(METHODS.listDir, { path }, options);
+					const path = requireString(input && input.path, "path", t);
+					return call(METHODS.listDir, { path }, options);
 				},
 			};
 			return Object.freeze(api);

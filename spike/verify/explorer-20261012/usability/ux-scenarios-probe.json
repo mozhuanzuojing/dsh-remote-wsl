@@ -1,0 +1,18 @@
+{
+  "url": "http://127.0.0.1:8961/?token=7OSGXnl9343IiSC-A5TzO6HqHJ-CPDFHIduqPZ6VDtA",
+  "outDir": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\usability\\ux-baseline",
+  "width": 1280,
+  "height": 900,
+  "scenarios": [
+    {
+      "name": "probe",
+      "settleMs": 2500,
+      "steps": [
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); if (!b) return 'rail-not-found'; b.click(); return 'clicked'; })()" },
+        { "waitFor": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); return !!(p && !/正在读取/.test((p.innerText||''))); })()", "timeout": 8000 },
+        { "wait": 600 },
+        { "eval": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); const t = (el) => el ? ((el.innerText||'')+'').replace(/\\s+/g,' ').trim() : null; const ls = {}; for (let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); ls[k]=String(localStorage.getItem(k)).slice(0,60);} return JSON.stringify({ htmlCls: document.documentElement.className, themeAttr: document.documentElement.getAttribute('data-theme'), lang: document.documentElement.lang, colorScheme: getComputedStyle(document.documentElement).colorScheme, lsKeys: Object.keys(ls), panelText: t(p).slice(0,900), buttons: p ? Array.from(p.querySelectorAll('button')).map(t).slice(0,24) : null }); })()" }
+      ]
+    }
+  ]
+}

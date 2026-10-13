@@ -1,8 +1,10 @@
 # 设计：DSH 版「远程资源管理器」（Remote Explorer for dsh-remote-wsl）
 
-- **日期**：2026-10-12 ｜ **状态**：设计稿（未实现）
+- **日期**：2026-10-12（**2026-10-13 刷新状态**）｜ **状态**：**P0 已实现**（侧栏面板 / `POST /remote-wsl/api` / 守护路径均已落地；本文保留为设计稿与决策记录）
 - **目标**：把现在"只能靠对话调工具"的用法，包成一个**侧栏面板**，观感与操作对位 VS Code 的「远程资源管理器」（Remote Explorer）。
 - **结论先说**：要"侧栏图标 + 中央树面板"，**必须给本插件加一个 client 半**（不是新工具、不是新 profile）。好消息是 **client 半可以零构建**（`React.createElement`，无 JSX），与本插件现有的"零构建 TypeScript"约定一致。
+
+> **权威指针（2026-10-13）**：本文是**设计稿 / 历史决策记录**；**实现以 `src/explorer.ts`（方法表 `EXPLORER_METHODS`，6 个）+ `docs/client-contract.md`（client 契约）为准**。文内早期出现的 `host.call` 形态**已被证伪并废弃**（见 §1 表内那一行、§3 的 `settings.section` 行、§4 的两处标注）。
 
 ---
 
@@ -57,7 +59,7 @@
 |---|---|---|---|
 | `sidebar.panellist` | `{ id: 'remote-wsl', order: 20, label: () => t('远程资源管理器') }` | 图标组件 `({size, active}) => ReactElement` | 用**自己的新 id** ⇒ 与 `plugins`/`schedules` 并排 |
 | `main` | `{ key: 'remote-wsl' }` | 面板：标题行 + 树 + 状态条 | key 与上面 id **必须同名**（契约写明"list id addresses the matching main panel"） |
-| `settings.section` | `{ id: 'remote-wsl', order: 20, label: 'Remote WSL' }` | 配置页：`distro` / `cwd` / `webPort` / `daemonIdleMs` / `autoWarm` | 走 `host.call` 读实现有插件配置 |
+| `settings.section` | `{ id: 'remote-wsl', order: 20, label: 'Remote WSL' }` | 配置页：`distro` / `cwd` / `webPort` / `daemonIdleMs` / `autoWarm` | ⚠️ **本行两处已过期（2026-10-13）**：① `host.call` 对静态 client 半**不成立**（见 §1 那一行）；② `settings.section` 本插件**尚未实现**（P1）。取数形态见 §4 的"传输"段 |
 | `conversation.input.left` | `{ id: 'remote-wsl-daemon', order: 20 }` | 一个小状态点（守护活着/漂移） | 可选，P1 |
 | `sidebar.workspaces.session.menu.item` | `{ id: 'remote-wsl-reopen', order: 20 }` | 会话菜单里的「在 WSL 中重开」（= `reopenInWSL` 等价物） | 可选，P2 |
 
@@ -68,8 +70,9 @@
 ## 4. 数据面：client 半只调**一个**聚合方法
 
 ```ts
-// client 半
-const snap = await host.call('explorer.snapshot') as ExplorerSnapshot
+// ⚠️ 已废弃（2026-10-12 证伪）：静态 client 半**没有** `host.call` —— 那是**动态包**浏览器半的内建。
+// 实现态见本节下方「传输」段：host 侧 webServer.register 的精确路由 + 浏览器**同源 fetch**；
+// client 侧唯一网络出口是 `client/client.api.js` 的 `createExplorerApi()`（面板不直接拼 URL/JSON）。
 ```
 
 ```ts
@@ -89,7 +92,8 @@ interface ExplorerSnapshot {
   ```
   POST /remote-wsl/api   body: { "method": "explorer.snapshot", "args": {...} }
   GET  /remote-wsl/api   → 方法清单（调试用）
-  method ∈ explorer.snapshot | explorer.openSession | explorer.daemon | explorer.fixPin
+  method ∈ explorer.snapshot | explorer.openSession | explorer.daemon | explorer.fixPin | explorer.listDir | explorer.addWorkspace
+  （**6 个**。权威：`src/explorer.ts` 的 `EXPLORER_METHODS`；client 侧副本 `client/client.api.js`。后两个 `listDir`/`addWorkspace` 是 A3/A1 落地时新增）
   ```
   **安全硬要求（T4 会实测"同源 200 / 伪造 Origin 403"）**：
   a) **只接受同源请求**：校验 `Origin`（与请求 Host 同源）与/或 `Sec-Fetch-Site: same-origin`；不满足 → **403，且不得执行任何方法**；
@@ -98,7 +102,7 @@ interface ExplorerSnapshot {
   d) **不得**暴露 `all=true` 式会波及其他人的能力；`explorer.daemon` 只作用于本插件自己的槽位；
   e) 响应与错误**不回传** token/凭据。
 - **`explorer.openSession` 的 P0 语义（降级，明示不静默副作用）**：默认**不烧模型调用** —— 幂等 ensure 守护后，从 daemon 元数据取该 `(key,cwd)` **已物化**的 sessionId；没有则返回 `{sessionId:null, created:false, note:'首次 wsl_agent 轮次才会物化'}`。**UI 必须把这个状态显示出来**（"远端会话将在首次发消息时建立"），不许让用户以为已经开好。`warm:true`（真起一轮）保留在实现里，但 **P0 的 UI 不暴露**，留 P1 的显式动作。
-- **不新增 agent 工具**：现有 6 个工具（`wsl_status`/`wsl_exec`/`wsl_agent`/`wsl_daemon`/`wsl_open_ui`/`wsl_sync_version`）继续是 **agent 面**；面板是 **人面**，两者共用同一套 host 实现。
+- **不新增 agent 工具**：现有 **7 个**工具（`wsl_status`/`wsl_exec`/`wsl_agent`/`wsl_daemon`/`wsl_open_ui`/`wsl_sync_version`/`wsl_path`）继续是 **agent 面**；面板是 **人面**，两者共用同一套 host 实现。（工具名权威：`src/index.ts` 的 `name: 'wsl_*'` 共 **7** 处；`wsl_path` 是 A6 新增的第 7 个。）
 
 ---
 

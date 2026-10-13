@@ -1,0 +1,5 @@
+file=D:\project\dsh1\vendor\dsh-remote-wsl\client\client.panel.js
+CJK user-visible string literals (comments + console.* excluded): 0
+file=D:\project\dsh1\vendor\dsh-remote-wsl\client\index.js
+CJK user-visible string literals (comments + console.* excluded): 1
+  14: "远程资源管理器"

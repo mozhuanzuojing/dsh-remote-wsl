@@ -1,0 +1,19 @@
+# overlay-on-surfaces.mjs —— alpha 覆盖层在三背景上的终值 + 可区分性（T27 第二轮约束 #2）
+# 判据：hover/active 相对**静息底**的可感知性（本文 §8.4-C4：不作对比度门禁，但要求「两态彼此可区分」）
+
+===== LIGHT =====
+背景                                静息        hover     active    hover/静息    active/静息    active/hover 正文/hover    次要/active
+bg-layer-1（列表行底）                  #ffffff   #f2f3f4   #e9eaec   1.11        1.20         1.08         17.01       4.82
+specific-sidebar-fill（底栏/菜单外）     #f9fafb   #edeef0   #e3e6e9   1.11        1.20         1.08         16.29       4.62
+bg-overlay（⋯ 菜单/浮层底）              #e9ecf2   #dee1e8   #d5d9e1   1.11        1.20         1.08         14.42       4.10
+
+===== DARK =====
+背景                                静息        hover     active    hover/静息    active/静息    active/hover 正文/hover    次要/active
+bg-layer-1（列表行底）                  #232324   #343435   #424243   1.27        1.57         1.24         11.86       6.66
+specific-sidebar-fill（底栏/菜单外）     #1b1b1c   #2d2d2e   #3b3b3c   1.25        1.54         1.24         13.19       7.41
+bg-overlay（⋯ 菜单/浮层底）              #61666b   #6d7277   #777c80   1.19        1.37         1.15         4.64        2.81
+
+# 最弱的「active vs hover」= 1.080  @ light / bg-overlay（⋯ 菜单/浮层底）
+# 说明：这一列才是 T27 §9.1-V7 在「同一控件上 hover→active」的可区分性依据；
+#       它天然很低（两个都是浅覆盖层），因此 §5.1 规定「当前/选中」**不靠填充**，
+#       而靠 2px brand-primary 竖条 + 600 字重（18.90:1 / 15.03:1，且灰度可辨）。

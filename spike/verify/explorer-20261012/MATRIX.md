@@ -362,5 +362,52 @@
 6. **性能**：systemd 主路径启动**我自己的 ≥5 次读数**（p50/max），只给数据不设阈值（T19 自陈 ≈0.6s → ≈1.0–1.5s）。
 7. **收尾**：清 unit/守护/包装层/profile/`launch.*.sh` + 枚举窗口（含归属）；端口 8931–8960；不跑 npm/pnpm；不弹窗；不碰 19387/47604。
 
+## 21. T26 预备：A1 / A4 / P1 的判据（lead 2026-10-13 预备通知；**尚未 claim、尚未冻结**）
+
+> **冻结纪律**：`task-23/24/25` 未完成 ⇒ **等正式 GO 再冻结**。
+> 预备时快照（**非锚点**）：`explorer.ts` `906b9554df9a…`、`index.ts` `a8bdb70c61ac…`、`daemon-client.ts` `4d5c2ebf955c…`、`daemon.ts` `e471a5807054…`、`client.panel.js` `86f24076d6cd…`、`index.js` `0588b3d32ded…`、`client.api.js` `4ca5c7ba1a95…`、`package.json` `ce486eced7bc…`（= T21 冻结值）。
+
+### 21.1 两条环境事实（**写进报告**）
+
+1. **`degraded` 已查清并修复**：跨夜后 `systemctl --user is-system-running` = `degraded`；根因 = **T15 实验遗留的 3 个 failed `systemd-run` 探针单元**（`t15k41520u` / `t15k50720u` / `t15s31420`）。lead 已 `reset-failed` ⇒ **我预备期实测：`running`、failed units = 0、`t15*` unit files = 0、`/tmp/t15*` = 0、`dsh-rwsl-*` units = 0**。
+   ⇒ 记成一条**已知卫生缺口**（规矩）：**`systemd-run` 探针 unit 收尾必须 `stop` + `reset-failed`；`--collect` 清不掉 failed 态**。
+2. **`systemd-run --user` 仍可用**（预备期实测 `systemd 257 (257.13-1~deb13u1)`）⇒ 守护**预期走无窗主路径**。
+
+### 21.2 每轮先读 `mode`（本轮判据的总闸）
+
+| `result.mode` | 窗口判据 | 要写的数 |
+|---|---|---|
+| `systemd` | **∆ 必须 = 0** | 逐轮 before/after |
+| `compat-detached` | **允许弹窗**（固有代价） | **产生过 N** ／ **收尾存在 0** |
+
+- **若出现回退**：必须记录**是哪个环节**导致的（`systemd-run` 缺失/失败、`=off`、`=on`、degraded、其它）——这是本轮最想知道的边界。**degraded 是否导致回退**要单独回答。
+
+### 21.3 A1-host 六项（`explorer.addWorkspace`）
+
+| # | 断言 | 能红的形式 |
+|---|---|---|
+| ① | 存在的 WSL 目录 ⇒ `{ok,id,title,uncPath}` 且**注册表里可见** | 副本把登记写入改坏 ⇒ 红 |
+| ② | **重复调用** ⇒ `alreadyExisted:true`、**`id` 不变**、**不产生第二个** | 副本强制走新建分支 ⇒ 红 |
+| ③ | 不存在路径 ⇒ **404** | 改成 200/400 ⇒ 红 |
+| ④ | 非法（相对/空/`..`/`/mnt/c`）⇒ **400 且无副作用**（用注册表条数 + 守护 facts 双对照） | 去掉校验 ⇒ 红 |
+| ⑤ | **服务缺失**降级 ⇒ **503 + 那一行日志**（副本/桩屏蔽 `workspaceRegistry`） | 副本去掉降级 ⇒ 红 |
+| ⑥ | 零副作用：调用前后 `daemon-invariance` facts 全 MATCH | — |
+
+- **`/mnt/c` 取舍必须与 `listDir` 一致（不允许自相矛盾）**：`listDir('/mnt/c')` 走 `windowsDriveForMount()` ⇒ 200（**读**）；`addWorkspace('/mnt/c')` 预期 400（**登记**一个 WSL 工作区）。判据不是"两边同结果"，而是**同一条政策**：**只读浏览可以把盘符映射到 Windows 卷，登记工作区不行** —— 我会逐字读 400 的**文案是否解释了这个理由**，解释不清就记"不一致/未复核"。
+
+### 21.4 A1-client 渲染四态 / A4 i18n / P1 / T5
+
+1. **A1-client**：动作**存在且可发现**（可点、`aria-label` 有）；**成功 / `alreadyExisted` / 三种失败**（404、400、503）**各有渲染对照**（DOM 原文并排）；`openSession` 未受影响（同一轮复跑其 note）。
+2. **A4**：`zh-CN` 与 `en` **逐项对照**（标题/按钮/状态条/空态/错误态 + `aria-label`/`title`）；**无 locale 服务时回退可用且不崩**（构造：桩掉 locale 服务）；light/dark 正常；aria 覆盖不退化。
+3. **P1（`stopDaemon` 元数据复核）**：① 正常 `stop` 输出**与改前逐字相同** + 元数据清 + 无进程；② 构造"**守护忽略 shutdown**" ⇒ **元数据仍在**、返回可读失败、且 `scanDaemonProcesses()` **仍能看见它（可发现）**；③ **故意红**：副本去掉"移除前复核" ⇒ ②必须红，字节还原复绿；④ `stop --all` 语义不回归、**槽位隔离不破**。
+4. **T5 两条文案瑕**：结果条**不再出现实现者词汇**（给 DOM 对照）；"**尚未取得快照**"**只出现一次**。
+
+### 21.5 回归 + 故意红 + 收尾
+
+- **回归**：`--dump-config` exit 0/`Error:` 0；**5→6 方法白名单含 `addWorkspace`**；同源门/仅 POST+JSON/415/无 token 回传；F33 槽位守卫（非配置槽位 `E_ARG` 无副作用）；`listDir` 的 `/mnt` 映射与 `addWorkspace` 取舍一致（§21.3）；窗口抽验 ≥1 轮（**先读 `mode`**）。
+- **故意红 ≥3（每项各一条）**：A1-host（②或④或⑤任一条，建议 ⑤ 服务缺失关闭降级）／A1-client（改动作标签或去掉失败渲染）／**A4**（写死单语言或破坏无-locale 回退）／**P1**（去掉"移除前复核"）——**至少三条**，副本做、vendor 只读、字节还原后复绿。
+- **收尾**：清 **unit（含 `reset-failed`）**/守护/包装层/profile/`launch.*.sh` + 枚举窗口（归属用启动时间+父 pid+进程树+`peer=win-pid-…` 交叉，**禁凭标题猜**）；端口 8931–8960；不跑 npm/pnpm；不弹窗；不碰 19387/47604。
+
+
 
 

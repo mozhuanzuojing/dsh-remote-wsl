@@ -1643,6 +1643,9 @@ ${command}
     resolveVersion,
     writePin,
     webHosts,
+    // A1（task-23）：`explorer.addWorkspace` 要调 host 的 `workspaceRegistry`（T11 实测的服务名）。
+    // 这里只给一个**取服务**的闭包：服务没挂上时返回 undefined，由 explorer.ts 侧给可读 503 + 一行降级日志。
+    workspaceRegistry: () => (typeof ctx?.get === 'function' ? ctx.get('workspaceRegistry') : undefined),
   });
 
   // 插件卸载时回收常驻进程（idle 定时器之外的第二道保险）。

@@ -1,0 +1,7 @@
+2026-10-13T14:47:52.1461776+08:00  实例=http://127.0.0.1:8981（从**副本**插件启动）
+boot manifest: url=plugins/??dsh-remote-wsl/client.js&rev=07cf221a6f42  rev=07cf221a6f42
+门禁独立算出的 entry rev = 07cf221a6f42 ；平台 serve 的 rev = 07cf221a6f42 ；相等=True
+入口 bundle: HTTP 200  cache-control=public, max-age=31536000, immutable  bytes=25680
+  client.panel.js?rev=07cf221a6f42 -> HTTP 200 cache-control=System.String[] bytes=55863
+  client.i18n.js?rev=07cf221a6f42 -> HTTP 200 cache-control=System.String[] bytes=32741
+  client.panel.js?rev=deadbeefcafe -> HTTP 404

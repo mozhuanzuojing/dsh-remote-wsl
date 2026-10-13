@@ -1,0 +1,29 @@
+### ② 构造 stopDaemon 返回 ok:false（真守护 + SIGSTOP）
+### 2.1 ensure（systemd 主路径）
+# token exchange status=303 cookie=dsh-auth-8mcg0bKgvAsgj1xZ4fEq-US9sxk9wLv…
+# POST /remote-wsl/api status=200 elapsedMs=1147
+{"ok":true,"result":{"action":"ensure","ok":true,"idempotent":true,"mode":"systemd","warning":null,"slot":8921,"port":8921,"pid":1654090,"version":"0.2.0-rc.2","reused":false,"started":true,"notes":["启动方式: systemd-run --user（unit dsh-rwsl-8921.service；包装层短命 ⇒ 无窗口，且与 Windows 侧生死解耦）","槽位 8921 由 Windows 侧握手确认就绪（实际端口 8921，4ms）"]}}
+
+### 2.2 WSL 侧对守护 pid 1654090 发送 SIGSTOP（状态码 T=stopped）
+SIGSTOP sent to 1654090
+1654090 (node-MainThread) T 197 1654090 1654090 0 -1 4194304 15263 106 0 0 8 3 0 0 20 0 7 0 26623693 10061901824 21318 18446744073709551615 8577024 55083077 140726762230432 0 0 0 0 16781312 17923 0 0 0 17 1 0 0 0 0 0 120222368 120616000 384909312 140726762236564 140726762236912 140726762236912 140726762237887 19
+
+### 2.3 explorer.daemon {action:'stop'}
+# token exchange status=303 cookie=dsh-auth-8mcg0bKgvAsgj1xZ4fEq-US9sxk9wLv…
+# POST /remote-wsl/api status=200 elapsedMs=7377
+{"ok":true,"result":{"action":"stop","ok":false,"idempotent":true,"alreadyStopped":false,"slot":8921,"port":8921,"pid":1654090,"version":"0.2.0-rc.2","reaped":0,"notes":["remote-wsl: stop 未完成：槽位 8921（端口 8921）的本方守护进程仍在（pid 1654090）。已按 P1 规矩**保留元数据** daemon.8921.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"]}}
+
+### 2.4 现场复核：进程仍在被冻结、元数据是否保留
+state after STOP+stop: 1654090 (node-MainThread) T 197 1654090 1654090 0 -1 4194304 15263 106 0 0 8 3 0 0 20 0 7 0 26623693 10061901824 21318 18446744073709551615 8577024 55083077 140726762230432 0 0 0 0 16781312 17923 0 0 0 17 1 0 0 0 0 0 120222368 120616000 384909312 140726762236564 140726762236912 140726762236912 140726762237887 19
+meta files: daemon.8921.json daemon.8921.token daemon.log launch-stderr.log 
+daemon procs: 1
+
+### 2.5 收尾恢复（kill -CONT + 正常 stop）
+CONT-sent
+# token exchange status=303 cookie=dsh-auth-8mcg0bKgvAsgj1xZ4fEq-US9sxk9wLv…
+# POST /remote-wsl/api status=200 elapsedMs=8
+{"ok":true,"result":{"action":"stop","ok":true,"idempotent":true,"alreadyStopped":true,"slot":8921,"port":null,"pid":null,"version":null,"reaped":0,"notes":["自己槽位 8921 没有守护（未去停别的槽位）"]}}
+meta: daemon.log launch-stderr.log 
+procs: 0
+units: 0
+failed: 0

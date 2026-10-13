@@ -1,0 +1,68 @@
+=== 正向：sync-freeze-table.ps1 -Mode Generate（默认只打印）===
+exit=0
+REVISION : D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\REVISION.txt  (13 anchors)
+| 文件 | 大小 | SHA256 |
+|---|---:|---|
+| `src/daemon-client.ts` | 50,702 | `4d5c2ebf955cbaabb4ec8a2a64e6ef528b98790c1ef0de8d8c87e9d126d88e7f` |
+| `src/daemon.ts` | 24,754 | `e471a5807054f00869b763a7b2f1383412104faabc4f562ae352bfdf04e5bffc` |
+| `src/explorer.ts` | 41,510 | `906b9554df9abc68e7a061fd5923d2f6c2d4f9f45cd24e34f167a72230f12e1e` |
+| `src/index.ts` | 85,909 | `a8bdb70c61acacbc07906307e2954d1f9b4f6c9fa97d167eecde349536fc43d7` |
+| `src/sdk-runtime.ts` | 11,433 | `74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e` |
+| `src/selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
+| `src/shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
+| `src/version.ts` | 14,386 | `ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275` |
+| `client/client.api.js` | 11,234 | `4ca5c7ba1a9523632dcdd40a0a4a00eb3dfd2817fa2eae014375203e01c53901` |
+| `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
+| `client/client.panel.js` | 50,840 | `86f24076d6cd6a0dcde1017734e8e7b2a811b5246c28de2093ec3f4e6775907e` |
+| `client/index.js` | 17,685 | `0588b3d32ded5fd4b80e3a96970c9740ae18a1607eb9ff3a6f6d29b92353b416` |
+| `package.json` | 1,548 | `ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087` |
+note: Generate 模式默认只打印/写 OutFile；改 README 需要 -Apply（且 README 必须已有 FREEZE-TABLE 标记对）。
+
+=== 正向：sync-freeze-table.ps1 -Mode Check ===
+exit=0
+REVISION : D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\REVISION.txt  (13 anchors)
+README   : D:\project\dsh1\vendor\dsh-remote-wsl\README.md
+表格      : 第 676 行起（候选 4 张，取最后一张）
+--- per-anchor ---
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:678 (src/daemon-client.ts)  4d5c2ebf955c…  50702
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:679 (src/daemon.ts)  e471a5807054…  24754
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:680 (src/explorer.ts)  906b9554df9a…  41510
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:681 (src/index.ts)  a8bdb70c61ac…  85909
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:682 (src/sdk-runtime.ts)  74853c0539fe…  11433
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:683 (src/selftest.ts)  1aaa5d1b9385…  21772
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:684 (src/shell-env.ts)  9a9f6e5592c1…  12480
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:685 (src/version.ts)  ae5612fa22d8…  14386
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:686 (client/client.api.js)  4ca5c7ba1a95…  11234
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:687 (client/client.icon.js)  e9a824f50e45…  2209
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:688 (client/client.panel.js)  86f24076d6cd…  50840
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:689 (client/index.js)  0588b3d32ded…  17685
+PASS  D:\project\dsh1\vendor\dsh-remote-wsl\README.md:690 (package.json)  ce486eced7bc…  1548
+
+RESULT: PASS — 13/13 锚点逐字一致（hash 大小写敏感 + 字节数）
+
+=== 正向：handoff-append.ps1 -Mode Snapshot / Check（对**真实**交接文档，只读）===
+snapshot: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\tools\snapshots\2026-10-10-dsh-remote-wsl-守护接入与差距.md.headings.txt  (26 headings)
+exit=0
+PASS  kept     [baseline L471] ## 21. 【追加 2026-10-10 18:3x】task-16 **通过** → **修复流水线收口**（含最终状态与两条待办）  RESULT: PASS — 基线 26 个标题全部按原顺序保留
+交接文档 hash 前后一致 = True   （FFEB209158CF3782837C2F95D8662FD8EA80D7D6B0F83626DFBDC18EC5A97B0F）
+
+=== 正向：handoff-append.ps1 -Mode Apply（副本，两次追加 + 同名拒绝）===
+snapshot: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\tools\snapshots\handoff.apply.md.headings.txt  (26 headings)
+Apply#1 exit=0
+APPENDED: ## 22. 【T29 探针】安全追加演示 A  -> C:\Users\l\AppData\Local\Temp\t29\handoff.apply.md  (headings 26 -> 27)
+append-only 断言通过（原文本为新文本前缀）；基线快照已更新: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\tools\snapshots\handoff.apply.md.headings.txt
+Apply#2 exit=0
+APPENDED: ## 23. 【T29 探针】安全追加演示 B  -> C:\Users\l\AppData\Local\Temp\t29\handoff.apply.md  (headings 27 -> 28)
+append-only 断言通过（原文本为新文本前缀）；基线快照已更新: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\tools\snapshots\handoff.apply.md.headings.txt
+Apply#3(同名) exit=2
+FAIL: 文档里已存在同名二级标题 '23. 【T29 探针】安全追加演示 B'（L508）⇒ 拒绝重复追加
+追加后 ## 7. 仍在: ## 7. vs VS Code Remote-WSL：最终 verdict
+Check(baseline=原 26 标题) exit=0
+ RESULT: PASS — 基线 28 个标题全部按原顺序保留
+
+=== 正向：-Apply 在**没有标记**的 README 上必须拒绝（退出码 2）且不改文件 ===
+exit=2
+  1) 把 **当前** 冻结表（README 里最后一张 | 文件 | 大小 | SHA256 | 表，P0.3 那张）整段包起来：      <!-- FREEZE-TABLE-BEGIN -->      | 文件 | 大小 | SHA256 |      ...      <!-- FREEZE-TABLE-END -->   2) 标记必须独占一行、前后不要留其它内容；历史冻结表（P0/P0.1/P0.2）**不要**加标记。   3) 加完标记后再跑：sync-freeze-table.ps1 -Mode Generate -Apply
+README hash before = A5AEBC80B51435980923006F8D4B4A81B4B5B70FFBC468ED74C28E4753F38AA1
+README hash after  = A5AEBC80B51435980923006F8D4B4A81B4B5B70FFBC468ED74C28E4753F38AA1
+README 未被改动 = True

@@ -36,107 +36,124 @@ window.__ModuleLoader__.load({
 
 		const PANEL_ID = "remote-wsl";
 		const PANEL_ORDER = 20;
-		const PANEL_LABEL = "远程资源管理器";
+		const PANEL_LABEL_FALLBACK = "远程资源管理器";
 
 		/** 包内 chunk（入口同目录；名字被平台的 CLIENT_CHUNK 正则钉死）。 */
+		// ⚠ T32 实测的坑：chunk 的 URL 形如 `/plugins/dsh-remote-wsl/client.<name>.js?rev=<rev>`，
+		// 而这个 **rev 取自"入口行"（本文件 index.js）的 mtime/ctime/size**，不是 chunk 自己的
+		// （`dsh-client-modules/lib/client.js` 里 chunkUrl 用 owner 的 rev）；路由又带
+		// `Cache-Control: public, max-age=31536000, immutable`（同包 IMMUTABLE_CACHE）。
+		// ⇒ **只改 client.panel.js / client.i18n.js 时 URL 不变，浏览器会一直用旧 chunk**
+		//   （实测：改完 chunk、重启宿主并新开页面，面板仍渲染旧文案）。
+		//   改 chunk 后要看到效果：**同时改本文件**（哪怕一次注释改动）刷新 owner rev，
+		//   或用 HMR / `pnpm run dev:web`，或让用户硬刷新。
+		//   （T36 同样靠"动一下本文件"才让 chunk 变更生效 —— 独立复核见 T37。）
+		//   ↑ 上面这行本身就是 T36 的 rev 刷新锚点；再改 chunk 就再动一行。
+		const CHUNK_I18N = "client.i18n.js";
 		const CHUNK_API = "client.api.js";
 		const CHUNK_PANEL = "client.panel.js";
 		const CHUNK_ICON = "client.icon.js";
 
 		const CSS = [
-			".dsh-rw-root{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.5}",
-			".dsh-rw-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);flex:none}",
-			".dsh-rw-header-text{display:flex;flex-direction:column;min-width:0}",
-			".dsh-rw-title{font-weight:600}",
-			".dsh-rw-subtitle{color:var(--dsw-alias-label-secondary);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+			".dsh-rw-root{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;box-shadow:none}",
+			".dsh-rw-header{display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:var(--dsw-alias-bg-layer-1);border-bottom:1px solid var(--dsw-alias-border-l1);box-shadow:none}",
+			".dsh-rw-header-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}",
+			".dsh-rw-header-meta{display:flex;align-items:center;gap:6px;min-width:0}",
+			".dsh-rw-title{font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-subtitle{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-header-actions{display:flex;align-items:center;gap:8px;flex:none}",
-			".dsh-rw-field{display:flex;align-items:center;gap:6px}",
-			".dsh-rw-field-label{color:var(--dsw-alias-label-secondary);font-size:12px}",
-			".dsh-rw-select{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;padding:3px 6px;font:inherit;max-width:200px}",
-			".dsh-rw-btn{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;padding:3px 10px;cursor:pointer;font:inherit}",
-			".dsh-rw-btn:hover:enabled{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}",
-			".dsh-rw-btn:disabled{opacity:.55;cursor:default}",
-			".dsh-rw-body{flex:1;min-height:0;overflow:auto;padding:8px 6px}",
-			".dsh-rw-tree{display:flex;flex-direction:column;gap:2px}",
-			".dsh-rw-distro{display:flex;flex-direction:column}",
-			".dsh-rw-distro-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:none;color:inherit;font:inherit;padding:5px 8px;border-radius:4px;cursor:pointer}",
-			".dsh-rw-distro-row:hover{background:var(--dsw-alias-bg-layer-2)}",
-			".dsh-rw-caret{width:12px;color:var(--dsw-alias-label-secondary);flex:none}",
-			".dsh-rw-distro-name{font-weight:600;flex:none}",
-			".dsh-rw-badge{font-size:11px;padding:1px 6px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);flex:none}",
-			".dsh-rw-badge--brand{color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}",
-			".dsh-rw-workspaces{display:flex;flex-direction:column;margin-left:20px;border-left:1px solid var(--dsw-alias-border-l1);padding-left:8px}",
-			".dsh-rw-workspace{display:flex;align-items:center;gap:10px;padding:4px 6px;border-radius:4px}",
-			".dsh-rw-workspace:hover{background:var(--dsw-alias-bg-layer-2)}",
-			".dsh-rw-workspace-label{flex:none;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-			// F35：路径必须显式 LTR。之前这里写 `direction:rtl`（本意是让长路径露出尾部），
-			// 结果 `/home/g/project/dsh1` 被渲染成 `home/g/project/dsh1/`（DOM 文本没问题，是方向错）。
-			".dsh-rw-workspace-path{flex:1;min-width:0;color:var(--dsw-alias-label-secondary);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:plaintext;text-align:left}",
-			// F35 自查：其它会内嵌 WSL 路径 / 命令 / JSON 的文本容器一律显式 LTR（CJK 不受影响）。
-			// A3 新增的路径文本（chips / 面包屑 / 路径输入框 / 条目名）一并纳入。
-			".dsh-rw-pre,.dsh-rw-note,.dsh-rw-error-body,.dsh-rw-confirm-body,.dsh-rw-hint,.dsh-rw-other-note,.dsh-rw-crumb,.dsh-rw-chip,.dsh-rw-path-input,.dsh-rw-entry-name{direction:ltr;unicode-bidi:plaintext}",
-			// —— A3 目录浏览器（快捷 chips / 面包屑 / 常显路径输入 / 条目列表）——
-			".dsh-rw-browser{margin:8px 8px 4px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:6px}",
-			".dsh-rw-browser-head{display:flex;align-items:center;justify-content:space-between;gap:8px}",
-			".dsh-rw-browser-title{color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:600}",
-			".dsh-rw-chips{display:flex;flex-wrap:wrap;gap:6px}",
-			".dsh-rw-chip{background:none;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;padding:2px 9px;cursor:pointer}",
-			".dsh-rw-chip:hover{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}",
-			".dsh-rw-chip--on{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}",
-			".dsh-rw-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;overflow-x:auto;font-size:12px}",
-			".dsh-rw-crumb{background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;cursor:pointer;padding:1px 3px;border-radius:3px}",
-			".dsh-rw-crumb:hover{text-decoration:underline}",
+			".dsh-rw-body{flex:1;min-height:0;overflow:auto;padding:8px 8px 4px;display:flex;flex-direction:column;gap:8px}",
+			".dsh-rw-card{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px 10px;box-shadow:none;display:flex;flex-direction:column;gap:6px;min-height:0}",
+			".dsh-rw-cardhead{display:flex;align-items:center;gap:8px;min-width:0}",
+			".dsh-rw-grouptitle{font-size:12px;line-height:16px;font-weight:600;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}",
+			".dsh-rw-crumbs{display:flex;align-items:center;gap:2px;overflow-x:auto;padding:0;min-height:24px}",
+			".dsh-rw-crumb{background:none;border:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;padding:2px 4px;border-radius:3px;cursor:pointer;flex:none;direction:ltr;unicode-bidi:isolate}",
+			".dsh-rw-crumb:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-crumb--current{color:var(--dsw-alias-label-primary);font-weight:600;cursor:default}",
-			".dsh-rw-crumb--current:hover{text-decoration:none}",
-			".dsh-rw-crumb-sep{color:var(--dsw-alias-label-secondary)}",
-			".dsh-rw-path-form{display:flex;align-items:center;gap:6px}",
-			".dsh-rw-path-input{flex:1;min-width:0;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;padding:3px 6px;font:inherit;font-size:12px}",
-			".dsh-rw-path-input::placeholder{color:var(--dsw-alias-label-secondary)}",
-			".dsh-rw-entries{display:flex;flex-direction:column;max-height:220px;overflow:auto}",
-			".dsh-rw-entry{display:flex;align-items:center;gap:8px;padding:2px 4px;border-radius:4px}",
-			".dsh-rw-entry:hover{background:var(--dsw-alias-bg-layer-1)}",
-			".dsh-rw-entry-nav{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;padding:0;text-align:left;flex:1;min-width:0}",
-			".dsh-rw-entry-nav:hover{color:var(--dsw-alias-brand-primary)}",
-			".dsh-rw-entry-inert{display:flex;align-items:center;gap:6px;color:var(--dsw-alias-label-secondary);font-size:12px;flex:1;min-width:0}",
-			".dsh-rw-entry-icon{flex:none}",
-			".dsh-rw-entry-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-			".dsh-rw-workspace-actions{display:flex;gap:8px;flex:none}",
-			".dsh-rw-link{background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;cursor:pointer;padding:0}",
-			".dsh-rw-link:hover:enabled{text-decoration:underline}",
-			".dsh-rw-link:disabled{opacity:.55;cursor:default}",
-			".dsh-rw-link--danger{color:var(--dsw-alias-state-error-primary)}",
-			".dsh-rw-hint{color:var(--dsw-alias-label-secondary);padding:6px 8px;font-size:12px}",
-			".dsh-rw-empty{color:var(--dsw-alias-label-secondary);padding:14px;border:1px dashed var(--dsw-alias-border-l2);border-radius:6px;margin:8px}",
-			".dsh-rw-error{margin:8px;padding:10px 12px;border:1px solid var(--dsw-alias-state-error-primary);border-radius:6px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:6px;align-items:flex-start}",
-			".dsh-rw-error-title{color:var(--dsw-alias-state-error-primary);font-weight:600}",
-			".dsh-rw-error-body{white-space:pre-wrap;word-break:break-word}",
-			".dsh-rw-error-meta{color:var(--dsw-alias-label-secondary);font-size:12px}",
-			".dsh-rw-note{margin:8px;padding:8px 10px;border-radius:6px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);white-space:pre-wrap}",
-			".dsh-rw-note--error{border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}",
-			".dsh-rw-confirm{margin:8px;padding:10px 12px;border:1px solid var(--dsw-alias-state-warn-primary);border-radius:6px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:6px;align-items:flex-start}",
-			".dsh-rw-confirm-title{color:var(--dsw-alias-state-warn-primary);font-weight:600}",
-			".dsh-rw-confirm-body{white-space:pre-wrap;word-break:break-word}",
-			".dsh-rw-confirm-actions{display:flex;gap:8px}",
-			".dsh-rw-others{margin:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:4px}",
-			".dsh-rw-others-title{color:var(--dsw-alias-label-secondary);font-size:12px}",
-			".dsh-rw-other{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}",
-			".dsh-rw-other-main{font-weight:600}",
-			".dsh-rw-other-note{color:var(--dsw-alias-label-secondary);font-size:12px}",
-			".dsh-rw-btn--danger{border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}",
-			".dsh-rw-btn--danger:hover:enabled{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-layer-1)}",
-			".dsh-rw-raw{margin:8px;color:var(--dsw-alias-label-secondary)}",
-			".dsh-rw-pre{background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px;max-height:260px;overflow:auto;font-size:12px;color:var(--dsw-alias-label-primary)}",
-			".dsh-rw-status{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px}",
-			".dsh-rw-status-left,.dsh-rw-status-right{display:flex;align-items:center;gap:8px;min-width:0}",
-			".dsh-rw-status-actions{display:flex;gap:8px}",
-			".dsh-rw-status-text{color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-			".dsh-rw-dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--dsw-alias-state-idle-primary)}",
-			".dsh-rw-dot--on{background:var(--dsw-alias-state-success-primary)}",
-			".dsh-rw-dot--off{background:var(--dsw-alias-state-idle-primary)}",
-			".dsh-rw-drift{color:var(--dsw-alias-state-warn-primary);display:flex;align-items:center;gap:4px;flex:none}",
-			".dsh-rw-webhosts{display:flex;gap:4px}",
-			".dsh-rw-icon{display:block}",
-			".dsh-rw-icon--active{color:var(--dsw-alias-brand-primary)}",
+			".dsh-rw-crumb-sep{color:var(--dsw-alias-label-secondary);font-size:12px}",
+			".dsh-rw-current{border-left:2px solid var(--dsw-alias-brand-primary);font-weight:600}",
+			".dsh-rw-form{display:flex;align-items:center;gap:6px;min-width:0}",
+			".dsh-rw-path-input{flex:1;min-width:0;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px;padding:4px 6px;direction:ltr;unicode-bidi:isolate;text-align:left}",
+			".dsh-rw-path-input::placeholder{color:var(--dsw-alias-label-dimmed)}",
+			".dsh-rw-entries{display:flex;flex-direction:column;gap:2px;min-width:0;padding:0;flex:1;outline-offset:2px}",
+			".dsh-rw-row{display:flex;align-items:center;gap:6px;height:32px;padding:6px 8px;border-radius:4px;width:100%;box-sizing:border-box;background:none;border:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left}",
+			".dsh-rw-row--dir{cursor:pointer}",
+			".dsh-rw-row:hover{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-row:active{background:var(--dsw-alias-interactive-bg-active)}",
+			".dsh-rw-row--focus{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-row--current{border-left:2px solid var(--dsw-alias-brand-primary);font-weight:600}",
+			".dsh-rw-rowname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 1 auto;direction:ltr;unicode-bidi:isolate;text-align:left}",
+			".dsh-rw-rowacts{display:flex;align-items:center;gap:8px;flex:none;visibility:hidden}",
+			".dsh-rw-row:hover .dsh-rw-rowacts,.dsh-rw-row:focus-within .dsh-rw-rowacts{visibility:visible}",
+			".dsh-rw-badge{flex:none;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);border-radius:999px;padding:0 6px}",
+			".dsh-rw-icon{flex:none;width:16px;height:16px;color:currentColor}",
+			".dsh-rw-drift{color:var(--dsw-alias-state-warn-primary)}",
+			".dsh-rw-menuicon--warn{color:var(--dsw-alias-state-warn-primary)}",
+			".dsh-rw-menuicon--error{color:var(--dsw-alias-state-error-primary)}",
+			".dsh-rw-btn{display:inline-flex;align-items:center;gap:4px;height:28px;padding:4px 10px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;box-shadow:none}",
+			".dsh-rw-btn:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-btn:active:enabled{background:var(--dsw-alias-interactive-bg-active)}",
+			".dsh-rw-btn:disabled{color:var(--dsw-alias-label-dimmed);border-color:var(--dsw-alias-border-l1);cursor:default}",
+			".dsh-rw-btn--primary{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-brand-primary)}",
+			".dsh-rw-btn--danger{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-state-error-primary)}",
+			".dsh-rw-iconbtn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-secondary);cursor:pointer;box-shadow:none}",
+			".dsh-rw-iconbtn:hover:enabled{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-iconbtn:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
+			".dsh-rw-chip{display:inline-flex;align-items:center;gap:2px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;direction:ltr;unicode-bidi:isolate;box-shadow:none}",
+			".dsh-rw-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-chip--on{color:var(--dsw-alias-label-primary)}",
+			// M15 形状通道：任何带 `dsh-rw-current` 的元素都必须**不靠填充**可辨。
+			// 单靠上方 `.dsh-rw-current` 会被同为 (0,1,0) 且更晚出现的 `.dsh-rw-chip` 的
+			// `border:1px solid …` 简写覆盖（实测 border-left 变 1px、font-weight 400 ⇒
+			// 只剩 `--on` 填充，正是规格里的"只靠填充即红"）⇒ 这里用 (0,2,0) 钉死。
+			".dsh-rw-chip.dsh-rw-current{border-left-width:2px;border-left-color:var(--dsw-alias-brand-primary);font-weight:600}",
+			".dsh-rw-link{background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;padding:0}",
+			".dsh-rw-link:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-link:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
+			".dsh-rw-hint{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-note{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;box-shadow:none}",
+			".dsh-rw-note--error{border-color:var(--dsw-alias-state-error-primary)}",
+			".dsh-rw-note-text{white-space:pre-wrap;word-break:break-word;direction:ltr;unicode-bidi:isolate;text-align:left}",
+			".dsh-rw-note-details{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-note-detail{background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px;margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);direction:ltr;unicode-bidi:isolate;text-align:left}",
+			".dsh-rw-error{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-state-error-primary);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;box-shadow:none}",
+			".dsh-rw-error-title{display:flex;align-items:center;gap:6px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-state-error-primary)}",
+			".dsh-rw-error-body{font-size:12px;line-height:16px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word;direction:ltr;unicode-bidi:isolate;text-align:left}",
+			".dsh-rw-empty{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:8px 0}",
+			".dsh-rw-conflict{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);border-radius:4px;padding:6px 8px}",
+			".dsh-rw-fold{border-top:1px solid var(--dsw-alias-border-l1);padding:6px 4px}",
+			".dsh-rw-fold>summary{cursor:pointer;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);list-style:none;display:flex;align-items:center;gap:4px;min-height:24px}",
+			".dsh-rw-fold[open]>summary{font-weight:600}",
+			".dsh-rw-foldbody{padding-left:16px;padding-top:6px;display:flex;flex-direction:column;gap:6px}",
+			".dsh-rw-readonly{border:1px solid var(--dsw-alias-border-l1);border-radius:4px;padding:6px 8px;display:flex;flex-direction:column;gap:4px}",
+			".dsh-rw-readonly-head{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-other{display:flex;align-items:center;gap:6px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-pre{background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px;max-height:260px;overflow:auto;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;direction:ltr;unicode-bidi:isolate;text-align:left;margin:0}",
+			".dsh-rw-recent-row{display:flex;align-items:center;gap:6px;height:32px;padding:6px 8px;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left;width:100%;box-sizing:border-box}",
+			".dsh-rw-recent-row:hover{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-status{display:flex;align-items:center;gap:8px;height:36px;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}",
+			".dsh-rw-dot{width:8px;height:8px;border-radius:50%;flex:none}",
+			".dsh-rw-dot--running{background:var(--dsw-alias-state-success-primary)}",
+			".dsh-rw-dot--stopped{background:var(--dsw-alias-bg-base);border:1.5px solid var(--dsw-alias-border-l2)}",
+			".dsh-rw-dot--unknown{background:var(--dsw-alias-state-idle-primary);border:1.5px solid var(--dsw-alias-border-l2)}",
+			".dsh-rw-dot--error{background:var(--dsw-alias-state-error-primary)}",
+			".dsh-rw-statusword{flex:none;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);white-space:nowrap}",
+			".dsh-rw-extra{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-spacer{flex:1;min-width:0}",
+			".dsh-rw-updated{flex:none;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;white-space:nowrap}",
+			".dsh-rw-menu{position:absolute;bottom:calc(100% + 4px);right:0;width:240px;z-index:30;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:0;box-shadow:0 4px 12px rgba(0,0,0,.08)}",
+			".dsh-rw-group{display:flex;flex-direction:column;gap:0}",
+			".dsh-rw-grouplabel{font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);padding:4px 8px 2px}",
+			".dsh-rw-menuitem{display:flex;align-items:center;gap:8px;height:28px;padding:4px 8px;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left;width:100%;box-sizing:border-box;box-shadow:none}",
+			".dsh-rw-menuitem:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-menuitem:focus-visible{outline-offset:-2px;box-shadow:inset 0 0 0 1px var(--dsw-alias-bg-layer-1)}",
+			".dsh-rw-menuitem:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
+			".dsh-rw-menusep{height:1px;background:var(--dsw-alias-border-l1);margin:4px 0}",
+			".dsh-rw-confirm{background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:12px;width:min(360px,100% - 16px);align-self:flex-end;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.16);display:flex;flex-direction:column;gap:8px}",
+			".dsh-rw-confirm-title{display:flex;align-items:center;gap:6px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-confirm-body{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-confirm-actions{display:flex;justify-content:flex-end;gap:8px}",
 		].join("\n");
 
 		// 静态 bundle 的样式注入：手写 <style data-plugin-css>，卸载时由 module system 的
@@ -162,22 +179,91 @@ window.__ModuleLoader__.load({
 		}
 
 		/**
-		 * 入口只做「注册 + 等 chunk」：先取传输层，再取组件实现。
+		 * A4 i18n：**优先官方 locale 服务**（T11 实测 `ctx.get('locale')` 可用：register/bind/
+		 * translate/lookup/getSnapshot/subscribe），**取不到就回退**到内置字典 + `documentElement.lang`。
+		 * 两条路都不许崩 —— 拿不到官方服务时面板照常渲染，只是语言只能靠 `<html lang>`。
+		 *
+		 * 返回 `{ t, subscribe, language, source }`：`t` 直接给面板/标签用；`subscribe` 让面板在
+		 * 语言变化时重渲染（官方 `locale.subscribe`；否则退回观察 `<html lang>` 的 MutationObserver）。
+		 */
+		function createI18n(ctx, i18nModule) {
+			const NS = i18nModule.NS;
+			const DICTS = i18nModule.DICTS;
+			let locale = null;
+			try {
+				locale = typeof ctx.get === "function" ? ctx.get("locale") : null;
+			} catch {
+				locale = null;
+			}
+			let source = "builtin";
+			if (locale && typeof locale.register === "function" && typeof locale.translate === "function") {
+				try {
+					// 官方服务里注册本包字典（供 translate/其它消费者用）；重复注册会 throw ⇒ 视为已有
+					ctx.effect(() => locale.register(NS, { zh: DICTS.zh, en: DICTS.en }), "dsh-remote-wsl: locale dictionaries");
+					source = "locale";
+				} catch {
+					source = "locale+builtin";
+				}
+			}
+			const doc = typeof document === "undefined" ? undefined : document;
+			const t = i18nModule.createTranslator(locale && typeof locale.translate === "function" ? locale : null, doc);
+			const listeners = new Set();
+			const notify = () => {
+				for (const listener of [...listeners]) {
+					try {
+						listener();
+					} catch {
+						/* 订阅者自己的错不该影响别人 */
+					}
+				}
+			};
+			if (locale && typeof locale.subscribe === "function") {
+				ctx.effect(() => locale.subscribe(notify), "dsh-remote-wsl: locale subscription");
+			}
+			// 官方订阅之外的兜底：<html lang> 变了也能跟上（验收就是改 lang + 触发重渲染）
+			if (typeof MutationObserver === "function" && doc && doc.documentElement) {
+				ctx.effect(() => {
+					const observer = new MutationObserver(notify);
+					observer.observe(doc.documentElement, { attributes: true, attributeFilter: ["lang"] });
+					return () => observer.disconnect();
+				}, "dsh-remote-wsl: html lang observer");
+			}
+			return {
+				t,
+				language: i18nModule.resolveLanguage(locale, doc),
+				source,
+				subscribe(listener) {
+					listeners.add(listener);
+					return () => {
+						listeners.delete(listener);
+					};
+				},
+			};
+		}
+
+		/**
+		 * 入口只做「注册 + 等 chunk」：先取字典，再取传输层，最后取组件实现。
 		 * chunk 拿不到也不静默——错误会显示在图标位/面板体里。
 		 */
 		function bootChunks(ctx) {
-			return loadChunk(CHUNK_API).then((apiModule) => {
-				const createExplorerApi = apiModule && apiModule.createExplorerApi;
-				if (typeof createExplorerApi !== "function") {
-					throw new Error(CHUNK_API + " 未导出 createExplorerApi()");
+			return loadChunk(CHUNK_I18N).then((i18nModule) => {
+				if (typeof (i18nModule && i18nModule.createTranslator) !== "function") {
+					throw new Error(i18n.t("chunk.notExported", { file: CHUNK_I18N, fn: "createTranslator" }));
 				}
-				const api = createExplorerApi();
-				return Promise.all([loadChunk(CHUNK_PANEL), loadChunk(CHUNK_ICON)]).then(([panelModule, iconModule]) => {
-					const createPanel = panelModule && panelModule.createPanel;
-					const createIcon = iconModule && iconModule.createIcon;
-					if (typeof createPanel !== "function") throw new Error(CHUNK_PANEL + " 未导出 createPanel()");
-					if (typeof createIcon !== "function") throw new Error(CHUNK_ICON + " 未导出 createIcon()");
-					return { api, Panel: createPanel(ctx, api), Icon: createIcon(ctx) };
+				const i18n = createI18n(ctx, i18nModule);
+				return loadChunk(CHUNK_API).then((apiModule) => {
+					const createExplorerApi = apiModule && apiModule.createExplorerApi;
+					if (typeof createExplorerApi !== "function") {
+						throw new Error(i18n.t("chunk.notExported", { file: CHUNK_API, fn: "createExplorerApi" }));
+					}
+					const api = createExplorerApi(i18n);
+					return Promise.all([loadChunk(CHUNK_PANEL), loadChunk(CHUNK_ICON)]).then(([panelModule, iconModule]) => {
+						const createPanel = panelModule && panelModule.createPanel;
+						const createIcon = iconModule && iconModule.createIcon;
+						if (typeof createPanel !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_PANEL, fn: "createPanel" }));
+						if (typeof createIcon !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_ICON, fn: "createIcon" }));
+						return { api, i18n, Panel: createPanel(ctx, api, i18n), Icon: createIcon(ctx) };
+					});
 				});
 			});
 		}
@@ -187,15 +273,22 @@ window.__ModuleLoader__.load({
 		 * @param ctx - client 受限 cordis 上下文（`slots` 服务由 ui-renderer 提供）。
 		 */
 		function apply(ctx) {
-			const boot = { ready: false, error: null, Panel: null, Icon: null };
+			const boot = { ready: false, error: null, Panel: null, Icon: null, i18n: null };
+			/**
+			 * 字典就绪前/未就绪时的翻译：**绝不把键名当文案显示**。
+			 * 只有 rail 名需要提前可用（侧栏可能在 chunk 就绪前就请求标签）。
+			 */
+			const fallbackText = (key) => (key === "panel.title" ? PANEL_LABEL_FALLBACK : key);
+			const tr = (key, params) => (boot.i18n === null ? fallbackText(key) : boot.i18n.t(key, params));
 			const listeners = new Set();
 			const settle = () => {
 				for (const listener of [...listeners]) listener();
 				listeners.clear();
 			};
-			bootChunks(ctx).then(
+			const bootSettled = bootChunks(ctx).then(
 				(product) => {
 					boot.api = product.api;
+					boot.i18n = product.i18n;
 					boot.Panel = product.Panel;
 					boot.Icon = product.Icon;
 					boot.ready = true;
@@ -203,7 +296,7 @@ window.__ModuleLoader__.load({
 				(error) => {
 					boot.error = error instanceof Error ? error : new Error(String(error));
 					if (typeof console !== "undefined" && console.error) {
-						console.error("[dsh-remote-wsl] client chunk 加载失败", error);
+						console.error("[dsh-remote-wsl] " + tr("chunk.loadFailed"), error);
 					}
 				},
 			).then(settle, settle);
@@ -227,7 +320,7 @@ window.__ModuleLoader__.load({
 					return React.createElement("span", {
 						className: "dsh-rw-icon",
 						style: { width: props.size || 20, height: props.size || 20, color: "var(--dsw-alias-state-error-primary)" },
-						title: "dsh-remote-wsl client chunk 加载失败：" + current.error.message,
+						title: tr("chunk.loadFailedTitle", { msg: current.error.message }),
 					});
 				}
 				if (current.Icon === null) return null;
@@ -243,7 +336,7 @@ window.__ModuleLoader__.load({
 						React.createElement(
 							"div",
 							{ className: "dsh-rw-error", role: "alert" },
-							React.createElement("div", { className: "dsh-rw-error-title" }, "面板模块加载失败"),
+							React.createElement("div", { className: "dsh-rw-error-title" }, tr("chunk.panelFailed")),
 							React.createElement("div", { className: "dsh-rw-error-body" }, current.error.message),
 						),
 					);
@@ -252,24 +345,32 @@ window.__ModuleLoader__.load({
 					return React.createElement(
 						"section",
 						{ className: "dsh-rw-root", "data-dsh-remote-wsl": "panel" },
-						React.createElement("div", { className: "dsh-rw-hint" }, "正在加载面板…"),
+						React.createElement("div", { className: "dsh-rw-hint" }, tr("chunk.panelLoading")),
 					);
 				}
 				return React.createElement(current.Panel, {});
 			}
 
 			// 每个槽都要等父 entry 的 children 表声明它（否则 register 会 throw）。
-			ctx.slots.inject("sidebar.panellist", () =>
-				ctx.slots.register(
-					{
-						name: "sidebar.panellist",
-						id: PANEL_ID,
-						order: PANEL_ORDER,
-						label: () => PANEL_LABEL,
-					},
-					IconSlot,
-				),
-			);
+			// ★ rail 名**必须等字典就绪后再注册**：实测冷加载时侧栏请求 label 的时机早于
+			//   chunk 就绪 ⇒ 拿到 fallback 语言并一直留着（英文界面里 rail 名仍是中文的缺陷）。
+			//   注册幂等，所以成功/失败两条路径都在这之后注册一次。
+			let listRegistered = false;
+			const registerList = () => {
+				if (listRegistered) return;
+				listRegistered = true;
+				ctx.slots.inject("sidebar.panellist", () =>
+					ctx.slots.register(
+						{
+							name: "sidebar.panellist",
+							id: PANEL_ID,
+							order: PANEL_ORDER,
+							label: () => tr("panel.title"),
+						},
+						IconSlot,
+					),
+				);
+			};
 			ctx.slots.inject("main", () =>
 				ctx.slots.register(
 					{
@@ -279,6 +380,7 @@ window.__ModuleLoader__.load({
 					PanelSlot,
 				),
 			);
+			bootSettled.then(registerList, registerList);
 		}
 
 		exports.PANEL_ID = PANEL_ID;

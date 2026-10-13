@@ -1,0 +1,68 @@
+== T32 原始读数（逐段为页面内 getComputedStyle / DOM 断言的直接输出）==
+
+实例：dsh --profile remote-wsl-test-p30 --port 8922 --no-open（daemonPort 8921）
+红副本实例：--profile t32-red --port 8926（%TEMP%\t32-red，已删）
+
+--- [改后] RED-1 头部按钮（cwd=/home/g，== 目标 cwd，宽屏）---
+{"cwd":"/home/g","RED1_headerButtons":[{"l":"添加为 WSL 工作区","primary":true},{"l":"","primary":false}],
+ "RED1_duplicateLabels":[],"RED1_primaryCount":1}
+
+--- [改前/红副本] RED-1 ---
+{"cwd":"/home/g","RED1_headerButtons":[{"l":"添加为 WSL 工作区","primary":false},{"l":"添加为 WSL 工作区","primary":true},{"l":"","primary":false}],
+ "RED1_duplicateLabels":["添加为 WSL 工作区"],"RED1_primaryCount":1,"RED1_assertWouldFail":true}
+
+--- [改后] RED-2（菜单关闭 → 菜单打开）---
+{"menuOpen":false,"footerOwnButtons":["启动守护"],"startInFooter":1}
+{"RED2":{"menuItems":["重启远端守护…","停止远端守护…","查看诊断信息","复制诊断摘要"],
+ "footerOwnButtons":["启动守护"],"intersection":[],"startInMenu":0}}
+
+--- [改前/红副本] RED-2 ---
+{"footerOwnButtons":["启动守护"],
+ "menuItems":["重启远端守护…","停止远端守护…","启动守护","查看诊断信息","复制诊断摘要"],
+ "duplicatedAcrossFooterAndMenu":["启动守护"],"startCountFooter":1,"startCountMenu":1,"RED2_assertWouldFail":true}
+
+--- [改后] ③ notes 消费（真守护 + SIGSTOP ⇒ stop 失败）---
+{"NEW_noteText":"失败：remote-wsl: stop 未完成：槽位 8921（端口 8921）的本方守护进程仍在（pid 1762093）。",
+ "NEW_noteDetailTitle":"已按 P1 规矩**保留元数据** daemon.8921.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。",
+ "retry":["重试"],"hasNoReason":false,"splitApplied":true}
+（改前该位置渲染的是 t("note.hostNoReason") =「host 用 200 回了 ok:false，但没有给出原因」——见 T31 报告与本报告 §1.3）
+
+--- [改后] ④ 确认框 ---
+{"NEW_dialogTitle":"停止远端守护？",
+ "NEW_dialogBody":"该槽位上的守护会被关掉，正在跑的会话全部中断、上下文丢失；之后需要重新「启动守护」。（影响：「debian-u8-1」上正在运行的 0 个会话）",
+ "bodyRepeatCount":1,"leaks":false}
+（改前：title = "确认停止守护？slot {slot}（本插件配置的槽位，不存在 all 选项）"，body 里后果重复 2 次）
+
+--- 补测：M7 / M9 / M11 ---
+{"cwd":"/tmp/t32-empty-dir","bodyCards":1,
+ "bodyText":"浏览目录 隐藏文件：不显示 Home / /mnt / … 该目录没有非隐藏条目。 换一个目录，或回到 Home 重新开始。 回到 Home 最近目录 诊断信息（与 wsl_status 同源）",
+ "entryRowCount":0,"emptyButtons":[{"text":"回到 Home","aria":"回到 Home"}]}
+{"M11":{"detailsCount":2,"openStates":[false,false],"focusableInsideClosed":0}}
+
+--- 补测：N2 / N4 / N5 ---
+{"N2":{"internalShadowedCount":0,"overlayShadows":[]}}
+（菜单打开时）{"N2_overlay":{"cls":"dsh-rw-menu","shadow":"rgba(0, 0, 0, 0.08) 0px 4px 12px 0px","bg":"rgb(233, 236, 242)","overlayToken":"#e9ecf2","innerRingToken":"#0000001a","borderWidth":"1px"}}
+{"N4":{"rowRectDelta":[0,0,0,0],"actsDisplay":"flex","actsVisibility":"hidden","actsRectWidthBefore":24,"actsRectWidthAfter":24}}
+{"N5":{"dotClass":"dsh-rw-dot dsh-rw-dot--stopped","dotAriaHidden":"true","dotBorder":"1px","dotBg":"rgb(255, 255, 255)","word":"远端守护未运行"}}
+
+--- 补测：M15 / M16 / M17（light + dark）---
+light: {"M17_menu":{"menuBg":"rgb(233, 236, 242)","hover":"rgba(38, 49, 72, 0.06)","differs":true},
+        "M17_others":{"list":"rgb(255, 255, 255)","status":"rgb(249, 250, 251)"},
+        "M16_menuColors":["rgb(225, 229, 238)","rgb(15, 17, 21)"],"labelPrimary":"#0f1115"}
+dark:  {"scheme":"dark","hover":"rgba(255, 255, 255, 0.08)",
+        "bases":{"list_layer1":"rgb(35, 35, 36)","status_sidebarFill":"rgb(27, 27, 28)","menu_overlay":"rgb(97, 102, 107)"},
+        "allDiffer":true,"M15_crumb":{"borderLeftWidth":"2px","fontWeight":"600"},
+        "M16_colors":["rgb(67, 69, 74)","rgb(249, 250, 251)"],"labelPrimaryToken":"#f9fafb"}
+
+--- 回归：M1 / M5 / M14（导航到 /home/g/project/dsh1）---
+{"cwd":"/home/g/project/dsh1","M1_dsh1_visible":1,"M1_dsh1_in_html":43,"M5_terms":[],"M5_mainSightLen":338,
+ "bodyCards":1,"rows":11,"crumbs":"//home/g/project/dsh1","M14":[91,91,"远端守护未运行"]}
+
+--- 门禁 / CJK ---
+css-token-audit.mjs client/index.js → exit 0（94 规则 / distinct 17 token / C1=0 / C2 PASS / S1 OK / 2 条 α=0.08、0.16 影子豁免）
+CJK 字面量（剥 `//` `/* */` 注释与 console.*）：client.panel.js = 0
+
+--- 机制坑（§4 的原始证据）---
+改完 chunk（client.panel.js + client.i18n.js）后重启宿主 + 新 token 新开页面：
+  确认框 body 仍为旧重复句；失败条仍不分首句/细节（splitApplied=false）
+把 client/index.js 加注释（改 owner rev）后重启：同两条立即变为新文案（splitApplied=true、bodyRepeatCount=1）

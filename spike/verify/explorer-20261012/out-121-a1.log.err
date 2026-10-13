@@ -1,0 +1,10 @@
+(node:26264) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+remote-wsl(explorer): 守护已由 systemd 托管（unit=dsh-rwsl-8932.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦
+remote-wsl(explorer): daemon shutdown on slot 8932 (port 8932): ok=true 
+remote-wsl(explorer): daemon shutdown on slot 8932 (port 8932): ok=false 守护调用失败(refused): connect ECONNREFUSED 127.0.0.1:8932（Windows 侧 3000ms 握手判据）
+remote-wsl(explorer): 守护已由 systemd 托管（unit=dsh-rwsl-8932.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦
+remote-wsl(explorer): daemon shutdown on slot 8932 (port 8932): ok=false 守护调用失败(timeout): no reply within 5000ms（Windows 侧 3000ms 握手判据）
+remote-wsl(explorer): stop 未完成：槽位 8932（端口 8932）仍有本方守护 pid=1602861 ⇒ 按 P1 保留元数据（不制造隐形孤儿）
+remote-wsl(explorer): 守护已由 systemd 托管（unit=dsh-rwsl-8932.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦

@@ -308,7 +308,8 @@ $dsh = 'C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli
 
 打开后：**左侧栏 rail 会多出一个「远程资源管理器」图标**（与「插件」「定时」并排），点它切到中央面板 ——
 distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/keys/drift），行内动作「在新会话中打开」等。
-面板数据面是 `POST /remote-wsl/api`（方法表：`explorer.snapshot|openSession|daemon|fixPin`；同源 + 硬白名单）。
+面板数据面是 `POST /remote-wsl/api`（**方法表 6 个**：`explorer.snapshot` · `explorer.openSession` · `explorer.daemon` · `explorer.fixPin` · `explorer.listDir` · `explorer.addWorkspace`；同源 + 硬白名单）。
+方法表的**权威**是 `src/explorer.ts` 的 `EXPLORER_METHODS`（client 侧副本 `client/client.api.js`），契约细节见 `docs/client-contract.md`；面板的视觉/交互现状见 `docs/panel-ux-redesign.md` 与 `docs/panel-visual-spec.md`。
 
 > `wsl_open_ui` 开的是**另一件事**：WSL 里那份 dsh 的 Web UI（浏览器应用窗口）；本节的实例是**宿主自己的 Web 前端**，面板属于宿主 UI。
 
@@ -478,6 +479,8 @@ dsh --profile remote-wsl-test '请调用 wsl_agent 工具（参数 key="rc2"，t
    - 另一条**独立**路径（P1 候选，未修）：`src/daemon-client.ts:668` 的 `stopDaemon` **无条件** `removeMetaFiles`，其兜底 `killWslPid`（`667` → `319-326`）虽有身份闸（cmdline 必须含 `daemon.ts`）但**不等待/不验证退出** ⇒ `shutdown` 失败且身份闸拒绝杀时会留下"元数据已删、进程还在"。建议修法：清元数据前后**重新扫描 `/proc`** 确认该槽位已无本方守护。
    - ✅ 值得记的正面性质：`scanDaemonProcesses()` 读 `/proc/<pid>/cmdline` **认身份、不依赖元数据** ⇒ 孤儿**可发现**（会出现在 `snapshot.daemon.others[]`）且**可回收**（`stop --port <slot>` 能收掉它）。
 
+> **构建卫生（2026-10-13 新增，机制与复算命令见 [`docs/client-contract.md` §11](docs/client-contract.md)）**：**只改 chunk（`client.panel.js`/`client.i18n.js`/`client.api.js`…）而不改入口 `client/index.js` ⇒ 平台不会重扫**（重扫闸门看的是入口元数据），于是**连空缓存的新客户端也拿到旧脚本**，浏览器在 `immutable` 下更是零请求吃本地副本 ⇒ **改任何 chunk 都必须同时动一下入口**；该门禁已进提交前清单（`precommit-check.ps1` 第 07 项），杜绝把陈旧构建发出去。
+
 ### 新增/即将新增的配置键（照 VS Code 对位）
 
 | 键 | 默认 | 作用 | VS Code 对位 |
@@ -555,6 +558,28 @@ Get-Content   '\\wsl.localhost\debian-u8-1\tmp\<file>'      # 文件可读（实
 
 （本插件自己只在 `/tmp` 写一次性 `.sh`/`.mjs` 启动脚本，用完就删，见"设计要点"第 2 条；
 那是一次性文件、不碰你的仓库内容，与上面这条禁令不冲突。）
+
+#### 把 WSL 目录登记成 DSH 工作区（`explorer.addWorkspace`，采纳项 A1）
+
+面板可以把一个 **发行版内路径**登记成 DSH 工作区，走的是 host 方法
+`explorer.addWorkspace({ path, title? })`：
+
+| 入参/返回 | 语义 |
+|---|---|
+| `path` | **WSL 绝对路径**（如 `/home/g/project/dsh1`）；相对路径 / 空 / 含 `..` / 含反斜杠 ⇒ `400 E_ARG` |
+| `title` | 缺省 = 目录名（`/home/g` ⇒ `"g"`） |
+| `uncPath` | 内部转成的 `\\wsl.localhost\<distro>\<path>` —— **`workspaceRegistry.create()` 只接受全限定路径**（win32 下 `/home/g` 的 root 是 `/` ⇒ 上游直接判"非全限定"并拒绝），所以必须转 UNC 再登记 |
+| 返回 | `{ ok, id, title, uncPath, alreadyExisted }`（机器可读） |
+| 已登记 | `alreadyExisted: true` + **既有 `id`** ⇒ 点两次**不会**产生第二个工作区（用 `resolveByPath` 判，不靠报错） |
+| 失败 | 路径不存在 ⇒ `404 E_NOTFOUND`；参数错 ⇒ `400 E_ARG`；`workspaceRegistry` 拿不到 ⇒ `503 E_UNAVAILABLE` + **一行降级日志**（不静默） |
+
+`/mnt/<盘符>` **被显式拒绝**（`400`）：它本来就是 Windows 卷，面板浏览那边（`explorer.listDir`）
+已经把它特判成 `C:\…`；登记成 UNC 工作区会让"同一份数据两条路径"并存，两处取舍必须一致。
+
+> ⚠️ **登记 UNC 工作区 = 让 DSH 的文件工具经 9P 读写那份 ext4 数据**，代价要清楚：
+> **没有 POSIX 权限位语义**（属主/权限不可靠，且 Windows 侧写入不改 POSIX 位）、
+> **文件事件不可靠**（§"文件系统事件：不做监听"）、**比 ext4 慢一个量级**。
+> 读浏览没问题；**跑工具/改文件仍然必须走 `wsl_exec` 那侧**（见上表）。
 
 ### 文件系统事件：不做监听，改动一律在 WSL 侧发生
 
@@ -651,6 +676,8 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 **冻结 revision —— P0.3（2026-10-12，13 个锚点）**：与 P0.2 比变 **4 个**（`src/daemon-client.ts`、`src/daemon.ts`、`src/explorer.ts`、`src/index.ts`）；`client/**` 4 个与 `package.json` **逐字未变**。独立验证者 `p0-verify` **GO 后冻结 / 收尾复算 13/13 一致 ⇒ 验证有效**（报告：`spike/verify/explorer-20261012/REPORT-t21-f38-verify.md`）。
 
+**历史冻结表（P0.3，已被 P0.4 取代）**
+
 | 文件 | 大小 | SHA256 |
 |---|---:|---|
 | `src/daemon-client.ts` | 50,702 | `4d5c2ebf955cbaabb4ec8a2a64e6ef528b98790c1ef0de8d8c87e9d126d88e7f` |
@@ -675,3 +702,46 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 - 附：**双前缀文案**（`remote-wsl: remote-wsl: …`）已修 —— 判据必须用 **`includes` 而非 `startsWith`**（内层标记经聚合后落在**句中**），且**只能"守卫"不能"无条件删"**（故意红证明删了会让无标记路径丢掉前缀）。改后失败文本 `remote-wsl:` 计数 **2 → 1**。
 
 **代价 / 未复核（不许当通过）**：主路径启动耗时 **p50 1122ms / max 1144ms**（比之前多了 1 次 `wsl.exe` 调用，用于 WSL 侧写脚本+chmod）；真实"**未启用 systemd 的发行版**"未在真机上验（用副本改名等价构造）；`--collect` unit 落盘未穷尽计数；compat 弹窗的"必然性"只 1 轮观测；`keys>0`/`webHosts` 非空/desktop(Electron) 宿主/像素截图沿用历轮未复核。
+
+---
+
+## UX 重设计轮（P0.4）：冻结 revision 与结果
+
+**起因**：用户直接反馈"**UI 和 UX 设计的不好**"。
+
+**先做设计、再写代码**（两份冻结规格，先互相证伪再实现）：`docs/panel-ux-redesign.md`（信息架构/交互/文案表/状态矩阵/可达性/**M1–M17 能红判据**/**N1–N5 禁止项**）+ `docs/panel-visual-spec.md`（**17 token 闭集**/层级/尺度/状态色/线框稿/对比度 + 门禁脚本）。规格阶段最有价值的三条**实测**（都改变了设计决策）：light 主题 `bg-layer-1/-2/-3` **同为 `#ffffff`**（1.00:1）⇒ **不得靠底色分层**；现有 token **没有任何描边达 3:1**（最重 `border-l4` 1.45）⇒ 控件识别靠"文字标签 + hover 反馈 + 结构"；light 下 `success/warn/idle` **2.28/2.15/1.48** ⇒ **状态词常显且永不省略**，颜色与形状只作冗余。
+
+**结构上的核心变化是"删多于加"**：**删掉旧树**（同一路径不再出现两次 —— 判据：可见 `dsh1` **恰 1 次**，注入第二处即红）｜目录概念**只留一个**（快捷 chips + 从 `/` 起的面包屑 + 常显路径输入 + 列表，默认展开到当前目标）｜底栏收成**一行**（状态点 + 一句人话 + 「更新于 HH:mm:ss」+ **唯一 `⋯`**，内含 工作区/守护/诊断 三组）｜**破坏性动作只进 `⋯`**（保留二次确认 + 后果三要素）｜**运维/诊断细节全部折进 `⋯ 高级·诊断`**（其它实例只读、原始诊断、版本）｜**术语用户化**（`slot/daemonPort/pid/keys/explorer.snapshot/systemd-run/unit` 退出主视线，判据是一条正则 0 命中）。
+
+**同时修掉的真实缺陷**（都由独立复验判定，且**每条都有故意红**）：
+- **`stop` 失败被静默吞掉**：`src/explorer.ts` 的 `stop` 分支**硬编码 `ok: true`` ⇒ P1 保护生效（守护没死、元数据保留）时调用方却被告知"成功"**。改为 `ok: r.ok !== false` + 透传 `notes`。
+- **失败原因没到达用户**：client 没消费 `result.notes`，界面显示"host 回了 ok:false 但**没有给出原因**" ⇒ 改为**用户语言主句 + host 原文进折叠 `技术细节`**（含 `pid`；主视线正则仍 0 命中）。
+- **头部同名两按钮**（`cwd == 目标` 时）/ **「启动守护」底栏与菜单双入口** / **确认框 `{slot}` 未插值**（把 slot 裸露给用户）。
+- **i18n**：官方 `ctx.get('locale')` 优先、取不到/缺键/抛错全部回退且不崩；**zh/en 逐键配对**（现值以脚本为准：`spike/verify/explorer-20261012/arch-t2/tools/count-i18n-keys.mjs` 实测 **219/语言**、`paired:true`；历史值 181/215 的区别见该脚本与 `docs/panel-ux-redesign.md §3.2.1`）。
+- **最近目录**：client 侧 `localStorage`（键 `dsh-remote-wsl.recent`、只存路径、≤8 条），不可用/被清空 ⇒ **静默降级**。
+- **门禁**：`css-token-audit.mjs` 两条硬约束 **C1 硬编码色 0** + **C2 引用 token 集合 ⊆ 17**（+ 软检 S1）；该门禁**已被 5 个夹具证伪过**（4 FAIL + 1 PASS）。
+
+**⚠️ 顺带查实的一条平台机制（对"改了没生效"类困惑有解释力）**：chunk（`client.panel.js` 等）的 URL `rev` **取自入口行 `client/index.js` 的元数据哈希**（`sha1("plugin-artifact", mtimeMs, ctimeMs, size)`），路由又是 `immutable`；**平台在扫描时快照 chunk 字节，而重扫闸门看的是入口元数据** ⇒ **只改 chunk 而不动入口时，平台不会重扫**，于是**连空缓存的全新客户端也拿到旧脚本**（实测：改 chunk 后 rev 不变、同一 URL 仍返回旧字节；只有动入口才换 rev）。⇒ **改任何 chunk 必须同时动一下 `client/index.js`**；该门禁已进提交前清单（`tools/precommit-check.ps1` 第 07 项，判定不可得记 `WARN` 绝不记 PASS），机制与复算命令见 `docs/client-contract.md §11`。
+
+**冻结 revision —— P0.4（2026-10-13，14 个锚点）**：与 P0.3 比变 **6 个**（`src/daemon-client.ts`、`src/explorer.ts`、`src/index.ts`、`client/client.api.js`、`client/client.panel.js`、`client/index.js`），并**新增 `client/client.i18n.js`**（锚点集 13 → 14）。独立验证者 `p0-verify` 连续三轮（T26/T31/T33）复算；**T33 结论：锚点 14/14 一致 ⇒ 验证有效，本轮"未实现/判红"项 = 0**（报告：`spike/verify/explorer-20261012/REPORT-t33-ux-fixes-verify.md`；UX 三份报告见同目录 `REPORT-t26-*`/`REPORT-t31-*`/`REPORT-t33-*`）。
+
+<!-- FREEZE-TABLE-BEGIN -->
+| 文件 | 大小 | SHA256 |
+|---|---:|---|
+| `src/daemon-client.ts` | 53,881 | `cb420d25ef1bcf9535cbf2f3dbb3faad95fa0d5321b31d0ca798103de59dbed1` |
+| `src/daemon.ts` | 24,754 | `e471a5807054f00869b763a7b2f1383412104faabc4f562ae352bfdf04e5bffc` |
+| `src/explorer.ts` | 47,558 | `1a80ea4415b8e541f8731c33529cff0c9e3f243ec1bc8e40650abd9219965c11` |
+| `src/index.ts` | 86,275 | `e5be29f58453be0546c8ab60e2494041cc7b8d182ecd1f4504c2b64476633ed1` |
+| `src/sdk-runtime.ts` | 11,433 | `74853c0539fe5fa14507c6e71dcacc2385e0b03c56e062a41fdb4dc1c837c52e` |
+| `src/selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
+| `src/shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
+| `src/version.ts` | 14,386 | `ae5612fa22d80672a4c1d36acdfd34f1a0c792cbb1472b0525579541f41de275` |
+| `client/client.api.js` | 13,296 | `c3600ee50356ade54a4f348038fa1c48e0bf444ca85e219670f38b060899e16f` |
+| `client/client.i18n.js` | 32,682 | `cba40e696ff68cf047fc6cd2f4b867f1791ba6b8b522c21d10dd7b9bea1d2b57` |
+| `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
+| `client/client.panel.js` | 55,803 | `7719876a65a048c6999f5c05f8c49a247dbf75dee3f85f2351f61e86ba523387` |
+| `client/index.js` | 25,609 | `5f2430ead9e8b3e33a2d4fbe38e00f1fc774a5f9129f73b4749957d970b5e5e8` |
+| `package.json` | 1,548 | `ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087` |
+<!-- FREEZE-TABLE-END -->
+
+> **上表由脚本从 `REVISION.txt` 投影生成**：`spike/verify/explorer-20261012/tools/sync-freeze-table.ps1`（`-Mode Generate` 生成 / `-Mode Check` 逐字校验 14 锚点，**提交前必跑**）。**只包当前这一张**；历史冻结表（P0/P0.1/P0.2/P0.3 与 0.1.0 对照）保持原样不加标记。提交前另跑 `tools/precommit-check.ps1`（12 项：含 failed unit 必须为 0、残留与窗口枚举、**client chunk rev 门禁**）。

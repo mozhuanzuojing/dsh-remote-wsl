@@ -1,0 +1,11 @@
+file:///D:/project/dsh1/vendor/dsh-remote-wsl/client/client.i18n.js:18
+window.__ModuleLoader__.load({
+^
+
+ReferenceError: window is not defined
+    at file:///D:/project/dsh1/vendor/dsh-remote-wsl/client/client.i18n.js:18:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)
+    at async node:internal/modules/esm/loader:650:26
+    at async file:///D:/project/dsh1/vendor/dsh-remote-wsl/spike/verify/explorer-20261012/tmp-i18n-test.mjs:2:11
+
+Node.js v26.10.0

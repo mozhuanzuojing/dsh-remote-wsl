@@ -1,0 +1,93 @@
+{
+  "url": "http://127.0.0.1:8961/?token=7OSGXnl9343IiSC-A5TzO6HqHJ-CPDFHIduqPZ6VDtA",
+  "outDir": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\spike\\verify\\explorer-20261012\\usability\\ux-baseline",
+  "width": 1280,
+  "height": 900,
+  "scenarios": [
+    {
+      "name": "01-overview-light",
+      "settleMs": 2500,
+      "steps": [
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); if (!b) return 'rail-not-found'; b.click(); return 'clicked'; })()" },
+        { "waitFor": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); return !!(p && !/正在读取/.test((p.innerText||''))); })()", "timeout": 8000 },
+        { "wait": 800 },
+        { "shot": "ux-01-overview-light.png" },
+        { "eval": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); const t = (el) => el ? ((el.innerText||'')+'').replace(/\\s+/g,' ').trim() : null; const vis = (el) => { const r = el.getBoundingClientRect(); return r.width>0 && r.height>0; }; const ctrls = Array.from(p.querySelectorAll('button,select,input,[role=\"button\"],[tabindex]')).filter(vis).map((el) => { const aria = el.getAttribute('aria-label'); const tx = t(el); const ti = el.getAttribute('title'); return { tag: el.tagName.toLowerCase() + (el.type ? ':'+el.type : ''), text: tx ? tx.slice(0,70) : null, aria: aria, title: ti, from: aria ? 'aria-label' : tx ? 'text' : ti ? 'title' : 'NONE', disabled: el.disabled === true, rect: (() => { const r = el.getBoundingClientRect(); return [Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]; })() }; }); const clone = p.cloneNode(true); clone.querySelectorAll('details').forEach((d) => d.remove()); const main = ((clone.innerText||'')+'').replace(/\\s+/g,' ').trim(); const TERMS = ['explorer\\\\.snapshot','/remote-wsl/api','snapshot','wsl_status','\\\\bslot\\\\b','\\\\bpin\\\\b','drift','orphans','\\\\bkeys\\\\b','daemon','\\\\d+ms','\\\\bcwd\\\\b','daemonPort','\\\\bpid\\\\b','\\\\bv?\\\\d+\\\\.\\\\d+\\\\.\\\\d+']; const hits = TERMS.map((x) => { const m = main.match(new RegExp(x,'gi')); return m ? x + '×' + m.length : null; }).filter(Boolean); return JSON.stringify({ census: { total: ctrls.length, titleOnly: ctrls.filter((c)=>c.from==='title').length, unnamed: ctrls.filter((c)=>c.from==='NONE').length, bySource: ctrls.reduce((a,c)=>((a[c.from]=(a[c.from]||0)+1),a),{}) }, terminologyMainSight: hits, controls: ctrls }); })()" }
+      ]
+    },
+    {
+      "name": "02-loading",
+      "init": "delay",
+      "settleMs": 1200,
+      "steps": [
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); if (!b) return 'rail-not-found'; b.click(); return 'clicked'; })()" },
+        { "wait": 900 },
+        { "shot": "ux-02-loading.png" }
+      ]
+    },
+    {
+      "name": "03-ready-drilldown",
+      "settleMs": 2500,
+      "steps": [
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); b.click(); return 'clicked'; })()" },
+        { "waitFor": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); return !!(p && !/正在读取/.test((p.innerText||''))); })()", "timeout": 8000 },
+        { "wait": 600 },
+        { "eval": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); const rows = Array.from(p.querySelectorAll('button')).filter((b) => /📁 vendor/.test(b.innerText||'')); if (!rows.length) return 'row-not-found:' + Array.from(p.querySelectorAll('button')).map((b)=>(b.innerText||'').slice(0,20)).join('|'); rows[0].click(); return 'clicked-row'; })()" },
+        { "wait": 1500 },
+        { "shot": "ux-03-ready-drilldown.png" },
+        { "eval": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); return (p.innerText||'').replace(/\\s+/g,' ').slice(0,600); })()" }
+      ]
+    },
+    {
+      "name": "04-empty",
+      "init": "empty",
+      "settleMs": 2500,
+      "steps": [
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); b.click(); return 'clicked'; })()" },
+        { "wait": 1200 },
+        { "shot": "ux-04-empty.png" }
+      ]
+    },
+    {
+      "name": "05-error",
+      "init": "error",
+      "settleMs": 2500,
+      "steps": [
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); b.click(); return 'clicked'; })()" },
+        { "wait": 1500 },
+        { "shot": "ux-05-error.png" }
+      ]
+    },
+    {
+      "name": "06-multi-instance",
+      "settleMs": 2500,
+      "steps": [
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); b.click(); return 'clicked'; })()" },
+        { "waitFor": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); return !!(p && !/正在读取/.test((p.innerText||''))); })()", "timeout": 8000 },
+        { "wait": 800 },
+        { "shot": "ux-06-multi-instance.png" },
+        { "eval": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); return JSON.stringify({ text: (p.innerText||'').replace(/\\s+/g,' ').slice(0,1200), hasOthers: /其它槽位|other/i.test(p.innerText||'') }); })()" }
+      ]
+    },
+    {
+      "name": "07-dark",
+      "dark": true,
+      "settleMs": 2500,
+      "steps": [
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); b.click(); return 'clicked'; })()" },
+        { "waitFor": "(() => { const p = document.querySelector('[data-dsh-remote-wsl=\"panel\"]'); return !!(p && !/正在读取/.test((p.innerText||''))); })()", "timeout": 8000 },
+        { "wait": 800 },
+        { "shot": "ux-07-dark.png" },
+        { "eval": "(() => JSON.stringify({ colorScheme: getComputedStyle(document.documentElement).colorScheme, panelBg: getComputedStyle(document.querySelector('[data-dsh-remote-wsl=\"panel\"]')).backgroundColor }))()" }
+      ]
+    },
+    {
+      "name": "08-rail",
+      "settleMs": 2500,
+      "steps": [
+        { "shot": "ux-08-rail.png" },
+        { "eval": "(() => { const b = Array.from(document.querySelectorAll('nav button, button')).find((x) => /远程资源管理器/.test((x.getAttribute('aria-label') || '') + (x.innerText || ''))); return JSON.stringify({ railFound: !!b, aria: b ? b.getAttribute('aria-label') : null, text: b ? (b.innerText||'').trim() : null }); })()" }
+      ]
+    }
+  ]
+}

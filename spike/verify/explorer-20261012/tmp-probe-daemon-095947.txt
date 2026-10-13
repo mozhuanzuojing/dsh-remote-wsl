@@ -1,0 +1,10 @@
+[probe pid=50488] mode=daemon port=8932 dshVersion=(desktop)
+注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version, wsl_path
+注册/服务痕迹: (none captured by stub)
+
+########## wsl_daemon action=status ##########
+daemon: not running（absent: 没有守护元数据（守护未运行））
+machine: slot=- pid=- port=- version=- orphans=0
+state dir (WSL): /home/g/.dsh/remote-wsl（元数据按槽位 daemon.<slot>.json / daemon.<slot>.token，0600）
+
+[probe pid=50488] cleanup disposers=1

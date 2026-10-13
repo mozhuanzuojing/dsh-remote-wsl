@@ -1,0 +1,66 @@
+### ③ 故意红：把 ok: r.ok !== false 改回硬编码 ok: true（副本 %TEMP%\t30-stop-red，profile t30-stop-red，端口 8924）
+### 补丁证明
+行 506 原:  ok: r.ok !== false,
+行 506 后:  ok: true,
+（git 不动；副本由 src/ + client/ + package.json + cordis.patch.yml 组成；profile 的 node_modules 用 Junction 指回副本）
+
+### 3.1 ensure（同一 systemd 主路径）
+# token exchange status=303 cookie=dsh-auth-IJhfN4wy2lPmkQP_WfusG8nGzaMJpBc…
+# POST /remote-wsl/api status=200 elapsedMs=701
+{"ok":true,"result":{"action":"ensure","ok":true,"idempotent":true,"mode":"systemd","warning":null,"slot":8921,"port":8921,"pid":1657776,"version":"0.2.0-rc.2","reused":false,"started":true,"notes":["启动方式: systemd-run --user（unit dsh-rwsl-8921.service；包装层短命 ⇒ 无窗口，且与 Windows 侧生死解耦）","槽位 8921 由 Windows 侧握手确认就绪（实际端口 8921，5ms）"]}}
+
+### 3.2 SIGSTOP 守护 pid 1657776
+STOP-sent
+1657776 (node-MainThread) T 197 1657776 1657776 0 -1 4194304 15419 111 0 0 9 2 0 0 20 0 7 0 26641818 10061807616 21544 18446744073709551615 8577024 55083077 140722418600592 0 0 0 0 16781312 17923 0 0 0 17 1 0 0 0 0 0 120222368 120616000 726564864 140722418608783 140722418609136 140722418609136 140722418610111 19
+
+### 3.3 explorer.daemon {action:'stop'} —— 期望【红】：结果仍报 ok:true 而进程仍被冻结
+# token exchange status=303 cookie=dsh-auth-IJhfN4wy2lPmkQP_WfusG8nGzaMJpBc…
+# POST /remote-wsl/api status=200 elapsedMs=7358
+{"ok":true,"result":{"action":"stop","ok":true,"idempotent":true,"alreadyStopped":false,"slot":8921,"port":8921,"pid":1657776,"version":"0.2.0-rc.2","reaped":0,"notes":["remote-wsl: stop 未完成：槽位 8921（端口 8921）的本方守护进程仍在（pid 1657776）。已按 P1 规矩**保留元数据** daemon.8921.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"]}}
+
+### 3.4 现场复核（进程仍为 T ⇒ 断言应当红）
+proc state: 1657776 (node-MainThread) T 197 1657776 1657776 0 -1 4194304 15419 111 0 0 9 2 0 0 20 0 7 0 26641818 10061807616 21544 18446744073709551615 8577024 55083077 140722418600592 0 0 0 0 16781312 17923 0 0 0 17 1 0 0 0 0 0 120222368 120616000 726564864 140722418608783 140722418609136 140722418609136 140722418610111 19
+meta: daemon.8921.json daemon.8921.token daemon.log launch-stderr.log 
+
+### 判定
+- 正常树（②）同一构造返回 result.ok=false + 可读 notes ⇒ PASS
+- 副本（③）返回 result.ok=true 而进程仍冻结 ⇒ **断言变红**，证明该断言有效（不是永远绿的）
+
+### 3.5 收尾（CONT + 停守护 + 删副本/profile + 残留复核）
+CONT
+# token exchange status=303 cookie=dsh-auth-8mcg0bKgvAsgj1xZ4fEq-US9sxk9wLv…
+# POST /remote-wsl/api status=200 elapsedMs=8
+{"ok":true,"result":{"action":"stop","ok":true,"idempotent":true,"alreadyStopped":true,"slot":8921,"port":null,"pid":null,"version":null,"reaped":0,"notes":["自己槽位 8921 没有守护（未去停别的槽位）"]}}
+
+### 3.6 收尾后残留复核
+meta: daemon.log launch-stderr.log 
+procs: 0
+units: 0
+failed: 0
+
+### 3.7 端口 8921-8930
+
+LocalPort OwningProcess
+--------- -------------
+     8922         15476
+
+
+### 3.8 可见窗口枚举（归属证据：pid/parent/启动时间/命令行；**禁凭标题猜**）
+pid=17048 parent=20772 Code start=10:04:32
+    cmd="C:\Program Files\Microsoft VS Code\Code.exe" --file-uri "vscode-remote://wsl%2Bdebian-u8-1/home/g/project/u8-workspace/u8-workspace.code-workspace"
+pid=16624 parent=20772 Cursor start=09:49:33
+    cmd="C:\Users\l\AppData\Local\Programs\cursor\Cursor.exe" --folder-uri "vscode-remote://wsl%2Bdebian-u8-1/home/g/project/OpenAPI-Gateway"
+pid=47604 parent=20772 DeepSeek Harness start=12:25:54
+    cmd="C:\Users\l\AppData\Local\Programs\DeepSeek Harness\DeepSeek Harness.exe" 
+pid=20772 parent=4820 explorer start=08:59:26
+    cmd=C:\Windows\Explorer.EXE
+pid=22844 parent=20772 gephgui-wry start=13:39:01
+    cmd="C:\Program Files (x86)\迷雾通\gephgui-wry.exe" 
+pid=24960 parent=13836 msedge start=12:32:31
+    cmd="C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --no-startup-window /prefetch:5
+pid=19728 parent=1700 TextInputHost start=08:59:37
+    cmd="C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\TextInputHost.exe" -ServerName:InputApp.AppXk0k6mrh4r2q0ct33a9wgbez0x7v9cz5y.mca
+pid=36284 parent=20772 Weixin start=18:21:18
+    cmd="C:\Program Files\Tencent\Weixin\Weixin.exe" --scene=startmenu
+pid=47360 parent=20772 WindowsTerminal start=11:17:14
+    cmd="C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.24.12741.0_x64__8wekyb3d8bbwe\WindowsTerminal.exe" 

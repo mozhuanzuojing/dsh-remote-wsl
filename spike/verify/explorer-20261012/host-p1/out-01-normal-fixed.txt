@@ -1,0 +1,7 @@
+########## mode=normal slot=8912 ##########
+ENSURE {"ok":true,"slot":8912,"port":8912,"pid":null,"version":null,"reused":false,"reaped":null,"transport":null,"alivePids":null,"alreadyStopped":null,"note":null,"error":null}
+PID 1571643  META=true  SCAN=1566872@8962,1571643@8912  MODE=systemd
+  # daemon shutdown on slot 8912 (port 8912): ok=true 
+STOP {"ok":true,"slot":8912,"port":8912,"pid":1571643,"version":"0.2.0-rc.2","reused":null,"reaped":[],"transport":"shutdown","alivePids":null,"alreadyStopped":null,"note":null,"error":null}
+① 元数据已清 = true（期望 True）
+① 该槽位无进程 = 1566872@8962（期望 none）
