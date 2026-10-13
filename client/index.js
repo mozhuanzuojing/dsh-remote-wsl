@@ -49,6 +49,7 @@ window.__ModuleLoader__.load({
 		//   或用 HMR / `pnpm run dev:web`，或让用户硬刷新。
 		//   （T36 同样靠"动一下本文件"才让 chunk 变更生效 —— 独立复核见 T37。）
 		//   ↑ 上面这行本身就是 T36 的 rev 刷新锚点；再改 chunk 就再动一行。
+		//   T39 又动了 client.api.js（方法表加权威指针 + METHOD_NAMES 派生）⇒ 这里再刷一次 rev。
 		const CHUNK_I18N = "client.i18n.js";
 		const CHUNK_API = "client.api.js";
 		const CHUNK_PANEL = "client.panel.js";

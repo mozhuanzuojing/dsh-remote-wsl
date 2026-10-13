@@ -37,7 +37,15 @@ window.__ModuleLoader__.load({
 		/** 单次调用超时：路由被挂住/网关卡住时，UI 必须在可预期时间内进"读失败"态。 */
 		const REQUEST_TIMEOUT_MS = 9000;
 
-		/** 契约里的方法名（逐字）。前四个来自设计稿 §4；`listDir` 是 A3 目录浏览器的加法。 */
+		/**
+		 * 契约里的方法名（逐字）。
+		 * ⚠ **这里不是权威**：权威是 host 的 `src/explorer.ts` → `EXPLORER_METHODS`（T4，2026-10-13）。
+		 * 手写 bundle 有**零构建**约束（不能 import host、不能跑生成器），所以这里只能保留一份
+		 * **字面量投影**；一致性由两道机械门禁保证，不靠人记：
+		 *   · `spike/verify/explorer-20261012/arch-t2/tools/check-docs-methods.mjs`（跨任务门禁，断言 client ≡ host）
+		 *   · `spike/verify/explorer-20261012/arch-t4/tools/check-explorer-methods.ts`（`--check` 比对 / `--print` 再生成）
+		 * 顺序与 host 相同；**改 host 必须同步这里**，否则两道门禁一起红。
+		 */
 		const METHODS = Object.freeze({
 			snapshot: "explorer.snapshot",
 			openSession: "explorer.openSession",
@@ -46,6 +54,9 @@ window.__ModuleLoader__.load({
 			listDir: "explorer.listDir",
 			addWorkspace: "explorer.addWorkspace",
 		});
+
+		/** 上表的**投影视图**（唯一用途：让自检/探针脚本按同一来源比对 host 的 `EXPLORER_METHODS`）。 */
+		const METHOD_NAMES = Object.freeze(Object.values(METHODS));
 
 		/** daemon 动作白名单。UI 侧不存在 `stop all=true` 这类会连带他人的动作。 */
 		const DAEMON_ACTIONS = Object.freeze(["ensure", "stop", "restart"]);
@@ -258,7 +269,16 @@ window.__ModuleLoader__.load({
 					return call(METHODS.daemon, args, options);
 				},
 
-				/** 修 version pin（对齐 wsl_sync_version 的 warm+pin；不自动杀守护）。 */
+				/**
+				 * 修 version pin（对齐 `wsl_sync_version` 的 warm+pin；不自动杀守护）。
+				 *
+				 * T4 决议（2026-10-13）：**host 侧是活表面** —— 它在 `EXPLORER_METHODS` 六方法白名单里、
+				 * 有实现（`src/explorer.ts` `fixPin()`）、被 README/设计稿 §4 列出，删它会让
+				 * `check-docs-methods.mjs`（host=6）与设计稿方法表一起红 ⇒ **保留，并把用途写清**。
+				 * 本包装当前**没有调用者**（面板的 drift 修复入口在 T23/T25 轮被撤下；`rg fixPin client/`
+				 * 只剩本文件三处 + `client.i18n.js` 四个 `status.fixPin*` 死键）⇒ 属于"host 活 / client 无门"
+				 * 的状态：保留包装是为了面板随时可重新露出，死键清理见 T6（本任务写域不含 panel/i18n）。
+				 */
 				fixPin(options) {
 					return call(METHODS.fixPin, {}, options);
 				},
@@ -281,6 +301,7 @@ window.__ModuleLoader__.load({
 		exports.EXPLORER_ROUTE = EXPLORER_ROUTE;
 		exports.REQUEST_TIMEOUT_MS = REQUEST_TIMEOUT_MS;
 		exports.EXPLORER_METHODS = METHODS;
+		exports.METHOD_NAMES = METHOD_NAMES;
 		exports.createExplorerApi = createExplorerApi;
 		return module.exports;
 	},

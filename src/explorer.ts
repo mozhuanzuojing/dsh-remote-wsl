@@ -66,6 +66,36 @@ export const EXPLORER_METHODS = [
   'explorer.addWorkspace',
 ];
 
+/**
+ * 本表是**方法名的唯一权威**（T4，2026-10-13）。三处消费它，都不许各自再抄一份：
+ *   · `client/client.api.js` 的 `METHODS` —— **零构建**的手写 bundle 只能复制字面量，
+ *     所以那边是"投影"：`arch-t2/tools/check-docs-methods.mjs`（跨任务门禁）与
+ *     `arch-t4/tools/check-explorer-methods.ts`（本任务新增，带 `--print` 可再生成）逐项校验一致；
+ *   · HTTP 白名单与 `GET /remote-wsl/api` 的方法清单（直接读 `EXPLORER_METHODS`）；
+ *   · README / 设计稿 §4 的方法表（由上面那个门禁断言列全）。
+ * 改这里 ⇒ 必须同步 client 投影与两份文档，否则门禁红。
+ */
+
+/**
+ * **发现选择器**（T4）：`wsl_status` 的发现语义 —— "这台机器上发现了哪些守护"。
+ * 与 {@link selectOwnedDaemon} 的所有权语义**刻意区分**；线上字段正式改名
+ * `discoveredDaemon` 属 P2（README「仍余」②），本轮只命名、不改名。
+ * @param live - `daemonSnapshot()` 的 `live` 列表（只读透传，不做筛选）。
+ * @returns 同一列表（语义命名点，不改变行为）。
+ */
+export const discoverDaemons = <T>(live: readonly T[]): readonly T[] => live;
+
+/**
+ * **所有权选择器**（T4）：只认本插件配置的槽位 —— "我们拥有哪一个守护"。
+ * `explorer.snapshot().daemon` 用它；**绝不回落到 `live[0]`**（F33：那会显示别人的槽位，
+ * 而 UI 的停止/重启以该 slot 为目标 ⇒ 跨实例误停）。
+ * @param live - `daemonSnapshot()` 的 `live` 列表。
+ * @param slot - 本插件配置的槽位（`cfg.daemonPort`）；`null` ⇒ 明确返回 `null`。
+ * @returns 命中槽位的那条，或 `null`。
+ */
+export const selectOwnedDaemon = <T extends { slot?: unknown }>(live: readonly T[], slot: number | null): T | null =>
+  slot === null ? null : (live.find((item) => Number(item.slot) === slot) ?? null);
+
 /** 面板数据面的 HTTP 路由（见文件头"传输层"）。 */
 export const EXPLORER_ROUTE = '/remote-wsl/api';
 
@@ -296,10 +326,19 @@ export function createExplorerHandlers(deps) {
     //   · 本槽位（`cfg.daemonPort`）没有守护 ⇒ 明确 `running:false`（**不回落**）；
     //   · 别的槽位的活守护只作为**只读资讯**进 `others[]`，并逐条标明"非本槽位、未复用未打扰"。
     // `orphans` 仍取 daemonSnapshot() 的全量口径（孤儿本来就是"无元数据"的，不存在"谁的"问题）。
+    // ★★ T4（2026-10-13）：把"daemon 是哪一个"这件事拆成**两个具名选择器**，从此不许再混用。
+    //
+    //   · {@link selectOwnedDaemon} —— **所有权选择器**：只认本插件配置的槽位 `cfg.daemonPort`。
+    //     `explorer.snapshot().daemon` 走它；**绝不回落到 `live[0]`**（F33：那会显示别人的槽位，
+    //     而 UI 的停止/重启正是以该 slot 为目标 ⇒ 跨实例误停）。
+    //   · {@link discoverDaemons} —— **发现选择器**：`wsl_status` 的发现语义 = "这台机器上发现了
+    //     哪些守护"，与"我们拥有哪一个"无关。线上字段正式改名 `discoveredDaemon` 属 **P2**
+    //     （README「仍余」② 已记录：要动 6 个工具 + selftest），本轮只落地**具名选择器**，
+    //     不改字段名 —— 这样两个语义此后各有名字，不会再被"顺手回落"糊在一起。
     const ds = await daemonSnapshot(cfg);
-    const live = Array.isArray(ds.live) ? ds.live : [];
+    const live = discoverDaemons(Array.isArray(ds.live) ? ds.live : []);
     const configuredSlot = Number(cfg.daemonPort) || null;
-    const mine = live.find((l) => Number(l.slot) === configuredSlot) ?? null;
+    const mine = selectOwnedDaemon(live, configuredSlot);
     const others = live
       .filter((l) => Number(l.slot) !== configuredSlot)
       .map((l) => ({
