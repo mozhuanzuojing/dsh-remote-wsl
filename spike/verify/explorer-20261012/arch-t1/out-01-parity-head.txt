@@ -1,0 +1,11 @@
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+snapshot.top        = daemon,distros,drift,target,webHosts,workspaces
+snapshot.target     = cwd,distro,wslHome
+snapshot.daemon     = keys,orphans,others,running
+daemon.stop.result  = action,alreadyStopped,idempotent,notes,ok,pid,port,reaped,slot,version
+remote-wsl(explorer): 守护已由 systemd 托管（unit=dsh-rwsl-8912.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦
+daemon.ensure.result= action,idempotent,mode,notes,ok,pid,port,reused,slot,started,version,warning
+daemon.ensure.mode  = systemd warning=null
+remote-wsl(explorer): daemon shutdown on slot 8912 (port 8912): ok=true 
+wsl_status.labels   = distros | target | wsl ip | shell env injection (useShellEnvironment) | localhost forwarding | desktop dsh version | version this plugin uses | wsl pin | drift | dlx dsh versions in WSL | backend | daemon | daemon idle/linger/queue | daemon ports | daemon state dir (WSL) | resident runtimes (in-host backend only) | web hosts | pid files in WSL /tmp
+wsl_status.lineCount= 18

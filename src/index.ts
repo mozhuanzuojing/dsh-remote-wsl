@@ -65,7 +65,13 @@ import {
   daemonSnapshot,
   readDaemonMeta,
   stateDirLinux,
+  unc, // 架构债 T1（task-34）：UNC 拼法**只此一份**（daemon-client.ts 导出），本文件不再自带副本
 } from './daemon-client.ts';
+// 架构债 T1（task-34）：`SdkRuntime` / `ALLOW_BUILDS` / `allowBuildFlags` / `textOfAssistantEvent`
+// 全部收敛到 `sdk-runtime.ts` 的**唯一实现**（`SdkRuntime` 这个类在 src/ 里只有那一处定义）。
+// 宿主形态（`backend='in-host'` 逃生舱）通过 `runtimeAdapter({ … })` 覆盖差异（启动方式/关停方式/文案/
+// 结果投影），所以它的对外形状与守护形态各自保持不变 —— 详见 sdk-runtime.ts 头部"单一实现"。
+import { SdkRuntime, allowBuildFlags, textOfAssistantEvent, runtimeAdapter } from './sdk-runtime.ts';
 // 人面（侧栏面板）的 host 数据面：explorer.snapshot / openSession / daemon / fixPin。
 // 它只**复用**下面这些已有实现（daemonSnapshot / ensureDaemon / stopDaemon / resolveVersion / writePin /
 // listDistros / webHosts），不新开第二条扫描或孤儿判定路径 —— 见 explorer.ts 头部"分层"与 §8.6 同源纪律。
@@ -133,15 +139,6 @@ const DEFAULTS = {
   daemonStartTimeoutMs: 20000,
 };
 
-/** pnpm 拦截未审批的 lifecycle scripts；dsh 依赖的 native 包必须显式放行。 */
-const ALLOW_BUILDS = [
-  '@deepseek-ai/dsh-subprocess-local',
-  '@google/genai',
-  'koffi',
-  'node-pty',
-  'protobufjs',
-];
-
 /**
  * **最后兜底**候选：老实现写死的那个用户路径。
  * 为什么还留着：它不再是主路径（主路径由 lib/version.js 的 desktopRuntimeCandidates 分层推导），
@@ -155,11 +152,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const renderText = (_args, value) => [{ type: 'text', text: String(value ?? '') }];
 
 // ── WSL 文件/脚本工具 ────────────────────────────────────────────────────────
-
-/** Linux 绝对路径 → 可从 Windows 直接读写的 UNC 路径。 */
-function unc(distro, linuxPath) {
-  return `\\\\wsl.localhost\\${distro}\\${linuxPath.replace(/^\//, '').replace(/\//g, '\\')}`;
-}
 
 /**
  * 把 bash 脚本写到 WSL 侧文件再执行。
@@ -224,8 +216,6 @@ export NO_PROXY=127.0.0.1,localhost,::1
 `;
 }
 
-const allowBuildFlags = () => ALLOW_BUILDS.map((p) => `--allow-build=${p}`).join(' ');
-
 /**
  * 主动回收 WSL 侧进程。
  * 为什么必需：`child.kill()` 只杀掉 Windows 侧的 `wsl.exe` 包装层，**Linux 侧进程会变孤儿继续跑**
@@ -253,6 +243,60 @@ true
   } catch {
     /* 回收失败不能影响主流程（例如发行版已被关掉） */
   }
+}
+
+/**
+ * 宿主形态（`backend='in-host'` 逃生舱）的运行时描述 —— 架构债 T1（task-34）去重的核心。
+ *
+ * 共享的 `SdkRuntime`（`sdk-runtime.ts`）默认是**守护形态**；这里只覆盖差异，逐条都能对上旧的内嵌副本：
+ *  · 脚本由宿主拼（登录 shell env 前缀 + `.pid` 行，供 `reapWsl` 收 Linux 侧进程）并落 `/tmp`；
+ *  · 起进程走 `wsl.exe -d <distro> -- bash <脚本>`（守护形态是 WSL 内 `bash -c`，有守护注入的 env）；
+ *  · 关停 = 杀包装层 + `reapWsl`（守护形态杀**进程组**）；
+ *  · 空正文走 `fallbackText`（读持久化日志）+ `idleTimeoutMs` 自回收（守护形态回报 `retryable`，绝不换 sessionId）；
+ *  · 文案带 `remote-wsl: ` 前缀、`stderrTail` 8000、`prompt()` 结果形状是旧的那一套（`turn/runtimeRestarted`）。
+ *
+ * `state.script` 必须由 `spawnRuntime` 写、由 `closeHook` 读 —— 同一份引用，别各留一份。
+ */
+function inHostAdapter(cfg) {
+  const state = { script: null };
+  return runtimeAdapter({
+    label: 'host',
+    stderrTailLimit: 8000,
+    initTimeoutMs: cfg.timeoutMs,
+    guardStdinWrite: false,
+    logSpawnError: false,
+    sawAssistantRequiresText: false,
+    requireAliveOnPrompt: false,
+    quietLabels: { quiet: null, grace: null },
+    fallbackMode: 'close-read-log',
+    resultProfile: 'host',
+    killMode: 'wrapper',
+    closeResult: 'void',
+    idleTimeoutMs: cfg.idleTimeoutMs,
+    scriptFor: ({ cwd, version, profile }) => `${shellPreamble(cfg, { withShellEnv: true })}cd "${cwd}" || { echo "remote-wsl: cwd 不存在: ${cwd}" >&2; exit 2; }
+# 记下 PID：exec 之后它就是 pnpm/node 主进程的 PID，供 reapWsl 主动回收
+echo $$ > "\${0%.sh}.pid"
+# 凭据走 ~/.dsh/.credentials.yaml 的 credentials seam，无需 export API key
+exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${version} --profile ${profile}
+`,
+    spawnRuntime: ({ script }) => {
+      state.script = writeScript(cfg.distro, script);
+      return spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', state.script], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        windowsHide: true,
+      });
+    },
+    closeHook: async () => {
+      await reapWsl(cfg, state.script);
+      removeScript(cfg.distro, state.script);
+    },
+    text: {
+      requestClosed: () => 'remote-wsl: 运行时已关闭',
+      promptClosed: () => 'remote-wsl: 运行时已关闭（上一轮走到了兜底路径，请重试）',
+      requestTimeout: (method) => `remote-wsl: ${method} 超时`,
+      noText: 'remote-wsl: 事件流与持久化日志都没有 assistant 正文；请重试（运行时已重启、id 会换新）',
+    },
+  });
 }
 
 // ── 版本一致性（对应 vscode-server 的"按客户端版本供给"）──────────────────────
@@ -539,245 +583,11 @@ mise exec -- node ${jsLinux} 2>/dev/null
 }
 
 // ── 常驻远端 agent：SDK 通道（stdio JSON-RPC 2.0）─────────────────────────────
-
-/** assistant/message 的正文：只取 message.content 里的 text 块（跳过 reasoning）。 */
-function textOf(event) {
-  const content = event?.data?.message?.content;
-  if (!Array.isArray(content)) return '';
-  return content
-    .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
-    .map((b) => b.text)
-    .join('');
-}
-
-/**
- * 一个常驻的 WSL dsh SDK 运行时。**一个运行时一个 sessionId**：
- * 跨进程复用同一 id 会被服务端拒绝（`-32603 session already exists`，实测），
- * 所以多轮只能发生在本进程内；运行时一旦停掉，下次要换新 id。
- */
-class SdkRuntime {
-  constructor(cfg, version, key) {
-    this.cfg = cfg;
-    this.version = version;
-    this.key = key;
-    this.sessionId = `remote-wsl-${key}-${randomUUID()}`;
-    this.pending = new Map();
-    this.nextId = 1;
-    this.buf = '';
-    this.events = [];
-    this.stderrTail = '';
-    this.closed = false;
-    this.queue = Promise.resolve();
-    this.turns = 0;
-    this.idleTimer = null;
-  }
-
-  async start() {
-    // 常驻进程 ⇒ 注入登录 shell 环境（用户 profile 里的 env 才进得来；一次性路径不注入，见 shellPreamble）
-    const script = `${shellPreamble(this.cfg, { withShellEnv: true })}cd "${this.cfg.cwd}" || { echo "remote-wsl: cwd 不存在: ${this.cfg.cwd}" >&2; exit 2; }
-# 记下 PID：exec 之后它就是 pnpm/node 主进程的 PID，供 reapWsl 主动回收
-echo $$ > "\${0%.sh}.pid"
-# 凭据走 ~/.dsh/.credentials.yaml 的 credentials seam，无需 export API key
-exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version} --profile ${this.cfg.profile}
-`;
-    this.script = writeScript(this.cfg.distro, script);
-    this.child = spawn('wsl.exe', ['-d', this.cfg.distro, '--', 'bash', this.script], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      windowsHide: true,
-    });
-    this.child.stdout.setEncoding('utf8');
-    this.child.stdout.on('data', (c) => this.pump(c));
-    this.child.stderr.setEncoding('utf8');
-    this.child.stderr.on('data', (c) => {
-      this.stderrTail = (this.stderrTail + c).slice(-8000);
-    });
-    this.exited = new Promise((res) => this.child.once('exit', (code) => res(code)));
-    this.child.on('error', () => {
-      this.closed = true;
-    });
-    await this.request('initialize', {
-      cwd: this.cfg.cwd,
-      provider: this.cfg.provider,
-      model: this.cfg.model,
-    });
-  }
-
-  request(method, params, timeoutMs = this.cfg.timeoutMs) {
-    if (this.closed) return Promise.reject(new Error('remote-wsl: 运行时已关闭'));
-    const id = this.nextId++;
-    this.child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error(`remote-wsl: ${method} 超时`));
-      }, timeoutMs);
-      this.pending.set(id, {
-        resolve: (v) => {
-          clearTimeout(timer);
-          resolve(v);
-        },
-        reject: (e) => {
-          clearTimeout(timer);
-          reject(e);
-        },
-      });
-    });
-  }
-
-  pump(chunk) {
-    this.buf += chunk;
-    this.drain();
-  }
-
-  drain() {
-    let nl;
-    while ((nl = this.buf.indexOf('\n')) >= 0) {
-      const line = this.buf.slice(0, nl).trim();
-      this.buf = this.buf.slice(nl + 1);
-      if (line) this.route(line);
-    }
-  }
-
-  /** 尾帧可能没有换行结尾（实测丢帧症状）⇒ 静止时把残余缓冲当一帧处理。 */
-  flushPartial() {
-    if (!this.buf.trim()) return;
-    this.buf += '\n';
-    this.drain();
-  }
-
-  route(line) {
-    let msg;
-    try {
-      msg = JSON.parse(line);
-    } catch {
-      return;
-    }
-    if (msg.id !== undefined && msg.method === undefined) {
-      const p = this.pending.get(msg.id);
-      if (!p) return;
-      this.pending.delete(msg.id);
-      if (msg.error) p.reject(new Error(`JSON-RPC ${msg.error.code}: ${msg.error.message}`));
-      else p.resolve(msg.result);
-      return;
-    }
-    if (msg.method === 'session.event' && msg.params?.sessionId === this.sessionId) {
-      const ev = msg.params.event;
-      this.events.push(ev);
-      if (ev?.type === 'assistant/message') this.sawAssistant = true;
-      if (ev?.type === 'turn/end') {
-        this.completedBy = this.completedBy ?? 'turn/end';
-        this.resolveTurn?.();
-      } else this.armQuiet();
-      return;
-    }
-    if (msg.method === 'session.status' && msg.params?.sessionId === this.sessionId) {
-      if (msg.params.status === 'running') this.statusRunning = true;
-      if (msg.params.status === 'idle' && this.statusRunning) {
-        this.completedBy = this.completedBy ?? 'idle';
-        this.resolveTurn?.();
-      }
-    }
-  }
-
-  /** 静止窗口：等 3s 没有任何事件就认为一轮结束（上游 README 明确要客户端自己定）。 */
-  armQuiet() {
-    if (this.quietTimer) clearTimeout(this.quietTimer);
-    this.quietTimer = setTimeout(() => {
-      this.flushPartial();
-      if (!this.sawAssistant && !this.graceUsed) {
-        this.graceUsed = true; // 先给一次宽限，再放弃
-        this.quietTimer = setTimeout(() => {
-          this.flushPartial();
-          this.resolveTurn?.();
-        }, 20000);
-        return;
-      }
-      this.resolveTurn?.();
-    }, 3000);
-  }
-
-  /** 发一轮并等结果；同一运行时内可反复调用（上下文保持）。 */
-  prompt(text) {
-    const run = this.queue.then(() => this.#prompt(text));
-    this.queue = run.catch(() => {}); // 串行化：失败不阻塞后续
-    return run;
-  }
-
-  async #prompt(text) {
-    if (this.closed) throw new Error('remote-wsl: 运行时已关闭（上一轮走到了兜底路径，请重试）');
-    this.events = [];
-    this.sawAssistant = false;
-    this.completedBy = null;
-    this.graceUsed = false;
-    this.statusRunning = false;
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    this.turnDone = new Promise((res) => {
-      this.resolveTurn = res;
-    });
-    await this.request('session/prompt', {
-      sessionId: this.sessionId,
-      contentBlocks: [{ type: 'text', text }],
-    });
-    this.armQuiet();
-    await Promise.race([this.turnDone, sleep(this.cfg.timeoutMs)]);
-    if (this.quietTimer) clearTimeout(this.quietTimer);
-
-    const msgs = this.events.filter((e) => e?.type === 'assistant/message');
-    let finalText = msgs.length ? textOf(msgs[msgs.length - 1]) : '';
-    if (!finalText.trim()) {
-      // 事件流缺正文 ⇒ 只能停稳运行时（换新 id 重来），再从持久化日志取回
-      await this.close();
-      finalText = (await readLogViaWsl(this.cfg, this.sessionId, this.cfg.cwd)) ?? '';
-      if (!finalText.trim()) {
-        throw new Error('remote-wsl: 事件流与持久化日志都没有 assistant 正文；请重试（运行时已重启、id 会换新）');
-      }
-      this.completedBy = 'log-fallback';
-    }
-    this.turns += 1;
-    this.armIdle();
-    return {
-      text: finalText,
-      completedBy: this.completedBy ?? 'quiet',
-      sessionId: this.sessionId,
-      turn: this.turns,
-      eventCount: this.events.length,
-      runtimeRestarted: this.closed,
-    };
-  }
-
-  armIdle() {
-    if (this.closed) return;
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    this.idleTimer = setTimeout(() => {
-      void this.close();
-    }, this.cfg.idleTimeoutMs);
-    this.idleTimer.unref?.();
-  }
-
-  async close() {
-    if (this.closed) return;
-    this.closed = true;
-    if (this.idleTimer) clearTimeout(this.idleTimer);
-    try {
-      await this.request('shutdown', undefined, 3000).catch(() => {});
-    } catch {
-      /* 已经走了 */
-    }
-    try {
-      this.child.stdin.end();
-    } catch {
-      /* 已关闭 */
-    }
-    await Promise.race([this.exited, sleep(3000)]);
-    try {
-      this.child.kill();
-    } catch {
-      /* 已退出 */
-    }
-    await reapWsl(this.cfg, this.script); // 包装层被杀不代表 Linux 侧退出
-    removeScript(this.cfg.distro, this.script);
-  }
-}
+//
+// 架构债 T1（task-34）：这里原来内嵌了第二份运行时常驻类 + `textOf` + `ALLOW_BUILDS` + `unc`。
+// 现在**唯一实现**在 `src/sdk-runtime.ts`（`SdkRuntime` 这个类在 src/ 里只有那一处定义），本文件改为
+// `import { SdkRuntime, runtimeAdapter, … }`；宿主逃生舱（`backend='in-host'`）的差异（脚本拼法/
+// 起进程/关停/文案/结果投影）通过 `inHostAdapter(cfg)` 覆盖 —— 见 sdk-runtime.ts 头部"单一实现"。
 
 // ── 远端 UI：WSL 跑 `dsh web`，Windows 开应用窗口 ─────────────────────────────
 
@@ -1065,7 +875,21 @@ export function apply(ctx, rawConfig = {}) {
     warmInBackground(version); // 漂移时后台预热，不阻塞本次启动
     // cwd 在**运行时创建时**生效（它决定会话 cwd 与启动工作目录）；同一 key 复用时不重建
     const effCfg = cwdOverride ? { ...config, cwd: cwdOverride } : config;
-    const rt = new SdkRuntime(effCfg, version.version, key);
+    const rt = new SdkRuntime({
+      key,
+      version: version.version,
+      cwd: effCfg.cwd,
+      profile: effCfg.profile,
+      provider: effCfg.provider,
+      model: effCfg.model,
+      // 宿主形态原来拿 `cfg.timeoutMs` 当请求/单轮的默认超时（守护形态是 promptTimeoutMs=300000）
+      promptTimeoutMs: effCfg.timeoutMs,
+      quietMs: 3000,
+      graceMs: 20000,
+      // 逃生舱的兜底：事件流没有正文时停稳运行时、读持久化日志（守护形态**不**走这条 —— 语义 #6）
+      fallbackText: ({ sessionId }) => readLogViaWsl(effCfg, sessionId, effCfg.cwd),
+      adapter: inHostAdapter(effCfg),
+    });
     runtimes.set(key, rt);
     await rt.start();
     return rt;

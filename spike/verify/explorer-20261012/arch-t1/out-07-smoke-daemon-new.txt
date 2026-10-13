@@ -1,0 +1,4 @@
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+remote-wsl: 守护已由 systemd 托管（unit=dsh-rwsl-8912.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦
+SMOKE daemon: ok=true ms=4261
+SMOKE daemon: head=可以 \n  \n [remote-wsl: backend=daemon session=remote-wsl-t1-daemon-1791877582776-7b6259d9-a72e-4c34-81a8-a2565a43975a cwd=/home/g completedBy=turn/end turns=1 runtimePid=1851502 daemon=1851108@127.0.0.1:8912 dsh@0.2.0-rc.2]

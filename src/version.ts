@@ -17,7 +17,8 @@
  *
  * 这些判断全是"输入 → 输出"，没有 IO、没有进程、没有 ctx：抽成纯函数后可以用假 env /
  * 假 execPath / 假 readFileSync 直接断言候选顺序与容错分支（真机只能证明 happy path）。
- * 因此本文件**只有四个导出**，且**导入本模块不产生任何副作用**（不读文件、不 spawn）。
+ * 本文件**只有四个导出**，且**导入本模块不产生任何副作用**（不读文件、不 spawn；
+ * `ALLOW_BUILDS` 常量从 sdk-runtime.ts 复用，那边顶层同样无副作用）。
  *
  * ## 硬约定（违反就加载不了）
  *
@@ -28,20 +29,10 @@
  */
 
 import { basename, dirname, join } from 'node:path';
-
-/**
- * pnpm 拦截未审批的 lifecycle scripts；dsh 依赖的 native 包必须显式放行，否则
- * `pnpm dlx` 装完是**缺 native 绑定**的半成品（warm 会"成功"但跑起来才炸）。
- * 与 index.js 的 ALLOW_BUILDS 同源；本文件不导出它（导出面被限定为四个函数），
- * 后续 index.js 改成从本文件取用时再把这层去重。
- */
-const ALLOW_BUILDS = [
-  '@deepseek-ai/dsh-subprocess-local',
-  '@google/genai',
-  'koffi',
-  'node-pty',
-  'protobufjs',
-];
+// 架构债 T1（task-34）：`--allow-build` 清单**只留一份**（在 sdk-runtime.ts 里 export，这里 import）。
+// 导入本模块仍然**不产生任何副作用**（sdk-runtime.ts 顶层只有常量与 class 声明，不读文件、不 spawn），
+// 本文件的导出面也仍然只有四个函数。
+import { ALLOW_BUILDS } from './sdk-runtime.ts';
 
 /** `resources/runtime/primary-runtime/runtime.json` 相对安装根的尾段（集中一处，改一处即可）。 */
 const RUNTIME_TAIL = ['resources', 'runtime', 'primary-runtime', 'runtime.json'];

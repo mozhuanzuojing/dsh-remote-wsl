@@ -1,0 +1,3 @@
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+SMOKE in-host: ok=true ms=75027
+SMOKE in-host: head=可以 \n  \n [remote-wsl: backend=in-host session=remote-wsl-t1-in-host-1791877420326-571cebd0-7966-4ea2-b5ae-f2ff212932ca cwd=/home/g completedBy=turn/end turns=1 dsh@0.2.0-rc.2]
