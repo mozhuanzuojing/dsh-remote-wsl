@@ -24,7 +24,7 @@
 | `token-descriptors.mjs` | token 注册表里的官方 `description` / `requiresLightAndDark` | `node token-descriptors.mjs <asar> [regex]` |
 | `css-token-audit.mjs` | **门禁（两条硬约束 + 一条软检查 + Q4 窄豁免）**：抽出 `.<prefix>*{…}` 规则；**C1** 硬编码色（`#hex(3/4/6/8)` / `rgb()/rgba()` / `hsl()` / `color()/lab()/oklch()` / 命名色，已防 `white-space` 误报）；**C2** 引用的 `--dsw-*` 集合 **⊆ 17-token 闭集**（防第 18 个 token）；**S1** `label-dimmed` 只许出现在 `:disabled`/`::placeholder`；**Q4** 只豁免 `box-shadow` 里的中性半透明黑（α ∈ [0.04,0.28]） | `node css-token-audit.mjs <文件> [classPrefix] [--no-allow] [--allow=…]`；**exit 0 = 通过** |
 | `overlay-on-surfaces.mjs` | alpha 覆盖层（`interactive-bg-hover/-active`）在**三种背景**上的合成终值 + `hover/静息`、`active/静息`、`active/hover` 可区分性 + 其上文字对比度 | `node overlay-on-surfaces.mjs <asar>` |
-| `box-sizing-audit.mjs` | **content-box 陷阱审计**（T43）：列出"声明 height/width + 有 padding/border 却未声明 `box-sizing:border-box`"的规则 → 「声明值 / 渲染值 / 差额 / 真陷阱 or 候选」；`--host=<asar>` 另报宿主 `box-sizing` 重置形态；`--tags=.cls=tag,…` 指定元素标签（默认取自对 `client.panel.js` 的静态阅读） | `node box-sizing-audit.mjs <文件> dsh-rw- [--host=<asar>]` |
+| `box-sizing-audit.mjs` | **content-box 陷阱审计**（T43 新增 / **T49 补强红能力**）：按**同一选择器的层叠生效值**（源码顺序 + `!important` + 简写/长写逐边覆盖）判定，逐行给「生效 box-sizing / 来自第几条规则 / 声明→渲染（高+宽两轴）/ 是否有追加覆盖 / 判定」；**有真陷阱 ⇒ exit 1**。选项：`--host=<asar>`、`--tags=.cls=tag,…`（夹具可用注释 `@tag` pragma）、`--judge=old` 复现旧判据（反例取证）、`--no-fail`、`--strict` | `node box-sizing-audit.mjs <文件> dsh-rw- [--host=<asar>] [--judge=old]` |
 | `probe-host-universal-reset.mjs` | 取 asar 里"纯通配 `box-sizing`"命中的**前文**，判断是全局重置还是组件内后代选择器 | `node probe-host-universal-reset.mjs <asar>` |
 
 `<asar>` = `C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\app.asar`
@@ -43,7 +43,11 @@
 | `out-07-overlay-on-surfaces.txt` | alpha 覆盖层在三背景上的终值 + 两态可区分性（含"菜单上禁止次级文字"的测值） | §5.1.1 |
 | `out-08-box-sizing-audit.txt` | **T43 根因证据**：真实现 95 规则 → 真陷阱 **1 条**（`.dsh-rw-status` 声明 36 → 渲染 **55**，`<footer>` 无兜底）+ 候选 2 条（`<button>` 由 UA 兜底，实测 28/24 = 声明值）；另附**负向/正向夹具**各一（+9 陷阱 / OK）与门禁复跑（17 token / C1=0 / C2=PASS / shadow α=.08&.16） | §3.4.2、§7.2.3、T43 报告 §1/§6 |
 | `out-09-host-universal-reset.txt` | 宿主"纯通配 `box-sizing`"3 处命中的前文取证（均无法证明作用于本面板） | T43 报告 §1.1/§9 |
-| `REPORT-t28-reconcile.md` | **T43 对账报告**：底栏 55/36 判责与定稿 47、命中区最小尺寸（≥24×24，不取 32）、组标题取色（Q6 4.5:1 ⇒ `label-primary`）、N1–N6 逐条判责、规格 diff（20 行） | —— |
+| `REPORT-t28-reconcile.md` | **T43 对账报告**：底栏 55/36 判责与定稿 47、命中区最小尺寸（≥24×24，不取 32）、组标题取色（Q6 4.5:1 ⇒ `label-primary`）、N1–N6 逐条判责、规格 diff（20 行）；**§10 = T49**：`box-sizing-audit` 红能力补强（旧判据假绿/假红反例、新判据定义与范围边界、7 夹具矩阵、真实现 真陷阱=1 的说明、幂等、判据对照、自身 5 处缺陷自查） | —— |
+| `out-10-redcap-old-judge.txt` | **旧判据**在 4 个负向夹具上的原始输出（含 `neg2`/`neg4` 两个**假绿**） | T43 报告 §10.1 |
+| `out-11-redcap-new-judge.txt` | **新判据**在 7 个夹具上的原始输出（4 负 exit 1 / 3 正 exit 0） | T43 报告 §10.3 |
+| `out-12-redcap-ab.txt` | 逐夹具 A/B（旧 vs 新并排） | T43 报告 §10.1 |
+| `fixtures/*.css`（7 个） | 负向：`neg1-plain-trap` / `neg2-append-override` / `neg3-important-override` / `neg4-append-then-important`；正向：`pos1-single-borderbox` / `pos2-append-safe` / `pos3-form-control-no-boxsizing`（各带 `@tag` pragma） | T43 报告 §10.3 |
 
 ## 3. 基线锚点（只对已提交版本）
 

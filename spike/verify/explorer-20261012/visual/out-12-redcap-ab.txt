@@ -1,0 +1,101 @@
+### 逐夹具 A/B：旧判据 vs 新判据（同一个文件、同一版脚本，只换 --judge）
+
+=========== neg0-footer-36-t43-shape.css ===========
+--- OLD ---
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual\fixtures\neg0-footer-36-t43-shape.css
+# class prefix .dsh-rw-   规则数 = 1   judge = old   默认标签 = footer
+
+## 旧判据（逐条规则独立；**只看这条规则自己有没有 box-sizing**）
+RULE#  SELECTOR                      声明     渲染     判定
+0      .dsh-rw-footer36              36     55     **真陷阱（<footer> 无兜底）**
+
+==> FAIL（真陷阱 1 条）
+exit=1
+--- NEW ---
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual\fixtures\neg0-footer-36-t43-shape.css
+# class prefix .dsh-rw-   规则数 = 1   judge = new   默认标签 = footer
+
+## 新判据（**同一选择器的层叠生效值**：源码顺序 + `!important`；简写/长写逐边覆盖）
+SELECTOR                    元素      生效box-sizing     来自    声明H    渲染H    声明W    渲染W    覆盖     判定
+.dsh-rw-footer36            footer  —                —     36     55     —      —      —      **真陷阱（高 36→55；生效 无 box-sizing）**
+
+真陷阱数 = 1   候选 = 0   OK = 0   无尺寸声明(跳过) = 0
+未检测到 box-sizing 的追加覆盖（每个选择器的 box-sizing 只声明一次）
+
+==> FAIL（真陷阱 1 条）
+exit=1
+
+=========== neg2-append-override.css ===========
+--- OLD ---
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual\fixtures\neg2-append-override.css
+# class prefix .dsh-rw-   规则数 = 2   judge = old   默认标签 = div
+
+## 旧判据（逐条规则独立；**只看这条规则自己有没有 box-sizing**）
+RULE#  SELECTOR                      声明     渲染     判定
+0      .dsh-rw-append                20     29     OK(显式 border-box)
+
+==> PASS（真陷阱 0 条）
+exit=0
+--- NEW ---
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual\fixtures\neg2-append-override.css
+# class prefix .dsh-rw-   规则数 = 2   judge = new   默认标签 = div
+
+## 新判据（**同一选择器的层叠生效值**：源码顺序 + `!important`；简写/长写逐边覆盖）
+SELECTOR                    元素      生效box-sizing     来自    声明H    渲染H    声明W    渲染W    覆盖     判定
+.dsh-rw-append              div     content-box      #1    20     29     —      —      是(2)   **真陷阱（高 20→29；生效 content-box）**
+
+真陷阱数 = 1   候选 = 0   OK = 0   无尺寸声明(跳过) = 0
+**检测到 box-sizing 的追加覆盖** 1 个：.dsh-rw-append(2条 ⇒ 生效 content-box)
+
+==> FAIL（真陷阱 1 条）
+exit=1
+
+=========== neg4-append-then-important.css ===========
+--- OLD ---
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual\fixtures\neg4-append-then-important.css
+# class prefix .dsh-rw-   规则数 = 2   judge = old   默认标签 = div
+
+## 旧判据（逐条规则独立；**只看这条规则自己有没有 box-sizing**）
+RULE#  SELECTOR                      声明     渲染     判定
+0      .dsh-rw-append-imp            20     28     OK(显式 border-box)
+
+==> PASS（真陷阱 0 条）
+exit=0
+--- NEW ---
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual\fixtures\neg4-append-then-important.css
+# class prefix .dsh-rw-   规则数 = 2   judge = new   默认标签 = div
+
+## 新判据（**同一选择器的层叠生效值**：源码顺序 + `!important`；简写/长写逐边覆盖）
+SELECTOR                    元素      生效box-sizing     来自    声明H    渲染H    声明W    渲染W    覆盖     判定
+.dsh-rw-append-imp          div     content-box !imp #1    20     28     —      —      是(2)   **真陷阱（高 20→28；生效 content-box）**
+
+真陷阱数 = 1   候选 = 0   OK = 0   无尺寸声明(跳过) = 0
+**检测到 box-sizing 的追加覆盖** 1 个：.dsh-rw-append-imp(2条 ⇒ 生效 content-box)
+
+==> FAIL（真陷阱 1 条）
+exit=1
+
+=========== pos2-append-safe.css ===========
+--- OLD ---
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual\fixtures\pos2-append-safe.css
+# class prefix .dsh-rw-   规则数 = 2   judge = old   默认标签 = div
+
+## 旧判据（逐条规则独立；**只看这条规则自己有没有 box-sizing**）
+RULE#  SELECTOR                      声明     渲染     判定
+0      .dsh-rw-late-safe             20     29     **真陷阱（<div> 无兜底）**
+
+==> FAIL（真陷阱 1 条）
+exit=1
+--- NEW ---
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual\fixtures\pos2-append-safe.css
+# class prefix .dsh-rw-   规则数 = 2   judge = new   默认标签 = div
+
+## 新判据（**同一选择器的层叠生效值**：源码顺序 + `!important`；简写/长写逐边覆盖）
+SELECTOR                    元素      生效box-sizing     来自    声明H    渲染H    声明W    渲染W    覆盖     判定
+.dsh-rw-late-safe           div     border-box       #1    20     20     —      —      是(2)   OK(border-box 生效)
+
+真陷阱数 = 0   候选 = 0   OK = 1   无尺寸声明(跳过) = 0
+**检测到 box-sizing 的追加覆盖** 1 个：.dsh-rw-late-safe(2条 ⇒ 生效 border-box)
+
+==> PASS（真陷阱 0 条）
+exit=0

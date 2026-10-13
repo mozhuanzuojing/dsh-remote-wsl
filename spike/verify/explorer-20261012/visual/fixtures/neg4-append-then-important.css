@@ -1,0 +1,7 @@
+/* @tag div */
+/* 夹具 neg4：**追加覆盖 + !important 的组合**（旧判据第二个盲区，比 neg3 更狠）
+   第一条先给 height/padding 并声明 border-box；第二条追加 content-box !important。
+   生效值 = content-box（!important 胜普通声明）⇒ 渲染高 = 20 + 4×2 = 28 ⇒ 真陷阱。
+   旧判据在第一条里看到 border-box ⇒ 报 OK（**假绿**），因为它既不求生效值、也不建模 !important。 */
+.dsh-rw-append-imp{box-sizing:border-box;height:20px;padding:4px}
+.dsh-rw-append-imp{box-sizing:content-box !important}

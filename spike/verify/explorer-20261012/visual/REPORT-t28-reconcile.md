@@ -302,3 +302,196 @@ $node = 'C:\Users\l\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\
 | **`.dsh-rw-dot` 空心态实测 10 vs CSS 推导 11** | 差 1px 未定因（边框粗细/DPR/测量元素层级）；**不影响结论**（无论 10 还是 11 都 ≠ 实心态 8） |
 | **行内动作的可见文案**（T40 记「进入」16×16） | 未复核该文案的字符构成（`16×16` 与两字 CJK 的预期宽度不符）；**不影响裁定**：命中盒小于 24 是确定的 |
 | **灰度截图形态的两态区分** | 沿用 T40 的计算样式读数 + A/B 红测；**未出灰度截图** |
+
+---
+
+## 10. T49 —— `box-sizing-audit.mjs` 的红能力补强（按层叠生效值判定）
+
+**结论（一句话）**：旧判据既会**漏**（`追加覆盖` 形态报假绿）也会**误**（安全方向的追加覆盖报假红）⇒ 已改为**按同一选择器的层叠生效值**（源码顺序 + `!important` + 简写/长写逐边覆盖）判定，并给出**退出码**。补强后：**4 个负向夹具全红（exit 1）、3 个正向夹具全绿（exit 0）**、**幂等**；对真实现复跑 ⇒ **真陷阱 = 1**（`.dsh-rw-menu`：声明宽 240 → 实际外框 250），**不是 0**，原因见 §10.5（新判据多看了**宽度轴**，且这是同族缺陷的真实残留）。
+
+### 10.1 旧判据的两个盲区（都用夹具钉住，可 `--judge=old` 当场复现）
+
+旧判据：**逐条规则独立**看"这条规则自己的声明里有没有出现过 `box-sizing:border-box`"。
+
+| 夹具（`fixtures/`） | 生效 `box-sizing` | **旧判据** | **新判据** | 性质 |
+|---|---|---|---|---|
+| `neg2-append-override.css`<br>`.x{box-sizing:border-box;height:20px;padding:4px 6px;border-top:1px}`<br>`.x{box-sizing:content-box}` | **content-box**（后规则胜） | `OK(显式 border-box)` ⇒ **真陷阱 0 / exit 0** | `真陷阱（高 20→29；生效 content-box）` ⇒ **exit 1** | **假绿（漏报）** |
+| `neg4-append-then-important.css`<br>`.x{box-sizing:border-box;height:20px;padding:4px}`<br>`.x{box-sizing:content-box !important}` | **content-box !important** | `OK(显式 border-box)` ⇒ **exit 0** | `真陷阱（高 20→28；生效 content-box !imp）` ⇒ **exit 1** | **假绿（漏报）** |
+| `pos2-append-safe.css`<br>`.x{box-sizing:content-box;height:20px;padding:4px 6px;border-top:1px}`<br>`.x{box-sizing:border-box}` | **border-box**（后规则胜） | `**真陷阱（<div> 无兜底）**` ⇒ **exit 1** | `OK(border-box 生效)` ⇒ **exit 0** | **假红（误报）** |
+| `neg1-plain-trap.css`（无 `box-sizing`） | content-box | `真陷阱` ⇒ exit 1 ✅ | `真陷阱` ⇒ exit 1 ✅ | 两边一致（对照） |
+| `neg3-important-override.css`<br>`.x{box-sizing:content-box !important;…}` + `.x{box-sizing:border-box}` | content-box !important | 碰巧 `真陷阱`（**它从不建模 `!important`，只是恰好先看到没有 border-box 的那条**） | `真陷阱（生效 content-box !imp，来自 #0）` | 旧判据**结论对、机理错**（顺序一换就漏） |
+
+**原始输出**：`out-10-redcap-old-judge.txt`（旧判据 4 个负向夹具）与 `out-11-redcap-new-judge.txt` / `out-12-redcap-ab.txt`（新判据 7 个夹具 + A/B）。
+**旧判据为什么会漏**：它把"**某个声明块里出现过 `border-box`**"当成"**这个选择器最终是 border-box**"——这两个命题在"同选择器多规则 + `!important` + 简写/长写覆盖"的世界里**不等价**。
+
+### 10.2 新判据（可判、可复算）
+
+```
+对每个选择器 S：
+  1. 取**所有**选择器列表含 S 的规则，按源码顺序合并；
+  2. 逐条声明入状态：!important 胜普通（与顺序无关）；同等重要性下**后出现者胜**；
+     padding / border 走简写→长写的逐边覆盖（padding-top 覆盖 padding 的上边；border-top 覆盖 border 的上边）；
+  3. 生效盒模型 = 状态里的 box-sizing：
+       == border-box  → 安全（渲染尺寸 = 声明尺寸）；
+       != border-box  → 渲染 H = 声明 H + padT+padB + borderT+borderB；
+                        渲染 W = 声明 W + padL+padR + borderL+borderR；
+  4. **只有 dH>0 或 dW>0 才算陷阱**（无 padding/border 时声明值 = 渲染值，不构成缺陷 —— T49 自查时这条缺失导致过报 2 条，见 §10.6）；
+  5. 元素标签决定兜底：表单控件（<button> 等）由 UA 给 border-box ⇒ 记为**候选**（不判红）；
+     其它元素（footer/div/span）无兜底 ⇒ **真陷阱**；
+  6. 只给了 `border-width` 而没给 `border-style` ⇒ 记为**候选（样式未知 ⇒ 未必占位）**，避免脆弱断言。
+退出码：真陷阱 ≥1 ⇒ **exit 1**（`--no-fail` 可关；`--strict` 把候选也算失败）。
+```
+
+**范围边界（不声称，写清以免被当成全称保证）**：
+✗ 跨选择器的**优先级比较**（不同选择器互相覆盖不建模 —— 需要完整 CSS 引擎）；
+✗ `@media` / `@supports` 的条件生效；
+✗ 宿主或其它 `<style>` **后插入**的覆盖。
+本工具只声称一条**可复算**的判据：**"同一选择器内、按源码顺序 + `!important` 的生效值"**。
+
+### 10.3 夹具矩阵（`fixtures/`，8 个 = 5 负 + 3 正）
+
+| 夹具 | 构造 | 期望 | 实测 |
+|---|---|---|---|
+| **`neg0-footer-36-t43-shape.css`** | **T43 原缺陷的逐字同形**：`height:36 + padding:9px 12px + border-top:1px`，`@tag footer` | FAIL | ✅ exit 1 —— **声明 36 → 渲染 55**，与 T40 实测逐位一致。**它让"36→55"这个根因在产品修好之后仍然可复现**，不会被"已修"掩盖 |
+| `neg1-plain-trap.css` | `height:20 + padding:4px 6px + border-top:1px`，无 `box-sizing` | FAIL | ✅ exit 1（高 20→29） |
+| `neg2-append-override.css` | 先 `border-box`，**追加覆盖** `content-box` | FAIL | ✅ exit 1（并回报"检测到追加覆盖 1 个"） |
+| `neg3-important-override.css` | `content-box !important` 先，`border-box` 后（普通） | FAIL | ✅ exit 1（显示 `content-box !imp`，来自 #0） |
+| `neg4-append-then-important.css` | 先 `border-box`，追加 `content-box !important` | FAIL | ✅ exit 1 |
+| `pos1-single-borderbox.css` | 一次到位 `border-box` | PASS | ✅ exit 0 |
+| `pos2-append-safe.css` | 先 `content-box`，后追加 `border-box` | PASS | ✅ exit 0（覆盖方向相反也不误报） |
+| `pos3-form-control-no-boxsizing.css` | `<button>` 无 `box-sizing`（`@tag button`） | PASS（候选） | ✅ exit 0（候选 1 条） |
+
+> 夹具用注释 pragma 声明元素标签：`/* @tag div */` / `/* @tag button */`（工具**先取 pragma 再剥注释**）。
+
+### 10.4 幂等性
+
+| 输入 | 连跑两次 |
+|---|---|
+| 真实现 `client/index.js` | `sha256` 逐字节相同 ⇒ **idempotent = True** |
+| 夹具 `neg4` | 同上 ⇒ **True** |
+
+（工具无状态、不写文件、不依赖遍历顺序；`Map` 插入序 + 显式排序。）
+
+### 10.5 对真实现复跑：**真陷阱 = 1（不是 0）**，并说明为什么
+
+```
+SELECTOR            元素     生效box-sizing  来自  声明H 渲染H 声明W 渲染W 判定
+.dsh-rw-row         button   border-box      #22   32    32    —     —     OK
+.dsh-rw-btn         button   —               —     28    38    —     —     候选（<button> UA 兜底）
+.dsh-rw-chip        button   —               —     24    26    —     —     候选（<button> UA 兜底）
+.dsh-rw-status      footer   border-box      #73   47    47    —     —     OK   ← T43 定稿值已落地
+.dsh-rw-dot         span     border-box      #74   8     8     8     8     OK   ← 两态外径口径已落地
+.dsh-rw-menu        ?        —               —     —     —     240   250   **真陷阱（宽 240→250）**
+.dsh-rw-menuitem    button   border-box      #86   28    28    —     —     OK
+真陷阱数 = 1   候选 = 2   OK = 7   无尺寸声明(跳过) = 86
+未检测到 box-sizing 的追加覆盖（每个选择器的 box-sizing 只声明一次）
+```
+
+**为什么"不是 0"**：**新判据比 T43 版多看了宽度轴**。`.dsh-rw-menu{…width:240px;…padding:4px;border:1px solid …}` 是**唯一**一条"声明了 px 尺寸、却既没有 `box-sizing`、又不是表单控件"且**真的被放大**的规则 ⇒ 外框 = 240+8+2 = **250**，而规格 §7.2.4 写的是"宽 **240px**（固定）"。
+
+**这是真缺陷还是我在挑刺？** 判为**真、但轻**：它与 T43 的底栏是**同一族**（规格给的数字 ≠ 渲染出的盒子尺寸），修法与同族一致（一行 `box-sizing:border-box`）；可见后果极小（绝对定位 + `right:0`，外框多 10px，`240` 那条"能容纳最长项"的最小要求两种口径都满足）。
+**同期已合规**：7 个选择器显式带 `box-sizing`（`crumb / dot / link / menuitem / recent-row / row / status`），其中包括 T43 定稿的 `status`（47）与 `dot`（8×8）。
+
+**附加观察（旧判据在真实现上同时假红 + 假绿）**：同一文件用 `--judge=old` 跑，报 **3 条"真陷阱"**（`out-08` B 段）：
+
+| 旧判据报的"陷阱" | 真相 |
+|---|---|
+| `.dsh-rw-icon`（16/16） | ❌ **假红**：没有 padding/border ⇒ `delta = 0`，声明值就是渲染值（新判据已用 `dH/dW>0` 排除） |
+| `.dsh-rw-menusep`（1/1） | ❌ **假红**：同上（1px 分隔线，无 padding/border） |
+| `.dsh-rw-menu`（宽 240） | ✅ **真**：外框 250（§10.8） |
+
+⇒ 旧判据不是"偏保守"，而是**两个方向都不准**：漏掉追加覆盖（§10.1 的 neg2/neg4），又对无 delta 的规则误报。
+
+**为什么不是"判据变松/变紧"造成的数字游戏**：
+① 宽松方向：本判据**新增了宽度轴**、**新增了 `!important` 与覆盖建模**、**新增了"dH/dW>0 才算陷阱"这一减法**（见 §10.6）⇒ 既加了红能力也去掉了过报；
+② 红能力未被牺牲：§10.1 的 4 个负向夹具在**同一版脚本**下**全部 exit 1**；
+③ 0 的分母是可见的：报告逐行打印"哪个选择器的生效值是什么、来自第几条规则、是否有追加覆盖"，不是黑箱结论。
+
+### 10.6 自查中修掉的自身缺陷（避免把工具的不精确当成产品的缺陷）
+
+| # | 我在初版新判据里犯的错 | 现象 | 修法 |
+|---|---|---|---|
+| 1 | 用 **`px()` 解析"无单位的捕获组"**（正则已把 `px` 排除在捕获组外） | `--judge=old` 一行都不打印、静默全跳过 | 旧判据改用 `num1()`（`Number(m[1])`） |
+| 2 | **未剥 CSS 注释** | 夹具注释里的 `.dsh-rw-btn 渲染 28 = …` 被当成选择器，与后面的规则拼成一条假规则 | 先取 `@tag` pragma，再 `replace(/\/\*[\s\S]*?\*\//g,"")` |
+| 3 | 只记"**生效变化**"的 `box-sizing` | `!important` 拒绝掉的那条不计数 ⇒ neg3 的"覆盖"列显示 `—` | 记录**每一条** `box-sizing` 声明 + `won` 标记 |
+| 4 | border-box 生效时仍打印"声明+padding"的渲染值 | `OK` 行显示 `20 / 29`，自相矛盾 | border-box ⇒ 渲染值 = 声明值 |
+| 5 | **无 padding/border 也判陷阱** | 真实现过报 2 条（`.dsh-rw-icon` 16/16、`.dsh-rw-menusep` 1/1，两者 delta = 0） | 只有 `dH>0 || dW>0` 才算陷阱 |
+
+> 这 5 条都是**我先看到"真实现报 3 条"这个可疑数字、再逐条查证**的结果；第 5 条修掉后剩下的 1 条经查是**真**的（§10.5）。**先怀疑工具，再怀疑产品** —— 否则会拿一个自己造出来的红去要求实现返工。
+
+### 10.7 判据变化对照（旧 → 新）
+
+| 维度 | 旧判据（T43） | 新判据（T49） |
+|---|---|---|
+| 判定粒度 | **每条规则**独立 | **每个选择器**一条结论 |
+| 取值 | "声明块里是否出现过 `border-box`" | **层叠后的生效值** |
+| 顺序 | 不考虑 | 源码顺序，后出现者胜 |
+| `!important` | 不考虑 | 建模（胜普通声明，与顺序无关） |
+| 简写/长写 | 只看 `padding` 简写 + `border`/`border-top` | `padding`/`padding-*`、`border`/`border-*`、`border-width`、`border-style`（含 `none` ⇒ 不占位） |
+| 尺寸轴 | 只有高度（宽度只打印） | **高度 + 宽度**（各自 delta） |
+| 是否报"覆盖" | 无 | **有**（列 + 汇总一行） |
+| 退出码 | 永远 0（纯信息） | **真陷阱 ≥1 ⇒ exit 1**（可 `--no-fail`） |
+| 元素兜底 | 表单控件 ⇒ 候选 | 同（+ `border-width` 无样式 ⇒ 候选） |
+| 过报防护 | 无 | **`dH/dW > 0` 才算陷阱**（§10.6-5） |
+| A/B 复现 | —— | `--judge=old` 可当场跑出旧结论 |
+
+### 10.8 唯一新发现的真陷阱：`.dsh-rw-menu` 的宽度口径
+
+| 项 | 内容 |
+|---|---|
+| 事实 | `.dsh-rw-menu{position:absolute;right:0;width:240px;padding:4px;border:1px solid var(--dsw-alias-border-l2);…}`，**无 `box-sizing`**，元素是 `<div>`（非表单控件 ⇒ 无 UA 兜底）⇒ 外框宽 **250** |
+| 依据 | 与 T40 实测的 `.dsh-rw-status`（`<footer>`：`height:36`+`padding:9×2`+`border-top:1` ⇒ 渲染 **55**）**同一机制**；本机非表单元素为 `content-box` 已由该实测锚定。**本轮未起实例实测菜单 rect** ⇒ 标记为"**推导（由 T40 的 footer 实测锚定）**" |
+| 判责 | **实现错（轻）**：同族里唯一漏写 `box-sizing` 的尺寸声明 |
+| 修法（一行，不由本轮执行） | `.dsh-rw-menu` 加 `box-sizing:border-box`（与 `row/recent-row/menuitem/status/dot/crumb/link` 一致） |
+| 替代（不推荐） | 规格把 §7.2.4 的"宽 240px"改成"内容宽 240 / 外框 ≤250" ⇒ 会在闭集里留下唯一一条"声明不是外框"的规则 |
+| 终验可判断言 | 修后：`menu.getBoundingClientRect().width === 240`（修前预期 250） |
+
+### 10.9 "追加覆盖"在本仓**可能发生**吗（T49 ⑥ 的正面回答）
+
+**会 —— 而且本仓已经在用这种写法，所以这不是假想：**
+
+| 依据 | 观察 |
+|---|---|
+| 插件自己的 CSS **已经在重复选择器** | 实测重复：`.dsh-rw-fold` ×3、`.dsh-rw-rowacts` ×3、`.dsh-rw-chip` ×2、`.dsh-rw-crumb` ×2、`.dsh-rw-current` ×2、`.dsh-rw-path-input` ×2、`.dsh-rw-row:hover` ×2 ⇒ "**同一选择器再写一条来改**"是本仓既有手法 |
+| 后一条只改一部分属性（典型的"追加精修"） | `.dsh-rw-current{border-left-width:2px;border-left-color:…;font-weight:600}` 就是这样一条（它不重复声明 height/padding，但**同一模式完全可以用来改 `box-sizing`**） |
+| 只有 1 处样式注入点（今天） | `client/index.js`：手写 `<style data-plugin-css="dsh-remote-wsl/panel.css">` + **去重守卫**；10 个 chunk 里**只有 `index.js` 产 CSS**（其余 9 个 cssLikePatternHits = 0）⇒ **跨 `<style>` 覆盖今天不成立**，但**同表内追加今天就能发生** |
+| 逻辑上的不对称 | 门禁的价值在于"**将来有人这么写时能红**"；若只在"确定不会发生"时才保留判据，就等于放弃这条护栏 |
+
+⇒ **不需要**发明脆弱断言：修好的判据在**既有写法**上就已具备红能力（4 个负向夹具证明），且实测真实现**当前没有**任何 `box-sizing` 追加覆盖（汇总行打印"未检测到…"）—— **红能力是"备而未用"，不是"为了红而红"。**
+
+### 10.10 复算入口（T49 增量）
+
+```powershell
+$n='C:\Users\l\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe'
+$v='D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\visual'
+$asar='C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\app.asar'
+
+# ① 真实现（期望：真陷阱 0「`.dsh-rw-menu` 修复后」；当前 = 1）—— **有真陷阱则 exit 1**
+& $n "$v\tools\box-sizing-audit.mjs" 'D:\project\dsh1\vendor\dsh-remote-wsl\client\index.js' dsh-rw- --host=$asar
+
+# ② 旧判据反例（neg2/neg4 期望假绿 PASS、pos2 期望假红 FAIL）
+& $n "$v\tools\box-sizing-audit.mjs" "$v\fixtures\neg2-append-override.css" dsh-rw- --judge=old
+& $n "$v\tools\box-sizing-audit.mjs" "$v\fixtures\neg4-append-then-important.css" dsh-rw- --judge=old
+& $n "$v\tools\box-sizing-audit.mjs" "$v\fixtures\pos2-append-safe.css" dsh-rw- --judge=old
+
+# ③ 夹具矩阵（4 负必须 exit 1；3 正必须 exit 0）
+Get-ChildItem "$v\fixtures\*.css" | ForEach-Object { & $n "$v\tools\box-sizing-audit.mjs" $_.FullName dsh-rw- | Select-String '==>'; "  ^ $($_.Name) exit=$LASTEXITCODE" }
+```
+
+| 文件 | 内容 |
+|---|---|
+| `fixtures/neg0-footer-36-t43-shape.css` … `pos3-form-control-no-boxsizing.css` | **8 个夹具**（5 负 3 正），带 `@tag` pragma；`neg0` 是 T43 原缺陷（36→55）的永久复现 |
+| `out-10-redcap-old-judge.txt` | **旧判据**在 5 个负向夹具上的原始输出（含 `neg2`/`neg4` 两个**假绿**） |
+| `out-11-redcap-new-judge.txt` | **新判据**在 8 个夹具上的原始输出（5 负 exit 1 / 3 正 exit 0） |
+| `out-12-redcap-ab.txt` | 逐夹具 A/B（旧 vs 新并排） |
+| `out-08-box-sizing-audit.txt` | 真实现（新判据 + 旧判据对照）+ **neg0 的 36→55 复现** + 幂等性（本轮用最终版脚本重跑） |
+
+### 10.11 未声称 / 未核实（T49）
+
+| 项 | 状态 |
+|---|---|
+| **跨选择器优先级** | 不建模（需完整 CSS 引擎）；若将来出现 `.a` 与 `.b` 互相覆盖 `box-sizing`，本工具**不会**报红 ⇒ 已在 §10.2 明写为范围边界 |
+| **`.dsh-rw-menu` 的实测 rect** | **未起实例实测**（本轮为静态对账）；250 是**由 T40 的 footer 实测锚定的推导**，终验可用一行 `getBoundingClientRect().width` 证实/证伪 |
+| **`@media` / 宿主后插样式** | 不建模 |
+| **dark 主题** | 与 box-sizing 无关（同一套 CSS） |
+

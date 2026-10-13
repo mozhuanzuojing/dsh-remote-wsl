@@ -1,0 +1,8 @@
+孤立 DSH_HOME = C:\Users\l\AppData\Local\Temp\t48-dsh-home（播种 config.json = false；storages 空）
+用户全局 workspace.json sha256(前) = 692b5265985936377c63ab347e22bd247de44b9fa78dd03b8f62f11442dcf25e
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+  [PASS] wsl_status 466ms — distros: debian-u8-1 target: debian-u8-1 wslHome=/home/g cwd=/home/g wsl ip: 172.30.190.198 shell env injection (useShellEnvironment): on（只注入常驻进程 wsl_agent / ws
+
+用户全局 workspace.json sha256(后) = 692b5265985936377c63ab347e22bd247de44b9fa78dd03b8f62f11442dcf25e
+隔离核对：前后完全相同 = true ✓
+工具真调：1/1 OK；失败 0：(无)

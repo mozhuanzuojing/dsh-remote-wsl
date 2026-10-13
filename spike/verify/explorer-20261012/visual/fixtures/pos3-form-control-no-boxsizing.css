@@ -1,0 +1,5 @@
+/* @tag button */
+/* 夹具 pos3：**表单控件（<button>）无 box-sizing** —— 应判为"候选"而不是"真陷阱"。
+   理由：<button> 由 UA/元素默认拿到 border-box（实测反推：.dsh-rw-btn 渲染 28 = 声明值）。
+   它证明脚本**不会**为了多报红而把有兜底的情形也算成陷阱。 */
+.dsh-rw-btnlike{height:28px;padding:4px 10px;border:1px solid var(--dsw-alias-border-l2)}

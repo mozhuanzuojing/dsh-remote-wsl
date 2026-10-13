@@ -1,0 +1,7 @@
+/* @tag div */
+/* 夹具 neg2：**追加覆盖**（旧判据的盲区）
+   同一选择器：先声明 border-box，后被追加的规则改成 content-box。
+   生效值 = content-box ⇒ 渲染高 = 20 + 4×2 + 1 = 29（声明只有 20）。
+   旧判据只看"这条规则自己的声明里有没有出现过 border-box" ⇒ 会报绿。 */
+.dsh-rw-append{box-sizing:border-box;height:20px;padding:4px 6px;border-top:1px solid var(--dsw-alias-border-l1)}
+.dsh-rw-append{box-sizing:content-box}

@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-13T10:57:49.887Z",
+  "isoHome": "C:\\Users\\l\\AppData\\Local\\Temp\\t48-dsh-home",
+  "seededConfig": false,
+  "wsBefore": "692b5265985936377c63ab347e22bd247de44b9fa78dd03b8f62f11442dcf25e",
+  "wsAfter": "692b5265985936377c63ab347e22bd247de44b9fa78dd03b8f62f11442dcf25e",
+  "results": [
+    {
+      "name": "wsl_status",
+      "variant": "safe",
+      "args": {},
+      "status": "OK",
+      "ms": 466,
+      "detail": "distros: debian-u8-1 target: debian-u8-1 wslHome=/home/g cwd=/home/g wsl ip: 172.30.190.198 shell env injection (useShellEnvironment): on（只注入常驻进程 wsl_agent / ws"
+    }
+  ]
+}

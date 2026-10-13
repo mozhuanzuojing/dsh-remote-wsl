@@ -1,0 +1,6 @@
+/* @tag footer */
+/* 夹具 neg0：**T43 的原缺陷形状（可永久复现）**
+   与 commit 63320b4 的 `.dsh-rw-status` 逐字同形：height:36 + padding:9px 12px + border-top:1px，无 box-sizing。
+   代码修好之后（现在已是 box-sizing:border-box;height:47px），这个夹具让"36 → 55"这个根因**仍然可复现**，
+   不会被"产品已修"这件事掩盖；也是 T40 实测 55 的最小可判等价物。 */
+.dsh-rw-footer36{display:flex;align-items:center;gap:8px;height:36px;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}

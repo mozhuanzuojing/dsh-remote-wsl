@@ -1,0 +1,99 @@
+{
+  "at": "2026-10-13T10:52:50.042Z",
+  "root": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl",
+  "files": 14,
+  "stats": [
+    {
+      "file": "daemon-client.ts",
+      "bindings": 0,
+      "calls": 0,
+      "high": 0
+    },
+    {
+      "file": "daemon-launch.ts",
+      "bindings": 59,
+      "calls": 82,
+      "high": 0
+    },
+    {
+      "file": "daemon-lifecycle.ts",
+      "bindings": 89,
+      "calls": 175,
+      "high": 0
+    },
+    {
+      "file": "daemon-protocol.ts",
+      "bindings": 45,
+      "calls": 67,
+      "high": 0
+    },
+    {
+      "file": "daemon.ts",
+      "bindings": 125,
+      "calls": 205,
+      "high": 0
+    },
+    {
+      "file": "explorer.ts",
+      "bindings": 154,
+      "calls": 252,
+      "high": 0
+    },
+    {
+      "file": "in-host-runtime.ts",
+      "bindings": 29,
+      "calls": 19,
+      "high": 0
+    },
+    {
+      "file": "index.ts",
+      "bindings": 69,
+      "calls": 41,
+      "high": 0
+    },
+    {
+      "file": "register-tools.ts",
+      "bindings": 169,
+      "calls": 158,
+      "high": 0
+    },
+    {
+      "file": "sdk-runtime.ts",
+      "bindings": 65,
+      "calls": 92,
+      "high": 0
+    },
+    {
+      "file": "selftest.ts",
+      "bindings": 121,
+      "calls": 249,
+      "high": 0
+    },
+    {
+      "file": "shell-env.ts",
+      "bindings": 24,
+      "calls": 21,
+      "high": 1
+    },
+    {
+      "file": "version.ts",
+      "bindings": 57,
+      "calls": 54,
+      "high": 0
+    },
+    {
+      "file": "wsl-io.ts",
+      "bindings": 92,
+      "calls": 84,
+      "high": 0
+    }
+  ],
+  "hits": [
+    {
+      "file": "src/shell-env.ts",
+      "line": 159,
+      "id": "stripUnquotedComment",
+      "text": "const text = stripUnquotedComment(raw);"
+    }
+  ]
+}

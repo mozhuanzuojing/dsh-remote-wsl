@@ -1,0 +1,1143 @@
+{
+  "at": "2026-10-13T10:47:16.874Z",
+  "root": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl",
+  "files": 14,
+  "stats": [
+    {
+      "file": "daemon-client.ts",
+      "bindings": 0,
+      "calls": 0,
+      "high": 0
+    },
+    {
+      "file": "daemon-launch.ts",
+      "bindings": 53,
+      "calls": 70,
+      "high": 8
+    },
+    {
+      "file": "daemon-lifecycle.ts",
+      "bindings": 75,
+      "calls": 172,
+      "high": 46
+    },
+    {
+      "file": "daemon-protocol.ts",
+      "bindings": 16,
+      "calls": 16,
+      "high": 4
+    },
+    {
+      "file": "daemon.ts",
+      "bindings": 117,
+      "calls": 197,
+      "high": 4
+    },
+    {
+      "file": "explorer.ts",
+      "bindings": 141,
+      "calls": 242,
+      "high": 13
+    },
+    {
+      "file": "in-host-runtime.ts",
+      "bindings": 21,
+      "calls": 17,
+      "high": 6
+    },
+    {
+      "file": "index.ts",
+      "bindings": 42,
+      "calls": 38,
+      "high": 9
+    },
+    {
+      "file": "register-tools.ts",
+      "bindings": 130,
+      "calls": 149,
+      "high": 26
+    },
+    {
+      "file": "sdk-runtime.ts",
+      "bindings": 58,
+      "calls": 92,
+      "high": 5
+    },
+    {
+      "file": "selftest.ts",
+      "bindings": 104,
+      "calls": 236,
+      "high": 33
+    },
+    {
+      "file": "shell-env.ts",
+      "bindings": 29,
+      "calls": 26,
+      "high": 0
+    },
+    {
+      "file": "version.ts",
+      "bindings": 52,
+      "calls": 54,
+      "high": 8
+    },
+    {
+      "file": "wsl-io.ts",
+      "bindings": 82,
+      "calls": 84,
+      "high": 13
+    }
+  ],
+  "hits": [
+    {
+      "file": "src/daemon-launch.ts",
+      "line": 89,
+      "id": "unc",
+      "text": "mkdirSync(unc(cfg.distro, stateDirLinux(cfg)), { recursive: true, mode: 0o700 });"
+    },
+    {
+      "file": "src/daemon-launch.ts",
+      "line": 129,
+      "id": "spawnSync",
+      "text": "const r = spawnSync("
+    },
+    {
+      "file": "src/daemon-launch.ts",
+      "line": 154,
+      "id": "unc",
+      "text": "rmSync(unc(cfg.distro, launchLinux(cfg, port)), { force: true });"
+    },
+    {
+      "file": "src/daemon-launch.ts",
+      "line": 196,
+      "id": "unc",
+      "text": "const stderrLogLocal = unc(cfg.distro, `${stateDirLinux(cfg)}/launch-stderr.log`);"
+    },
+    {
+      "file": "src/daemon-launch.ts",
+      "line": 201,
+      "id": "openSync",
+      "text": "stderrFd = openSync(stderrLogLocal, 'a', 0o600);"
+    },
+    {
+      "file": "src/daemon-launch.ts",
+      "line": 236,
+      "id": "spawn",
+      "text": "child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', launcherLinux], {"
+    },
+    {
+      "file": "src/daemon-launch.ts",
+      "line": 243,
+      "id": "spawn",
+      "text": "child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', launcherLinux], {"
+    },
+    {
+      "file": "src/daemon-launch.ts",
+      "line": 267,
+      "id": "spawnSync",
+      "text": "const r = spawnSync("
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 18,
+      "id": "legacyMetaLinux",
+      "text": "? [legacyMetaLinux(cfg), `${legacyMetaLinux(cfg)}.tmp`, legacyTokenLinux(cfg)]"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 19,
+      "id": "metaLinux",
+      "text": ": [metaLinux(cfg, slot), `${metaLinux(cfg, slot)}.tmp`, tokenLinux(cfg, slot)];"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 22,
+      "id": "unc",
+      "text": "rmSync(unc(cfg.distro, p), { force: true });"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 40,
+      "id": "scanDaemonProcesses",
+      "text": "return scanDaemonProcesses(cfg).filter((p) => (p.port != null && want.has(p.port)) || (p.metaPort != null && want.has(p.metaPort)));"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 47,
+      "id": "listDaemonSlots",
+      "text": "for (const slot of listDaemonSlots(cfg)) {"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 48,
+      "id": "readDaemonRecord",
+      "text": "const rec = readDaemonRecord(cfg, slot);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 70,
+      "id": "configCompat",
+      "text": "const compat = configCompat(cfg, hs.info, version);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 94,
+      "id": "readDaemonRecord",
+      "text": "const slotRec = readDaemonRecord(cfg, wantSlot);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 96,
+      "id": "readDaemonRecord",
+      "text": "const legacy = readDaemonRecord(cfg);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 99,
+      "id": "handshake",
+      "text": "const hs = await handshake(cfg, rec.meta?.port ?? rec.slot, rec.token, hsTimeout);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 101,
+      "id": "configCompat",
+      "text": "const compat = configCompat(cfg, hs.info, version);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 126,
+      "id": "listDaemonSlots",
+      "text": "for (const slot of listDaemonSlots(cfg)) {"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 128,
+      "id": "readDaemonRecord",
+      "text": "const rec = readDaemonRecord(cfg, slot);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 130,
+      "id": "handshake",
+      "text": "const hs = await handshake(cfg, rec.meta?.port ?? slot, rec.token, hsTimeout);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 155,
+      "id": "removeLauncher",
+      "text": "if (removeLauncher(cfg, p)) notes.push(`回收启动脚本 launch.${p}.sh（该槽位未起来，避免残留）`);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 167,
+      "id": "handshake",
+      "text": "const hs0 = await handshake(cfg, rec.meta?.port ?? rec.slot, rec.token, hsTimeout);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 177,
+      "id": "sleep",
+      "text": "if (occupants.length) await sleep(900); // 等它退出，让端口真的空出来（否则守护会 +1 迁移）"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 181,
+      "id": "readDaemonRecord",
+      "text": "const stale = readDaemonRecord(cfg, port);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 183,
+      "id": "scanDaemonProcesses",
+      "text": "const livePids = new Set(scanDaemonProcesses(cfg).map((p) => p.pid));"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 190,
+      "id": "launchDaemon",
+      "text": "const launched = launchDaemon(cfg, port, version, log);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 209,
+      "id": "sleep",
+      "text": "await sleep(250);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 210,
+      "id": "readDaemonRecord",
+      "text": "const rec = readDaemonRecord(cfg, port);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 212,
+      "id": "handshake",
+      "text": "hs = await handshake(cfg, rec.meta.port ?? port, rec.token, hsTimeout);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 216,
+      "id": "scanDaemonProcesses",
+      "text": "const holder = scanDaemonProcesses(cfg).filter((p) => p.port === port);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 230,
+      "id": "scanDaemonProcesses",
+      "text": "const livePids = new Set(scanDaemonProcesses(cfg).map((p) => p.pid));"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 239,
+      "id": "readDaemonRecord",
+      "text": "const rec2 = readDaemonRecord(cfg, port);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 243,
+      "id": "sleep",
+      "text": "if (rec2 || ownDaemonsOnPorts(cfg, [port]).length) await sleep(700);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 250,
+      "id": "readDaemonLogTail",
+      "text": "const tail = readDaemonLogTail(cfg, 6);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 285,
+      "id": "scanDaemonProcesses",
+      "text": "survivors = scanDaemonProcesses(cfg).filter("
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 290,
+      "id": "sleep",
+      "text": "await sleep(300);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 305,
+      "id": "readDaemonRecord",
+      "text": "let rec = readDaemonRecord(cfg, wantSlot);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 307,
+      "id": "readDaemonRecord",
+      "text": "const legacy = readDaemonRecord(cfg);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 314,
+      "id": "callDaemon",
+      "text": "const r = await callDaemon(cfg, {"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 375,
+      "id": "listDaemonSlots",
+      "text": "for (const slot of listDaemonSlots(cfg)) stopped.push(await stopDaemon(cfg, { log, slot }));"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 376,
+      "id": "readDaemonRecord",
+      "text": "const legacyRec = readDaemonRecord(cfg);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 378,
+      "id": "scanDaemonProcesses",
+      "text": "const found = scanDaemonProcesses(cfg);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 384,
+      "id": "sleep",
+      "text": "if (killed.length) await sleep(900);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 387,
+      "id": "readdirSync",
+      "text": "for (const n of readdirSync(unc(cfg.distro, stateDirLinux(cfg)))) {"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 387,
+      "id": "unc",
+      "text": "for (const n of readdirSync(unc(cfg.distro, stateDirLinux(cfg)))) {"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 390,
+      "id": "unc",
+      "text": "rmSync(unc(cfg.distro, `${stateDirLinux(cfg)}/${n}`), { force: true });"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 399,
+      "id": "scanDaemonProcesses",
+      "text": "const remaining = scanDaemonProcesses(cfg);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 410,
+      "id": "listDaemonSlots",
+      "text": "const slots = listDaemonSlots(cfg);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 411,
+      "id": "readDaemonRecord",
+      "text": "const records = (slots.length ? slots.map((s) => readDaemonRecord(cfg, s)) : [readDaemonRecord(cfg)]).filter(Boolean);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 411,
+      "id": "readDaemonRecord",
+      "text": "const records = (slots.length ? slots.map((s) => readDaemonRecord(cfg, s)) : [readDaemonRecord(cfg)]).filter(Boolean);"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 416,
+      "id": "callDaemon",
+      "text": "const r = await callDaemon(cfg, {"
+    },
+    {
+      "file": "src/daemon-lifecycle.ts",
+      "line": 429,
+      "id": "scanDaemonProcesses",
+      "text": "const procs = scanDaemonProcesses(cfg);"
+    },
+    {
+      "file": "src/daemon-protocol.ts",
+      "line": 178,
+      "id": "$",
+      "text": "`  c=$(tr '\\\\0' ' ' < \"$d/cmdline\" 2>/dev/null) || continue`,"
+    },
+    {
+      "file": "src/daemon-protocol.ts",
+      "line": 181,
+      "id": "$",
+      "text": "`  p=$(printf '%s' \"$c\" | sed -n 's/.*--port \\\\([0-9]\\\\{1,\\\\}\\\\).*/\\\\1/p')`,"
+    },
+    {
+      "file": "src/daemon-protocol.ts",
+      "line": 182,
+      "id": "$",
+      "text": "`  m=$(printf '%s' \"$c\" | sed -n 's/.*--meta-port \\\\([0-9]\\\\{1,\\\\}\\\\).*/\\\\1/p')`,"
+    },
+    {
+      "file": "src/daemon-protocol.ts",
+      "line": 332,
+      "id": "callDaemon",
+      "text": "const r = await callDaemon(cfg, {"
+    },
+    {
+      "file": "src/daemon.ts",
+      "line": 86,
+      "id": "randomBytes",
+      "text": "const token = randomBytes(32).toString('hex');"
+    },
+    {
+      "file": "src/daemon.ts",
+      "line": 112,
+      "id": "execSync",
+      "text": "return execSync(`ip route show default 2>/dev/null | awk '{print $3; exit}'`, {"
+    },
+    {
+      "file": "src/daemon.ts",
+      "line": 138,
+      "id": "spawn",
+      "text": "const child = spawn('/bin/bash', ['-c', script], { stdio: ['ignore', 'pipe', 'pipe'] });"
+    },
+    {
+      "file": "src/daemon.ts",
+      "line": 364,
+      "id": "SdkRuntime",
+      "text": "const rt = new SdkRuntime({"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 241,
+      "id": "spawnSync",
+      "text": "const res = spawnSync('wsl.exe', ['-l', '-v'], { encoding: 'utf8', windowsHide: true });"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 273,
+      "id": "readFileSync",
+      "text": "parsed = JSON.parse(readFileSync(unc(cfg.distro, favoritesLinux(cfg)), 'utf8'));"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 273,
+      "id": "unc",
+      "text": "parsed = JSON.parse(readFileSync(unc(cfg.distro, favoritesLinux(cfg)), 'utf8'));"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 338,
+      "id": "daemonSnapshot",
+      "text": "const ds = await daemonSnapshot(cfg);"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 423,
+      "id": "readDaemonMeta",
+      "text": "const found = (readDaemonMeta(cfg)?.keys ?? []).find("
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 438,
+      "id": "ensureDaemon",
+      "text": "const ensured = await ensureDaemon(cfg, { version: v.version, log });"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 446,
+      "id": "daemonPrompt",
+      "text": "const r = await daemonPrompt(cfg, {"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 514,
+      "id": "ensureDaemon",
+      "text": "const r = await ensureDaemon(eff, { version: v.version, restart: action === 'restart', log });"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 538,
+      "id": "stopDaemon",
+      "text": "const r = await stopDaemon(eff, slot === undefined ? { log } : { log, slot });"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 626,
+      "id": "unc",
+      "text": "const winPath = windowsDriveForMount(path) ?? unc(cfg.distro, path);"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 629,
+      "id": "readdirSync",
+      "text": "dirents = readdirSync(winPath, { withFileTypes: true });"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 691,
+      "id": "unc",
+      "text": "const uncPath = unc(cfg.distro, path);"
+    },
+    {
+      "file": "src/explorer.ts",
+      "line": 694,
+      "id": "statSync",
+      "text": "const st = statSync(uncPath);"
+    },
+    {
+      "file": "src/in-host-runtime.ts",
+      "line": 31,
+      "id": "runtimeAdapter",
+      "text": "return runtimeAdapter({"
+    },
+    {
+      "file": "src/in-host-runtime.ts",
+      "line": 52,
+      "id": "writeScript",
+      "text": "state.script = writeScript(cfg.distro, script);"
+    },
+    {
+      "file": "src/in-host-runtime.ts",
+      "line": 53,
+      "id": "spawn",
+      "text": "return spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', state.script], {"
+    },
+    {
+      "file": "src/in-host-runtime.ts",
+      "line": 59,
+      "id": "reapWsl",
+      "text": "await reapWsl(cfg, state.script);"
+    },
+    {
+      "file": "src/in-host-runtime.ts",
+      "line": 86,
+      "id": "SdkRuntime",
+      "text": "const rt = new SdkRuntime({"
+    },
+    {
+      "file": "src/in-host-runtime.ts",
+      "line": 98,
+      "id": "readLogViaWsl",
+      "text": "fallbackText: ({ sessionId }) => readLogViaWsl(effCfg, sessionId, effCfg.cwd),"
+    },
+    {
+      "file": "src/index.ts",
+      "line": 103,
+      "id": "resolveVersion",
+      "text": "const version = resolveVersion(config);"
+    },
+    {
+      "file": "src/index.ts",
+      "line": 108,
+      "id": "sweepStaleRuntimes",
+      "text": "if (!swept) swept = sweepStaleRuntimes(config).catch(() => 0);"
+    },
+    {
+      "file": "src/index.ts",
+      "line": 133,
+      "id": "runWsl",
+      "text": "const res = await runWsl(config, `${shellPreamble(config)}${warmScript({ cfg: config, version: v.version })}`, {"
+    },
+    {
+      "file": "src/index.ts",
+      "line": 180,
+      "id": "ensureDaemon",
+      "text": "const r = await ensureDaemon(config, { version: version.version, restart, log: logDaemon });"
+    },
+    {
+      "file": "src/index.ts",
+      "line": 185,
+      "id": "withModulePrefix",
+      "text": "if (!r.ok) throw new Error(withModulePrefix(r.error));"
+    },
+    {
+      "file": "src/index.ts",
+      "line": 211,
+      "id": "readDaemonMeta",
+      "text": "const rec = (readDaemonMeta(config)?.keys ?? []).find("
+    },
+    {
+      "file": "src/index.ts",
+      "line": 219,
+      "id": "createInHostPool",
+      "text": "const inHost = createInHostPool({ config, version, warmInBackground });"
+    },
+    {
+      "file": "src/index.ts",
+      "line": 223,
+      "id": "spawnSync",
+      "text": "const res = spawnSync('wsl.exe', ['-l', '-q'], { encoding: 'utf8', windowsHide: true });"
+    },
+    {
+      "file": "src/index.ts",
+      "line": 260,
+      "id": "sweepOwnTempFiles",
+      "text": "await sweepOwnTempFiles(config); // 自有 /tmp 一次性文件（按 winpid）——不碰别人的"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 45,
+      "id": "writeScript",
+      "text": "this.script = writeScript(this.cfg.distro, script);"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 46,
+      "id": "spawn",
+      "text": "this.child = spawn('wsl.exe', ['-d', this.cfg.distro, '--', 'bash', this.script], {"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 90,
+      "id": "reapWsl",
+      "text": "await reapWsl(this.cfg, this.script); // 必须：否则 WSL 里的 dsh web 会变孤儿继续占端口"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 92,
+      "id": "sweepOwnTempFiles",
+      "text": "await sweepOwnTempFiles(this.cfg); // 本进程自有的 /tmp 一次性文件：按 winpid 收干净（task-9 #7）"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 107,
+      "id": "runWsl",
+      "text": "const listed = await runWsl("
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 125,
+      "id": "runWsl",
+      "text": "const res = await runWsl("
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 156,
+      "id": "runWsl",
+      "text": "await runWsl(cfg, `${script}"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 165,
+      "id": "spawnSync",
+      "text": "const res = spawnSync('cmd', ['/c', 'start', '', browser, `--app=${url}`], {"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 171,
+      "id": "spawnSync",
+      "text": "const fallback = spawnSync('cmd', ['/c', 'start', '', url], { windowsHide: true, stdio: 'ignore' });"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 204,
+      "id": "runWsl",
+      "text": "const res = await runWsl(config, 'find /tmp -maxdepth 1 -name \"dsh-rwsl-*.pid\" -print | wc -l\\n', {"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 217,
+      "id": "runWsl",
+      "text": "const res = await runWsl("
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 244,
+      "id": "readFileSync",
+      "text": "return { text: readFileSync(p, 'utf8') };"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 249,
+      "id": "join",
+      "text": "const winCfg = readCfgText(process.env.USERPROFILE ? join(process.env.USERPROFILE, '.wslconfig') : '');"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 250,
+      "id": "unc",
+      "text": "const distroCfg = readCfgText(unc(config.distro, '/etc/wsl.conf'));"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 251,
+      "id": "parseLocalhostForwarding",
+      "text": "const lf = parseLocalhostForwarding({ wslconfigText: winCfg.text, wslConfText: distroCfg.text });"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 267,
+      "id": "daemonStatus",
+      "text": ": await daemonStatus(config);"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 345,
+      "id": "runWsl",
+      "text": "const res = await runWsl("
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 420,
+      "id": "daemonPrompt",
+      "text": "let r: any = await daemonPrompt(config, {"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 433,
+      "id": "daemonPrompt",
+      "text": "r = await daemonPrompt(config, {"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 510,
+      "id": "daemonStatus",
+      "text": "const s: any = await daemonStatus(config);"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 558,
+      "id": "stopDaemon",
+      "text": "const r: any = await stopDaemon(config, { log: logDaemon, all });"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 578,
+      "id": "daemonSnapshot",
+      "text": "const snap: any = await daemonSnapshot(config);"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 644,
+      "id": "sweepOwnTempFiles",
+      "text": "await sweepOwnTempFiles(config); // 没有注册中的 host 时也清一次自己的 /tmp 一次性文件"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 680,
+      "id": "runWsl",
+      "text": "const res = await runWsl("
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 695,
+      "id": "writePin",
+      "text": "const wrote = v.version ? writePin(config, v.version) : false;"
+    },
+    {
+      "file": "src/register-tools.ts",
+      "line": 733,
+      "id": "wslPathConvert",
+      "text": "return wslPathConvert(config, args?.path, direction);"
+    },
+    {
+      "file": "src/sdk-runtime.ts",
+      "line": 171,
+      "id": "runtimePid",
+      "text": "get runtimePid() {"
+    },
+    {
+      "file": "src/sdk-runtime.ts",
+      "line": 175,
+      "id": "alive",
+      "text": "get alive() {"
+    },
+    {
+      "file": "src/sdk-runtime.ts",
+      "line": 180,
+      "id": "defaultScript",
+      "text": "#defaultScript() {"
+    },
+    {
+      "file": "src/sdk-runtime.ts",
+      "line": 189,
+      "id": "defaultScript",
+      "text": "const script = this.ad.scriptFor ? this.ad.scriptFor({ cwd: this.cwd, version: this.version, profile: this.profile }) : this.#defaultScript("
+    },
+    {
+      "file": "src/sdk-runtime.ts",
+      "line": 193,
+      "id": "spawn",
+      "text": ": spawn('/bin/bash', ['-c', script], {"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 60,
+      "id": "readDaemonToken",
+      "text": "const tokenFileExists = () => Boolean(readDaemonToken(cfg));"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 63,
+      "id": "daemonStatus",
+      "text": "const s: any = await daemonStatus(cfg);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 68,
+      "id": "listDaemonSlots",
+      "text": "say('daemon slots    =', JSON.stringify(listDaemonSlots(cfg)), '(每个并发守护一个槽位文件，互不覆盖)');"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 69,
+      "id": "readDaemonMeta",
+      "text": "say('daemon.json     =', JSON.stringify(readDaemonMeta(cfg, cfg.daemonPort)?.port ?? null), '(本槽位实际端口)');"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 79,
+      "id": "launchDaemon",
+      "text": "const l = launchDaemon(cfg, port, VERSION, log);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 87,
+      "id": "readDaemonRecord",
+      "text": "const rec = readDaemonRecord(cfg, port);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 89,
+      "id": "handshake",
+      "text": "const hs = await handshake(cfg, rec.meta?.port ?? port, rec.token, cfg.daemonHandshakeTimeoutMs);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 95,
+      "id": "listDaemonSlots",
+      "text": "say('# slots now =', JSON.stringify(listDaemonSlots(cfg)));"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 98,
+      "id": "ensureDaemon",
+      "text": "const e: any = await ensureDaemon(cfg, { version: VERSION, restart: argv.includes('--restart'), log });"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 102,
+      "id": "listDaemonSlots",
+      "text": "say('# slots now =', JSON.stringify(listDaemonSlots(cfg)));"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 110,
+      "id": "ensureDaemon",
+      "text": "const e: any = await ensureDaemon(cfg, { version: VERSION, log });"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 125,
+      "id": "ensureDaemon",
+      "text": "const e: any = await ensureDaemon(cfg, { version: VERSION, log });"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 174,
+      "id": "ensureDaemon",
+      "text": "const e: any = await ensureDaemon(cfg, { version: VERSION, noReuse: true, log });"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 192,
+      "id": "stopDaemon",
+      "text": "const r: any = await stopDaemon(cfg, { log, all: true }); // 含无元数据孤儿（身份扫描）"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 196,
+      "id": "stopDaemon",
+      "text": "const r: any = await stopDaemon(cfg, { log });"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 206,
+      "id": "fileURLToPath",
+      "text": "const self = fileURLToPath(import.meta.url);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 209,
+      "id": "spawn",
+      "text": "const child = spawn(process.execPath, [self, 'ensure', '--port', String(port), '--isolated'], {"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 222,
+      "id": "listDaemonSlots",
+      "text": "const slots = listDaemonSlots(cfg);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 223,
+      "id": "scanDaemonProcesses",
+      "text": "const procs = scanDaemonProcesses(cfg);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 229,
+      "id": "readDaemonRecord",
+      "text": "const rec = readDaemonRecord(cfg, slot);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 232,
+      "id": "handshake",
+      "text": "const hs: any = rec ? await handshake(cfg, metaPort, rec.token, 3000) : { ok: false };"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 245,
+      "id": "daemonStatus",
+      "text": "const st: any = await daemonStatus(cfg);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 259,
+      "id": "launchDaemon",
+      "text": "const l = launchDaemon(cfg, port, VERSION, log);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 267,
+      "id": "readDaemonRecord",
+      "text": "const rec = readDaemonRecord(cfg, port);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 269,
+      "id": "handshake",
+      "text": "const hs = await handshake(cfg, rec.meta?.port ?? port, rec.token, cfg.daemonHandshakeTimeoutMs);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 277,
+      "id": "scanDaemonProcesses",
+      "text": "if (!scanDaemonProcesses(cfg).some((p) => p.pid === pid)) {"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 293,
+      "id": "ensureDaemon",
+      "text": "const e: any = await ensureDaemon(cfg, { version: VERSION, log });"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 326,
+      "id": "fileURLToPath",
+      "text": "const self = fileURLToPath(import.meta.url);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 333,
+      "id": "spawn",
+      "text": "const c = spawn(process.execPath, [self, 'ensure', '--port', String(port), '--isolated'], {"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 340,
+      "id": "readDaemonRecord",
+      "text": "const beforeRec = readDaemonRecord(cfg, port);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 354,
+      "id": "ensureDaemon",
+      "text": "const e: any = await ensureDaemon(cfg, { version: VERSION, log });"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 355,
+      "id": "scanDaemonProcesses",
+      "text": "const afterProcs = scanDaemonProcesses(cfg);"
+    },
+    {
+      "file": "src/selftest.ts",
+      "line": 389,
+      "id": "ensureDaemon",
+      "text": "const e: any = await ensureDaemon(cfg, { version: VERSION, log });"
+    },
+    {
+      "file": "src/version.ts",
+      "line": 123,
+      "id": "join",
+      "text": "if (envDir) push(join(envDir, 'runtime.json'));"
+    },
+    {
+      "file": "src/version.ts",
+      "line": 126,
+      "id": "basename",
+      "text": "const exe = typeof execPath === 'string' ? basename(execPath) : '';"
+    },
+    {
+      "file": "src/version.ts",
+      "line": 131,
+      "id": "dirname",
+      "text": "const dir = dirname(execPath);"
+    },
+    {
+      "file": "src/version.ts",
+      "line": 136,
+      "id": "join",
+      "text": "siblingRuntime = existsSync(join(dir, 'resources', 'runtime')) === true;"
+    },
+    {
+      "file": "src/version.ts",
+      "line": 141,
+      "id": "join",
+      "text": "if (named || siblingRuntime) push(join(dir, ...RUNTIME_TAIL));"
+    },
+    {
+      "file": "src/version.ts",
+      "line": 146,
+      "id": "join",
+      "text": "if (localAppData) push(join(localAppData, 'Programs', 'DeepSeek Harness', ...RUNTIME_TAIL));"
+    },
+    {
+      "file": "src/version.ts",
+      "line": 148,
+      "id": "join",
+      "text": "if (programFiles) push(join(programFiles, 'DeepSeek Harness', ...RUNTIME_TAIL));"
+    },
+    {
+      "file": "src/version.ts",
+      "line": 171,
+      "id": "read",
+      "text": "const raw = read(p, 'utf8');"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 45,
+      "id": "unc",
+      "text": "writeFileSync(unc(distro, linuxPath), body, 'utf8');"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 63,
+      "id": "unc",
+      "text": "unlinkSync(unc(distro, p));"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 82,
+      "id": "shellEnvSnippet",
+      "text": "const shellEnv = withShellEnv ? shellEnvSnippet({ enable: cfg.useShellEnvironment }) : '';"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 142,
+      "id": "desktopRuntimeCandidates",
+      "text": "const candidates = desktopRuntimeCandidates({"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 152,
+      "id": "pickDesktopVersion",
+      "text": "return pickDesktopVersion({ candidates, readFileSync });"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 157,
+      "id": "readFileSync",
+      "text": "return readFileSync(unc(cfg.distro, `${cfg.wslHome}/.dsh/.desktop-version-pin`), 'utf8').trim() || null;"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 157,
+      "id": "unc",
+      "text": "return readFileSync(unc(cfg.distro, `${cfg.wslHome}/.dsh/.desktop-version-pin`), 'utf8').trim() || null;"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 165,
+      "id": "unc",
+      "text": "const p = unc(cfg.distro, `${cfg.wslHome}/.dsh/.desktop-version-pin`);"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 166,
+      "id": "join",
+      "text": "mkdirSync(join(p, '..'), { recursive: true });"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 200,
+      "id": "spawn",
+      "text": "const child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', file], {"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 293,
+      "id": "spawnSync",
+      "text": "const res = spawnSync('wsl.exe', ['-d', cfg.distro, '-e', 'bash', '-c', WSLPATH_SCRIPT, '_', path], {"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 382,
+      "id": "zstdDecompressSync",
+      "text": "const raw = zstdDecompressSync(readFileSync(${JSON.stringify(logPath)})).toString('utf8');"
+    },
+    {
+      "file": "src/wsl-io.ts",
+      "line": 382,
+      "id": "readFileSync",
+      "text": "const raw = zstdDecompressSync(readFileSync(${JSON.stringify(logPath)})).toString('utf8');"
+    }
+  ]
+}
