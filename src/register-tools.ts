@@ -17,7 +17,15 @@ import {
   ensureDaemon, stopDaemon, daemonPrompt, daemonStatus, daemonSnapshot, readDaemonMeta, stateDirLinux, unc,
 } from './daemon-client.ts';
 import { withModulePrefix } from './explorer.ts';
-import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble, writeScript, removeScript, sleep, renderText, resolveVersion, readPin, writePin } from './wsl-io.ts';
+// T47（P0 修复，**只加这一行 import，逻辑一行未改**）：`WebHost.start()` 的脚本里有
+// `exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@<v> web --port <p>`。
+// 根因链：T1 把 `ALLOW_BUILDS`/`allowBuildFlags` 唯一化到 `src/sdk-runtime.ts`；T5 把「七个工具的注册面」
+// 从 index.ts 拆到本文件时**漏了这一行 import** ⇒ 零构建 TS **import 期不报错**，真调 `wsl_open_ui`
+// 的启动路径才抛 `ReferenceError: allowBuildFlags is not defined`（同型第三次：T3 的 `spawn`、T5 的 `wsl-io.ts`）。
+import { allowBuildFlags } from './sdk-runtime.ts';
+// T47：`reapWsl` 是 `WebHost.stop()` 用的（杀包装层后必须收回 WSL 侧的 `dsh web`，否则它变孤儿继续占端口）。
+// 与上一行同型：T5 拆分时漏了 import，`{stop:true}` 真调（**已起过一个 web host** 之后）才炸 ReferenceError。
+import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble, writeScript, removeScript, reapWsl, sleep, renderText, resolveVersion, readPin, writePin } from './wsl-io.ts';
 
 // ── 远端 UI：WSL 跑 `dsh web`，Windows 开应用窗口 ─────────────────────────────
 

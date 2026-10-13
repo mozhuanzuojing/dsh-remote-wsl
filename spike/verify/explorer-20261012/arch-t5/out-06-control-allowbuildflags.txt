@@ -1,0 +1,3 @@
+  D:\project\net1\_t47-p0\ctrl-no-allowbuildflags.ts: 1 命中 ⇒ allowBuildFlags×1
+
+命中合计 = 1（0 = 无同型风险）

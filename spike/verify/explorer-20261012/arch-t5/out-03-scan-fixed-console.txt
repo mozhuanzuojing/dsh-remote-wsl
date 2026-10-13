@@ -1,0 +1,6 @@
+  src\register-tools.ts: 48 命中 ⇒ ensureSwept×5, machineLine×5, path×4, session×3, ensureDaemonReady×3, $×2, YES×2, dir×2, runtime×2, WSL×2, warmInBackground×2, constructor×1, start×1, stop×1, reapWsl×1, listDistros×1, injection×1, runtimes×1, distro×1, early×1, environment×1, directory×1, seconds×1, agent×1, when×1, or×1, cases×1, and×1, per×1, order×1, getRuntime×1, priorSessionFor×1, logDaemon×1, daemons×1, idempotent×1, timeout×1, slot×1, metadata×1, keys×1, state×1, true×1, dead×1, Windows×1, failed×1, argument×1, explicit×1, conversion×1, report×1
+  src\wsl-io.ts: 2 命中 ⇒ $×6, executed×1
+  src\in-host-runtime.ts: 0 命中（声明面 30 个标识符；候选调用全部可解析）
+  src\index.ts: 0 命中（声明面 84 个标识符；候选调用全部可解析）
+
+命中合计 = 50（0 = 无同型风险）

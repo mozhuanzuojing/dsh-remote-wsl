@@ -1,0 +1,5 @@
+remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
+DSH_HOME(孤立)=C:\Users\l\AppData\Local\Temp\t47-home  port=8915  tool=object
+[②a stop:true（无害态）] OK 127ms :: stopped web host on port 8915
+[②b 真正启动（open:false）] OK 2587ms :: http://127.0.0.1:8915/?token=V8QI7jO1uaDbrctpTF1RlP5XPclMFxqa38SLw3FqMx4 | (opened: not-opened)
+[②c 收尾 stop:true] OK 362ms :: stopped web host on port 8915
