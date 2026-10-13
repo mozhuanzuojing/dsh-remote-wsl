@@ -41,7 +41,9 @@ window.__ModuleLoader__.load({
 			// —— T30 重设计新增（UX 规格 §3.2；zh/en 逐键配对）——
 			"status.sessions": "会话 {count} 个",
 			"status.stateUnknown": "远端守护状态未知",
-			"status.readingExtra": "· 状态读取中…",
+			// T42/N5：这行原为 `· 状态读取中…`，而底栏 JSX 自己会插 `" · "` 分隔符 ⇒ 加载态出现**双分隔符**。
+			// 这里去掉行内的前导 `· `（分隔符只由 JSX 提供一处）。
+			"status.readingExtra": "状态读取中…",
 			"status.updated": "更新于 {time}",
 			"load.readingSlow": "网络较慢，仍在读取…",
 			"header.distroScope": "仅筛选，不改目标",
@@ -270,7 +272,7 @@ window.__ModuleLoader__.load({
 			// —— T30 redesign additions (UX spec §3.2) ——
 			"status.sessions": "{count} sessions",
 			"status.stateUnknown": "Remote daemon state unknown",
-			"status.readingExtra": "· reading state…",
+			"status.readingExtra": "reading state…",
 			"status.updated": "Updated {time}",
 			"load.readingSlow": "Still loading…",
 			"header.distroScope": "View filter only",

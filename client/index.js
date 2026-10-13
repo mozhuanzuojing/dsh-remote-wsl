@@ -69,7 +69,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-grouptitle{font-size:12px;line-height:16px;font-weight:600;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}",
 			".dsh-rw-crumbs{display:flex;align-items:center;gap:2px;overflow-x:auto;padding:0;min-height:24px}",
-			".dsh-rw-crumb{background:none;border:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;padding:2px 4px;border-radius:3px;cursor:pointer;flex:none;direction:ltr;unicode-bidi:isolate}",
+			".dsh-rw-crumb{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:24px;box-sizing:border-box;background:none;border:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;padding:2px 4px;border-radius:3px;cursor:pointer;flex:none;direction:ltr;unicode-bidi:isolate}",
 			".dsh-rw-crumb:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-crumb--current{color:var(--dsw-alias-label-primary);font-weight:600;cursor:default}",
 			".dsh-rw-crumb-sep{color:var(--dsw-alias-label-secondary);font-size:12px}",
@@ -98,10 +98,12 @@ window.__ModuleLoader__.load({
 			".dsh-rw-btn:disabled{color:var(--dsw-alias-label-dimmed);border-color:var(--dsw-alias-border-l1);cursor:default}",
 			".dsh-rw-btn--primary{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-brand-primary)}",
 			".dsh-rw-btn--danger{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-state-error-primary)}",
-			".dsh-rw-iconbtn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-secondary);cursor:pointer;box-shadow:none}",
+			// T42/V1：`⋯` 与刷新是 flex 子项，**缺 `flex:none` 会被压到 SVG 的 16px 最小宽**
+			//（T40 实测 320→16 / 359/360→21）⇒ 钉 `flex:none` 保证命中区恒 24×24。
+			".dsh-rw-iconbtn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:24px;height:24px;padding:0;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-secondary);cursor:pointer;box-shadow:none}",
 			".dsh-rw-iconbtn:hover:enabled{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-iconbtn:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
-			".dsh-rw-chip{display:inline-flex;align-items:center;gap:2px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;direction:ltr;unicode-bidi:isolate;box-shadow:none}",
+			".dsh-rw-chip{display:inline-flex;align-items:center;gap:2px;min-width:24px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;direction:ltr;unicode-bidi:isolate;box-shadow:none}",
 			".dsh-rw-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-chip--on{color:var(--dsw-alias-label-primary)}",
 			// M15 形状通道：任何带 `dsh-rw-current` 的元素都必须**不靠填充**可辨。
@@ -109,7 +111,8 @@ window.__ModuleLoader__.load({
 			// `border:1px solid …` 简写覆盖（实测 border-left 变 1px、font-weight 400 ⇒
 			// 只剩 `--on` 填充，正是规格里的"只靠填充即红"）⇒ 这里用 (0,2,0) 钉死。
 			".dsh-rw-chip.dsh-rw-current{border-left-width:2px;border-left-color:var(--dsw-alias-brand-primary);font-weight:600}",
-			".dsh-rw-link{background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;padding:0}",
+			// T42/V1：行内动作「进入」原来是裸 `padding:0`（16×16 < WCAG 2.2 SC 2.5.8 的 24×24）⇒ 补命中盒。
+			".dsh-rw-link{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:24px;box-sizing:border-box;background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;padding:0 4px}",
 			".dsh-rw-link:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
 			".dsh-rw-link:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
 			".dsh-rw-hint{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
@@ -133,8 +136,14 @@ window.__ModuleLoader__.load({
 			".dsh-rw-pre{background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px;max-height:260px;overflow:auto;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;direction:ltr;unicode-bidi:isolate;text-align:left;margin:0}",
 			".dsh-rw-recent-row{display:flex;align-items:center;gap:6px;height:32px;padding:6px 8px;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left;width:100%;box-sizing:border-box}",
 			".dsh-rw-recent-row:hover{background:var(--dsw-alias-interactive-bg-hover)}",
-			".dsh-rw-status{display:flex;align-items:center;gap:8px;height:36px;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}",
-			".dsh-rw-dot{width:8px;height:8px;border-radius:50%;flex:none}",
+			// T42/R1：宿主没有全局 `box-sizing` 重置，而 `<footer>` 自身也没有兜底 ⇒
+			// 旧写法 `height:36 + padding 9×2 + border-top 1` 实际量到 **55**（内容盒语义）。
+			// 定稿：`box-sizing:border-box;height:47px`（= 28 内容 + 9×2 padding + 1 border）。
+			// **不用 `min-height`**：那会让守护起停（多一行 extra）时 47↔43 抖 4px。
+			".dsh-rw-status{display:flex;align-items:center;gap:8px;box-sizing:border-box;height:47px;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}",
+			// 同一个 `box-sizing` 根因第 2 处：`--stopped/--unknown` 带 1.5px 边框，
+			// 内容盒语义下外径 11 ≠ 实心态 8 ⇒ 加 `box-sizing:border-box` 后两态恒 8×8。
+			".dsh-rw-dot{box-sizing:border-box;width:8px;height:8px;border-radius:50%;flex:none}",
 			".dsh-rw-dot--running{background:var(--dsw-alias-state-success-primary)}",
 			".dsh-rw-dot--stopped{background:var(--dsw-alias-bg-base);border:1.5px solid var(--dsw-alias-border-l2)}",
 			".dsh-rw-dot--unknown{background:var(--dsw-alias-state-idle-primary);border:1.5px solid var(--dsw-alias-border-l2)}",
@@ -145,7 +154,10 @@ window.__ModuleLoader__.load({
 			".dsh-rw-updated{flex:none;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;white-space:nowrap}",
 			".dsh-rw-menu{position:absolute;bottom:calc(100% + 4px);right:0;width:240px;z-index:30;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:0;box-shadow:0 4px 12px rgba(0,0,0,.08)}",
 			".dsh-rw-group{display:flex;flex-direction:column;gap:0}",
-			".dsh-rw-grouplabel{font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);padding:4px 8px 2px}",
+			// T42/R3：组标题取色 `label-secondary` 在 dark 只有 3.85:1（<4.5）⇒ 改 `label-primary`
+			//（实测 15.97 / 5.55 ✓✓；17 token 闭集内没有第三个选项，`brand-primary` 与它 RGB 相同）。
+			// 层级**不再靠颜色**传达：11px 字号 / 不进 Tab（`role=presentation` + `tabIndex:-1`）/ 不响应 hover / 无填充。
+			".dsh-rw-grouplabel{font-size:11px;line-height:16px;color:var(--dsw-alias-label-primary);padding:4px 8px 2px}",
 			".dsh-rw-menuitem{display:flex;align-items:center;gap:8px;height:28px;padding:4px 8px;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left;width:100%;box-sizing:border-box;box-shadow:none}",
 			".dsh-rw-menuitem:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
 			".dsh-rw-menuitem:focus-visible{outline-offset:-2px;box-shadow:inset 0 0 0 1px var(--dsw-alias-bg-layer-1)}",
@@ -403,3 +415,5 @@ window.__ModuleLoader__.load({
 
 // T41（2026-10-13）：client.panel.js 拆成 5 个子 chunk（helpers / actions / header / browser / tail）。
 // 按 docs/client-contract.md §11：改了 client/** 就必须 bump 入口（rev 取自入口元数据）⇒ 本次同时改本行。
+
+// T42: V1 hit-box also for .dsh-rw-crumb + zero CJK in client.panel.js (bump entry rev, docs/client-contract.md §11).

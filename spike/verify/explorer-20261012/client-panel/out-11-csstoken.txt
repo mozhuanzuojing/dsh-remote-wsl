@@ -1,0 +1,29 @@
+# css-token-audit: D:\project\dsh1\vendor\dsh-remote-wsl\client\index.js
+# class prefix = .dsh-rw-   allow-list = 17 tokens
+rules                = 95
+distinct --dsw-* vars= 17
+      6x  --dsw-alias-bg-base
+      5x  --dsw-alias-bg-layer-1
+      3x  --dsw-alias-bg-layer-2
+      2x  --dsw-alias-bg-overlay
+     12x  --dsw-alias-border-l1
+      7x  --dsw-alias-border-l2
+      6x  --dsw-alias-brand-primary
+      2x  --dsw-alias-interactive-bg-active
+      9x  --dsw-alias-interactive-bg-hover
+      5x  --dsw-alias-label-dimmed
+     19x  --dsw-alias-label-primary
+     15x  --dsw-alias-label-secondary
+      8x  --dsw-alias-state-error-primary
+      1x  --dsw-alias-state-idle-primary
+      1x  --dsw-alias-state-success-primary
+      2x  --dsw-alias-state-warn-primary
+      1x  --dsw-specific-sidebar-fill
+C1 hardcoded colors  = 0  <== PASS
+C1 shadow 豁免（中性半透明黑，α∈[0.04,0.28]）= 2
+    @15059  rgba(  α=0.080
+    @16384  rgba(  α=0.160
+C1 soft keywords     = 1 (transparent/currentColor，非硬编码色)
+C2 token set ⊆ allow = PASS
+S1 label-dimmed 域   = OK（未使用，或只用于 :disabled/::placeholder）
+==> EXIT 0（门禁通过）

@@ -155,7 +155,11 @@ function renderTail(props) {
 				const updated = state.lastSuccessAt === null ? null : t("status.updated", { time: clock(state.lastSuccessAt) });
 
 				const groups = [];
-				if (narrow) {
+				// T42/N1：`narrow`（<420）时「添加为 WSL 工作区」原本**头部与 ⋯ 菜单双入口**：
+				// 头部主按钮在 `!primaryIsSession`（cwd == 目标 cwd）时本身就是该动作 ⇒ 菜单再给一份即重复。
+				// 互斥条件：菜单组**只在头部没有提供该动作时**才出现 = `primaryIsSession`（主按钮是"在此目录新建会话"，
+				// 而头部那个次按钮被 `!narrow` 挡住了）⇒ 同一动作在主视线永远只出现 1 处。
+				if (narrow && primaryIsSession) {
 					groups.push({
 						key: "workspace",
 						label: t("menu.group.workspace"),

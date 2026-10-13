@@ -72,7 +72,7 @@ window.__ModuleLoader__.load({
 			const i18nSubscribe = i18n && typeof i18n.subscribe === "function" ? i18n.subscribe : null;
 
 			// T41：全部子 chunk 已由 whenReady() 保证就绪，这里把它们的导出面解构回**同名局部**。
-			if (parts === null) throw new Error("client.panel.js: 子 chunk 尚未就绪（client/index.js 必须先 await whenReady()）");
+			if (parts === null) throw new Error("client.panel.js: sub-chunks are not ready yet (client/index.js must await whenReady() first)");
 			const {
 				HIDE_UPDATED_PX,
 				NARROW_PX,

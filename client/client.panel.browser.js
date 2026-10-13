@@ -256,7 +256,15 @@ function renderBrowser(props) {
 												"div",
 												{ className: "dsh-rw-error", role: "alert" },
 												React.createElement("div", { className: "dsh-rw-error-title" }, icon("error"), t("browser.listError", { path: cwd === null ? "?" : cwd })),
-												React.createElement("div", { className: "dsh-rw-error-body" }, errorText(browse.error)),
+												// T42/N3：主句保持人话（上面的 `browser.listError`），**host 原文**（`\\wsl.localhost\…`、
+												// 重复 ENOENT）收进折叠「技术细节」—— 与 T36 给 stop 失败定的同一模式（同一个 i18n 键、
+												// 同一对 class），因此不需要新增文案键。
+												React.createElement(
+													"details",
+													{ className: "dsh-rw-note-details" },
+													React.createElement("summary", null, t("note.detailSummary")),
+													React.createElement("pre", { className: "dsh-rw-note-detail" }, errorText(browse.error)),
+												),
 												React.createElement(
 													"button",
 													{ type: "button", className: "dsh-rw-btn", onClick: () => cwd !== null && listPath(cwd), "aria-label": t("browser.listRetry"), title: t("browser.listRetry") },
