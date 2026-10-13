@@ -1,0 +1,10 @@
+remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
+SMOKE snapshot ok types: daemon={"running":false,"keys":[],"orphans":0,"others":[]}
+SMOKE listDir entries=72 (前 3: .agents/dir, .atuin/dir, .bash-preexec.sh/file)
+remote-wsl(explorer): 守护已由 systemd 托管（unit=dsh-rwsl-8912.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦
+SMOKE ensure ok=true mode=systemd warning=null pid=1910748
+SMOKE wsl_status lines=18 hasDaemonLine=true
+SMOKE openSession(no-warm，面板 P0 的真实调用) => {"sessionId":null,"cwd":"/home/g","distro":"debian-u8-1","created":false,"reused":false,"warm":false,"daemon":{"slot":8912,"port":8912,"pid":1910748},"note":"守护已就绪，但该 cwd 尚无远端会话：上游 daemon 只在收到一轮 promp
+SMOKE openSession(warm=true) => {"sessionId":"remote-wsl-explorer-ecc7874b-c9f3-4b75-9a46-0c2030c4b408","cwd":"/home/g","distro":"debian-u8-1","created":true,"reused":false,"warm":true,"daemon":{"slot":8912,"port":8912,"pid":1910748},"note":"已用一轮 prompt 物化运行时（warm:true 是显式动作，P0 UI 不调用）"}
+SMOKE 判定：no-warm 返回 sessionId 字段且 created=false + warm 真起一轮（sessionId 非空、created=true）= true
+remote-wsl(explorer): daemon shutdown on slot 8912 (port 8912): ok=true 

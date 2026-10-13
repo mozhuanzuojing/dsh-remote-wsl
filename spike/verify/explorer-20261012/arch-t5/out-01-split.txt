@@ -1,0 +1,16 @@
+✓ head [83..141]
+✓ io [142..152]
+✓ io [154..246]
+✓ rt [248..300]
+✓ io [302..360]
+✓ io [362..583]
+✓ tools [592..737]
+✓ apply [739..868]
+✓ runtimes 行 [753]
+✓ getRuntime [869..896]
+✓ listDistros [898..904]
+✓ tools [907..1458]
+✓ explorer [1460..1473]
+✓ disposer [1475..1491]
+
+写出：wsl-io.ts=410 行, in-host-runtime.ts=107 行, register-tools.ts=732 行, index.ts=267 行
