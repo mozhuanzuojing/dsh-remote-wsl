@@ -112,3 +112,7 @@ RED smoke exit=1
 ## 证据文件（`spike/verify/explorer-20261012/arch-t5/`）
 
 `REPORT-host-split.md`、`out-01-split.txt`（13 条边界断言 + 写出行数）、`out-02-surface-head.txt` / `out-03-surface-new.txt`（② 逐字对照）、`out-04-smoke.txt`（④）、`out-05-unload.txt`（④b）、`out-06-dumpconfig.txt`（③）、`out-07-gate-docs.txt`（原版护栏 FAIL）、`out-08-gate-matrix.txt`（T3 护栏 PASS）、`out-09-red-smoke.txt`（⑤ 红）、`out-10-gate-docs-patched.txt`（补丁副本 11/11 PASS）、`baseline-sha256.txt`/`final-sha256.txt`、`index.orig.ts`（拆分前的 HEAD 快照，供复核）；脚本 `split-t5b.ts`、`probe-t5.ts`、`run-patched-gate.ts`。
+
+> **引用对齐（2026-10-13，T45）**：本报告引用的 `check-docs-methods.mjs` 现已更名为 `arch-t2/tools/check-docs-methods.ts`（判据未改）；`run-patched-gate.ts` 已同步改为**位置无关的薄运行器**（旧路径失效，见 `arch-t2/REPORT-ref-align.md`）。
+
+> **追加（2026-10-13，T45 补）**：该运行器已改为**位置无关薄运行器**（路径由 `import.meta.url` 推导、仓根可 `--root` 覆盖），**本节/上文描述的是它当时的形态**（复制护栏 + 打补丁 + 跑副本）；历史输出 `out-10-gate-docs-patched.txt` 保留为当时的证据。

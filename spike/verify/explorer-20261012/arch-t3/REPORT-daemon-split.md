@@ -144,3 +144,5 @@ $ git status --porcelain -- src/daemon-client.ts src/daemon-protocol.ts src/daem
 3. **`stopAllDaemons` 的全量语义**未在真守护上跑（只用坏 distro 进了函数体），以免误停他人槽位 ⇒ 该函数的"停全部"行为沿用原实现（逐字搬移，未改）。
 4. "拆分未改变行为"的覆盖 = **冒烟实际走到的分支**（ensure/status/snapshot/prompt 失败面/stop 成功与失败/launcher 回收/scan/record）；**未做全分支穷举**（例如端口被占的 `+1` 迁移、`noReuse`、`restart:true`）。
 5. `--dump-config` 只证明配置组合无误，**不加载**我拆出来的模块（真正的模块级证据是 §①b 探针 + §③ 冒烟）。
+
+> **引用对齐（2026-10-13，T45）**：本报告引用的 `check-docs-methods.mjs` 现已更名为 `arch-t2/tools/check-docs-methods.ts`（判据未改）。

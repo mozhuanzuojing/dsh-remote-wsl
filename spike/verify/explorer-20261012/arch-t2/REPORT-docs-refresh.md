@@ -146,3 +146,5 @@ $ git diff --stat -- GAP-AUDIT.md README.md docs/remote-explorer-design.md
 4. **215−181 = 34 个增量未逐键归属轮次**（只有总数与 17/17 可复算）。
 5. 我的核对脚本覆盖 **3 个文档锚点**（README 方法行 / 设计稿 `method ∈` 行 / GAP-AUDIT #8 行）+ client 副本 + 工具数；**README/设计稿里其它隐含旧方法数的表述未做全库扫描**（`rg` 全库会命中大量历史报告，噪音太大）。
 6. `docs/client-contract.md` / `docs/panel-visual-spec.md` / `docs/prior-art-dsh-wsl.md` **不在我的写作用域**，本轮未核对它们是否也含过期方法表（contract 已在 `REPORT-t26` 的 6 方法白名单中体现，visual-spec 由 T28 维护）。
+
+> **2026-10-13 追加（不改上文正文）**：本报告 §2/§4 与验收①引用的护栏脚本 **`arch-t2/tools/check-docs-methods.mjs` 已更名为 `arch-t2/tools/check-docs-methods.ts`**（**判据未改**，Node 26 直跑无需构建）；同时该脚本的工具名读法已从"读死 `src/index.ts`"改为**扫 `src/**` 并把权威锚在 `tools.register` 这个语义上** —— 因为 T5 把 7 个工具注册搬到 `src/register-tools.ts` 时旧读法报过 `工具数 = 7 — 实得 0`。**一律以新路径为准。**

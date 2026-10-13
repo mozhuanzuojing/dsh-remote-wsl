@@ -160,3 +160,5 @@ exit=0
 - **用户宿主**：19387（pid 47564）只读未触碰；未写用户全局存储。
 - **`--state=failed` = 0**；`launch.8921.sh` 等本槽位包装层已清；`%TEMP%\t39-red` 已删。
 - **`--dump-config` exit 0**（`Error:` 0 命中）。
+
+> **引用对齐（2026-10-13，T45）**：本报告引用的 `check-docs-methods.mjs` 现已更名为 `arch-t2/tools/check-docs-methods.ts`（判据未改）。

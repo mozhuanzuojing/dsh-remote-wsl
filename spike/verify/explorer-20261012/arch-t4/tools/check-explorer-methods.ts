@@ -4,7 +4,7 @@
  * 背景：方法名的**唯一权威**是 host 的 `src/explorer.ts` → `EXPLORER_METHODS`；client 半是
  * **零构建手写 bundle**，不能 import host、也不能跑生成器，所以 `client/client.api.js` 里只能留
  * 一份**字面量投影**。本工具就是那道"投影不许漂"的机器门禁（跨任务门禁
- * `arch-t2/tools/check-docs-methods.mjs` 另有 11 条断言，其中一条也断言 client ≡ host）。
+ * `arch-t2/tools/check-docs-methods.ts` 另有 **13 条**断言（2026-10-13 由 `.mjs` 更名，判据未改），其中一条也断言 client ≡ host）。
  *
  * 用法（Node 26 原生跑 .ts，无需构建）：
  *   node check-explorer-methods.ts                 # --check（默认）：不一致 ⇒ exit 1

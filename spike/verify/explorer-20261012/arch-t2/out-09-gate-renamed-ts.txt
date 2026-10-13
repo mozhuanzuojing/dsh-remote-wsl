@@ -1,0 +1,5 @@
+权威 EXPLORER_METHODS(6): explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace
+权威 tools(7): wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version, wsl_path
+  锚定来源（tools.register）：register-tools.ts:wsl_status; register-tools.ts:wsl_exec; register-tools.ts:wsl_agent; register-tools.ts:wsl_daemon; register-tools.ts:wsl_open_ui; register-tools.ts:wsl_sync_version; register-tools.ts:wsl_path
+  诊断：扫全 src 的裸 name:'wsl_*' 计数 = 7（与锚定一致）
+client METHODS(6): explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace

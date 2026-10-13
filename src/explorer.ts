@@ -69,7 +69,7 @@ export const EXPLORER_METHODS = [
 /**
  * 本表是**方法名的唯一权威**（T4，2026-10-13）。三处消费它，都不许各自再抄一份：
  *   · `client/client.api.js` 的 `METHODS` —— **零构建**的手写 bundle 只能复制字面量，
- *     所以那边是"投影"：`arch-t2/tools/check-docs-methods.mjs`（跨任务门禁）与
+ *     所以那边是"投影"：`arch-t2/tools/check-docs-methods.ts`（跨任务门禁；2026-10-13 由 .mjs 更名，判据未改）与
  *     `arch-t4/tools/check-explorer-methods.ts`（本任务新增，带 `--print` 可再生成）逐项校验一致；
  *   · HTTP 白名单与 `GET /remote-wsl/api` 的方法清单（直接读 `EXPLORER_METHODS`）；
  *   · README / 设计稿 §4 的方法表（由上面那个门禁断言列全）。
