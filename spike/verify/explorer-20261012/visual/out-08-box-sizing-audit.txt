@@ -1,0 +1,53 @@
+### A) 工作区 client/index.js（真实现；tags 来自对 client.panel.js 的静态阅读）
+# box-sizing-audit: D:\project\dsh1\vendor\dsh-remote-wsl\client\index.js   (class prefix .dsh-rw-)
+# 规则总数 = 95
+
+## ① content-box 陷阱（声明了 height/width，且有 padding 或 border，却未声明 box-sizing:border-box）
+SELECTOR                      元素       声明     渲染     差额     声明W    判定
+.dsh-rw-row                   button   32     44     +12    —      OK(显式 border-box)
+.dsh-rw-icon                  ?        16     16     0      16     —
+.dsh-rw-btn                   button   28     38     +10    —      候选（<button> UA 兜底，需实测）
+.dsh-rw-iconbtn               button   24     24     0      24     —
+.dsh-rw-chip                  button   24     26     +2     —      候选（<button> UA 兜底，需实测）
+.dsh-rw-recent-row            button   32     44     +12    —      OK(显式 border-box)
+.dsh-rw-status                footer   36     55     +19    —      **真陷阱（<footer> 无兜底）**
+.dsh-rw-dot                   span     8      8      0      8      —
+.dsh-rw-menu                  ?        —      —      0      240    —
+.dsh-rw-menuitem              button   28     36     +8     —      OK(显式 border-box)
+.dsh-rw-menusep               ?        1      1      0      —      —
+
+真陷阱条数 = 1   候选（表单控件，需实测核对） = 2
+注：候选行的真假取决于元素是否吃到 UA 的 border-box。实测反推：T40 量到 `.dsh-rw-btn` 渲染 **28**（预测 38）、
+    `.dsh-rw-chip` 渲染 **24**（预测 26）⇒ 这两个 <button> 确为 border-box；而 `.dsh-rw-status`（<footer>）
+    渲染 **55**（预测 36）⇒ 无兜底。**兜底只属于表单控件，不是全局规则。**
+
+## ② 宿主的 box-sizing 重置形态（asar = C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\app.asar）
+声明 box-sizing:border-box 的规则数 = 235
+  纯通配形态 = 3（注意：asar 含**多卷** CSS，其中 3 处形如 `*{…}` 的声明**无法证明作用于本面板**，见 `probe-host-universal-reset.mjs` 的前文取证）
+  表单控件选择器 = 0
+  ⇒ **以实测为准**：`.dsh-rw-status`（`<footer>`）渲染 **55** ⇒ 该元素实际是 **content-box**，即「没有全局重置落到它头上」。
+     而 `<button>` 渲染 28/24 = 声明值 ⇒ 表单控件有兜底。结论：**插件必须自己在每条 `height`+`padding` 规则上显式写 `box-sizing:border-box`**。
+### B) 负向夹具 neg.css: height20 + padding4 + border-top1, 无 box-sizing => 期望真陷阱
+# box-sizing-audit: C:\Users\l\AppData\Local\Temp\vd-t43-fixtures\neg.css   (class prefix .dsh-rw-)
+# 规则总数 = 1
+
+## ① content-box 陷阱（声明了 height/width，且有 padding 或 border，却未声明 box-sizing:border-box）
+SELECTOR                      元素       声明     渲染     差额     声明W    判定
+.dsh-rw-neg                   ?        20     29     +9     —      **真陷阱（<?> 无兜底）**
+
+真陷阱条数 = 1   候选（表单控件，需实测核对） = 0
+注：候选行的真假取决于元素是否吃到 UA 的 border-box。实测反推：T40 量到 `.dsh-rw-btn` 渲染 **28**（预测 38）、
+    `.dsh-rw-chip` 渲染 **24**（预测 26）⇒ 这两个 <button> 确为 border-box；而 `.dsh-rw-status`（<footer>）
+    渲染 **55**（预测 36）⇒ 无兜底。**兜底只属于表单控件，不是全局规则。**
+### C) 正向夹具 pos.css: 同尺寸 + box-sizing:border-box => 期望 OK
+# box-sizing-audit: C:\Users\l\AppData\Local\Temp\vd-t43-fixtures\pos.css   (class prefix .dsh-rw-)
+# 规则总数 = 1
+
+## ① content-box 陷阱（声明了 height/width，且有 padding 或 border，却未声明 box-sizing:border-box）
+SELECTOR                      元素       声明     渲染     差额     声明W    判定
+.dsh-rw-pos                   ?        20     29     +9     —      OK(显式 border-box)
+
+真陷阱条数 = 0   候选（表单控件，需实测核对） = 0
+注：候选行的真假取决于元素是否吃到 UA 的 border-box。实测反推：T40 量到 `.dsh-rw-btn` 渲染 **28**（预测 38）、
+    `.dsh-rw-chip` 渲染 **24**（预测 26）⇒ 这两个 <button> 确为 border-box；而 `.dsh-rw-status`（<footer>）
+    渲染 **55**（预测 36）⇒ 无兜底。**兜底只属于表单控件，不是全局规则。**

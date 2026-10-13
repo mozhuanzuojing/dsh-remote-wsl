@@ -1,0 +1,56 @@
+{
+  "ts": "2026-10-13T07:47:25.920Z",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "disk": "C:\\Users\\l\\AppData\\Local\\Temp\\usab-p04",
+  "phases": {
+    "v7": {
+      "resting": {
+        "rowCount": 33,
+        "currentRow": null,
+        "firstRow": {
+          "cls": "dsh-rw-row dsh-rw-row--dir",
+          "borderLeftWidth": "0px",
+          "fontWeight": "400",
+          "backgroundColor": "rgba(0, 0, 0, 0)"
+        },
+        "footer": {
+          "bg": "rgb(249, 250, 251)",
+          "btn": {
+            "text": "启动守护",
+            "bg": "rgb(255, 255, 255)"
+          }
+        },
+        "menuBtn": {
+          "aria": "更多操作",
+          "bg": "rgba(0, 0, 0, 0)"
+        }
+      },
+      "forcedHover": [
+        {
+          "label": "底栏按钮(sidebar-fill 底)",
+          "selector": "[data-dsh-remote-wsl=\"panel\"] footer button",
+          "found": true,
+          "restingBg": "rgb(255, 255, 255)",
+          "hoverBg": "rgba(38, 49, 72, 0.06)",
+          "changed": true
+        },
+        {
+          "label": "⋯ 菜单按钮(底栏底)",
+          "selector": "[aria-haspopup=\"menu\"]",
+          "found": true,
+          "restingBg": "rgba(0, 0, 0, 0)",
+          "hoverBg": "rgba(38, 49, 72, 0.06)",
+          "changed": true
+        },
+        {
+          "label": "目录列表行(bg-layer-1 底)",
+          "selector": ".dsh-rw-row.dsh-rw-row--dir",
+          "found": true,
+          "restingBg": "rgba(0, 0, 0, 0)",
+          "hoverBg": "rgba(38, 49, 72, 0.06)",
+          "changed": true
+        }
+      ]
+    }
+  }
+}

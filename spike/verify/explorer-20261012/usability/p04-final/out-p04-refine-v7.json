@@ -1,0 +1,139 @@
+{
+  "ts": "2026-10-13T08:00:48.581Z",
+  "phase": "v7",
+  "v7scan": {
+    "barCandidates": [
+      {
+        "tag": "span",
+        "cls": "dsh-rw-crumb dsh-rw-crumb--current dsh-rw-current",
+        "blw": "2px",
+        "blc": "rgb(15, 17, 21)",
+        "text": "dsh1"
+      }
+    ],
+    "barCount": 1,
+    "boldCandidates": [
+      {
+        "tag": "span",
+        "cls": "dsh-rw-title",
+        "fw": "600",
+        "text": "远程资源管理器"
+      },
+      {
+        "tag": "span",
+        "cls": "dsh-rw-grouptitle",
+        "fw": "600",
+        "text": "浏览目录"
+      },
+      {
+        "tag": "span",
+        "cls": "dsh-rw-crumb dsh-rw-crumb--current dsh-rw-current",
+        "fw": "600",
+        "text": "dsh1"
+      }
+    ],
+    "boldCount": 3,
+    "lastCrumb": {
+      "text": "dsh1",
+      "fw": "600",
+      "color": "rgb(15, 17, 21)",
+      "cls": "dsh-rw-crumb dsh-rw-crumb--current dsh-rw-current"
+    },
+    "rowStyles": [
+      {
+        "cls": "dsh-rw-row dsh-rw-row--dir",
+        "blw": "0px",
+        "fw": "400",
+        "bg": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "cls": "dsh-rw-row dsh-rw-row--dir",
+        "blw": "0px",
+        "fw": "400",
+        "bg": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "cls": "dsh-rw-row dsh-rw-row--dir",
+        "blw": "0px",
+        "fw": "400",
+        "bg": "rgba(0, 0, 0, 0)"
+      }
+    ],
+    "pathInputValue": "/home/g/project/dsh1"
+  },
+  "menu": {
+    "present": true,
+    "groupCount": 3,
+    "itemCount": 4,
+    "groupStyles": [
+      {
+        "role": "group",
+        "label": "快捷目录",
+        "text": "Home / /mnt /mnt/c /mnt/d /mnt",
+        "color": "rgb(15, 17, 21)",
+        "fw": "400",
+        "h": 24
+      },
+      {
+        "role": "group",
+        "label": null,
+        "text": "守护 重启远端守护… 停止远端守护…",
+        "color": "rgb(15, 17, 21)",
+        "fw": "400",
+        "h": 78
+      },
+      {
+        "role": "group",
+        "label": null,
+        "text": "诊断 查看诊断信息 复制诊断摘要",
+        "color": "rgb(15, 17, 21)",
+        "fw": "400",
+        "h": 78
+      }
+    ],
+    "itemStyles": [
+      {
+        "role": "menuitem",
+        "label": null,
+        "text": "重启远端守护…",
+        "color": "rgb(15, 17, 21)",
+        "fw": "400",
+        "h": 28
+      },
+      {
+        "role": "menuitem",
+        "label": null,
+        "text": "停止远端守护…",
+        "color": "rgb(15, 17, 21)",
+        "fw": "400",
+        "h": 28
+      },
+      {
+        "role": "menuitem",
+        "label": null,
+        "text": "查看诊断信息",
+        "color": "rgb(15, 17, 21)",
+        "fw": "400",
+        "h": 28
+      },
+      {
+        "role": "menuitem",
+        "label": null,
+        "text": "复制诊断摘要",
+        "color": "rgb(15, 17, 21)",
+        "fw": "400",
+        "h": 28
+      }
+    ],
+    "menuRole": "menu",
+    "labelledbyInGroups": [
+      null,
+      "dsh-rw-menu-daemon",
+      "dsh-rw-menu-diagnostics"
+    ]
+  },
+  "shot": {
+    "file": "v7-menu-open-light.png",
+    "bytes": 72006
+  }
+}

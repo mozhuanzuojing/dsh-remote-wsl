@@ -1,0 +1,58 @@
+{
+  "ts": "2026-10-13T07:44:58.664Z",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "disk": "C:\\Users\\l\\AppData\\Local\\Temp\\usab-p04",
+  "phases": {
+    "menuOpen_light": "opened",
+    "menuOpen_dark": "opened",
+    "narrow320_light_innerWidth": 320,
+    "narrow320_dark_innerWidth": 320,
+    "loadingText": "远程资源管理器 尚未取得目标发行版 添加为 WSL 工作区 正在读取远端信息… 远端守护状态未知 · · 状态读取中…",
+    "multiInstance": {
+      "mode": "fixture(页面内 fetch 夹具；本机 others[] 为空：[])",
+      "others": "injected 8731/8972"
+    },
+    "errorBadpath": {
+      "action": "jumped",
+      "text": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区 在此目录新建会话 浏览目录 隐藏文件：不显示 Home / /mnt /mnt/c /mnt/d /mnt/e /mnt/f /mnt/g / definitely / not / here-usab 跳转 上一级 列目录失败（/definitely/not/here-usab） remote-wsl: 列目录失败：路径 /definitely/not/here-usab 不存在或不是目录（ENOENT: ENOENT: no such file or directory, scandir '\\\\wsl.localhost\\debian-u8-1\\definitely\\not\\here-usab'） 重试 最近目录 诊断信息（与 wsl_status 同源） 远端守护未运行 · 会话 0 个 启动守护 更新于 15:45:36"
+    },
+    "shots": [
+      {
+        "file": "ready-light.png",
+        "bytes": 65739
+      },
+      {
+        "file": "menu-light.png",
+        "bytes": 72578
+      },
+      {
+        "file": "ready-dark.png",
+        "bytes": 65291
+      },
+      {
+        "file": "menu-dark.png",
+        "bytes": 72047
+      },
+      {
+        "file": "narrow320-light.png",
+        "bytes": 34723
+      },
+      {
+        "file": "narrow320-dark.png",
+        "bytes": 35071
+      },
+      {
+        "file": "loading.png",
+        "bytes": 41696
+      },
+      {
+        "file": "multi-instance-fixture.png",
+        "bytes": 65843
+      },
+      {
+        "file": "error-badpath.png",
+        "bytes": 67764
+      }
+    ]
+  }
+}

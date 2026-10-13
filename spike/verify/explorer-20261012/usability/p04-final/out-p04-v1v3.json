@@ -1,0 +1,373 @@
+{
+  "ts": "2026-10-13T07:46:26.658Z",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "disk": "C:\\Users\\l\\AppData\\Local\\Temp\\usab-p04",
+  "phases": {
+    "v1": {
+      "buttonCount": 16,
+      "rects": [
+        {
+          "text": "添加为 WSL 工作区",
+          "aria": "把 /home/g/project/dsh1 登记为 WSL 工作区（路径是 UNC ⇒ 文件工具经 9P；与“远端会话”是两条路）",
+          "w": 132.3,
+          "h": 28,
+          "top": 10,
+          "left": 1101.7,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "隐藏文件：不显示",
+          "aria": "显示 . 开头的隐藏条目（当前：隐藏）",
+          "w": 114,
+          "h": 24,
+          "top": 96,
+          "left": 1147,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "Home",
+          "aria": "家目录：跳转到 /home/g",
+          "w": 50.2,
+          "h": 24,
+          "top": 126,
+          "left": 299,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "/",
+          "aria": "根目录：跳转到 /",
+          "w": 22.7,
+          "h": 24,
+          "top": 126,
+          "left": 355.2,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "/mnt",
+          "aria": "Windows 盘符挂载点：跳转到 /mnt",
+          "w": 43.9,
+          "h": 24,
+          "top": 126,
+          "left": 383.9,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "/mnt/c",
+          "aria": "Windows 盘符：跳转到 /mnt/c",
+          "w": 54.1,
+          "h": 24,
+          "top": 126,
+          "left": 433.7,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "/mnt/d",
+          "aria": "Windows 盘符：跳转到 /mnt/d",
+          "w": 55.6,
+          "h": 24,
+          "top": 126,
+          "left": 493.8,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "/mnt/e",
+          "aria": "Windows 盘符：跳转到 /mnt/e",
+          "w": 54.8,
+          "h": 24,
+          "top": 126,
+          "left": 555.5,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "/mnt/f",
+          "aria": "Windows 盘符：跳转到 /mnt/f",
+          "w": 52.3,
+          "h": 24,
+          "top": 126,
+          "left": 616.3,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "/mnt/g",
+          "aria": "Windows 盘符：跳转到 /mnt/g",
+          "w": 55.6,
+          "h": 24,
+          "top": 126,
+          "left": 674.6,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "/",
+          "aria": "跳转到 /",
+          "w": 12.7,
+          "h": 20,
+          "top": 158,
+          "left": 299,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "home",
+          "aria": "跳转到 /home",
+          "w": 38.4,
+          "h": 20,
+          "top": 158,
+          "left": 313.7,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "g",
+          "aria": "跳转到 /home/g",
+          "w": 15.1,
+          "h": 20,
+          "top": 158,
+          "left": 360.8,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "project",
+          "aria": "跳转到 /home/g/project",
+          "w": 45.1,
+          "h": 20,
+          "top": 158,
+          "left": 384.6,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "上一级",
+          "aria": "上一级",
+          "w": 81,
+          "h": 28,
+          "top": 186,
+          "left": 1180,
+          "visibility": "visible",
+          "opacity": "1"
+        },
+        {
+          "text": "启动守护",
+          "aria": "启动守护（幂等；不会停止任何已有守护）",
+          "w": 74,
+          "h": 28,
+          "top": 859,
+          "left": 1070.7,
+          "visibility": "visible",
+          "opacity": "1"
+        }
+      ],
+      "rowCount": 33,
+      "verticalGaps": [
+        {
+          "from": "添加为 WSL 工作区",
+          "to": "隐藏文件：不显示",
+          "gapPx": 58
+        },
+        {
+          "from": "隐藏文件：不显示",
+          "to": "Home",
+          "gapPx": 6
+        },
+        {
+          "from": "Home",
+          "to": "/",
+          "gapPx": -24
+        },
+        {
+          "from": "/",
+          "to": "/mnt",
+          "gapPx": -24
+        },
+        {
+          "from": "/mnt",
+          "to": "/mnt/c",
+          "gapPx": -24
+        },
+        {
+          "from": "/mnt/c",
+          "to": "/mnt/d",
+          "gapPx": -24
+        },
+        {
+          "from": "/mnt/d",
+          "to": "/mnt/e",
+          "gapPx": -24
+        },
+        {
+          "from": "/mnt/e",
+          "to": "/mnt/f",
+          "gapPx": -24
+        },
+        {
+          "from": "/mnt/f",
+          "to": "/mnt/g",
+          "gapPx": -24
+        },
+        {
+          "from": "/mnt/g",
+          "to": "/",
+          "gapPx": 8
+        },
+        {
+          "from": "/",
+          "to": "home",
+          "gapPx": -20
+        },
+        {
+          "from": "home",
+          "to": "g",
+          "gapPx": -20
+        },
+        {
+          "from": "g",
+          "to": "project",
+          "gapPx": -20
+        },
+        {
+          "from": "project",
+          "to": "上一级",
+          "gapPx": 8
+        },
+        {
+          "from": "上一级",
+          "to": "启动守护",
+          "gapPx": 645
+        }
+      ],
+      "verdictMinSize": "CHECK(有控件小于 24×24 或未显现)"
+    },
+    "v3": [
+      {
+        "requestedWidth": 320,
+        "innerWidth": 320,
+        "footerH": 55,
+        "footerScrollW": 264,
+        "footerClientW": 264,
+        "footerScrollH": 54,
+        "footerClientH": 54,
+        "noWrap": true,
+        "statusText": "远端守护未运行",
+        "statusScrollW": 91,
+        "statusClientW": 91,
+        "statusNotElided": true,
+        "statusComputed": "clip|nowrap"
+      },
+      {
+        "requestedWidth": 359,
+        "innerWidth": 359,
+        "footerH": 55,
+        "footerScrollW": 303,
+        "footerClientW": 303,
+        "footerScrollH": 54,
+        "footerClientH": 54,
+        "noWrap": true,
+        "statusText": "远端守护未运行",
+        "statusScrollW": 91,
+        "statusClientW": 91,
+        "statusNotElided": true,
+        "statusComputed": "clip|nowrap"
+      },
+      {
+        "requestedWidth": 360,
+        "innerWidth": 360,
+        "footerH": 55,
+        "footerScrollW": 304,
+        "footerClientW": 304,
+        "footerScrollH": 54,
+        "footerClientH": 54,
+        "noWrap": true,
+        "statusText": "远端守护未运行",
+        "statusScrollW": 91,
+        "statusClientW": 91,
+        "statusNotElided": true,
+        "statusComputed": "clip|nowrap"
+      },
+      {
+        "requestedWidth": 419,
+        "innerWidth": 419,
+        "footerH": 55,
+        "footerScrollW": 363,
+        "footerClientW": 363,
+        "footerScrollH": 54,
+        "footerClientH": 54,
+        "noWrap": true,
+        "statusText": "远端守护未运行",
+        "statusScrollW": 91,
+        "statusClientW": 91,
+        "statusNotElided": true,
+        "statusComputed": "clip|nowrap"
+      },
+      {
+        "requestedWidth": 420,
+        "innerWidth": 420,
+        "footerH": 55,
+        "footerScrollW": 364,
+        "footerClientW": 364,
+        "footerScrollH": 54,
+        "footerClientH": 54,
+        "noWrap": true,
+        "statusText": "远端守护未运行",
+        "statusScrollW": 91,
+        "statusClientW": 91,
+        "statusNotElided": true,
+        "statusComputed": "clip|nowrap"
+      },
+      {
+        "requestedWidth": 719,
+        "innerWidth": 719,
+        "footerH": 55,
+        "footerScrollW": 663,
+        "footerClientW": 663,
+        "footerScrollH": 54,
+        "footerClientH": 54,
+        "noWrap": true,
+        "statusText": "远端守护未运行",
+        "statusScrollW": 91,
+        "statusClientW": 91,
+        "statusNotElided": true,
+        "statusComputed": "clip|nowrap"
+      },
+      {
+        "requestedWidth": 720,
+        "innerWidth": 720,
+        "footerH": 55,
+        "footerScrollW": 664,
+        "footerClientW": 664,
+        "footerScrollH": 54,
+        "footerClientH": 54,
+        "noWrap": true,
+        "statusText": "远端守护未运行",
+        "statusScrollW": 91,
+        "statusClientW": 91,
+        "statusNotElided": true,
+        "statusComputed": "clip|nowrap"
+      },
+      {
+        "requestedWidth": 1280,
+        "innerWidth": 1280,
+        "footerH": 55,
+        "footerScrollW": 1000,
+        "footerClientW": 1000,
+        "footerScrollH": 54,
+        "footerClientH": 54,
+        "noWrap": true,
+        "statusText": "远端守护未运行",
+        "statusScrollW": 91,
+        "statusClientW": 91,
+        "statusNotElided": true,
+        "statusComputed": "clip|nowrap"
+      }
+    ]
+  }
+}

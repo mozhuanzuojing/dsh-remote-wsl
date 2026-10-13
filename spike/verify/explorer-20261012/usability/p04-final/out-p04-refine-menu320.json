@@ -1,0 +1,81 @@
+{
+  "ts": "2026-10-13T08:05:52.720Z",
+  "phase": "menu320",
+  "menu320": {
+    "innerWidth": 320,
+    "headerButtons": [
+      {
+        "text": "添加为 WSL 工作区",
+        "aria": "把 /home/g/project/dsh1 登记为 WSL 工作区（路径是 UNC ⇒ 文件工具经 9P；与“远端会话”是两条路）",
+        "w": 132,
+        "h": 28
+      },
+      {
+        "text": "",
+        "aria": "重新读取 explorer.snapshot",
+        "w": 24,
+        "h": 24
+      },
+      {
+        "text": "隐藏文件：不显示",
+        "aria": "显示 . 开头的隐藏条目（当前：隐藏）",
+        "w": 114,
+        "h": 24
+      },
+      {
+        "text": "Home",
+        "aria": "家目录：跳转到 /home/g",
+        "w": 50,
+        "h": 24
+      },
+      {
+        "text": "/",
+        "aria": "根目录：跳转到 /",
+        "w": 23,
+        "h": 24
+      },
+      {
+        "text": "/mnt",
+        "aria": "Windows 盘符挂载点：跳转到 /mnt",
+        "w": 44,
+        "h": 24
+      }
+    ],
+    "menu": {
+      "groupCount": 4,
+      "groups": [
+        {
+          "label": "快捷目录",
+          "labelledby": null,
+          "text": "Home / /mnt /mnt/c /mnt/d /mnt/e /mnt/f /mnt/g"
+        },
+        {
+          "label": null,
+          "labelledby": "dsh-rw-menu-workspace",
+          "text": "工作区 添加为 WSL 工作区"
+        },
+        {
+          "label": null,
+          "labelledby": "dsh-rw-menu-daemon",
+          "text": "守护 重启远端守护… 停止远端守护…"
+        },
+        {
+          "label": null,
+          "labelledby": "dsh-rw-menu-diagnostics",
+          "text": "诊断 查看诊断信息 复制诊断摘要"
+        }
+      ],
+      "items": [
+        "添加为 WSL 工作区",
+        "重启远端守护…",
+        "停止远端守护…",
+        "查看诊断信息",
+        "复制诊断摘要"
+      ]
+    }
+  },
+  "shot": {
+    "file": "menu-320-light.png",
+    "bytes": 33365
+  }
+}

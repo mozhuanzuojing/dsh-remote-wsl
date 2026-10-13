@@ -1,0 +1,83 @@
+{
+  "ts": "2026-10-13T07:52:04.669Z",
+  "phase": "v1",
+  "v1": {
+    "rowCount": 11,
+    "rowHeight": 32,
+    "rows": [
+      {
+        "cls": "dsh-rw-row dsh-rw-row--dir",
+        "rowRect": [
+          299,
+          220,
+          962,
+          32
+        ],
+        "actionButtons": [
+          {
+            "aria": "进入目录 /home/g/project/dsh1/_reports",
+            "text": "进入",
+            "w": 24,
+            "h": 16,
+            "top": 228,
+            "left": 381.4,
+            "visibility": "visible",
+            "opacity": "1",
+            "display": "block"
+          }
+        ]
+      },
+      {
+        "cls": "dsh-rw-row dsh-rw-row--dir",
+        "rowRect": [
+          299,
+          254,
+          962,
+          32
+        ],
+        "actionButtons": [
+          {
+            "aria": "进入目录 /home/g/project/dsh1/bin",
+            "text": "",
+            "w": 24,
+            "h": 16,
+            "top": 262,
+            "left": 353.2,
+            "visibility": "hidden",
+            "opacity": "1",
+            "display": "block"
+          }
+        ]
+      },
+      {
+        "cls": "dsh-rw-row dsh-rw-row--dir",
+        "rowRect": [
+          299,
+          288,
+          962,
+          32
+        ],
+        "actionButtons": [
+          {
+            "aria": "进入目录 /home/g/project/dsh1/data",
+            "text": "",
+            "w": 24,
+            "h": 16,
+            "top": 296,
+            "left": 360.3,
+            "visibility": "hidden",
+            "opacity": "1",
+            "display": "block"
+          }
+        ]
+      }
+    ],
+    "verticalNetGapBetweenRows": 18,
+    "horizontalGaps": [],
+    "verdict": "FAIL(存在 <24×24 的行内动作)"
+  },
+  "shot": {
+    "file": "v1-row-hover-light.png",
+    "bytes": 66283
+  }
+}

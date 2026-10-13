@@ -24,6 +24,8 @@
 | `token-descriptors.mjs` | token 注册表里的官方 `description` / `requiresLightAndDark` | `node token-descriptors.mjs <asar> [regex]` |
 | `css-token-audit.mjs` | **门禁（两条硬约束 + 一条软检查 + Q4 窄豁免）**：抽出 `.<prefix>*{…}` 规则；**C1** 硬编码色（`#hex(3/4/6/8)` / `rgb()/rgba()` / `hsl()` / `color()/lab()/oklch()` / 命名色，已防 `white-space` 误报）；**C2** 引用的 `--dsw-*` 集合 **⊆ 17-token 闭集**（防第 18 个 token）；**S1** `label-dimmed` 只许出现在 `:disabled`/`::placeholder`；**Q4** 只豁免 `box-shadow` 里的中性半透明黑（α ∈ [0.04,0.28]） | `node css-token-audit.mjs <文件> [classPrefix] [--no-allow] [--allow=…]`；**exit 0 = 通过** |
 | `overlay-on-surfaces.mjs` | alpha 覆盖层（`interactive-bg-hover/-active`）在**三种背景**上的合成终值 + `hover/静息`、`active/静息`、`active/hover` 可区分性 + 其上文字对比度 | `node overlay-on-surfaces.mjs <asar>` |
+| `box-sizing-audit.mjs` | **content-box 陷阱审计**（T43）：列出"声明 height/width + 有 padding/border 却未声明 `box-sizing:border-box`"的规则 → 「声明值 / 渲染值 / 差额 / 真陷阱 or 候选」；`--host=<asar>` 另报宿主 `box-sizing` 重置形态；`--tags=.cls=tag,…` 指定元素标签（默认取自对 `client.panel.js` 的静态阅读） | `node box-sizing-audit.mjs <文件> dsh-rw- [--host=<asar>]` |
+| `probe-host-universal-reset.mjs` | 取 asar 里"纯通配 `box-sizing`"命中的**前文**，判断是全局重置还是组件内后代选择器 | `node probe-host-universal-reset.mjs <asar>` |
 
 `<asar>` = `C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\app.asar`
 `node` = `C:\Users\l\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe`
@@ -39,6 +41,9 @@
 | `out-05-css-token-audit.txt` | 门禁实跑：基线（`7cb3362`）与工作区两份均 **C1=0 / C2=PASS / exit 0**；另附 **5 个夹具**（4 负各 exit 1 + 1 正 exit 0）—— 证明门禁真的会判红 | §1.5、§1.6 |
 | `out-06-token-descriptors.txt` | 14 条官方 token 描述（`bg-overlay` = "Overlay and popover background." 等） | §1.0、§2.1 |
 | `out-07-overlay-on-surfaces.txt` | alpha 覆盖层在三背景上的终值 + 两态可区分性（含"菜单上禁止次级文字"的测值） | §5.1.1 |
+| `out-08-box-sizing-audit.txt` | **T43 根因证据**：真实现 95 规则 → 真陷阱 **1 条**（`.dsh-rw-status` 声明 36 → 渲染 **55**，`<footer>` 无兜底）+ 候选 2 条（`<button>` 由 UA 兜底，实测 28/24 = 声明值）；另附**负向/正向夹具**各一（+9 陷阱 / OK）与门禁复跑（17 token / C1=0 / C2=PASS / shadow α=.08&.16） | §3.4.2、§7.2.3、T43 报告 §1/§6 |
+| `out-09-host-universal-reset.txt` | 宿主"纯通配 `box-sizing`"3 处命中的前文取证（均无法证明作用于本面板） | T43 报告 §1.1/§9 |
+| `REPORT-t28-reconcile.md` | **T43 对账报告**：底栏 55/36 判责与定稿 47、命中区最小尺寸（≥24×24，不取 32）、组标题取色（Q6 4.5:1 ⇒ `label-primary`）、N1–N6 逐条判责、规格 diff（20 行） | —— |
 
 ## 3. 基线锚点（只对已提交版本）
 

@@ -1,0 +1,9 @@
+--- #1 @69205578
+  SEL(截断后) : "*"
+  前文 120B   : " --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace; }"
+--- #2 @121334924
+  SEL(截断后) : "*"
+  前文 120B   : "le-system, BlinkMacSystemFont, \"Segoe UI\", \"Microsoft YaHei\", sans-serif; color: #0f1115; background: transparent; }"
+--- #3 @121342318
+  SEL(截断后) : "*"
+  前文 120B   : " --dsw-alias-border-l2: #ffffff1f; --dsw-alias-border-l4: #ffffff33; --dsw-alias-label-caption: #81858c; } }"
