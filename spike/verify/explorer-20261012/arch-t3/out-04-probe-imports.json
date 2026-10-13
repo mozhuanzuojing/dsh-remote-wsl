@@ -1,0 +1,204 @@
+{
+  "at": "2026-10-13T08:07:24.711Z",
+  "results": [
+    {
+      "name": "unc",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "winToWsl",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "daemonScriptWsl",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "stateDirLinux",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "metaLinux",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "tokenLinux",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "launchLinux",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "logLinux",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "legacyMetaLinux",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "legacyTokenLinux",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "listDaemonSlots",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "readDaemonMeta",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "readDaemonToken",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "readDaemonRecord",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "readDaemonLogTail",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "scanDaemonProcesses",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "wslRunScript",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "tcpCall",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "handshake",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "callDaemon",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "daemonPrompt",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "systemdUnit",
+      "class": "OK",
+      "detail": "返回 string"
+    },
+    {
+      "name": "writeLauncherWsl",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "removeLauncher",
+      "class": "OK",
+      "detail": "返回 boolean"
+    },
+    {
+      "name": "launchDaemon",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "configCompat",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "killWslPid",
+      "class": "OK",
+      "detail": "返回 undefined"
+    },
+    {
+      "name": "sleep",
+      "class": "OK",
+      "detail": "返回 undefined"
+    },
+    {
+      "name": "ensureDaemon",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "stopDaemon",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "stopAllDaemons",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "daemonSnapshot",
+      "class": "OK",
+      "detail": "返回 object"
+    },
+    {
+      "name": "daemonStatus",
+      "class": "OK",
+      "detail": "返回 object"
+    }
+  ],
+  "clientKeys": [
+    "callDaemon",
+    "configCompat",
+    "daemonPrompt",
+    "daemonScriptWsl",
+    "daemonSnapshot",
+    "daemonStatus",
+    "ensureDaemon",
+    "handshake",
+    "launchDaemon",
+    "launchLinux",
+    "legacyMetaLinux",
+    "legacyTokenLinux",
+    "listDaemonSlots",
+    "logLinux",
+    "metaLinux",
+    "readDaemonLogTail",
+    "readDaemonMeta",
+    "readDaemonRecord",
+    "readDaemonToken",
+    "removeLauncher",
+    "scanDaemonProcesses",
+    "stateDirLinux",
+    "stopAllDaemons",
+    "stopDaemon",
+    "systemdUnit",
+    "tcpCall",
+    "tokenLinux",
+    "unc",
+    "winToWsl",
+    "writeLauncherWsl",
+    "wslRunScript"
+  ],
+  "extraInClient": []
+}

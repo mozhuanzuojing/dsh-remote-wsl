@@ -1,0 +1,38 @@
+  OK   unc                    返回 string
+  OK   winToWsl               返回 string
+  OK   daemonScriptWsl        返回 string
+  OK   stateDirLinux          返回 string
+  OK   metaLinux              返回 string
+  OK   tokenLinux             返回 string
+  OK   launchLinux            返回 string
+  OK   logLinux               返回 string
+  OK   legacyMetaLinux        返回 string
+  OK   legacyTokenLinux       返回 string
+  OK   listDaemonSlots        返回 object
+  OK   readDaemonMeta         返回 object
+  OK   readDaemonToken        返回 object
+  OK   readDaemonRecord       返回 object
+  OK   readDaemonLogTail      返回 string
+  OK   scanDaemonProcesses    返回 object
+  OK   wslRunScript           返回 object
+  OK   tcpCall                返回 object
+  OK   handshake              返回 object
+  OK   callDaemon             返回 object
+  OK   daemonPrompt           返回 object
+  OK   systemdUnit            返回 string
+  OK   writeLauncherWsl       返回 object
+  OK   removeLauncher         返回 boolean
+  OK   launchDaemon           返回 object
+  OK   configCompat           返回 object
+  OK   killWslPid             返回 undefined
+  OK   sleep                  返回 undefined
+  OK   ensureDaemon           返回 object
+  OK   stopDaemon             返回 object
+  OK   stopAllDaemons         返回 object
+  OK   daemonSnapshot         返回 object
+  OK   daemonStatus           返回 object
+
+探针符号数 = 33；ReferenceError = 0
+daemon-client 对外符号 = 31；多出 = (无)
+
+结果：PASS

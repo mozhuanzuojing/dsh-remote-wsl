@@ -1,0 +1,197 @@
+{
+  "at": "2026-10-13T08:04:11.695Z",
+  "target": "D:\\project\\dsh1\\vendor\\dsh-remote-wsl\\src\\daemon-client.ts",
+  "expectedCount": 31,
+  "presentCount": 31,
+  "missing": [],
+  "extra": [],
+  "strictSurface": true,
+  "rows": [
+    {
+      "name": "unc",
+      "present": true,
+      "typeof": "function",
+      "arity": 2
+    },
+    {
+      "name": "winToWsl",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "daemonScriptWsl",
+      "present": true,
+      "typeof": "function",
+      "arity": 0
+    },
+    {
+      "name": "stateDirLinux",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "metaLinux",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "tokenLinux",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "launchLinux",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "logLinux",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "legacyMetaLinux",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "legacyTokenLinux",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "listDaemonSlots",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "readDaemonMeta",
+      "present": true,
+      "typeof": "function",
+      "arity": 2
+    },
+    {
+      "name": "readDaemonToken",
+      "present": true,
+      "typeof": "function",
+      "arity": 2
+    },
+    {
+      "name": "readDaemonRecord",
+      "present": true,
+      "typeof": "function",
+      "arity": 2
+    },
+    {
+      "name": "readDaemonLogTail",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "scanDaemonProcesses",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "wslRunScript",
+      "present": true,
+      "typeof": "function",
+      "arity": 2
+    },
+    {
+      "name": "tcpCall",
+      "present": true,
+      "typeof": "function",
+      "arity": 3
+    },
+    {
+      "name": "handshake",
+      "present": true,
+      "typeof": "function",
+      "arity": 4
+    },
+    {
+      "name": "callDaemon",
+      "present": true,
+      "typeof": "function",
+      "arity": 2
+    },
+    {
+      "name": "daemonPrompt",
+      "present": true,
+      "typeof": "function",
+      "arity": 2
+    },
+    {
+      "name": "systemdUnit",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "writeLauncherWsl",
+      "present": true,
+      "typeof": "function",
+      "arity": 3
+    },
+    {
+      "name": "removeLauncher",
+      "present": true,
+      "typeof": "function",
+      "arity": 2
+    },
+    {
+      "name": "launchDaemon",
+      "present": true,
+      "typeof": "function",
+      "arity": 3
+    },
+    {
+      "name": "configCompat",
+      "present": true,
+      "typeof": "function",
+      "arity": 3
+    },
+    {
+      "name": "ensureDaemon",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "stopDaemon",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "stopAllDaemons",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "daemonSnapshot",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    },
+    {
+      "name": "daemonStatus",
+      "present": true,
+      "typeof": "function",
+      "arity": 1
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+文件：D:/project/dsh1/vendor/dsh-remote-wsl/src/daemon-client.ts  ｜ 顶层块 41 个 ｜ 行数 1069
+
+### protocol
+  本地声明：b64, buf, callDaemon, daemonPrompt, daemonScriptWsl, finish, handshake, hsTimeout, launchLinux, legacyMetaLinux, legacyTokenLinux, line, listDaemonSlots, logLinux, m, meta, metaLinux, names, nl, p, pref, r, readDaemonLogTail, readDaemonMeta, readDaemonRecord, readDaemonToken, res, scanDaemonProcesses, sleep, slots, sock, state, stateDirLinux, t, t0, tcpCall, timer, token, tokenLinux, unc, winToWsl, wslRunScript
+  **需 import**：port  ← (lifecycle)
+  未声明且非全局（应为空）：d, daemon, e, echo, f, fileURLToPath, g, metaPort, n, net, out, pid, readFileSync, readdirSync, s, slot, spawnSync, wsl
+
+### launch
+  本地声明：SYSTEMD_LAUNCH_SCRIPT, WRITE_LAUNCHER_SCRIPT, attempt, body, child, closeStderrFd, configCompat, ensureStateDir, hard, killWslPid, launchDaemon, launchScript, launcherLinux, mode, p, r, removeLauncher, script, soft, spawnCompat, stderrFd, stderrLogLinuxPath, stderrLogLocal, stderrTail, stdout, systemdUnit, tail, trySystemd, unit, warning, why, writeLauncherWsl, written
+  **需 import**：launchLinux  ← (protocol); stateDirLinux  ← (protocol); unc  ← (protocol); wslRunScript  ← (protocol)
+  未声明且非全局（应为空）：chmodSync, closeSync, g, i, mkdirSync, openSync, rmSync, spawn, spawnSync, stderr
+
+### lifecycle
+  本地声明：adopt, candidates, compat, daemonSnapshot, daemonStatus, dead, deadline, ensureDaemon, first, found, holder, hs, hs0, hsTimeout, killed, last, launched, legacy, legacyRec, live, livePids, notes, occupants, orphans, ownDaemonsOnPorts, paths, port, procs, r, ready, rec, rec2, reclaimLaunchers, recordForPid, records, remaining, removeMetaFiles, slotRec, slots, snap, stale, stopAllDaemons, stopDaemon, stopped, survivors, tail, tried, tries, waitForSlotGone, want, wantPid, wantSlot, why
+  **需 import**：callDaemon  ← (protocol); configCompat  ← (launch); handshake  ← (protocol); killWslPid  ← (launch); launchDaemon  ← (launch); legacyMetaLinux  ← (protocol); legacyTokenLinux  ← (protocol); listDaemonSlots  ← (protocol); metaLinux  ← (protocol); p  ← (protocol); readDaemonLogTail  ← (protocol); readDaemonRecord  ← (protocol); removeLauncher  ← (launch); scanDaemonProcesses  ← (protocol); sleep  ← (protocol); slots  ← (protocol); stateDirLinux  ← (protocol); tokenLinux  ← (protocol); unc  ← (protocol)
+  未声明且非全局（应为空）：all, i, n, o, readdirSync, rmSync, slot
+
+未覆盖的**非空**行（应只有文件头注释/import 与块间空行）：1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,27
