@@ -319,7 +319,8 @@ pwsh ./ux-boot.ps1 -Mode Setup ; pwsh ./ux-boot.ps1 -Mode Start
 | **边框不承担识别职责（实测前提②）** | 现有 token 中**没有**能达到 3:1 的描边（最重 `border-l4` 也仅 1.45）⇒ 控件识别靠「**文字标签 + hover 反馈 + 结构**」，描边只做视觉分隔 | 断言：任何**可交互**控件的可识别性不得只依赖 border（即：把 border 设为透明后，控件仍可由文字标签/图标/hover 反馈被识别） |
 | **前提②的例外（记录，避免误伤）** | **焦点环不受前提②约束** —— 它由平台 `:focus-visible` 的 `outline` 绘制（实测 4.23:1 light / 6.75:1 dark），不是 border | 焦点环仍按上表"≥3:1 且不得 `outline:none`"判 |
 | **"当前项"必须走形状通道（引用 T28 §5.1.1，不另立阈值）** | T28 三背景实测：hover/静息 = **1.11 light / 1.19–1.27 dark**（三处都非 1.00 ⇒ hover 可感知）；但**同一控件 hover→active 仅 1.08 light / 1.15–1.24 dark** ⇒ 用填充区分"按压/当前"在灰度与低视力下**不可辨** | **可判断言**：当前/选中行必须同时满足 —— ① 存在 `border-left: 2px solid var(--dsw-alias-brand-primary)`（或等效 2px 竖条元素，`getComputedStyle().borderLeftWidth === '2px'`）；② 该行 `font-weight >= 600`；③ **把填充色强制改成与静息态相同后，两态仍可区分**（即区分**不依赖**填充） |
-| **菜单项文字必须单级 `label-primary`（引用 T28 §5.1.1）** | 实测：`label-secondary` 在 `bg-overlay` 上 dark **3.85**（静息）、hover 底 dark 4.64 ⚠️、**active 底 light 4.10 / dark 2.81 ❌** | **可判断言**：菜单内**所有**文本节点（含组标题与菜单项）的 `color` 解析值 === `--dsw-alias-label-primary`；**禁止**两行"标题+副标题"结构（断言菜单项高度 ≤ 单行行高 + padding，且菜单内不存在 `label-secondary` 色的文本） |
+| **菜单项（`menuitem`）文字必须单级 `label-primary`**（口径收窄，lead 2026-10-13 裁决） | 实测：`label-secondary` 在 `bg-overlay` 上 dark **3.85**（静息）、hover 底 dark 4.64 ⚠️、**active 底 light 4.10 / dark 2.81 ❌** ⇒ 这是**可点项**的对比度问题 | **可判断言**：菜单内**每一个 `[role="menuitem"]`** 的 `color` 解析值 === `--dsw-alias-label-primary`（两主题各测一次）；**禁止**两行"标题+副标题"结构（断言菜单项高度 ≤ 单行行高 + padding）。**注意：本断言不适用于组标题**（见下一行） |
+| **组标题：必须实测两主题各 ≥4.5:1**（lead 2026-10-13 **改判**：3:1 → **4.5:1**） | 组标题虽非交互，但**是小字号正文文本** ⇒ 属 WCAG AA 文本门槛（4.5:1），不为分区标签留可访问性缺口 | **可判断言**：对每个组标题元素，用**计算样式**取其 `color` 与所在浮层（`bg-overlay`）的 `background-color`，按 WCAG 相对亮度算对比度，**两主题都必须 ≥4.5**；达不到就取能达标的 token（很可能就是 `label-primary`）。**能红形式**：注入样式把组标题色钉成低对比值（如 `--dsw-alias-label-dimmed` 或固定浅灰）⇒ 该断言必须红。<br>**层级感改由「非颜色线索」承担**：字号 11px / 不回 hover / 不可聚焦 / 无填充 —— **颜色不再承担层级**（与"状态 ≥2 种非颜色线索、禁止仅用颜色传达"一脉相承）。<br>**附加约束（保留，不是替代）**：组标题**不得**承载"不看就做不了事"的唯一信息（它只是分区标签） |
 | **菜单分组标题的可访问性（引用 T28 新定稿）** | 三组各有**不可聚焦**组标题：`role="group"` + `aria-labelledby` 指向标题节点 | **可判断言**：菜单内存在 3 个 `role="group"` 且各有 `aria-labelledby`；组标题元素 `tabindex` 不为 0 且不出现在 `Tab` 序列里（键盘只在 `menuitem` 之间移动） |
 
 ---
@@ -350,7 +351,7 @@ pwsh ./ux-boot.ps1 -Mode Setup ; pwsh ./ux-boot.ps1 -Mode Start
 | M13 | 键盘导航 | `client.panel.js`（列表 keydown） | `↑/↓/Enter/Backspace` 生效；面包屑可 Tab | 脚本断言 `Enter` 后面包屑增加一段（加回旧树即红） |
 | M14 | 底栏状态句承载语义（终裁） | `client.panel.js`（footer 状态句 span） | 状态句常显、非空、**不被 ellipsis 吞掉**；状态点 `aria-hidden` | 在 **320/359/360/419/420/719/720/1280** 8 个宽度下断言 `statusEl.scrollWidth === statusEl.clientWidth && statusEl.textContent.trim().length > 0`（把状态词塞进可省略 span 即红） |
 | M15 | "当前项"走形状通道 | `client.panel.js` + `client/*.css`（行样式） | 当前/选中行有 2px 竖条 + 字重 ≥600，**且区分不依赖填充** | 断言 `borderLeftWidth === '2px'` 且 `fontWeight >= 600`；**再把填充强制置为静息色后重测两态仍可区分**（只靠填充区分即红——T28 §5.1.1 实测 hover→active 仅 1.08/1.15–1.24） |
-| M16 | `⋯` 菜单：单级 `label-primary` + 三组组标题 | `client.panel.js`（menu 段）+ `client.i18n.js`（`menu.group.*`） | 菜单内所有文本用 `label-primary`（无两行标题+副标题）；3 个 `role="group"` 带 `aria-labelledby`，组标题不可聚焦 | 断言菜单内不存在 `label-secondary` 色文本、菜单项高度 = 单行；断言 `role="group"` 计数 = 3、组标题 `tabindex !== 0` 且不在 `Tab` 序列内（把组标题做成可聚焦即红） |
+| M16 | `⋯` 菜单：**`menuitem` 单级 `label-primary`** + 组标题**两主题各 ≥4.5:1**（**改判**：3:1 → 4.5:1；见 §9.5「M16 收口依据」） | `client.panel.js`（menu 段）+ `client.i18n.js`（`menu.group.*`） | ① **约束对象只有 `menuitem`**：每个 `[role="menuitem"]` 的 `color` === `--dsw-alias-label-primary`（两主题）；② **组标题**：`color` 与菜单底 `bg-overlay` 的 WCAG 对比度**两主题各 ≥4.5**（达不到就取达标 token，很可能＝`label-primary`）；层级感改由**非颜色线索**承担（11px / 不回 hover / 不可聚焦 / 无填充）；③ 3 个 `role="group"` 带 `aria-labelledby`，组标题**不可聚焦**；④ 菜单项无"标题+副标题"两行结构 | ① 断言每个 `menuitem` 计算色 === `label-primary`；② 断言每个组标题 `color` 与 `bg-overlay` 的 WCAG 对比度 **≥4.5**（两主题）——把组标题色钉成浅灰即红；③ 断言 `role="group"` 计数 = 3、组标题 `tabindex !== 0` 且不在 `Tab` 序列内；④ 断言菜单项高度 = 单行 |
 | M17 | 三背景 hover 可辨 | 样式层（`interactive-bg-hover/-active` 用法） | hover 在**列表（`bg-layer-1`）/底栏（`sidebar-fill`）/菜单（`bg-overlay`）**三处都产生非 1.00 的可见变化 | 断言三处 hover 前后终值色差 ≠ 0（引用 T28 §5.1.1 的 1.11 light / 1.19–1.27 dark）；把 hover 改回 `bg-layer-2`（light 全白）即红 |
 
 > **M12 的裁决点（写给 lead）**：建议**先走 client 侧持久化**（`localStorage`），不动 host 协议；若你要求"跨浏览器/跨设备一致"，则需 host 端最近列表（新增 `explorer.recent`），理由是多实例共享 —— **我倾向 client 侧**，因为最近目录是"这台浏览器上我的操作历史"，跨实例共享反而误导。
@@ -474,6 +475,56 @@ pwsh ./ux-boot.ps1 -Mode Setup ; pwsh ./ux-boot.ps1 -Mode Start
 
 ---
 
+### 9.5 T40 独立复验（`usability-engineer`，2026-10-13，对 **P0.4 = `63320b4`**）
+
+> 交付：`spike/verify/explorer-20261012/usability/p04-final/REPORT-v1v3v7-regression.md`（含 14 张成品截图 + 每阶段原始 JSON）
+> 前置两条证明：① `tools/check-client-rev.mjs` **exit 0 / PASS**（entry rev `07cf221a6f42`，4 chunk 哈希 c3600ee5/cba40e69/e9a824f5/7719876a）；② **页面加载的 chunk == 磁盘 chunk**：4/4 逐字节前缀相等（serve 正文 = 磁盘 + **`;`** + `sourceMappingURL` trailer）。
+> **对契约 §11 的措辞修正（实测）**：平台追加的是 **`;` 分号**，不是换行 —— 建议 §11 据此改写。
+
+| 项 | 我的结论 | 关键读数 |
+|---|---|---|
+| **V1 命中区** | ❌ **FAIL（新增 RED，T31 未覆盖）** | 行内动作「进入」**16×16**（行高 32 ✅、相邻行净距 **18px** ✅）；`⋯` 在 **320/359/360/419/420 五档为 16–21×24**、仅 719/720/1280 为 24×24；chip「`/`」**22.7×24** |
+| **V3 底栏 8 宽度** | ✅ PASS | 8/8 宽度 `innerWidth` 回读与请求值相等（CDP `Emulation.setDeviceMetricsOverride`，**非** `resize_page`）；状态词 `scrollWidth==clientWidth==91`；**单行判据**＝底栏全部子元素 `centerY` 唯一（320：5 子全 873；1280：7 子全 873）+ `footerH` 恒 55 |
+| **V7 三背景 hover / 当前项形状通道** | ✅ PASS | 三背景 hover 均由 `rgb(255,255,255)`/透明 → **`rgba(38,49,72,0.06)`**；"当前"＝`.dsh-rw-crumb--current`（面包屑当前段）**`border-left:2px` + `font-weight:600`**；**A/B 红测**：去掉两者 ⇒ 断言 **RED**（有区分力） |
+| **#1–#8 未拉回** | ✅ 1/2/3/5/6/8 修复；🟡 7 明显改善；⚠️ 4 大体修复但**残留** | 旧树整块消失（`默认发行版`/`当前目标`/`原始 snapshot` 全无）；守护运行时**底栏按钮数 = 0**（破坏性只在 `⋯`） |
+
+**与 T31（`REPORT-t31-ux-verify.md`）的关系**：**独立确认**其 M14/M15/M1 结论（V3/V7/#1–#8 一致）；**新增其未覆盖的一项**：**命中区尺寸（V1）= 红**。T31 的 M14 覆盖的是"状态词不被截断"，与"控件命中区 ≥24×24"是两个判据，须分别记 —— 后者当前**不通过**。
+
+**T40 新增 6 条发现**（详见报告 §5）：
+- **N1** 320px 下「添加为 WSL 工作区」**头部与 `⋯` 工作区组双入口**（与 T31 的「启动守护」重复同类）；
+- **N2** 底栏实测**高 55px**，T28 规格写 36 ⇒ 两份文档需对账（T28 侧）；
+- **N3** **列目录失败**主句是人话，但同块紧跟 host 原文（`\\wsl.localhost\…`、重复 `ENOENT`）⇒ 与"host 原文进折叠"口径不一致；
+- **N4** 菜单组标注不一致（`快捷目录` 用 `aria-label`，其余组用 `aria-labelledby`）；
+- **N5** 加载态底栏出现**双分隔符**（`…状态未知 · · 状态读取中…`）；
+- **N6** 窄宽命中区（同 V1）。
+
+**T40 未复核**：`others[]` 真实非空（本机无其它守护 ⇒ 夹具替代并标注）；dark 下的**逐项读数**（仅出截图）；V7 的**灰度截图**形态（用计算样式读数 + A/B 红测替代，更可判）；禁用菜单项是否 `label-dimmed` + `aria-disabled`。
+
+#### 9.5.1 M16 收口依据（口径收窄，含实测数字与出处）
+
+**裁决（含一次改判，如实记录）**：
+- M16 的"菜单内所有文本 = `label-primary`"**只约束 `menuitem`**；
+- **组标题**：允许弱样式，但**必须在菜单底（`bg-overlay`）上实测两主题各 ≥`T`**，达不到就取达标 token。
+- **`T` 的取值经历了一次改判：3:1 → 4.5:1（2026-10-13，由本规格的下述实测把上限推上去的）**
+
+**改判依据（"量具反过来修正裁决"）**：lead 最初裁 **3:1**，理由是"组标题非交互、不可聚焦，强对比会与层级冲突"；但我按 WCAG 口径指出**小字号非交互文字同样落在 AA 文本门槛 4.5:1**，而实测 dark = **3.85 < 4.5** ⇒ **该裁定会留下一个真实的对比度缺口**。lead 采纳并**改判为 4.5:1**，同时把"层级感"从颜色改由**非颜色线索**承担（11px / 不回 hover / 不可聚焦 / 无填充）。⇒ 记录这条，是因为**结论本身不如"结论是怎么被实测修正的"有价值**。
+
+**依据一（T28 的视觉证据：`spike/verify/explorer-20261012/visual/out-03-contrast.txt` + `out-07-overlay-on-surfaces.txt`）**
+
+| 菜单内文本 | 主题 | 静息（菜单底 `bg-overlay`） | 按 4.5:1 判 |
+|---|---|---|---|
+| **组标题** = `label-secondary` | light | **4.90** | ✅ 达标 |
+| **组标题** = `label-secondary` | dark | **3.85** | ❌ **不达标**（这正是改判的触发点） |
+| 启用 **`menuitem`** = `label-primary` | light / dark | **15.97 / 5.55** | ✅（M16 收窄后只约束它） |
+
+**依据二（`client-panel` 的实现读数）**：实现里**组标题没有任何 `:hover`/填充规则**（`.dsh-rw-grouplabel` 不参与 hover）⇒ T28 实测中"active 填充底上 light **4.10** / dark **2.81**"的数字**对组标题不适用**（组标题只出现在静息底色上）。⇒ 判据只需在**静息菜单底**上取一次，且**不能拿 active 底的数字当理由**。
+
+**可判形式（4.5:1 版）**：对每个组标题元素取 `getComputedStyle(el).color` 与其所在浮层的 `background-color`，按 WCAG 相对亮度算对比度，断言**两主题都 ≥4.5**；把组标题色钉成浅灰即红。**实现落点**：由 **T42** 把 `.dsh-rw-grouplabel` 的取色改到能满足 ≥4.5:1 的 token（很可能就是 `label-primary`）并给两主题实测读数。
+
+**附加约束（保留，不是替代）**：组标题**不得**承载"不看就做不了事"的唯一信息（它只是分区标签）——这条与 4.5:1 同时成立。
+
+---
+
 ## 10. 未核实 / 待决（不许当已定）
 
 | 项 | 状态 | 影响 |
@@ -483,7 +534,10 @@ pwsh ./ux-boot.ps1 -Mode Setup ; pwsh ./ux-boot.ps1 -Mode Start
 | 最近目录的持久化位置 | **已裁决并已落地（2026-10-13）**：client 侧 `localStorage`，键 `dsh-remote-wsl.recent`，只存路径字符串。落地证据：字典含 `recent.title`/`recent.empty`（§3.2.1 的 17 键 **17/17 在场**）；降级可红项 **M12③ PASS**（`localStorage.setItem` 抛错 ⇒ 无未捕获异常，见 `REPORT-t31-ux-verify.md`） | §7-M12、§4 末行 |
 | i18n 运行时是否已切到 `client.i18n.js` | **已核实（2026-10-13）**：运行面与字典都在（T26 A4：zh/en **181** 逐键一致、官方 locale 缺席时回退内置字典、缺键原样回键；T31 独立复现：`client.panel.js` 剥注释后**中文字面量 0**）。**键数已增长**：当前 **215/语言**（复算命令见 §3.2.1 上方注） | §3 的键名以 `client/client.i18n.js` 为准；本轮已按新值更新 |
 | 自动刷新（30s） | 未定（P2） | §4 刷新语义 |
-| 触屏/窄宽度（<900px）表现 | 未测 | 目录卡片 chips 在窄宽度会折行 |
+| 触屏/窄宽度（<900px）表现 | **已测（T40，2026-10-13）**：320/359/360/419/420/719/720/1280 八档实测 ⇒ 底栏单行、状态词完整（V3 PASS）；但**命中区**在窄宽不足（见下条） | §9.5、`p04-final/` |
+| **命中区 ≥24×24（V1）** | ❌ **RED（T40 实测，T31 未覆盖）**：行内动作「进入」**16×16**；`⋯` 在 5/8 宽度为 **16–21×24**；chip「`/`」**22.7×24** | §9.1-V1、§5.3；建议补 M18「所有可点控件 rect 宽高 ≥24（或声明豁免）」 |
+| `others[]` 真实非空（多实例） | **仍不可得**（T40 实测本机 `daemon.others = []`，无其它实例守护在跑）⇒ 用页面内 fetch 夹具，截图命名 `multi-instance-fixture.png` 并标注 | §4 多实例行 |
+| dark 主题下的逐项读数 | **未测**（T40 只出 `ready-dark.png`/`menu-dark.png`/`narrow320-dark.png` 截图，未复用 V1/V3/V7 读数脚本测 dark） | §9.5 未复核 |
 | 与 T28 的视觉稿一致性 | **已落地 + 已独立复验（2026-10-13）**：视觉规格（978 行）已 review 完毕（§9.3/§9.4）；实现轮 4 项数据复验由 `p0-verify` 完成（M1/M14/M15/M16 **PASS**，见 `REPORT-t31-ux-verify.md`）⇒ 本行**关闭**。**另见该报告的 2 条新 RED**（`⋯` 重复「启动守护」、头部同名按钮）—— 已转修复清单 | §9.2 末段、§9.4 末段 |
 | 旧树删除后 `tree.*` 键的处置 | 未定（保留给"发行版选择"复用 or 删除） | §7-M1；建议保留 `tree.optionDefault` 等仍被下拉使用的键 |
 

@@ -346,6 +346,46 @@ S1 label-dimmed 域   = OK（未使用，或只用于 :disabled/::placeholder）
 | 装饰性图标 | `aria-hidden="true" focusable="false"` | 可访问名由按钮的 `aria-label` 提供（T27 §6，基线已达标 `unnamed=0`，不回退） |
 | 命中盒不重叠 | 相邻行的 24×24 命中盒之间**垂直净距 ≥4px** | T27 的复核修正 B1：32px 行高 + 24px 盒 ⇒ 净距 8px ✅。**规则化**：`行高 ≥ 命中盒高 + 4` |
 
+#### 3.4.1 命中区最小尺寸（**可断言，T43 对账后定稿**）
+
+> **规则（全文唯一口径）**：凡是**参与点击**的元素（`a` / `button` / `[role=button]` / `label` 包裹的开关 / chip），其 **`getBoundingClientRect()` 的宽与高都必须 ≥ 24px**。
+> 依据：WCAG 2.2 **SC 2.5.8 Target Size (Minimum) = 24×24 CSS px（AA）**。
+
+| 项 | 规格 | 为什么不是别的数 |
+|---|---|---|
+| **全局最小** | **≥24×24** | 2.5.8 是 AA 门槛，也是本项目唯一需要引用的标准数字 |
+| **`⋯`（破坏性动作唯一入口）** | **≥24×24，且不得被压缩**（`flex:none`） | **明确不要求 32×32**：32 不是任何 WCAG 阈值（2.5.5 的 AAA 是 44×44，与"底栏=一行 chrome"的角色冲突）。误触风险由 ① 与相邻控件净距 ≥8px ② 二次确认 ③ 焦点环 共同承担，**不需要再造一个私有数字去抬高底栏高度** |
+| **chip** | 高度 ≥24（已有），**宽度补 `min-width:24px` + `justify-content:center`** | chip 宽度是内容驱动的：单字符 chip（如 `/`）实测 **22.7×24** ⇒ 差 1.3px。虽然 2.5.8 的"间距例外"可能救它（间距 6px + 22.7 宽 ⇒ 中心距 28.7 > 24），但**一行 CSS 就能达标，不必走例外** |
+| **命中盒在 flex 容器里** | 必须显式 **`flex:none`**（或 `flex-shrink:0`） | **这是 T43 实测出来的系统性坑**：`.dsh-rw-iconbtn{width:24px}` 在底栏 `display:flex` 里默认 `flex-shrink:1`，`min-width:auto` 退到内容宽（16px 图标）⇒ `⋯` 在 320/359/360/419/420 被压成 **16–21×24**（8 档里 5 档不达标）。**只有 `flex:none` 能让"声明的 24"变成"渲染的 24"** |
+| **豁免（必须在验收集里显式列出，否则断言会误红）** | ① 非交互元素（纯文本/图标/徽标）；② `:disabled` 的控件；③ 整行可点时的**行本身**（行高 32 已 ≥24） | 豁免必须有理由，不允许"自然漏掉" |
+
+**可断言清单（实现轮直接用）**：
+
+```js
+// 除豁免外，所有可点击元素的盒子都必须 ≥24×24
+const hit = [...panel.querySelectorAll('button,[role="button"],a[href],label')]
+  .filter(el => !el.disabled && el.getAttribute('aria-disabled') !== 'true')
+  .map(el => ({ cls: el.className, r: el.getBoundingClientRect() }))
+  .filter(x => x.r.width < 24 || x.r.height < 24);
+// 期望： hit.length === 0
+```
+
+#### 3.4.2 `box-sizing`（**同一个根因的另一半，T43 对账后新增**）
+
+> **规则**：**任何同时声明 `height`/`width` 与 `padding`/`border` 的规则，必须显式写 `box-sizing:border-box`。**
+
+为什么这条是硬约束（实测依据，见 `out-08-box-sizing-audit.txt`）：
+
+| 事实 | 证据 |
+|---|---|
+| 宿主 DSH 的 CSS **没有全局 `box-sizing` 重置** | `app.asar` 里 235 处 `box-sizing:border-box` **全是逐组件 class 形态**（通配/伪元素命中 3 处均为误配，表单控件形态 0 处）⇒ **插件不能指望宿主兜底** |
+| 表单控件（`<button>`）**看起来正常**是元素自身的默认行为 | 实测反推：`.dsh-rw-btn{height:28px;padding:4px;border:1px}` 渲染 **28**（不是 38）、`.dsh-rw-chip{height:24px}` 渲染 **24**（不是 26）⇒ 这两个 `<button>` 是 border-box |
+| 非表单元素**没有兜底** | `.dsh-rw-status` 是 **`<footer>`**：`height:36px` + `padding:9px 12px` + `border-top:1px` ⇒ 渲染 **36+18+1 = 55**（= T40 实测的 55 ✅） |
+| 同一 bundle 里只有 3 处显式声明 | `.dsh-rw-row` / `.dsh-rw-recent-row` / `.dsh-rw-menuitem`（作者在那三条想过这件事，其余漏了） |
+
+**因此**：底栏 55（§7.2.3）与"空心状态点外径 10–11 而非 8"（§7.2.3）**是同一个根因**的两个现象 —— 都用"显式 `box-sizing:border-box`"修。
+**自查**：`node tools/box-sizing-audit.mjs client/index.js dsh-rw-`（列出"声明高度 → 实际渲染高度"的差额；§10 有用法）。
+
 ### 3.5 列表 / 树的行高与缩进
 
 | 项 | 值 | 为什么 |
@@ -607,8 +647,8 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | **条目列表区** | **`flex:1`（吃满）** | 见下 |
 | 折叠详情（收起） | **24px** | `6+16+6`+边线 |
 | 卡片间距 | 8 ×1 = 8px | §3.1 |
-| 底栏 | **36px** | `padding 9`×2 + 18 行高 |
-| **条目列表可得高度** | ≈ **900 − 58 − 12 − 126 − 24 − 8 − 36 = 636px** | ⇒ 636 / 34（32 行 + 2 gap）≈ **18 行** |
+| 底栏 | **47px**（**T43 对账后定稿**） | 公式 `H = max(子元素高) + 2×padding + border-top = 28 + 9×2 + 1`（最高子元素 = `启动守护` 次按钮 28px）。**原写 36 是错的**（按"18 行高 + 18 内边距"算，忽略了底栏里必然存在的 24px/28px 控件）；**实测 55 也是错的**（`height:36` 被 content-box 解释成内容高，多出 19px）。详见 §7.2.3 |
+| **条目列表可得高度** | ≈ **900 − 58 − 12 − 126 − 24 − 8 − 47 = 625px** | ⇒ 625 / 34（32 行 + 2 gap）≈ **18 行**（底栏从 36→47 只吃掉 11px，行数不变） |
 
 **结论**：**32px 行高在这个高度预算下不牺牲信息量**（18 行 > 基线实测的 10 行）。T27 §9.2 已确认这一点。
 
@@ -635,8 +675,8 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | **加载（刷新中，已有数据）** | **不换骨架**：保留现有内容，头部刷新按钮进入 `busy`（spinner），底栏状态词不变，戳记**保持不变**直到成功 | — | 有数据时用骨架会"闪一下"，比慢更糟 |
 | **空（无目录内容）** | 条目区内一行 `T2` 文案「此目录为空」，下方一行 `T2`「（隐藏文件已隐藏，可打开开关查看）」；**卡片外框保持撑满** | 左对齐，`padding 14px 8px` | R2；文案必须给出"下一步"（T27 §4 的 `empty.mustHaveAction` 针对的是"无发行版"那一格） |
 | **空（无发行版）** | 卡片内一行 `T1`「没有发现 WSL 发行版」+ 一行 `T2` 指引（在 Windows 终端运行 `wsl --install -d <发行版>`）+ 一个**次按钮**「刷新」；**不用虚线大框**（基线的 `.dsh-rw-empty` 是 `border:1px dashed` 的 14px 内边距块，在 light 下几乎没有边界感） | 块宽撑满卡片，`padding 12px`，圆角 4px，描边 `S2`（因为里面有按钮） | ① T27 §4 要求空态必有可点动作；② 虚线框在 light 下不可见（`border-l2` 1.26:1），换成 `S2` 实线并**承载一个按钮**⇒ 识别来自按钮而非边框 |
-| **错误（读取失败）** | `F2` 块 + `state-error-primary` 的 1px 描边 + `T1 600` 标题「读取失败」+ `T2` 一句原因（**用户语言**）+ **次按钮**「重试」；圆的叉图标 16px 在标题左侧 | **顶部对齐**（`margin:8px`），块宽撑满，**不垂直居中** | 居中会让它在 900px 高度里"漂在正中"，且错误后事实撤下（T27 §4）只剩一个块 ⇒ 顶部对齐读起来是"页面刚开始就出错了" |
-| **错误（局部：目录列表失败）** | 只在条目区内部替换为：一行 `T2`「该目录读不到」+ 次按钮「重试」；**卡片其余部分（chips/面包屑/输入框）保持** | — | T27 §4 的"局部错误"格 |
+| **错误（读取失败）** | `F2` 块 + `state-error-primary` 的 1px 描边 + `T1 600` 标题「读取失败」+ `T2` 一句原因（**用户语言**）+ **次按钮**「重试」；圆的叉图标 16px 在标题左侧。<br>**正文/详情分层（T43-N3 定稿）**：主句 = `T2` **一句话人话**；**host 原文（`\\wsl.localhost\…`、`ENOENT`、路由、超时）必须进同块的 `<details>` 折叠**（摘要 `T2`、12px、无框无填充、不进 Tab 死停点，与 §7.2.5 同规）。**归属 client 呈现层**（按 T36 已定的"主句人话 + 原文进折叠"模式） | **顶部对齐**（`margin:8px`），块宽撑满，**不垂直居中** | 居中会让它在 900px 高度里"漂在正中"，且错误后事实撤下（T27 §4）只剩一个块 ⇒ 顶部对齐读起来是"页面刚开始就出错了"；正文/详情分层则避免 UNC 路径与重复错误码占据主视线（T40-N3 实测） |
+| **错误（局部：目录列表失败）** | 只在条目区内部替换为：一行 `T2`「该目录读不到」+ host 原文进 `<details>` 折叠 + 次按钮「重试」；**卡片其余部分（chips/面包屑/输入框）保持** | — | T27 §4 的"局部错误"格 + 与上一行同一条分层规则（T43-N3） |
 
 **三态共同规则**：
 1. 三态都**不改变**头部/底栏的骨架（它们始终在同一位置）⇒ 用户不会因为状态切换而"找不到东西"。
@@ -715,14 +755,14 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | 卡片 | `padding:8px 10px`，r6，`flex:1` | F2 + `S1` | — | — | — | — | — |
 | 卡片标题「浏览目录（<distro>）」 | `12px/16` | — | `600` | `←S` | — | — | **标题行本身不可聚焦**（T27 第二轮 P7 的条件）：只有右侧的隐藏文件开关可聚焦，否则 Tab 顺序里会多一个"死停点"。Tab 顺序保持 开关 → chips → 面包屑 → 路径输入 → 跳转（T27 §6） |
 | 隐藏文件开关 | 右，高 24 | `S2` 描边的胶囊 or 复选文字按钮（**由实现选一，但必须 ≥24×24 命中**） | `12px` | `←S`（开：`←P`） | `interactive-bg-hover` | 平台环 | 开关状态**必须**有文字（"显示/不显示"），不能只靠颜色；**位置已从 chips 行移到卡片标题行**（§9.3-P7：chips 是 `flex-wrap`，窄宽折行会与开关相撞） |
-| chips 行 | 高 24，`gap:6`，`flex-wrap:wrap` | chip：透明底 + `S2` 描边 + r999 | `12px` | `←S` | 描边与文字 → `←P`（**颜色变化只在 hover，不常显**） | 平台环 | 当前目标 chip：`S2` + `←P` + **常显**（`chip--on`） |
+| chips 行 | 高 24，`gap:6`，`flex-wrap:wrap` | chip：透明底 + `S2` 描边 + r999，**`min-width:24px` + `justify-content:center`**（§3.4.1：单字符 chip 实测 22.7×24） | `12px` | `←S` | 描边与文字 → `←P`（**颜色变化只在 hover，不常显**） | 平台环 | 当前目标 chip：`S2` + `←P` + **常显**（`chip--on`） |
 | 面包屑 | 高 20，`gap:2`，`overflow-x:auto`（不换行、不省略） | 段：透明 + r3 | `12px` | 非当前 `←S`；**当前 `←P 600`**；分隔符 `←S` | `text-decoration:underline`（**只有这一处用下划线**：它是"多段文字导航"，下划线是它的可点信号） | 平台环 | — |
 | 路径输入框 | 高 28，`flex:1`，`padding:3px 6px`，r4 | F0 + `S2` | `12px` | 值 `←P`；placeholder `←D` | 无（输入框 hover 不加填充） | 平台环 | 前置**常显标签**「路径」（在输入框左侧、`←S` 12px）—— 因为 light 下输入框的填充与描边都不足以独立识别（§2.3/§8.4-C3） |
 | `跳转` 按钮 | 高 28，`padding:4px 10px`，r4 | F0 + `S2` | `13px` | `←P` | `interactive-bg-hover` | 平台环 | 输入为空或未变化时 `disabled`（`←D` + `S1`） |
 | 列表容器 | `flex:1;min-height:96px;overflow:auto` | 无框 | — | — | — | — | — |
 | 目录行 | 高 32，`padding:6px 8px`，r4，`width:100%` | 静息透明 | `13px/20` | 名称 `←P`；图标 `←S` | `interactive-bg-hover` | 平台环 `offset:-2px`（贴滚动边缘） | hover 时动作组 `opacity:0→1` |
 | 文件行 | 同上 | 同上 | 同上 | 名称 `←S`（**文件不是可执行动作**，T27 §5.3）；图标 `←S` | `interactive-bg-hover`（仍给 hover，因为它可复制路径） | 同上 | 只有 1 个动作 |
-| 行内动作按钮 | **24×24**（图标 16×16） | 透明 + 无描边 | — | 图标 `←S` | `interactive-bg-hover`，图标→`←P` | 平台环 `offset:0` | **始终占位**（`visibility:hidden`→`visible`），`opacity` 过渡 120ms |
+| 行内动作按钮 | **≥24×24 命中盒（图标 16×16 居中）**；**禁止"裸 `.dsh-rw-link`"（`padding:0`、无最小盒）** | 透明 + 无描边 | — | 图标 `←S` | `interactive-bg-hover`，图标→`←P` | 平台环 `offset:0` | **始终占位**（`visibility:hidden`→`visible`），`opacity` 过渡 120ms；**T43 实测**：实现用 `.dsh-rw-link{padding:0}` ⇒ 命中盒 = 内容盒 **16×16**（§3.4.1 违规），改法与 `.dsh-rw-iconbtn` 一致（24×24 + `flex:none`） |
 | 行内"当前/选中" | — | 左侧 **2px `brand-primary` 竖条** | 名称 **600** | `←P` | 见 §5.1 | — | — |
 
 #### 7.2.3 底部一行状态（采纳 T27 复核修正 B2）
@@ -736,30 +776,53 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 
 | 元素 | 规格 |
 |---|---|
-| 容器 | 高 36，`padding:9px 12px`，FC 填充 + `border-top:1px S1`，`display:flex;align-items:center;gap:8px` |
-| 状态点 | 8×8，`border-radius:50%`；**运行中** = 实心 `state-success-primary`；**未运行** = 空心（`border:1.5px S2` + `background: bg-base`，颜色取 `state-idle-primary`）；**读不到** = 实心 `state-error-primary`。`aria-hidden="true"`（**语义由状态词承担**） | 
+| 容器 | **高 47px（定稿）+ `box-sizing:border-box`**，`padding:9px 12px`，FC 填充 + `border-top:1px S1`，`display:flex;align-items:center;gap:8px` |
+| 状态点 | **`box-sizing:border-box`；外径恒 `8×8`（两态一致）**，`border-radius:50%`；**运行中** = 实心 `state-success-primary`；**未运行** = 空心（`border:1.5px S2` + `background: bg-base`，颜色取 `state-idle-primary`）；**读不到** = 实心 `state-error-primary`。`aria-hidden="true"`（**语义由状态词承担**）<br>**为什么加 `box-sizing`**：不加则空心态外径 = `8 + 2×1.5 = 11`（T40 实测 10），**与实心态 8×8 不等** ⇒ 形状通道被"大小差"污染；§4.1 规定形状是第一编码，两态外径必须相同 |
 | 状态词 span | `flex:none`，`13px/20`，`←P`。文案 = 「远端守护运行中」/「远端守护未运行」/「远端守护状态未知」（T27 §3）。**它是 §4.2.1 要求的"文字线索"，任何宽度都不得被省略/截断** |
-| 附加信息 span | `min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap`，`12px/16`，`←S`。文案 = 「· 会话 {N} 个」/「· 状态读取中…」 |
+| 附加信息 span | `min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap`，`12px/16`，`←S`。文案 = 「会话 {N} 个」/「状态读取中…」，**前导分隔符 `· ` 由本 span 唯一提供**（见下"分隔符唯一性"） |
 | 撑开 | 中间 `flex:1` 的空 `span`（把右侧推到末端；**`⋯` 打开时它仍留在视口内** ⇒ 保证浮层不遮状态词） |
 | 更新时间 | `flex:none`，`12px/16`，`←S`，`font-variant-numeric:tabular-nums`。文案「更新于 HH:MM:SS」；**<360px 时允许整体 `display:none`**（它是三者中信息量最低的，且被截断的是它而不是状态词） |
-| `启动守护`（**仅未运行态**） | 次按钮：高 28，`padding:4px 10px`，r4，F0 + `S2`，`13px ←P`。**视觉权重必须低于头部主按钮**（V-c）：它没有 `brand-primary` 填充。放在更新时间**左侧**。 |
-| `⋯` 按钮 | 24×24，图标 16×16 `←S`；hover → `interactive-bg-hover` + `←P`；**`aria-label="更多操作"`（固定且唯一，不随宽度/菜单内容变化）**；`aria-haspopup="menu"`；`aria-expanded` 随开合切换；**全宽度可达**（lead Q2） |
+| `启动守护`（**仅未运行态**） | 次按钮：高 28，`padding:4px 10px`，r4，F0 + `S2`，`13px ←P`。**视觉权重必须低于头部主按钮**（V-c）：它没有 `brand-primary` 填充。放在更新时间**左侧**。**它是底栏最高的子元素（28px）⇒ 决定 §6.1 的 `H=47`** |
+| `⋯` 按钮 | **24×24 + `flex:none`**（T43：缺 `flex:none` 会被压成 16–21×24），图标 16×16 `←S`；hover → `interactive-bg-hover` + `←P`；**`aria-label="更多操作"`（固定且唯一，不随宽度/菜单内容变化）**；`aria-haspopup="menu"`；`aria-expanded` 随开合切换；**全宽度可达**（lead Q2） |
+
+**底栏高度的推导与定稿（T43 对账，`out-08-box-sizing-audit.txt`）**
+
+```
+H = max(子元素高) + padding-top + padding-bottom + border-top
+  = max(状态点 8, 状态词 20, 附加 16, 更新时间 16, 启动守护 28, ⋯ 24) + 9 + 9 + 1
+  = 28 + 18 + 1
+  = 47px
+```
+
+| 值 | 来源 | 判定 |
+|---|---|---|
+| **36**（本文旧值） | 误按"18 行高 + 18 内边距"算，**忽略了底栏里必然存在的 24px / 28px 控件** | ❌ **规格错**（与本规格自己的 ≥24×24 命中区约束互斥：最小可行是 `24+18+1=43`） |
+| **55**（T40 实测） | `<footer>` 上 `height:36px` 被 **content-box** 解释成**内容高**：`36 + 18 + 1 = 55` | ❌ **实现错**（多给 19px；且 36 的内容盒里只用了 28，还空 8px） |
+| **47**（定稿） | 上式；写法 `.dsh-rw-status{box-sizing:border-box;height:47px;padding:9px 12px;border-top:1px …}` | ✅ 固定值 ⇒ **守护起停时底栏不跳**（`启动守护` 只在未运行态出现；若用内容高会 47↔43 抖 4px） |
+
+**分隔符唯一性（T40 的 N5：加载态 `远端守护状态未知 · · 状态读取中…` 出现两个 `·`）**
+规则：**底栏可见文本里 `·` 的出现次数 ≤ 1**；唯一来源是"附加信息 span"的前导 `· `（漂移标记/时间戳都**不自带** `·`）。
+验收：`footer.textContent.match(/·/g)?.length ?? 0 <= 1`（loading / ready / error 三态各断言一次）。
 
 **不换行验收（V3）**：1280 宽下 `footer.scrollWidth <= footer.clientWidth === true`；
 **状态词不省略验收（B2）**：在 320/420 宽下，状态词 span 的 `scrollWidth === clientWidth`（未被截断），此时**允许**被截断的是"附加信息"与"更新时间"（后者可整体 `display:none` < 360px）。
+**底栏高度验收**：`footer.getBoundingClientRect().height === 47`（**8 个宽度 + 守护运行/未运行两态**都断言，防止"窄宽换行"和"状态切换跳高"）。
 
 #### 7.2.4 `⋯` 菜单展开态
 
 ```
                                           ┌ 浮层 F3 + S2 + r6 + padding 4 · 宽 = 240px ─┐
-                                          │ ▸ 工作区                  11px ←S  ← 组标题 │  ← 仅 <420px 时整组出现
+                                          │ ▸ 快捷目录                11px ←P  ← 组标题 │  ← 常显（chips 的镜像）
+                                          │ ⟦[i] Home⟧ ⟦[i] /mnt⟧ …      13px ←P  h28  │
+                                          │ ─────────── 1px S1 ───────────              │
+                                          │ ▸ 工作区                  11px ←P  ← 组标题 │  ← 仅 <420px 时整组出现
                                           │ ⟦[i] 添加为工作区⟧            13px ←P  h28  │
                                           │ ─────────── 1px S1 ───────────              │
-                                          │ ▸ 守护                    11px ←S  ← 组标题 │
+                                          │ ▸ 守护                    11px ←P  ← 组标题 │
                                           │ ⟦[i] 重启远端守护…⟧           13px ←P  h28  │  ← 图标用 warn 形状，文字不用红
                                           │ ⟦[i] 停止远端守护…⟧           13px ←P  h28  │  ← 图标用 error 形状
                                           │ ─────────── 1px S1 ───────────              │
-                                          │ ▸ 诊断                    11px ←S  ← 组标题 │
+                                          │ ▸ 诊断                    11px ←P  ← 组标题 │
                                           │ ⟦[i] 查看诊断信息⟧            13px ←P  h28  │
                                           │ ⟦[i] 复制诊断摘要⟧            13px ←P  h28  │
                                           └──────────────────────────────────────────────┘
@@ -767,11 +830,13 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
                                             与触发元素垂直间隙 4px；**不得盖住底栏本身**
 ```
 
+> **组标题取色 = `←P`（`label-primary`）**，不是 `←S`。依据见下"组标题对比度"（T43 实测：`label-secondary` 在菜单底 dark 仅 **3.85** ⇒ 不达 AA 文本门槛 4.5）。**层级改由 4 条非颜色线索承担。**
+
 | 元素 | 规格 | 为什么 |
 |---|---|---|
 | 浮层容器 | F3 `bg-overlay` + `S2` 1px + r6 + `padding:4px`；宽 **240px**（固定，不随内容抖动）；`z-index:30`；`box-shadow:0 4px 12px rgba(0,0,0,.08)`（Q4 规范值） | 240px 能容纳最长项「重启远端守护…」+ 图标不换行；阴影是第四层冗余（§2.4），**不是唯一分离手段** |
-| **组标题**（`工作区` / `守护` / `诊断`） | `11px/16`、`←S`、`padding:4px 8px 2px`、**不可聚焦**（`role="presentation"` 或 `aria-hidden`，用 `aria-labelledby` 关联到 `role="group"`） | **lead Q2 要求三组各有组标题**。11px/`←S` 让它是"标签"而不是"菜单项"；不可聚焦 ⇒ 不制造 Tab 死停点 |
-| 组容器 | `role="group"` + `aria-labelledby=<组标题 id>` | 读屏能念出"守护 组" |
+| **组标题**（`快捷目录` / `工作区` / `守护` / `诊断`） | **`11px/16`、颜色 `←P`（`label-primary`）**、`font-weight:400`、`padding:4px 8px 2px`；**不进 Tab 顺序**（`tabindex` 缺省或 `-1` 都可）、**不回 hover**、**无填充**。<br>**DOM/aria（T43 统一）**：标题是普通 `<div id="…">`，**不加** `role="presentation"`（它是 `aria-labelledby` 的文本来源）；组容器 `role="group" aria-labelledby=<该 id>`；**禁止**用 `aria-label`（会与可见文本成为两份真相，T40-N4） | **lead Q6 定稿**：组标题是"小字号非交互文字"，同样受 AA 文本门槛 **4.5:1** 约束。§8 实测：闭集里只有 `label-primary`（**15.97 / 5.55**）达标；`label-secondary` 是 **4.90 / 3.85**（dark 不达标）⇒ **必须换 token**。<br>**层级由非颜色承担**：11px（比菜单项小 2px）+ 不进 Tab + 不回 hover + 无填充 —— 四条都与颜色无关，灰度/色盲/两种主题下同样成立 |
+| 组容器 | `role="group"` + `aria-labelledby=<组标题 id>`；**`aria-label` 一律不用** | 读屏能念出"守护 组"，且组名与屏幕上的文字**逐字相同**（单一真相源） |
 | 菜单项 | 高 **28**（≠ 列表行的 32：菜单项没有二级信息）、`padding:4px 8px`、r4、`display:flex;align-items:center;gap:8px`；`role="menuitem"` | 与列表行区分：**菜单项比列表行矮**，这是"我在菜单里不在列表里"的几何线索 |
 | 菜单项文字 | `13px/20`、`←P`（**不是 `←S`**） | **实测约束**：`label-secondary` 在 `bg-overlay` 上 dark = **3.85:1**、在 hover 底上 dark = 4.64、在 active 底上 light = 4.10 / dark = **2.81**（§5.1.1）⇒ 菜单项文字**禁止**用次级色；**因此也禁止"标题 + 副标题"两行式菜单项** |
 | 菜单项 hover / 键盘聚焦 | `interactive-bg-hover` | 官方 hover 覆盖层 |
@@ -779,17 +844,37 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | 破坏性项 | 文字 **不用红**；左侧 16×16 图标用 `state-error-primary`（停止）/ `state-warn-primary`（重启）；**保留二次确认 + 后果三要素** | §4.3 / T27 §5.2 |
 | 分组分隔 | 组标题本身即是分隔（`padding` 上下各 4px）+ 组间 `1px S1` | 用"标题 + 线 + 间隙"三重表达分组 |
 | 禁用项（如无对象） | 文字 `←D` | §5.5 |
-| `⋯` 触发按钮 | 24×24；`aria-label="更多操作"`（**稳定且唯一**）；`aria-haspopup="menu"`；`aria-expanded` 随开合切换 | lead Q2 ① |
+| `⋯` 触发按钮 | 24×24 **+ `flex:none`**（§3.4.1）；`aria-label="更多操作"`（**稳定且唯一**）；`aria-haspopup="menu"`；`aria-expanded` 随开合切换 | lead Q2 ①；`flex:none` 是 T43 的实测结论 |
 
-**需要的 3 个新 i18n 键（组标题）—— 与 T27 §3.2 的键表对齐（T27 侧补）**：
+#### 7.2.4.1 组标题对比度（**Q6 定稿表，可复算**）
+
+| 候选 token（闭集内） | light（on `bg-overlay` `#e9ecf2`） | dark（on `bg-overlay` `#61666b`） | ≥4.5:1（AA 文本）？ | 结论 |
+|---|---|---|---|---|
+| **`label-primary`** ← **采用** | **15.97** | **5.55** | ✅ / ✅ | 唯一两主题都达标的闭集 token |
+| `label-secondary`（原方案） | 4.90 | **3.85** | ✅ / ❌ | **dark 不达标** ⇒ 弃用（T40 + Q6 改判） |
+| `brand-primary` | 15.97 | 5.55 | ✅ / ✅ | 数值达标，但它与 `label-primary` **RGB 完全相同**（light `#0f1115` / dark `#f9fafb`）⇒ 没有任何区分作用，**不是"第三个候选"** |
+| `label-dimmed` | 1.07 | 1.65 | ❌ / ❌ | 且 §1.2 已禁用其非豁免用途 |
+| `state-warn-primary` | 2.15 | 7.31 | ❌ / ✅ | light 不达标 |
+| `state-error-primary` | 4.50 | 4.24 | ✅ / ❌ | dark 4.24 差 0.26 |
+| `state-success-primary` / `state-idle-primary` | 2.28 / 1.48 | 6.89 / 2.10 | ❌ / ❌（前者 dark ✅ 但 light ❌；后者两theme ❌） | 不达标 |
+
+**被否的"保留弱色"替代方案（记录代价，避免以后重开）**：把组标题所在行给一个**填充档**（如 `bg-layer-1`），则 `label-secondary` 变成 **5.80 / 10.42** ✅✅，可保住"更弱"的观感。
+**为什么否掉**：① 那是在 `F3`（浮层）里再加一层填充，违反 §2.2 规则 3"最多两层填充"；② 会给菜单加一条与本规格无关的色带（light 下是白条压在灰蓝浮层上、dark 下是深条压在浅灰浮层上），**改变浮层观感**；③ 为了一个 11px 标签引入一个结构性例外，不划算。**"层级"这条需求已由 4 条非颜色线索满足，不需要再用颜色买。**
+
+**附加约束（lead 要求保留，**不是** 4.5:1 的替代）**：**组标题不得承载"唯一行动信息"** ——
+组标题只做"分组命名"；任何"要用户做的事"（如"这里可以添加工作区"）必须落在**同组内的 `menuitem`** 或常显区域上。
+**验收**：把全部组标题文本从 DOM 删除后，用户仍能完成每一组内的动作（断言：组内 `menuitem` 的 `aria-label`/文本自足，不依赖组标题补全语义）。
+
+**需要的组标题 i18n 键（与 T27 §3.2 对齐；实现已有 4 组）**：
 
 | 键 | zh-CN | en | 备注 |
 |---|---|---|---|
+| `menu.group.quickDirs` | 快捷目录 | Quick folders | 实现已用「快捷目录」（chips 的菜单镜像）；键名以 T27 表为准，若已有别键以实现为准 |
 | `menu.group.workspace` | 工作区 | Workspace | 与 `action.addWorkspace` 的语义空间一致 |
 | `menu.group.daemon` | 守护 | Daemon | —— |
 | `menu.group.diagnostics` | 诊断 | Diagnostics | 与 `raw.summary`「诊断信息」同词根 |
 
-> **这是本文对 T27 §3.2 的一处**新增键**请求**（原表里没有组标题键）。它不改变任何交互，只是让 Q2 要求的"三组有组标题"能落地。
+> **T43 对账**：实现实测 **1280 下 3 组（快捷目录/守护/诊断）、320 下 4 组（+工作区）**，与本表的组集合一致（工作区组只在 <420px 出现）。**组标题数不再固定为 3**；`aria` 统一走 `aria-labelledby`（T40-N4）。
 
 **键盘 / ARIA 契约（来源：T27 §5/§6 + 第二轮；本文只做收口转述，落在这里以便实现轮只读一处）**
 
@@ -845,6 +930,10 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 1. `添加为工作区` 无论是头部按钮还是菜单项，**必须用同一个 i18n 键 `action.addWorkspace`**（同一动作两个名字会让人以为是两件事 —— T27 第二轮）。
 2. `<420px` 时头部**必须仍有 ≥1 个带字按钮**，且其文案 ∈ {`在此目录新建会话`, `添加为工作区`}（T27 §5.1 的裁决规则）。
 3. 底栏 `⋯` 在 **320px** 也必须可见且可聚焦（不允许为腾宽度而隐藏）。
+4. **同一个动作不得在两个常驻位置同时出现**（**T43 对账 T40-N1**）：实测 320px 下「添加为 WSL 工作区」**同时在头部与菜单工作区组**。
+   **定稿：<420px 时从头部移除，只保留菜单内的那一个**（因为"窄宽收进菜单"本身就是该规则的意图；保留头部＝让规则失效）。
+   **验收**：`<420px` 时 `header.querySelectorAll('button')` 的文案集合**不含**「添加为工作区」；`≥420px` 时头部**含**它，且菜单**不含**「工作区」组。
+   **为什么选"移除头部"而不是"菜单不列"**：320px 下头部空间是稀缺资源（主按钮 + 刷新已占满），而菜单是溢出动作的正确归宿；反过来会让"窄宽溢出规则"名存实亡。
 
 **边界验收（Q5：除 1280 外必须验三个边界）**：在 **719 / 720**、**419 / 420**、**359 / 360** 各截一次（共 6 张 + 1280 基线），每张断三条：
 
@@ -853,6 +942,9 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | 状态词不被截断 | 状态词 `span` 的 `scrollWidth === clientWidth`（§4.2-1） |
 | 底栏不换行 | `footer.scrollWidth <= footer.clientWidth`（V3） |
 | `⋯` 可达 | `⋯` 的 `getBoundingClientRect().width > 0` 且在 a11y 树里 |
+| **底栏高恒 47** | `footer.getBoundingClientRect().height === 47`（§7.2.3） |
+| **`⋯` 命中盒 ≥24×24** | `⋯` 的 rect 宽高均 ≥24（§3.4.1；T43 实测 5/8 档不达标） |
+| **动作不双现** | `<420px` 头部不含「添加为工作区」；`≥420px` 菜单不含「工作区」组（本页规则 4） |
 | 主按钮带字 | 主按钮的 `textContent.trim().length > 0`（<420px 时也必须成立） |
 
 ### 7.4 确认层（破坏性动作，二次确认不回退）
@@ -936,6 +1028,8 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | **C3** | **容器/控件的 3:1 边界** | `border-l1` 1.09 / `border-l2` 1.26（light） | **不可能用现有 token 达标**（15 个 token 全试过：最重的 `border-l4` = 1.45 light 也 <3）。改为**多渠道识别**：① 可交互控件**必须有文字标签**（按钮有字/输入框有前置标签「路径」）；② 有 hover 填充反馈；③ 容器由 `S1` + 缩进 + 章节标题识别。**并显式声明**：识别控件所需的视觉信息**不是**那条 1.26:1 的线，所以不依赖它 ⇒ 1.4.11 不适用。**这是本文最重要的一条"有理由的偏离"** | — |
 | **C4** | hover / active 填充本身 | 1.11–1.57 | **不作为对比度门禁项**：WCAG 没有"hover 背景必须 3:1"的要求（hover 不是识别控件或状态**所必需**的信息；它是增强）。**"当前/选中"这类必须可辨的状态改走竖条 + 字重**（18.90 / 15.03 / 灰度可辨） | ✅ |
 | **C5** | `warn` 徽标底色（`state-warn-tertiary`）方案 | 底上图形 1.99 | **放弃底色徽标**；徽标一律 `S1` + `label-secondary` + 图标形状 | ✅ |
+| **D1** | **菜单组标题**（11px 非交互文字）在浮层底上 | `label-secondary` = light **4.90** / dark **3.85** ⇒ **dark < 4.5**（T43/Q6 实测） | **换成 `label-primary`**（**15.97 / 5.55**）；层级改由 4 条非颜色线索承担（11px / 不进 Tab / 不回 hover / 无填充），见 §7.2.4.1 | ✅ 两主题都 ≥4.5 |
+| **D2** | 若坚持组标题用"弱色" | —— | 唯一出路是把组标题行加一层填充（`bg-layer-1` ⇒ `label-secondary` 变 5.80 / 10.42 ✅），**但那违反 §2.2-3"最多两层填充"并改变浮层观感** ⇒ **否掉**（代价记录在 §7.2.4.1） | ❌ 不采用 |
 
 ### 8.5 色盲 / 灰度复核
 
@@ -1037,15 +1131,33 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | B5 | dark 下打开 `⋯` 菜单并 `Tab` | `box-shadow` 计算值含 `inset` 且颜色 = `bg-layer-1` 解析值（F5 两主题都加） | §5.2 |
 | B6 | 面板内卡片/分组 | `box-shadow === "none"`（Q4：阴影只在浮层） | §2.2-8 / §2.4 |
 
-### 9.5 裁决记录（**5 条全部已定稿 —— 本节不再是"待决"**）
+### 9.5 裁决记录（**6 条全部已定稿 —— 本节不再是"待决"**）
 
 | # | 事项 | **裁决** | 我原来写的 | 落在哪 |
 |---|---|---|---|---|
 | **Q1** | token 闭集取 17 个还是点名的 13 个 | **采用 17 个**（§1.0）。理由：17 个**全是 DSH 既有 token**、不引入新色；降到 13 会逼出"用不透明 token 近似或硬编码"，反而破坏门禁。可用性侧独立反证：light 下 13 个里**没有一个**能做可见 hover ⇒ 13 会让 T27 §9.1-V7 不成立。<br>**附 lead 两条硬要求**：① 门禁脚本把这 17 个当 **allow-list**，集合外 token 一律 exit 非 0；② 逐 token 给"用在哪 + 为什么 + light/dark 取值"。 | 倾向 17 | **§1.0 / §1.0.1 / §1.1 / §1.5（C2）** |
-| **Q2** | `⋯` 放底栏还是头部；是否允许同屏两个 | **全宽度只保留底栏那一个 `⋯`**（lead 裁决采纳本文建议；T27 第二轮也采纳并把其文档改成"移入底栏 `⋯` 的「工作区」组"）。<br>**落地形态**：`aria-label` 固定唯一 =「更多操作」；菜单分 **工作区 / 守护 / 诊断** 三组（**每组有组标题**）；破坏性两项**只在此菜单内** + 保留二次确认与后果三要素；`<420px` 主按钮**仍带字常显**，`添加为工作区` 进「工作区」组且**与头部按钮同键** `action.addWorkspace`；**浮层不得盖住底栏状态词**。 | 只留一个（底栏），三组无组标题 | **§7.2.4 / §7.3**（组标题需要 3 个新 i18n 键，已在 §7.2.4 列表） |
+| **Q2** | `⋯` 放底栏还是头部；是否允许同屏两个 | **全宽度只保留底栏那一个 `⋯`**（lead 裁决采纳本文建议；T27 第二轮也采纳并把其文档改成"移入底栏 `⋯` 的「工作区」组"）。<br>**落地形态**：`aria-label` 固定唯一 =「更多操作」；菜单分 **快捷目录 / 工作区 / 守护 / 诊断** 四组（**每组有组标题**；T43 实测实现即 1280=3 组、320=4 组）；破坏性两项**只在此菜单内** + 保留二次确认与后果三要素；`<420px` 主按钮**仍带字常显**，`添加为工作区` 进「工作区」组且**与头部按钮同键** `action.addWorkspace`；**浮层不得盖住底栏状态词**。 | 只留一个（底栏），三组无组标题 | **§7.2.4 / §7.3**（组标题 i18n 键见 §7.2.4） |
 | **Q3** | `添加为工作区` 是否允许在 <420px 降为图标 | **不接受降级为图标**（与可用性侧一致） | 不接受 | **§7.3**（并加"`<420px` 头部必须仍有 ≥1 个带字按钮"的可判断言） |
 | **Q4** | 是否允许 `box-shadow` | **允许，但只限"面板外浮层"**（`⋯` 菜单 / 确认弹层）；**面板内**卡片/分组**不得**用阴影表达层级（仍按"背景档 + 描边 + 缩进"）。**只许中性半透明黑**（无色相），规范取值 **菜单 α=0.08 / 确认层 α=0.16**，允许区间 **α ∈ [0.04, 0.28]**；**不得作为唯一分离手段**（必须与 `bg-overlay` + `S2` 描边同时存在）；门禁对它**窄豁免**（只放行 `box-shadow` 里的中性半透明黑，带色相/α 越界/命名色照旧判红）。 | 原来倾向"不用阴影" | **§2.4 / §1.5 / §7.2.4** |
-| **Q5** | 断点是否就是 720 / 420 | **是**；并补验 **719/720、419/420、359/360** 三个边界（每张断 4 条：状态词不截断 / 底栏不换行 / `⋯` 可达 / 主按钮带字） | 是 | **§7.3 / §4.2-1** |
+| **Q5** | 断点是否就是 720 / 420 | **是**；并补验 **719/720、419/420、359/360** 三个边界（每张断 6 条：状态词不截断 / 底栏不换行 / `⋯` 可达 / 主按钮带字 / 底栏高恒 47 / `⋯` ≥24×24 / 动作不双现） | 是 | **§7.3 / §4.2-1** |
+| **Q6** | 菜单**组标题**的对比度门槛 | **提高到「两主题各 ≥4.5:1」**（小字号非交互文字同样受 AA 文本门槛约束）⇒ **组标题必须换 token**：`label-secondary`（4.90 / **3.85**）→ **`label-primary`（15.97 / 5.55）**；**层级改由 4 条非颜色线索承担**（11px / 不进 Tab / 不回 hover / 无填充）；并保留附加约束"**组标题不得承载唯一行动信息**"。 | 组标题 = `←S`（只按 ≥3:1 判） | **§7.2.4 / §7.2.4.1 / §8.4-D1/D2** |
+
+### 9.6 T43 对账后的定稿变更（只列改动的条目）
+
+| 条目 | 改动前 | 改动后 | 判责（谁错） |
+|---|---|---|---|
+| §6.1 底栏高度 | 36px | **47px**（公式 `28+9×2+1`） | **规格错**（36 与本规格自己的 ≥24×24 约束互斥）+ **实现错**（content-box 把 36 放大成 55） |
+| §7.2.3 底栏容器 | 高 36 | **高 47 + `box-sizing:border-box`** | 同上 |
+| §7.2.3 状态点 | 8×8（未提 box-sizing） | **外径恒 8×8 + `box-sizing:border-box`** | **规格缺一条**（未说外径）+ **实现错**（空心态 10–11） |
+| §3.4.1（新增） | 无（只有 §3.4"命中盒 24×24"） | **≥24×24 全文唯一口径 + 豁免清单 + 可断言片段 + flex 容器必须 `flex:none`** | **规格不够可判**（未给"哪个元素/怎么断言"）+ **实现错**（`⋯` 5/8 档、行内 16×16、chip 22.7） |
+| §3.4.2（新增） | 无 | **`height/width`+`padding/border` ⇒ 必须显式 `box-sizing:border-box`** | **规格缺一条系统性约束**（宿主无全局重置） |
+| §7.2.2 chip | 高 24（未提宽度） | **+ `min-width:24px` + `justify-content:center`** | 规格不够可判 + 实现错（22.7） |
+| §7.2.2 行内动作 | 24×24 | **≥24×24，禁止裸 `.dsh-rw-link`** | 实现错（16×16） |
+| §7.2.4 组标题 | `←S`、3 组、`role="presentation"` 或 `aria-hidden` | **`←P`、4 组（含快捷目录）、普通 `<div>` + `aria-labelledby`、禁用 `aria-label`** | **规格错**（3:1 门槛 + aria 形态含糊）+ 实现错（N4 混用） |
+| §7.2.3 分隔符 | 未规定唯一性 | **底栏可见文本 `·` ≤ 1，只有附加信息 span 产生** | **规格缺一条**（拼接规则）+ 实现错（N5 双 `·`） |
+| §7.3 规则 4（新增） | 无 | **同一动作不得在两个常驻位置同时出现**；`<420px` 从头部移除 `添加为工作区` | 实现错（N1 双入口） |
+
+
 
 > **两条"有理由的偏离"（lead 要求"偏离要能自证"）**：**§8.4-C3**（容器/控件 3:1 边界）与 **§8.7-2** —— 两条都给了①实测对比度②为什么现有 token 不可达（15 个都测过，最重 1.45）③替代的多通道方案。lead 已确认"这轮已经做到了"。
 
@@ -1064,6 +1176,7 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | `tools/token-descriptors.mjs` | token 注册表的官方 `description` / `requiresLightAndDark` |
 | `tools/css-token-audit.mjs` | **门禁**：C1 硬编码色 = 0 **且** C2 token 集合 ⊆ 17（exit 0 = 通过）；外加 S1 软检查（`label-dimmed` 使用域）+ Q4 的 shadow 窄豁免。已对基线/工作区/5 个夹具实跑（§1.5） |
 | `tools/overlay-on-surfaces.mjs` | alpha 覆盖层在**三种背景**上的终值 + `hover/静息`、`active/静息`、`active/hover` 三组可区分性（T27 第二轮约束 #2） |
+| `tools/box-sizing-audit.mjs` | **content-box 陷阱审计**（T43）：列出"声明 height/width + 有 padding/border 却未声明 `box-sizing:border-box`"的规则，给出「声明值 → 实际渲染值 → 差额」；`--host=<asar>` 另报宿主的 `box-sizing` 重置形态 |
 | `out-01-asar-token-scan.txt` | **423** 个 token 名 + 定义上下文（476 KB） |
 | `out-02-theme-token-values.txt` | 本文 §1.1 表格的取值来源 |
 | `out-03-contrast.txt` | 本文 §8 的全部测值来源（58 组） |
@@ -1071,8 +1184,10 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 | `out-05-css-token-audit.txt` | 门禁实跑：基线（`7cb3362`）与工作区均 **C1=0 / C2=PASS / exit 0**；5 个夹具 = 4 负（各 exit 1）+ 1 正（exit 0） |
 | `out-06-token-descriptors.txt` | 14 条官方 token 描述 |
 | `out-07-overlay-on-surfaces.txt` | 本文 §5.1.1 三背景表的原始读数 |
+| `out-08-box-sizing-audit.txt` | 本文 §3.4.2 / §7.2.3 的根因证据：3 条 content-box 陷阱（`.dsh-rw-btn +10` / `.dsh-rw-chip +2` / **`.dsh-rw-status +19 ⇒ 55`**）+ 宿主无全局重置（235 处全逐组件） |
+| `REPORT-t28-reconcile.md` | **T43 对账报告**（T40 实测 vs T28 规格）：底栏 55/36 判责、命中区最小尺寸、组标题取色 Q6、N1–N5 逐条 |
 
-**复算命令（四条，零安装、无可见窗口、不碰用户宿主）**：
+**复算命令（五条，零安装、无可见窗口、不碰用户宿主）**：
 
 ```powershell
 $node = 'C:\Users\l\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe'
@@ -1090,6 +1205,9 @@ $asar = 'C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\app.asar'
 
 # 4) 门禁（C1 硬编码色 + C2 token 闭集；exit 0 = 通过）
 & $node "$visual\tools\css-token-audit.mjs" 'D:\project\dsh1\vendor\dsh-remote-wsl\client\index.js' dsh-rw-
+
+# 5) content-box 陷阱审计（T43）
+& $node "$visual\tools\box-sizing-audit.mjs" 'D:\project\dsh1\vendor\dsh-remote-wsl\client\index.js' dsh-rw- --host=$asar
 ```
 
 **基线副本**：`%TEMP%\vd-baseline-7cb3362`（由 `git -C <repo> archive 7cb3362 | tar -x` 产生，只读使用，收尾删除）；
@@ -1120,6 +1238,16 @@ $asar = 'C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\app.asar'
 | 我窗口内新起的进程 | 只有 `chrome.exe` 共 9 个（父 = **50588 / 14096**，二者均为 `chrome-devtools-mcp@1.10.1` 的 MCP 服务进程，且父进程是**用户宿主 47564**、启动于 09:07:41 / 09:22:22） | 它们是 **MCP 的浏览器实例**，**不出现在可见窗口枚举里**（headless）；我对它们的唯一动作是一次**只读** `list_pages`（返回 `about:blank`） |
 | `peer=win-pid-…` 交叉 | 本插件的 `wsl_open_ui` 会写出该标记；我**从未**走那条路径 ⇒ 无标记可比对 | — |
 | 启动类工具调用记录 | 本轮只调用 `read / glob / grep / pwsh / git archive / node / team_* / send_message / cordis_inspect_query / read_image`；**未调用** `launch_app`、`bring_to_front`、`Start-Process`、任何 cua 输入类工具 | 与我"0 窗口"的观测一致 |
+
+**T43 对账轮的收尾（2026-10-13 16:37–17:03，纯静态对账）**
+
+| 项 | 结果 |
+|---|---|
+| 实例 / 端口 | **未起实例**；8971–8980 **无监听者**；未调用 `wsl.exe` / `dsh.cmd` ⇒ WSL 侧 unit/守护/profile **均为 0**（宿主 shell 无 `systemctl`；**刻意不执行全局 `reset-failed`**，以免抹掉其它角色的 failed 态证据） |
+| 可见窗口（本轮） | 15 个窗口 / 11 个进程；**窗口内（16:37 之后）新起的只有 1 个**：`chrome.exe` pid **45372**，启动 **17:02:33**，**父进程 = `explorer.exe`(20772)** ⇒ **用户自己开的浏览器**（本轮我未调用任何启动类工具）；其余 14 个窗口启动时间均 ≤ 10-13 09:49 |
+| `%TEMP%` | 夹具目录 `vd-t43-fixtures` 已删；`vd-*` 残留 = **0** |
+| 写作用域 | 仅 `docs/panel-visual-spec.md` + `visual/**`；`client/**`、`src/**` **只读**（用于定位根因），未改一行 |
+| 详版 | `spike/verify/explorer-20261012/visual/REPORT-t28-reconcile.md` §7 |
 
 ---
 
