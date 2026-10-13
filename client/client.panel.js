@@ -1015,7 +1015,7 @@ window.__ModuleLoader__.load({
 											"div",
 											{ key: `other:${row.slot === undefined || row.slot === null ? index : row.slot}`, className: "dsh-rw-other" },
 											icon("lock"),
-											t("others.item", { slot: row.slot === undefined || row.slot === null ? "?" : row.slot, state: t("tree.running") }),
+											t("others.item", { slot: row.slot === undefined || row.slot === null ? "?" : row.slot, state: t("others.stateRunning") }),
 										),
 									),
 								),

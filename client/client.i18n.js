@@ -90,19 +90,6 @@ window.__ModuleLoader__.load({
 			"empty.noDistrosField": "快照缺少 distros 段（host 侧 explorer.snapshot 与客户端版本不匹配？），不在此断定“没有发行版”。",
 			"empty.noDistros": "wsl.exe -l -v 没有返回任何发行版（WSL 未安装，或没有已安装的发行版）。",
 
-			"tree.defaultBadge": "默认发行版",
-			"tree.running": "运行中",
-			"tree.stopped": "已停止",
-			"tree.unknownState": "状态未知",
-			"tree.pathCount": " · {count} 路径",
-			"tree.currentTarget": "当前目标",
-			"tree.noWorkspacesField": "快照缺少 workspaces 段，无法判断该发行版下有没有收藏路径。",
-			"tree.noWorkspaces": "该发行版下还没有收藏路径。",
-			"tree.otherDistroWorkspaces": "另有 {count} 条收藏路径属于其它发行版（切换上方筛选查看）。",
-			"tree.distroAria": "发行版 {name}（{state}{count}）",
-			"tree.distroRowTitle": "点击切换筛选并展开/折叠",
-			"tree.optionDefault": "（默认）",
-			"tree.optionStopped": " · 已停止",
 
 			"row.open": "准备会话",
 			"row.openBusy": "打开中…",
@@ -167,6 +154,7 @@ window.__ModuleLoader__.load({
 			"action.addWorkspaceErrorUnavailable": "宿主此刻不可用（发行版/权限/状态目录），未登记（host 说：{msg}）",
 			"action.addWorkspaceErrorOther": "登记失败（host 说：{msg}）",
 
+			"others.stateRunning": "运行中",
 			"others.title": "其它槽位的守护（只读：本面板不会对它们发起任何动作）",
 			"others.defaultNote": "非本槽位；未复用、未打扰",
 
@@ -242,10 +230,6 @@ window.__ModuleLoader__.load({
 			"status.noSlotHintTitle": "快照没给出 slot，无法界定停止/重启的作用范围，故不提供这两个动作",
 			"status.drift": "drift ⚠ ",
 			"status.driftTitle": "desktop={desktop} pin={pin}",
-			"status.fixPin": "修 pin",
-			"status.fixPinBusy": "修复中…",
-			"status.fixPinAria": "修复 version pin（只写 pin，不重启也不杀守护）",
-			"status.fixPinDone": "已请求修复 version pin（不自动杀守护）。",
 			"status.driftUnknown": "drift 未知",
 			"status.webHost": "web {port}",
 
@@ -335,19 +319,6 @@ window.__ModuleLoader__.load({
 			"empty.noDistrosField": "The snapshot has no distros section (host explorer.snapshot / client version mismatch?). This panel does not claim “no distros”.",
 			"empty.noDistros": "wsl.exe -l -v returned no distros (WSL not installed, or no distro installed).",
 
-			"tree.defaultBadge": "Default distro",
-			"tree.running": "Running",
-			"tree.stopped": "Stopped",
-			"tree.unknownState": "State unknown",
-			"tree.pathCount": " · {count} path(s)",
-			"tree.currentTarget": "Current target",
-			"tree.noWorkspacesField": "The snapshot has no workspaces section, so favorites for this distro cannot be determined.",
-			"tree.noWorkspaces": "No favorite path under this distro yet.",
-			"tree.otherDistroWorkspaces": "{count} more favorite path(s) belong to other distros (use the filter above).",
-			"tree.distroAria": "Distro {name} ({state}{count})",
-			"tree.distroRowTitle": "Click to filter and expand/collapse",
-			"tree.optionDefault": " (default)",
-			"tree.optionStopped": " · stopped",
 
 			"row.open": "Prepare session",
 			"row.openBusy": "Opening…",
@@ -412,6 +383,7 @@ window.__ModuleLoader__.load({
 			"action.addWorkspaceErrorUnavailable": "The host is unavailable right now (distro/permission/state dir), not registered (host says: {msg})",
 			"action.addWorkspaceErrorOther": "Registration failed (host says: {msg})",
 
+			"others.stateRunning": "Running",
 			"others.title": "Daemons in other slots (read-only: this panel never acts on them)",
 			"others.defaultNote": "Not this slot; not reused, not disturbed",
 
@@ -486,10 +458,6 @@ window.__ModuleLoader__.load({
 			"status.noSlotHintTitle": "The snapshot gives no slot, so the scope of stop/restart cannot be bounded; these actions are hidden",
 			"status.drift": "drift ⚠ ",
 			"status.driftTitle": "desktop={desktop} pin={pin}",
-			"status.fixPin": "Fix pin",
-			"status.fixPinBusy": "Fixing…",
-			"status.fixPinAria": "Fix the version pin (writes the pin only; never restarts or kills the daemon)",
-			"status.fixPinDone": "Requested the version-pin fix (never kills the daemon).",
 			"status.driftUnknown": "drift unknown",
 			"status.webHost": "web {port}",
 

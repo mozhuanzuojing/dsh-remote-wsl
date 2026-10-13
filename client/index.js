@@ -390,3 +390,4 @@ window.__ModuleLoader__.load({
 		return module.exports;
 	},
 });
+// T41: 死键清理（client.i18n.js）后触碰入口，按 docs/client-contract.md §11 换 chunk rev
