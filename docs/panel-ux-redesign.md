@@ -552,3 +552,26 @@ pwsh ./ux-boot.ps1 -Mode Setup ; pwsh ./ux-boot.ps1 -Mode Start
 | 截图器 / 场景 / 启动器 | 同目录 `ux-shot.mjs` / `ux-scenarios*.json` / `ux-boot.ps1` |
 | 原始读数 | 同目录 `ux-baseline/out-ux-shots.json`、`out-ux-revision.txt`、`out-ux-dumpconfig.txt`、`out-ux-url.txt` |
 | 复算 | §0.1 三条命令；截图哈希见 `out-ux-shots.json` 的 `bytes` 与文件本体 |
+
+---
+
+## 12. T50 残余项复验（2026-10-14，对 `4699876`；UX 主体 = `d681599`）
+
+> 完整报告：`spike/verify/explorer-20261012/usability/p05-final/REPORT-residual-verify.md`（20 份证据）。本节只放**结论与状态**。
+
+**前置证明（两条都过）**：`tools/check-client-rev.mjs` **exit 0**（入口 rev `afc26d1a2793`，9 chunk）；**页面加载的 9 个 chunk 逐字节 == 磁盘**（平台追加 `;` + `sourceMappingURL` trailer；判法同 T40）⇒ 渲染读数有效。
+
+| 项 | 状态 | 关键读数 |
+|---|---|---|
+| **V3 八宽度** | ✅ **已实现且已验证** | 8/8 宽度 `innerWidth` 回读与请求值逐一相等（CDP `Emulation.setDeviceMetricsOverride`，非 `resize_page`）；`footerH` 恒 **47**（T40 时 55）；底栏子元素**中心唯一**⇒单行；状态词 `scrollWidth==clientWidth`（91）不省略；`⋯` **8/8 宽度 24×24**（T40 时 5/8 仅 16–21×24） |
+| **V7 / M17** | ✅ **已实现且已验证** | 两主题 × 三背景 hover 全部 changed（light→`rgba(38,49,72,.06)`；dark→`rgba(255,255,255,.08)`）；当前项 `.dsh-rw-crumb--current` **2px + 600** 两主题一致；**强制置静息填充后仍可分辨**（`distinguishableWithoutFill=true`）；菜单 `menuitem` 启用态 = `label-primary` |
+| **N3 展开态** | ✅ **已实现且已验证** | 失败态 `details`「技术细节（host 原文）」默认收起（仅摘要 13 字符）→ `open=true` 后正文 162 字符（host 原文）**在折叠内**，主句「列目录失败（/…）」与布局（panelH 900）未破 |
+| **M6**（loading 不误报 / error 撤事实） | ✅ 已验证 | loading 无失败文案；error：条目 0、无守护事实、有「重试」 |
+| **M7**（空态有下一步） | ✅ 已验证 | ⚠️ 首测用 `distros:[]` **不适用**（新 IA 无发行版列表，夹具未生效，该次作废）；改用 **listDir→空** 夹具：提示「该目录没有非隐藏条目…」+「回到 Home」+ 隐藏文件开关 |
+| **M10**（多实例降级） | ✅ 已验证 | 非冲突：主视线 `slot\d` 命中 **0**、无别槽位按钮；**真冲突**（`running=true`+同槽）：一行横幅「检测到另一个实例正在使用同一槽位（8962）」 |
+| **M11**（收起不可 Tab） | ✅ 通过（**弱**） | 收起时内部可聚焦 **0**；弱在展开后同样 **0**（折叠内容是纯文本）⇒ 该断言当前不具区分力 |
+| **M12④**（最近目录空态） | ⚠️ **未复核** | 拦在：`details.open=true` 对 **React 受控折叠**不生效（同现象见 M11 补测）⇒ 需 **trusted click** summary；按 lead"有界收尾"未再开实验（补测成本 ≈1 分钟） |
+| **N4**（菜单组标注一致） | ❌ **判红** | 第 1 组「快捷目录」用 `aria-label`，第 2/3 组用 `aria-labelledby`（目标存在）⇒ T42 虽列 N4，实测**第一组仍不一致** |
+| **故意红（本轮）** | ⚠️ **未做** | 拦在：上一轮在红测前中断 + 本轮有界收尾只允许补 N3；T40 轮对同一断言做过 A/B（不同 commit），本轮未复做 |
+
+**纪律**：实例一律 **孤立 `DSH_HOME`**（`%TEMP%\usab-p05-home`）；用户 `workspace.json` 在我窗口（10-13 18:38–19:02）**未变**——before/after 差异出现在 **10-14 09:51**（宿主重启后），且**隔离 home 自带 `storages/workspace.json` 于 10-13 18:44 写入** ⇒ 归因**不是本轮**。收尾：端口全空闲、`dsh*` 单位 0 / failed 0、副本与隔离 home 已删、活宿主 `19387`=**33688** 存活、窗口枚举按**启动时间**核验（19 窗全在 10-14 09:17–10:08，非本次会话）。
