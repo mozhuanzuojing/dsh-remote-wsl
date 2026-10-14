@@ -1,0 +1,11 @@
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+file:///D:/project/dsh1/vendor/dsh-remote-wsl/src/register-tools.ts:377
+        if (!task) throw new Error('remote-wsl: wsl_agent 需要非空 task');
+                         ^
+
+Error: remote-wsl: wsl_agent 需要非空 task
+    at Object.execute (file:///D:/project/dsh1/vendor/dsh-remote-wsl/src/register-tools.ts:377:26)
+    at driveTool (file:///D:/project/dsh1/vendor/dsh-remote-wsl/src/selftest.ts:381:21)
+    at async file:///D:/project/dsh1/vendor/dsh-remote-wsl/src/selftest.ts:459:14
+
+Node.js v26.10.0

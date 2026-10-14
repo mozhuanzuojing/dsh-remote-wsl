@@ -1,0 +1,5 @@
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+remote-wsl: 守护已由 systemd 托管（unit=dsh-rwsl-8731.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦
+t46
+
+[remote-wsl: backend=daemon session=remote-wsl-default-86c4a0e0-a9d5-4dd1-8cec-4c7a8ace708d cwd=/home/g completedBy=turn/end turns=1 runtimePid=1954406 daemon=1954208@127.0.0.1:8731 dsh@0.2.0-rc.2]

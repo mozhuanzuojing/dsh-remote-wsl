@@ -1,0 +1,12 @@
+{
+  "ts": "2026-10-13T10:53:21.564Z",
+  "phase": "m11",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "m11": {
+    "found": true,
+    "closedFocusables": 0,
+    "closedContentDisplay": "block",
+    "openFocusables": 0,
+    "verdict": "PASS(收起时内部不可聚焦)"
+  }
+}

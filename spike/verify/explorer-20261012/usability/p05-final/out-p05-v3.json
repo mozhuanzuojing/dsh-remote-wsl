@@ -1,0 +1,515 @@
+{
+  "ts": "2026-10-13T10:46:59.030Z",
+  "phase": "v3",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "v3": [
+    {
+      "requestedWidth": 320,
+      "innerWidth": 320,
+      "footerH": 47,
+      "footerScrollW": 264,
+      "footerClientW": 264,
+      "childCount": 5,
+      "distinctCenters": 1,
+      "singleLine": true,
+      "statusText": "远端守护未运行",
+      "statusScrollW": 91,
+      "statusClientW": 91,
+      "statusNotElided": true,
+      "menuBtnCount": 1,
+      "menuBtnRect": [
+        24,
+        24
+      ],
+      "children": [
+        {
+          "tag": "span",
+          "text": "",
+          "w": 8,
+          "h": 8,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "远端守护未运行",
+          "w": 91,
+          "h": 20,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "· 会话 0 个",
+          "w": 28,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "启动守护",
+          "w": 49,
+          "h": 28,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "",
+          "w": 24,
+          "h": 24,
+          "centerY": 877
+        }
+      ]
+    },
+    {
+      "requestedWidth": 359,
+      "innerWidth": 359,
+      "footerH": 47,
+      "footerScrollW": 303,
+      "footerClientW": 303,
+      "childCount": 5,
+      "distinctCenters": 1,
+      "singleLine": true,
+      "statusText": "远端守护未运行",
+      "statusScrollW": 91,
+      "statusClientW": 91,
+      "statusNotElided": true,
+      "menuBtnCount": 1,
+      "menuBtnRect": [
+        24,
+        24
+      ],
+      "children": [
+        {
+          "tag": "span",
+          "text": "",
+          "w": 8,
+          "h": 8,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "远端守护未运行",
+          "w": 91,
+          "h": 20,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "· 会话 0 个",
+          "w": 48,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "启动守护",
+          "w": 68,
+          "h": 28,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "",
+          "w": 24,
+          "h": 24,
+          "centerY": 877
+        }
+      ]
+    },
+    {
+      "requestedWidth": 360,
+      "innerWidth": 360,
+      "footerH": 47,
+      "footerScrollW": 304,
+      "footerClientW": 304,
+      "childCount": 5,
+      "distinctCenters": 1,
+      "singleLine": true,
+      "statusText": "远端守护未运行",
+      "statusScrollW": 91,
+      "statusClientW": 91,
+      "statusNotElided": true,
+      "menuBtnCount": 1,
+      "menuBtnRect": [
+        24,
+        24
+      ],
+      "children": [
+        {
+          "tag": "span",
+          "text": "",
+          "w": 8,
+          "h": 8,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "远端守护未运行",
+          "w": 91,
+          "h": 20,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "· 会话 0 个",
+          "w": 49,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "启动守护",
+          "w": 68,
+          "h": 28,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "",
+          "w": 24,
+          "h": 24,
+          "centerY": 877
+        }
+      ]
+    },
+    {
+      "requestedWidth": 419,
+      "innerWidth": 419,
+      "footerH": 47,
+      "footerScrollW": 363,
+      "footerClientW": 363,
+      "childCount": 6,
+      "distinctCenters": 1,
+      "singleLine": true,
+      "statusText": "远端守护未运行",
+      "statusScrollW": 91,
+      "statusClientW": 91,
+      "statusNotElided": true,
+      "menuBtnCount": 1,
+      "menuBtnRect": [
+        24,
+        24
+      ],
+      "children": [
+        {
+          "tag": "span",
+          "text": "",
+          "w": 8,
+          "h": 8,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "远端守护未运行",
+          "w": 91,
+          "h": 20,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "· 会话 0 个",
+          "w": 32,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "启动守护",
+          "w": 52,
+          "h": 28,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "更新于 18:47:02",
+          "w": 83,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "",
+          "w": 24,
+          "h": 24,
+          "centerY": 877
+        }
+      ]
+    },
+    {
+      "requestedWidth": 420,
+      "innerWidth": 420,
+      "footerH": 47,
+      "footerScrollW": 364,
+      "footerClientW": 364,
+      "childCount": 6,
+      "distinctCenters": 1,
+      "singleLine": true,
+      "statusText": "远端守护未运行",
+      "statusScrollW": 91,
+      "statusClientW": 91,
+      "statusNotElided": true,
+      "menuBtnCount": 1,
+      "menuBtnRect": [
+        24,
+        24
+      ],
+      "children": [
+        {
+          "tag": "span",
+          "text": "",
+          "w": 8,
+          "h": 8,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "远端守护未运行",
+          "w": 91,
+          "h": 20,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "· 会话 0 个",
+          "w": 33,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "启动守护",
+          "w": 53,
+          "h": 28,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "更新于 18:47:02",
+          "w": 83,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "",
+          "w": 24,
+          "h": 24,
+          "centerY": 877
+        }
+      ]
+    },
+    {
+      "requestedWidth": 719,
+      "innerWidth": 719,
+      "footerH": 47,
+      "footerScrollW": 663,
+      "footerClientW": 663,
+      "childCount": 7,
+      "distinctCenters": 1,
+      "singleLine": true,
+      "statusText": "远端守护未运行",
+      "statusScrollW": 91,
+      "statusClientW": 91,
+      "statusNotElided": true,
+      "menuBtnCount": 1,
+      "menuBtnRect": [
+        24,
+        24
+      ],
+      "children": [
+        {
+          "tag": "span",
+          "text": "",
+          "w": 8,
+          "h": 8,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "远端守护未运行",
+          "w": 91,
+          "h": 20,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "· 会话 0 个",
+          "w": 55,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "",
+          "w": 256,
+          "h": 0,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "启动守护",
+          "w": 74,
+          "h": 28,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "更新于 18:47:02",
+          "w": 83,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "",
+          "w": 24,
+          "h": 24,
+          "centerY": 877
+        }
+      ]
+    },
+    {
+      "requestedWidth": 720,
+      "innerWidth": 720,
+      "footerH": 47,
+      "footerScrollW": 664,
+      "footerClientW": 664,
+      "childCount": 7,
+      "distinctCenters": 1,
+      "singleLine": true,
+      "statusText": "远端守护未运行",
+      "statusScrollW": 91,
+      "statusClientW": 91,
+      "statusNotElided": true,
+      "menuBtnCount": 1,
+      "menuBtnRect": [
+        24,
+        24
+      ],
+      "children": [
+        {
+          "tag": "span",
+          "text": "",
+          "w": 8,
+          "h": 8,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "远端守护未运行",
+          "w": 91,
+          "h": 20,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "· 会话 0 个",
+          "w": 55,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "",
+          "w": 257,
+          "h": 0,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "启动守护",
+          "w": 74,
+          "h": 28,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "更新于 18:47:02",
+          "w": 83,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "",
+          "w": 24,
+          "h": 24,
+          "centerY": 877
+        }
+      ]
+    },
+    {
+      "requestedWidth": 1280,
+      "innerWidth": 1280,
+      "footerH": 47,
+      "footerScrollW": 1000,
+      "footerClientW": 1000,
+      "childCount": 7,
+      "distinctCenters": 1,
+      "singleLine": true,
+      "statusText": "远端守护未运行",
+      "statusScrollW": 91,
+      "statusClientW": 91,
+      "statusNotElided": true,
+      "menuBtnCount": 1,
+      "menuBtnRect": [
+        24,
+        24
+      ],
+      "children": [
+        {
+          "tag": "span",
+          "text": "",
+          "w": 8,
+          "h": 8,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "远端守护未运行",
+          "w": 91,
+          "h": 20,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "· 会话 0 个",
+          "w": 55,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "",
+          "w": 593,
+          "h": 0,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "启动守护",
+          "w": 74,
+          "h": 28,
+          "centerY": 877
+        },
+        {
+          "tag": "span",
+          "text": "更新于 18:47:02",
+          "w": 83,
+          "h": 16,
+          "centerY": 877
+        },
+        {
+          "tag": "button",
+          "text": "",
+          "w": 24,
+          "h": 24,
+          "centerY": 877
+        }
+      ]
+    }
+  ],
+  "shot320": {
+    "file": "v3-320-footer.png",
+    "bytes": 37155
+  }
+}

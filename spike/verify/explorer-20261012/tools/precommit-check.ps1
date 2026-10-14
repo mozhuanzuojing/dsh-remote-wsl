@@ -40,6 +40,7 @@ param(
   [switch] $FailOnAnyListener,
   [switch] $FailOnVisibleWindow,
   [switch] $SkipNetwork,
+  [switch] $WithControls,
   [int] $NetworkTimeoutSec = 25
 )
 
@@ -292,6 +293,75 @@ else {
     Write-Raw '07 check-client-rev.mjs --root ' $revOut
   }
 }
+
+  # ------------------------------------------- 08 漏 import 扫描（task-47/T51）
+  # 机制：本仓"零构建 TS + 相对 `.ts`" ⇒ **漏 import 不在 import 期报错**，只有执行到那一行才 ReferenceError
+  #   ⇒ "调用期才炸"。同型已出现三次：T3 `launchScript`→`daemonScriptWsl`；T5 `wsl-io.ts` 漏 `spawn`；
+  #   T47 `register-tools.ts` 漏 `allowBuildFlags`（`wsl_open_ui` 启动）+ 漏 `reapWsl`（**收尾**才炸）。
+  #   详见 arch-t5/REPORT-openui-p0.md；脚本 arch-t5/tools/scan-missing-imports.ts。
+  # 退出码映射：0=PASS；1=FAIL（命中，列出 `标识符@行号`）；2=无法判定 ⇒ **WARN**（绝不当 PASS）；其它 ⇒ FAIL。
+  # 测试旁路：$env:DSRW_SCANROOT = '<要扫的 src 目录，默认 $PluginRepo\src>'（用于在副本上演示红/WARN）。
+  # -WithControls：在 %TEMP% 副本上抽掉一个 import，验证扫描器仍能命中（灵敏度对照；不碰仓库）。
+  $scanScript = Join-Path (Split-Path $PSScriptRoot -Parent) 'arch-t5\tools\scan-missing-imports.ts'
+  if (-not (Test-Path -LiteralPath $scanScript)) {
+    Add-Result '08' '漏 import 扫描' 'WARN' "找不到 $scanScript（跳过）"
+  }
+  else {
+    $scanNode = (Get-Command node -ErrorAction SilentlyContinue).Source
+    if (-not $scanNode) {
+      foreach ($cand in @("$env:LOCALAPPDATA\mise\shims\node.exe", 'C:\Users\l\AppData\Local\mise\shims\node.exe')) {
+        if (Test-Path -LiteralPath $cand) { $scanNode = $cand; break }
+      }
+    }
+    if (-not $scanNode) { Add-Result '08' '漏 import 扫描' 'WARN' '找不到 node（无法判定）' }
+    else {
+      $scanRoot = if ($env:DSRW_SCANROOT) { $env:DSRW_SCANROOT } else { Join-Path $PluginRepo 'src' }
+      $scanFiles = @()
+      if (Test-Path -LiteralPath $scanRoot) {
+        $scanFiles = @(Get-ChildItem -LiteralPath $scanRoot -Recurse -Filter '*.ts' -File | ForEach-Object { $_.FullName })
+      }
+      if ($scanFiles.Count -eq 0) {
+        Add-Result '08' '漏 import 扫描' 'WARN' "在 $scanRoot 下找不到 .ts（无法判定）"
+      }
+      else {
+        $scanOut = (& $scanNode $scanScript @scanFiles 2>&1 | Out-String)
+        $scanCode = $LASTEXITCODE
+        $scanHead = (($scanOut -split "`r?`n") | Where-Object { $_ -match '命中合计|命中 ⇒|SCAN_UNDECIDABLE' } | Select-Object -First 3) -join ' / '
+        if ($scanCode -eq 0) { Add-Result '08' '漏 import 扫描' 'PASS' "$($scanFiles.Count) 文件 / $scanHead" }
+        elseif ($scanCode -eq 1) { Add-Result '08' '漏 import 扫描' 'FAIL' "命中：$scanHead ⇒ 补对应 import（零构建 TS 只在调用期报错）" }
+        elseif ($scanCode -eq 2) { Add-Result '08' '漏 import 扫描' 'WARN' "判定不可得 ⇒ 需人判：$scanHead" }
+        else { Add-Result '08' '漏 import 扫描' 'FAIL' "脚本自身出错 exit=$scanCode：$scanHead" }
+        Write-Raw '08 scan-missing-imports.ts' $scanOut
+      }
+      if ($WithControls) {
+        $ctlDir = Join-Path $env:TEMP ('dsh-rw-scanctl-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+        New-Item -ItemType Directory -Path $ctlDir -Force | Out-Null
+        try {
+          $victim = Join-Path $PluginRepo 'src\register-tools.ts'
+          if (-not (Test-Path -LiteralPath $victim)) {
+            Add-Result '08c' '漏 import 对照（灵敏度）' 'WARN' "找不到 $victim ⇒ 对照未做"
+          }
+          else {
+            $copy = Join-Path $ctlDir 'register-tools.ts'
+            $orig = Get-Content -LiteralPath $victim -Raw
+            $mut = $orig -replace "(?m)^[ \t]*import \{[^}]*allowBuildFlags[^}]*\} from '\./sdk-runtime\.ts';[ \t]*\r?\n", ''
+            if ($mut -eq $orig) {
+              Add-Result '08c' '漏 import 对照（灵敏度）' 'WARN' '副本里没找到可抽掉的 allowBuildFlags import ⇒ 对照未生效'
+            }
+            else {
+              [IO.File]::WriteAllText($copy, $mut, (New-Object Text.UTF8Encoding($false)))
+              $ctlOut = (& $scanNode $scanScript $copy 2>&1 | Out-String)
+              $ctlCode = $LASTEXITCODE
+              if ($ctlCode -eq 1) { Add-Result '08c' '漏 import 对照（灵敏度）' 'PASS' '抽掉 allowBuildFlags import ⇒ 扫描器命中（夹具真灵）' }
+              else { Add-Result '08c' '漏 import 对照（灵敏度）' 'FAIL' "抽掉 import 后扫描器未命中（exit=$ctlCode）⇒ 判据可能失效" }
+              Write-Raw '08c control' $ctlOut
+            }
+          }
+        }
+        finally { Remove-Item -LiteralPath $ctlDir -Recurse -Force -ErrorAction SilentlyContinue }
+      }
+    }
+  }
 
 # -------------------------------------------------------------------- summary
 Write-Host ''

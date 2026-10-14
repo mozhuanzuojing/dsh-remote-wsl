@@ -1,0 +1,8 @@
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+path: /home/g
+direction: both（输入形态: WSL）
+to-wsl     : (不回显：输入已是 WSL 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-windows。)
+to-windows : \\wsl.localhost\debian-u8-1\home\g   <- 生效
+commands executed (path 走位置参数 argv，无字符串拼接):
+  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- "$1"' _ "/home/g"
+  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- "$1"' _ "/home/g"

@@ -1,0 +1,23 @@
+{
+  "ts": "2026-10-13T10:54:06.838Z",
+  "phase": "m12",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "m12": {
+    "key": "dsh-remote-wsl.recent",
+    "cleared": {
+      "key": "dsh-remote-wsl.recent",
+      "lsKeys": [
+        "dsh.sessions.current",
+        "dsh.workspace.view.v5",
+        "dsh-remote-wsl.recent",
+        "dsh.sidebar-right.v1.session-6f0e69b3-7879-47d1-b5ca-14ccc75bd053"
+      ]
+    },
+    "after": {
+      "hasRecentSection": true,
+      "emptyHintPresent": false,
+      "recentBlockText": "浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 _reports bin data dsh-handoff-20260820.md dsh-kit dsh-liang",
+      "note": "recent 分区在折叠区内，未展开时可能不渲染"
+    }
+  }
+}

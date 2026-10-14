@@ -1,0 +1,25 @@
+{
+  "ts": "2026-10-13T10:57:55.809Z",
+  "phase": "m7",
+  "m7": {
+    "entryRows": 0,
+    "emptyHintKeywordsFound": [
+      "隐藏文件"
+    ],
+    "bodyText": "浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 该目录没有非隐藏条目。 换一个目录，或回到 Home 重新开始。 回到 Home 最近目录 诊断信息（与 wsl_status 同源）",
+    "bodyButtons": [
+      "隐藏文件：不显示",
+      "Home",
+      "/",
+      "/mnt",
+      "/",
+      "home",
+      "g",
+      "project",
+      "跳转",
+      "上一级",
+      "回到 Home"
+    ],
+    "verdict": "PASS(空目录有提示/可点下一步)"
+  }
+}

@@ -1,0 +1,5 @@
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+desktop version: 0.2.0-rc.2  <- C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\primary-runtime\runtime.json
+wsl pin before: 0.2.0-rc.2
+wsl pin after: 0.2.0-rc.2 (written)
+drift was: no

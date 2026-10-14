@@ -1,0 +1,19 @@
+{
+  "ts": "2026-10-13T10:50:50.489Z",
+  "phase": "m6",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "m6": {
+    "loading": {
+      "text": "远程资源管理器 尚未取得目标发行版 添加为 WSL 工作区 网络较慢，仍在读取… 远端守护状态未知 · 状态读取中…",
+      "hasFalseFailure": false
+    },
+    "errorState": {
+      "text": "远程资源管理器 目标未知（读取失败） 添加为 WSL 工作区 正在读取远端信息… 读取远程资源失败（当前没有可用数据） 无法连接 host 侧 explorer 路由 /remote-wsl/api：usab-injected: 路由不可达 重试 读取远程资源失败（当前没有可用数据） · 状态读取中…",
+      "entryRows": 0,
+      "daemonFactShown": false,
+      "retryPresent": true,
+      "verdict": "PASS(事实撤下+有重试)"
+    },
+    "verdict": "PASS(加载态无失败文案)"
+  }
+}

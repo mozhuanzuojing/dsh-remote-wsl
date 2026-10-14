@@ -1,0 +1,69 @@
+{
+  "ts": "2026-10-13T10:45:23.704Z",
+  "phase": "probe",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "probe": {
+    "panelTag": "section",
+    "text": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区 浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 _reports bin data dsh-handoff-20260820.md dsh-kit dsh-liangwengu dsh-shadow dsh-vscode open-design-daemon.service vendor windows-mcp-dsh-config.spec.md 最近目录 诊断信息（与 wsl_status 同源） 远端守护未运行 · 会话 0 个 启动守护 更新于 18:45:26",
+    "classes": [
+      "dsh-rw-badge",
+      "dsh-rw-body",
+      "dsh-rw-btn",
+      "dsh-rw-btn--primary",
+      "dsh-rw-card",
+      "dsh-rw-cardhead",
+      "dsh-rw-chip",
+      "dsh-rw-crumb",
+      "dsh-rw-crumb--current",
+      "dsh-rw-crumb-sep",
+      "dsh-rw-crumbs",
+      "dsh-rw-current",
+      "dsh-rw-dot",
+      "dsh-rw-dot--stopped",
+      "dsh-rw-entries",
+      "dsh-rw-extra",
+      "dsh-rw-fold",
+      "dsh-rw-form",
+      "dsh-rw-grouptitle",
+      "dsh-rw-header",
+      "dsh-rw-header-actions",
+      "dsh-rw-header-meta",
+      "dsh-rw-header-text",
+      "dsh-rw-hint",
+      "dsh-rw-iconbtn",
+      "dsh-rw-link",
+      "dsh-rw-path-input",
+      "dsh-rw-row",
+      "dsh-rw-row--dir",
+      "dsh-rw-rowacts",
+      "dsh-rw-rowname",
+      "dsh-rw-spacer",
+      "dsh-rw-status",
+      "dsh-rw-statusword",
+      "dsh-rw-subtitle",
+      "dsh-rw-title",
+      "dsh-rw-toolbar",
+      "dsh-rw-updated"
+    ],
+    "details": [
+      {
+        "cls": "dsh-rw-fold",
+        "open": false,
+        "summary": "最近目录",
+        "contentLen": 4
+      },
+      {
+        "cls": "dsh-rw-fold",
+        "open": false,
+        "summary": "诊断信息（与 wsl_status 同源）",
+        "contentLen": 21
+      }
+    ],
+    "lsKeys": [
+      "dsh.sessions.current",
+      "dsh.workspace.view.v5",
+      "dsh-remote-wsl.recent",
+      "dsh.sidebar-right.v1.session-6f0e69b3-7879-47d1-b5ca-14ccc75bd053"
+    ]
+  }
+}

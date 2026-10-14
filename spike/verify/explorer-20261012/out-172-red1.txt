@@ -1,0 +1,12 @@
+# css-token-audit: C:\Users\l\AppData\Local\Temp\rwsl-t46-red\red1-hardcoded.js
+# class prefix = .dsh-rw-   allow-list = 17 tokens
+rules                = 1
+distinct --dsw-* vars= 0
+C1 hardcoded colors  = 2  <== FAIL
+    @14170  #hex(3/4/6/8)  "#ff0000"
+    @14191  rgb()/rgba()  "rgb("
+C1 shadow 豁免（中性半透明黑，α∈[0.04,0.28]）= 0
+C1 soft keywords     = 0 (transparent/currentColor，非硬编码色)
+C2 token set ⊆ allow = PASS
+S1 label-dimmed 域   = OK（未使用，或只用于 :disabled/::placeholder）
+==> EXIT 1（门禁不通过）

@@ -1,0 +1,23 @@
+{
+  "ts": "2026-10-13T10:59:28.797Z",
+  "phase": "m11b",
+  "m11b": {
+    "found": true,
+    "summary": "最近目录",
+    "closed": {
+      "display": "block",
+      "h": 37,
+      "visible": true,
+      "focusables": 0,
+      "textLen": 4
+    },
+    "opened": {
+      "display": "block",
+      "h": 37,
+      "visible": true,
+      "focusables": 0,
+      "textLen": 4
+    },
+    "verdict": "CHECK(收起时内容仍可见)"
+  }
+}

@@ -1,0 +1,4 @@
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+daemon: not running（absent: 没有守护元数据（守护未运行））
+machine: slot=- pid=- port=- version=- orphans=0
+state dir (WSL): /home/g/.dsh/remote-wsl（元数据按槽位 daemon.<slot>.json / daemon.<slot>.token，0600）

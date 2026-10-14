@@ -1,0 +1,19 @@
+{
+  "ts": "2026-10-13T11:00:14.061Z",
+  "phase": "m12b",
+  "m12b": {
+    "found": true,
+    "before": {
+      "open": false,
+      "text": "最近目录"
+    },
+    "after": {
+      "open": true,
+      "h": 37,
+      "text": "最近目录"
+    },
+    "hintPresent": false,
+    "verdict": "CHECK(展开后有内容但非空态提示)"
+  },
+  "m12bCleared": "{\"now\":\"[]\"}"
+}
