@@ -748,9 +748,9 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 ---
 
-## 架构债重构轮（P0.5.1 → P0.5.2）：冻结 revision 与结果
+## 架构债重构轮（P0.5.1 → P0.5.3）：冻结 revision 与结果
 
-> 本节记录**两轮**：第一轮 T1–T6 + T42/T46/T47/T49/T50/T52/T53（P0.5.1），第二轮 T54–T62 残余任务与运行时缺陷（**P0.5.2**）。**当前冻结表 = P0.5.2**（见本节末尾）。
+> 本节记录**三轮**：第一轮 T1–T6 + T42/T46/T47/T49/T50/T52/T53（P0.5.1）；第二轮 T54–T62 残余任务与运行时缺陷（P0.5.2）；第三轮 **T63 窄态修复**（**P0.5.3**：`client/index.js`、`client.panel.header.js`、`client.panel.tail.js`、`client.i18n.js` 四个锚点再变）。**当前冻结表 = P0.5.3**（见本节末尾）。
 
 **起因**：用户给出架构债转交包 `docs/2026-10-13-arch-review-teammates.md`（六块互不重叠的大改 + 波次 + 写域 + 门禁），并要求**用 teammate 执行**。
 
@@ -821,6 +821,8 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 | **T61** 探针过期 | 定因：T3 拆分后**两处硬编码同时过期** —— ① 拷贝清单手写 2 个文件而真 `src/*.ts` **14 个**（漏拷 12 ⇒ `ERR_MODULE_NOT_FOUND`）；② **更隐蔽**：`systemd-run` 锚点已搬到 `daemon-launch.ts:66/69/74`，补丁仍打在旧文件名上 ⇒ 三个 replace **全是空操作**却打印"已替换 3 处" ⇒ **只修①会让探针跑正常路径并"绿灯"退出 = 假绿**。修法：按目录枚举 + **按内容定位补丁** + **命中 0 ⇒ exit 2 并明说会退化**；红 B 用 `%TEMP%` 骨架**模拟"未来再拆分"**证明不会再悄悄过期 |
 
 **冻结 revision —— P0.5.2（2026-10-14，25 个锚点）**：`revision.ps1 -Mode Write -ConfirmFreeze`。与 P0.5.1 的漂移**恰好是预期两处**：`src/register-tools.ts`（T60）、`src/sdk-runtime.ts`（T62）—— 两个改动方都**如实上报漂移且都没去动 `REVISION.txt`**（这一点值得肯定：冻结文件只有一个写者）。README 表由 `sync-freeze-table.ps1` 重投影（**25/25 PASS**）。
+
+**冻结 revision —— P0.5.3（2026-10-14，25 个锚点）**：T63 之后 `client/**` 四个锚点再变（`index.js`/`panel.header.js`/`panel.tail.js`/`i18n.js`）⇒ 重新冻结、README 表再投影（**25/25 PASS**）。**T63（窄态修复）要点**：判据先行 —— **N1** 头部四块各 1 个行盒（`Range.getClientRects()` 去重 `top` 数 = 1）、**N1b** 四块**未被省略号截断**（`scrollWidth <= clientWidth+1`：**这条才让"换短文案"承重**，只加 `nowrap` 也能 1 行但那是被 `…` 吃掉）、**N2** 底栏按钮文字 1 行、**N3** 底栏无横向溢出且高 **47**、**N4** 命中盒**全 ≥24×24**（WCAG 2.2 SC 2.5.8 硬底线）、**N5** 主按钮**仍带文字**（不图标化）；副标题按设计 `nowrap+ellipsis` 的例外显式写进判据。**根因**：`.dsh-rw-btn` 默认 `flex-shrink:1` 且无 `nowrap` ⇒ 空间不足时被压到**比内容还窄**（「启动守护」压到 48.8px ⇒ 折 2 行）；title/hint 无 `nowrap`，在仅 63.7px 的文字列里逐字折行（列窄是因为窄态仍用全名「添加为 WSL 工作区」132px）。**修法**：CSS 兜底（按钮 `flex:none;white-space:nowrap`，title/hint `nowrap+ellipsis`）+ **窄态短文案**（主按钮「添加工作区」87px／hint「不改目标」+`title` 完整句／底栏「启动」48px／会话数窄态按设计隐藏；**4 个新键落在 `client.i18n.js` 的 zh/en 单源**，越出原 advisory scope 已获 Lead 追认）；**宽态（面板 ≥420）一字未变**（480/560/1280 实测同前）。**实测**：两主题 × 320/359/360/419/420 ⇒ **before 64 PASS/16 FAIL → after 96 PASS/0 FAIL**。**故意红的前两次"没咬"被当作有效诊断留档**：① 只去 CSS 兜底而保留短文案 ⇒ 仍 96 PASS（换成「启动」后有 37px 余量 ⇒ **CSS 兜底只在空间紧时承重**）；② 只回退文案而不动入口 ⇒ 仍 96 PASS（**页面读的是缓存 chunk** —— 正是 §11 那条机制）；红 v2（完整旧状态 + 换 rev）⇒ **78 PASS/18 FAIL/exit 1**，字节还原 ⇒ 96 PASS/exit 0。**门禁真拦了一次**：作者最后一次编辑落在 chunk（`i18n` 12:38）而非入口（12:32）⇒ `check-client-rev.ts` git/mtime/auto **三模式全 FAIL**；补入口 bump 记录后 **PASS/exit 0**（rev `0d0f1fb9fe9e`）。
 
 **两条流程教训（都已落到做法上）**：
 1. **Lead 的 `git add -A` 会扫走 teammate 在飞的改动** —— 本轮发生了**三次**（有成员第三次遇到后主动报我）。⇒ 现在**只按显式路径提交**（`git add -- <paths>`），并在提交前先看这些路径的 porcelain。
