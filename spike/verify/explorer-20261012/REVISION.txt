@@ -1,7 +1,7 @@
 # task-4 冻结 revision（锚点 = src/**/*.ts + client/** + package.json）
 #
 # **不可手工编辑**：由 revision.ps1 生成/复算。
-# 生成时间：2026-10-14 10:58:15（Asia/Shanghai 本地时区）
+# 生成时间：2026-10-14 12:03:59（Asia/Shanghai 本地时区）
 # 模式：Write ｜ 采集方式：Get-FileHash -Algorithm SHA256
 # 锚点文件数：25（src=14  client=10  package.json=1）
 # 锚点漂移 => 验证无效（revision.ps1 -Mode Check 退出码 1）
@@ -22,8 +22,8 @@ e471a5807054f00869b763a7b2f1383412104faabc4f562ae352bfdf04e5bffc      24754  src
 12e66a90eae54de22835349d2470841fabb5b10f102133d13660eb23490312d0      50494  src/explorer.ts
 e53ac2a889dfaa16a9e45c0905989fa890f318ccefe881236861ec1e3a6cd68c       5456  src/in-host-runtime.ts
 2d2ae401067934bcbdfe6e89423b69a02e9c7c3bc660bef13b8f1552cedf41fb      15040  src/index.ts
-b00b68ee0d5d91baefddecd07b7334d4538cf67ead4d9fdf93eaeeca22895ea1      43546  src/register-tools.ts
-22d854b47659312a7b94ac6fb4d770d95f1cbabdd3126a6d98da5fa748b2a7ad      18342  src/sdk-runtime.ts
+5f15ac8d7a9587324671dd22f2b7c235199d171352dd00f8da1159439d188b21      45356  src/register-tools.ts
+def70698f20ba1f9fb3805fca33eb75c60fc425a0c4159cd99ea07a38928ba1e      23582  src/sdk-runtime.ts
 1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94      21772  src/selftest.ts
 9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1      12480  src/shell-env.ts
 f2dacb90943cfae006e0161ec5737dd4bcff0c584dc291ba59ef5a074adbb7e3      14325  src/version.ts
@@ -43,7 +43,7 @@ ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087       1548  pac
 #@ADVISORY-BEGIN
 # --- 非锚点（advisory）：只告警，不判无效 ---
 66a6f9930ffc5416dd8f273525cb2a4a7db068ff028148f09f56e2c0ac6fae91        589  cordis.patch.yml
-cd511a2b37cb3b277fcb3db11c61dcfaa8d85055ab84c00a4bca820d80dee55a      84698  README.md
+89e473b3a314af14c2d561ce97d243ef3e5625955825b04a62b7d89437c2b3ad      91823  README.md
 ac456fdeeff86427ef03aaa90d494e0509eba1f16dc0b65ff59fc6480f02e269      13641  docs/2026-10-10-wsl-dsh-sdk-bridge.md
 ce186ca81c5125b5e1959737d77aecb3e21af19f7f955f1c708e35bc060febc8      11032  docs/2026-10-13-arch-review-teammates.md
 9d6fb679ba74e97e71e80263be3e4e04fda86f11115f270a4a30e240de9e929c      38837  docs/client-contract.md

@@ -748,7 +748,9 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 ---
 
-## 架构债重构轮（P0.5.1）：冻结 revision 与结果
+## 架构债重构轮（P0.5.1 → P0.5.2）：冻结 revision 与结果
+
+> 本节记录**两轮**：第一轮 T1–T6 + T42/T46/T47/T49/T50/T52/T53（P0.5.1），第二轮 T54–T62 残余任务与运行时缺陷（**P0.5.2**）。**当前冻结表 = P0.5.2**（见本节末尾）。
 
 **起因**：用户给出架构债转交包 `docs/2026-10-13-arch-review-teammates.md`（六块互不重叠的大改 + 波次 + 写域 + 门禁），并要求**用 teammate 执行**。
 
@@ -767,7 +769,7 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 **三个"同型"教训都变成了门禁**：① **chunk 陈旧**（rev 取自入口元数据 + 平台扫描快照 chunk 字节而重扫闸门看入口 ⇒ 只改 chunk 连空缓存客户端也拿旧脚本）⇒ `precommit` **第 07 项**；② **零构建 TS 漏 import 只在调用期报错**（同型三次：T3/T5/T47）⇒ 逐工具**真调探针** + `precommit` **第 08 项**（漏 import 扫描，退出码 3 记 WARN、绝不记 PASS）；③ **量具自身的红/白能力**：`box-sizing-audit` 旧判据"**既漏又误**"（把"某声明块出现过 border-box"当成"该选择器最终是 border-box"）已按**层叠生效值**重写并加夹具矩阵；扫描器还修掉一个**真词法器 bug**（缺正则字面量分支 ⇒ 正则里的引号把词法器拖进字符串态、之后整段被抹白 ⇒ 6 个假红）。
 
-**冻结 revision —— P0.5.1（2026-10-14，25 个锚点：src 14 / client 10 / package.json 1）**：由 `revision.ps1 -Mode Write -ConfirmFreeze` 生成（`-Mode Check` 复算：锚点一致、advisory 有变 ⇒ exit 3 需解释）。**独立性说明（如实）**：本轮的**终验与冻结由 Lead 执行** —— 独立验证者 `p0-verify` 在 T46（抓出 `wsl_open_ui` P0）后**上下文耗尽退出**，其后 `host-explorer`/`reliability-keeper`/`usability-engineer`/`stability-engineer` 也相继耗尽 ⇒ **T47–T53 的验证强度弱于 T26/T31/T33/T46 那几轮**（那几轮均有独立验证者 + 故意红）。
+**冻结 revision —— P0.5.1（2026-10-14，25 个锚点：src 14 / client 10 / package.json 1）**：由 `revision.ps1 -Mode Write -ConfirmFreeze` 生成（`-Mode Check` 复算：锚点一致、advisory 有变 ⇒ exit 3 需解释）。**⚠️ 已被 P0.5.2 取代**（T60 改了 `src/register-tools.ts`、T62 改了 `src/sdk-runtime.ts`；两个改动方**都如实报了冻结漂移且都没去改 `REVISION.txt`**）。**独立性说明（如实）**：本轮的**终验与冻结由 Lead 执行** —— 独立验证者 `p0-verify` 在 T46（抓出 `wsl_open_ui` P0）后**上下文耗尽退出**，其后 `host-explorer`/`reliability-keeper`/`usability-engineer`/`stability-engineer` 也相继耗尽 ⇒ **T47–T53 的验证强度弱于 T26/T31/T33/T46 那几轮**（那几轮均有独立验证者 + 故意红）。
 
 <!-- FREEZE-TABLE-BEGIN -->
 | 文件 | 大小 | SHA256 |
@@ -780,8 +782,8 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 | `src/explorer.ts` | 50,494 | `12e66a90eae54de22835349d2470841fabb5b10f102133d13660eb23490312d0` |
 | `src/in-host-runtime.ts` | 5,456 | `e53ac2a889dfaa16a9e45c0905989fa890f318ccefe881236861ec1e3a6cd68c` |
 | `src/index.ts` | 15,040 | `2d2ae401067934bcbdfe6e89423b69a02e9c7c3bc660bef13b8f1552cedf41fb` |
-| `src/register-tools.ts` | 43,546 | `b00b68ee0d5d91baefddecd07b7334d4538cf67ead4d9fdf93eaeeca22895ea1` |
-| `src/sdk-runtime.ts` | 18,342 | `22d854b47659312a7b94ac6fb4d770d95f1cbabdd3126a6d98da5fa748b2a7ad` |
+| `src/register-tools.ts` | 45,356 | `5f15ac8d7a9587324671dd22f2b7c235199d171352dd00f8da1159439d188b21` |
+| `src/sdk-runtime.ts` | 23,582 | `def70698f20ba1f9fb3805fca33eb75c60fc425a0c4159cd99ea07a38928ba1e` |
 | `src/selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
 | `src/shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
 | `src/version.ts` | 14,325 | `f2dacb90943cfae006e0161ec5737dd4bcff0c584dc291ba59ef5a074adbb7e3` |
@@ -800,3 +802,28 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 <!-- FREEZE-TABLE-END -->
 
 **仍未复核（不许当通过）**：T1 的 `initialize timeout` 冷启动判定与**宿主逃生舱 5 个失败分支**（只读码）｜T3 的 `stopAllDaemons` 全量语义｜`wsl_open_ui` 的 `open:true` 分支与 `WebHost.start()` 失败/超时路径｜实例内面板 DOM 的菜单 rect（本轮用真实 Chromium + 最小 DOM 的机制实测）｜M1「可见 `dsh1` 恰 1」**无检查器**｜M12④ 与 M6–M12 部分条目｜dark 除 V7 外逐项｜像素截图｜读屏器实机播报。
+
+---
+
+## 架构债重构轮二（P0.5.2，同日）：残余任务与运行时缺陷
+
+**做法**：用户要求"继续剩余所有任务，用 teammate" ⇒ 把第一轮留下的**未复核项**拆成**一人一件的有界任务**（T54–T62；团队成员上下文已多次耗尽，故每件都限定单文件/单目标 + 必须给原始输出 + 故意红）。
+
+| 任务 | 结论（要点） |
+|---|---|
+| **T55** `wsl_open_ui` 路径 | `open:true` 用**记录器法**验证（URL 形状正确、窗口 11→11、新增 WT 0；**明确标注"记录器 ≠ 真实开窗"**）；失败/超时两构造错误**可读且非裸抛**；**顶住一条口径**："无孤儿"**未证成** —— 失败路径不自清，唯一保证是调用方 `{stop:true}` ⇒ 判据应写"**失败后可读 + stop 后可 0**"。**发现同族第三条缺陷**：同端口失败后重试 ⇒ `WebHost.start()` 首行 `if (this.child) return this.url` 返回**空 URL 的静默假成功** |
+| **T60** WebHost 修复 | 判据改挂 **`this.url`**（不再挂 `child`）+ 新增 `#discardFailedAttempt()`（`kill` + **`reapWsl`** + `removeScript` + 状态清回初始），重试前与失败时调用、错误**原样上抛** ⇒ 同端口重试**真的重启**（2171 ms 真 URL），`OK 0ms :: null` 已不可能；**顺带关闭 T55 的 P2**（失败路径自清） |
+| **T56** 逃生舱 + 冷启动 | **五分支逐条构造**（A 脚本失败友好报错；**A2 同 key 重取拿回坏运行时 ⇒ 裸 `TypeError`**；**B spawn 失败被掩盖成超时 + `/tmp` 脚本永不删**；C 真超时；**D 非零退出也不上行**；E1 空正文兜底正确；E2 RPC error 后运行时仍 alive）。**冷启动是真的**：冷态首次 **60.5 s** vs 热态 **~870 ms**（隔离缓存 0→543 MB）；但**拒绝写"已排除回归"**（它自己 60.6 s 是**通过**的，没复现 >120 s），只写"冷启动主导、120 s 只剩 ~2× 余量、热态 3/3 稳定"，且标注 60.6 s 是**下界** |
+| **T62** 运行时池修复 | 归为 4 个根因：**RC-1** `start()` 失败既不收尾也不收敛状态（⇒ F56-1 泄漏 + F56-3 + 错误掩盖；新增 `#abortStart()`；**F56-3 无需碰 T60 的文件**，因为池的复用判据本就是 `!existing.closed`）｜**RC-2** 新增 `exitedDuringInit` 参与 race ⇒ 非零退出真因+exitCode 上行｜**RC-3** `lastTurnError` + `closeOnPromptError` + `close()` 显式 `exited`｜**RC-4（新发现 F56-5）**：`close()` 先置 `closed` 再 `request('shutdown')` ⇒ **优雅关闭从来是死代码**，调序后 `close()` **~7 s → 8 ms**。验收 real **7/7**、红测抓住旧行为、回归**守护冒烟 19/19**（含 SIGSTOP 下 `stopDaemon ok:false` + `ok:false/notes[]` 透传 ⇒ T3 硬约束未破） |
+| **T58** `stopAllDaemons` | 三个**孤立 state 目录**：两个本插件守护被停 + 元数据全清 + 无孤儿，**第三方握手 ok / pid 不变**；空目录 `ok:true` 无副作用；陈旧记录可清；**故意红**（放宽 `--state-dir` 过滤 ⇒ 第三方被 `killWslPid` 真杀 ⇒ 断言红）⇒ **F33 是承重墙**（作用域只由 `--state-dir` 过滤 + 元数据两层决定）。它还自查出一个**夹具 bug**（stale 种在 isoC 却打 isoA ⇒ 会假绿） |
+| **T57** M1 检查器 | 补上历轮缺失的门禁（`tools/m1-visible-count.ts`，口径 6 条写明：只取文本节点 ⇒ 属性天然不计；排除不可见祖先/未展开 `details`/计算样式隐藏/零尺寸）。**真机读数 panel 恒为 2** ⇒ 两条命中都是**合法路径展示**（副标题 `/home/g/project/dsh1` + 当前目录面包屑 `dsh1`）⇒ **M1 原文"恰 1"在"路径本身含 needle"时不可满足**，**历轮"M1 = 1"实为实例相关结论** ⇒ 建议重述为"作为**标签/条目**恰 1，路径展示不计"。对照：属性注入计数不变（证明不是数全页字符串）、可见注入 +1、清理复原 |
+| **T59** 工具链统一 | 全仓 **50 个 `.mjs` 全改名为 `.ts`**；关键前提 `rg '^\s*import .*\.mjs'` = **0**（工具间无真实模块导入）；严格"先 7 处引用位置无关（含 2 处仓外硬编码）**再** `git mv`"；逐个真跑 14 PASS / 19 装载OK / 5 按设计超时 / 10 不裸跑；负向两次都红；**旧名活跃引用 = 0** |
+| **T61** 探针过期 | 定因：T3 拆分后**两处硬编码同时过期** —— ① 拷贝清单手写 2 个文件而真 `src/*.ts` **14 个**（漏拷 12 ⇒ `ERR_MODULE_NOT_FOUND`）；② **更隐蔽**：`systemd-run` 锚点已搬到 `daemon-launch.ts:66/69/74`，补丁仍打在旧文件名上 ⇒ 三个 replace **全是空操作**却打印"已替换 3 处" ⇒ **只修①会让探针跑正常路径并"绿灯"退出 = 假绿**。修法：按目录枚举 + **按内容定位补丁** + **命中 0 ⇒ exit 2 并明说会退化**；红 B 用 `%TEMP%` 骨架**模拟"未来再拆分"**证明不会再悄悄过期 |
+
+**冻结 revision —— P0.5.2（2026-10-14，25 个锚点）**：`revision.ps1 -Mode Write -ConfirmFreeze`。与 P0.5.1 的漂移**恰好是预期两处**：`src/register-tools.ts`（T60）、`src/sdk-runtime.ts`（T62）—— 两个改动方都**如实上报漂移且都没去动 `REVISION.txt`**（这一点值得肯定：冻结文件只有一个写者）。README 表由 `sync-freeze-table.ps1` 重投影（**25/25 PASS**）。
+
+**两条流程教训（都已落到做法上）**：
+1. **Lead 的 `git add -A` 会扫走 teammate 在飞的改动** —— 本轮发生了**三次**（有成员第三次遇到后主动报我）。⇒ 现在**只按显式路径提交**（`git add -- <paths>`），并在提交前先看这些路径的 porcelain。
+2. **`client/**` 同一时间只能有一个 owner**（T59 报的并发写域撞车：T42 被改派后 completed，而它更早的 6 处 CSS 修法已在 HEAD，内容等价无损伤）⇒ 后续 `client/**` 的改动一律串行（本轮已按此执行：T52→T53 串行、T60 只碰 `src/`）。
+
+**本轮未复核（不许当通过）**：真实开窗（按纪律不触发）｜`WebHost.start()` 真实 60 s 超时（未打补丁）下的清理｜连续 3+ 次失败/成功交替的状态机｜`stop()` 在状态被清过之后再调｜`stopAllDaemons` 的 `legacy` 单文件记录分支与 `remaining>0 ⇒ ok:false` 分支、真实 `~/.dsh` 下含他人守护的 `--all`｜真实 dsh 对 `shutdown` 的响应（用桩验证）｜冷启动未隔离 registry 缓存/代理（60.6 s 是下界）｜读屏器实机播报｜M1 判据重述后的重新基线。
