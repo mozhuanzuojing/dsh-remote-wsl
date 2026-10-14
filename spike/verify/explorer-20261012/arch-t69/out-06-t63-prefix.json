@@ -1,0 +1,35 @@
+{
+  "_note": "T69 独立复现 T63：pre-fix client 树（8919），320x900,mobile",
+  "readings": {
+    "url": "http://127.0.0.1:8919/",
+    "tree": "prefix (git archive f60d9de^ client)",
+    "innerWidth": 320,
+    "ourRowFound": true,
+    "panelPresent": true,
+    "headerRect": {
+      "x": 56,
+      "y": 0,
+      "w": 264,
+      "h": 145
+    },
+    "headerActionKids": 2,
+    "headerKidsTops": [
+      10,
+      12
+    ],
+    "headerKidsDistinctTops": 2,
+    "startButton": {
+      "rect": {
+        "x": 227,
+        "y": 863,
+        "w": 49,
+        "h": 28
+      },
+      "textLineBoxes": 2,
+      "text": "启动守护",
+      "scrollH": 33,
+      "clientH": 26
+    },
+    "ts": "2026-10-14T07:34:00Z"
+  }
+}

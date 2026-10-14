@@ -1,0 +1,39 @@
+PATCH: "exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version} web --port ${this.cfg.webPor
+PATCH: 命中 1 ⇒ "      this.child.on('exit', (code) => {\n        clearTimeout(timer);
+== mode=red-alt port=8914 root=C:\Users\l\AppData\Local\Temp\t66-red-76d080d0 ==
+remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
+  STATE[基线] procs=0 listen=0 tmp=0
+(node:31808) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/l/AppData/Local/Temp/t66-red-76d080d0/src/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[第1次（期望失败）] OK 267ms :: http://127.0.0.1:0/
+  STATE[第1次之后] procs=0 listen=0 tmp=2
+  ASSERT 第1次 形态符合期望（可读失败）= false
+  ASSERT 第1次 无静默假成功 = false
+  ASSERT 第1次（失败）无残留 = false
+[第2次（期望成功）] OK 0ms :: http://127.0.0.1:0/
+  STATE[第2次之后] procs=0 listen=0 tmp=2
+  ASSERT 第2次 形态符合期望（真 URL）= false
+  ASSERT 第2次 无静默假成功 = false
+  ASSERT 第2次（成功）活态 = false
+[  第2次后 stop] OK 357ms :: stopped web host on port 8914
+  STATE[  第2次 stop 后] procs=0 listen=0 tmp=0
+  ASSERT 停止可读 = true
+  ASSERT 停止后无残留 = true
+[第3次（期望失败）] OK 3017ms :: http://127.0.0.1:8914/?token=KpNjnIhASzDOeYesGBCYRiN0WkRHI5t9cRkIaD7kdVI
+  STATE[第3次之后] procs=2 listen=1 tmp=2
+  ASSERT 第3次 形态符合期望（可读失败）= false
+  ASSERT 第3次 无静默假成功 = true
+  ASSERT 第3次（失败）无残留 = false
+[第4次（期望成功）] OK 0ms :: http://127.0.0.1:8914/?token=KpNjnIhASzDOeYesGBCYRiN0WkRHI5t9cRkIaD7kdVI
+  STATE[第4次之后] procs=2 listen=1 tmp=2
+  ASSERT 第4次 形态符合期望（真 URL）= true
+  ASSERT 第4次 无静默假成功 = true
+  ASSERT 第4次（成功）活态 = true
+[  第4次后 stop] OK 351ms :: stopped web host on port 8914
+  STATE[  第4次 stop 后] procs=0 listen=0 tmp=0
+  ASSERT 停止可读 = true
+  ASSERT 停止后无残留 = true
+SUMMARY 逐步 {ok,url合法,residue} = 1:OK/fail → 2:OK/noUrl → 3:OK/fail → 4:OK/url
+ASSERT 全部失败步都可读、无一步静默假成功 = false

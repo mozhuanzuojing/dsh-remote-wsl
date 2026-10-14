@@ -1,7 +1,7 @@
 # task-4 冻结 revision（锚点 = src/**/*.ts + client/** + package.json）
 #
 # **不可手工编辑**：由 revision.ps1 生成/复算。
-# 生成时间：2026-10-14 12:03:59（Asia/Shanghai 本地时区）
+# 生成时间：2026-10-14 15:20:53（Asia/Shanghai 本地时区）
 # 模式：Write ｜ 采集方式：Get-FileHash -Algorithm SHA256
 # 锚点文件数：25（src=14  client=10  package.json=1）
 # 锚点漂移 => 验证无效（revision.ps1 -Mode Check 退出码 1）
@@ -10,7 +10,7 @@
 # 契约体检（不参与锚点比对，只记录）：
 #   PREFLIGHT OK: exports["./client"] = ./client/index.js
 #   PREFLIGHT OK: dsh.client.platform = web
-#   PREFLIGHT OK: 入口文件在场 client/index.js（29194 bytes）
+#   PREFLIGHT OK: 入口文件在场 client/index.js（30422 bytes）
 #   PREFLIGHT OK: package.json files 含 "client"
 
 #@ANCHOR-BEGIN
@@ -29,26 +29,26 @@ def70698f20ba1f9fb3805fca33eb75c60fc425a0c4159cd99ea07a38928ba1e      23582  src
 f2dacb90943cfae006e0161ec5737dd4bcff0c584dc291ba59ef5a074adbb7e3      14325  src/version.ts
 09894de7aab401bda2bd820526fbc1297b593d6cbb932b3be96b15aae00427ab      19458  src/wsl-io.ts
 5a192b93a62900e088e3427712ae2f76ceb6241c579f5c04a6abf83c086fbe28      14847  client/client.api.js
-47525217062f31073b4c1d12e42ee2c5387acc57a99cf6c7dde761282b3e2da4      30998  client/client.i18n.js
+8a1ac1e2e961454a2543ae7a65157c3a87044db7bf86c3679ba2dd853bb64da8      31440  client/client.i18n.js
 e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431       2209  client/client.icon.js
 d45d9f9acbc895a1a99b07ee1de32764e2e0ea9bce9bb31aba5c2038a0ce9446      13292  client/client.panel.actions.js
 a4bcafa8e2141ea59e7b14ea2acad50d6ccfe3911112f16df439cd2554560607      13782  client/client.panel.browser.js
-b5c1a2c06c7ed495fdcac33d1696b7765b50e54ea6c1a9d7ca88f0119b88ad91       7988  client/client.panel.header.js
+7b4c67ef9ce44eb737d9fd79719c95d0809ed532471e7c075eab38417bd639d9       8385  client/client.panel.header.js
 efa1e85cca69012b6d10ea6a1133150fa9795ca7dd1a958a86b127c704e016c7      12200  client/client.panel.helpers.js
 e018be93236fbd578bfbc40611b5b49591a873414333be7b79fa7ed9a56ce081       9776  client/client.panel.js
-f5cbcf7c4820016ca98c399e2aca227d0f08e7dd917b2f657f4ef4550b67a2b3      15386  client/client.panel.tail.js
-e9498d7260770c6550e40b71d9f6f9f03e5d77ff983e911e051886daf75cfe7f      29194  client/index.js
+fefe4775dca2374276b69c2ade19c38d1c44ff4541969ead4c4157272918c366      15766  client/client.panel.tail.js
+ee3c0642bf7a513b3fe6db597bf2da501e438167bdac2e2faf851c8a4823617d      30422  client/index.js
 ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087       1548  package.json
 #@ANCHOR-END
 #@ADVISORY-BEGIN
 # --- 非锚点（advisory）：只告警，不判无效 ---
 66a6f9930ffc5416dd8f273525cb2a4a7db068ff028148f09f56e2c0ac6fae91        589  cordis.patch.yml
-89e473b3a314af14c2d561ce97d243ef3e5625955825b04a62b7d89437c2b3ad      91823  README.md
+e13897ea898ee315f210cf224894eb4a0e1bfbb5527a936b1d1bd93c55078d43     101233  README.md
 ac456fdeeff86427ef03aaa90d494e0509eba1f16dc0b65ff59fc6480f02e269      13641  docs/2026-10-10-wsl-dsh-sdk-bridge.md
 ce186ca81c5125b5e1959737d77aecb3e21af19f7f955f1c708e35bc060febc8      11032  docs/2026-10-13-arch-review-teammates.md
 9d6fb679ba74e97e71e80263be3e4e04fda86f11115f270a4a30e240de9e929c      38837  docs/client-contract.md
 1af46d2b6d365f9355eab765e5918f2af901e476aa1fe841b7e3042cd94ca4a5      79562  docs/panel-ux-redesign.md
-8d08250b43317e41ccbc3662281fceab6007ab627a8ad3b44205e96ce31d42ed     138576  docs/panel-visual-spec.md
+e273e13b03ac9b085c5a46f662484345c2198375c6e117cb31a822f045501307     140953  docs/panel-visual-spec.md
 0f2840ade53a6a5c6a644caf900b2abb8fe22b23378a64880d081ddb09da0d99      19290  docs/prior-art-dsh-wsl.md
 4dd7673ef0ba431fd7bca1c8e61aaf160dc09838dbc0203b47ae51774aec135f      20800  docs/remote-explorer-design.md
 #@ADVISORY-END

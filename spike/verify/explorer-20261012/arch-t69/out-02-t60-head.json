@@ -1,0 +1,17 @@
+{
+  "tree": "head",
+  "modPath": "C:\\Users\\l\\AppData\\Local\\Temp\\rwsl-t69\\head\\src\\register-tools.ts",
+  "bogusDistro": "rwsl-t69-nonexistent",
+  "timedOutAt": 20000,
+  "outcome": {
+    "kind": "threw",
+    "ms": 2201,
+    "error": "remote-wsl: 无法写入发行版 \"rwsl-t69-nonexistent\" 的 /tmp（UNC \\\\wsl.localhost\\rwsl-t69-nonexistent 不可用）。用 `wsl -l -v` 确认发行版名、并确认它在运行。原始错误: UNKNOWN: unknown error, open '\\\\wsl.localhost\\rwsl-t69-nonexistent\\tmp\\dsh-rwsl-24052-mv7rupbz-e854a6c1.sh'"
+  },
+  "childAfter": "null",
+  "urlAfter": "null",
+  "scriptAfter": "null",
+  "injectedChildKilled": true,
+  "killCalls": 1,
+  "ts": "2026-10-14T07:11:47.905Z"
+}

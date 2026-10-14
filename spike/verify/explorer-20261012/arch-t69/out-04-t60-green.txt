@@ -1,0 +1,8 @@
+PASS  A1 改动前复现：静默假成功（resolved null, 0ms 级）  —— kind=resolved_null ms=0
+PASS  A2 改动前：半死对象被留着、未丢弃  —— childAfter=object killCalls=0
+PASS  A3 HEAD：不再静默假成功  —— kind=threw err=remote-wsl: 无法写入发行版 "rwsl-t69-nonexistent" 的 /tmp（UNC \\wsl.localhost\
+PASS  A4 HEAD：半死尝试被丢弃（kill 真的调用）  —— killCalls=1
+PASS  A5 HEAD：不留半死状态（child/script/url 全回初始）  —— child=null script=null url=null
+PASS  A6 HEAD：不是超时冒充修复  —— kind=threw ms=2201
+
+assert-t60: 6/6 PASS

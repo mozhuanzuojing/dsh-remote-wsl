@@ -748,9 +748,9 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 ---
 
-## 架构债重构轮（P0.5.1 → P0.5.3）：冻结 revision 与结果
+## 架构债重构轮（P0.5.1 → P0.5.4）：冻结 revision 与结果
 
-> 本节记录**三轮**：第一轮 T1–T6 + T42/T46/T47/T49/T50/T52/T53（P0.5.1）；第二轮 T54–T62 残余任务与运行时缺陷（P0.5.2）；第三轮 **T63 窄态修复**（**P0.5.3**：`client/index.js`、`client.panel.header.js`、`client.panel.tail.js`、`client.i18n.js` 四个锚点再变）。**当前冻结表 = P0.5.3**（见本节末尾）。
+> 本节记录**四轮**：第一轮 T1–T6 + T42/T46/T47/T49/T50/T52/T53（P0.5.1）；第二轮 T54–T62 残余任务与运行时缺陷（P0.5.2）；第三轮 **T63 窄态修复**（`client/**` 四锚点再变，但**当时的"P0.5.3 重新冻结"实为失败**，见下方勘误）；第四轮 **T64–T70 残余收口与隔离根治**（**P0.5.4**，2026-10-14 15:20:53 真正落盘）。**当前冻结表 = P0.5.4**（见本节末尾）。
 
 **起因**：用户给出架构债转交包 `docs/2026-10-13-arch-review-teammates.md`（六块互不重叠的大改 + 波次 + 写域 + 门禁），并要求**用 teammate 执行**。
 
@@ -789,15 +789,15 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 | `src/version.ts` | 14,325 | `f2dacb90943cfae006e0161ec5737dd4bcff0c584dc291ba59ef5a074adbb7e3` |
 | `src/wsl-io.ts` | 19,458 | `09894de7aab401bda2bd820526fbc1297b593d6cbb932b3be96b15aae00427ab` |
 | `client/client.api.js` | 14,847 | `5a192b93a62900e088e3427712ae2f76ceb6241c579f5c04a6abf83c086fbe28` |
-| `client/client.i18n.js` | 30,998 | `47525217062f31073b4c1d12e42ee2c5387acc57a99cf6c7dde761282b3e2da4` |
+| `client/client.i18n.js` | 31,440 | `8a1ac1e2e961454a2543ae7a65157c3a87044db7bf86c3679ba2dd853bb64da8` |
 | `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
 | `client/client.panel.actions.js` | 13,292 | `d45d9f9acbc895a1a99b07ee1de32764e2e0ea9bce9bb31aba5c2038a0ce9446` |
 | `client/client.panel.browser.js` | 13,782 | `a4bcafa8e2141ea59e7b14ea2acad50d6ccfe3911112f16df439cd2554560607` |
-| `client/client.panel.header.js` | 7,988 | `b5c1a2c06c7ed495fdcac33d1696b7765b50e54ea6c1a9d7ca88f0119b88ad91` |
+| `client/client.panel.header.js` | 8,385 | `7b4c67ef9ce44eb737d9fd79719c95d0809ed532471e7c075eab38417bd639d9` |
 | `client/client.panel.helpers.js` | 12,200 | `efa1e85cca69012b6d10ea6a1133150fa9795ca7dd1a958a86b127c704e016c7` |
 | `client/client.panel.js` | 9,776 | `e018be93236fbd578bfbc40611b5b49591a873414333be7b79fa7ed9a56ce081` |
-| `client/client.panel.tail.js` | 15,386 | `f5cbcf7c4820016ca98c399e2aca227d0f08e7dd917b2f657f4ef4550b67a2b3` |
-| `client/index.js` | 29,194 | `e9498d7260770c6550e40b71d9f6f9f03e5d77ff983e911e051886daf75cfe7f` |
+| `client/client.panel.tail.js` | 15,766 | `fefe4775dca2374276b69c2ade19c38d1c44ff4541969ead4c4157272918c366` |
+| `client/index.js` | 30,422 | `ee3c0642bf7a513b3fe6db597bf2da501e438167bdac2e2faf851c8a4823617d` |
 | `package.json` | 1,548 | `ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087` |
 <!-- FREEZE-TABLE-END -->
 
@@ -822,7 +822,9 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 **冻结 revision —— P0.5.2（2026-10-14，25 个锚点）**：`revision.ps1 -Mode Write -ConfirmFreeze`。与 P0.5.1 的漂移**恰好是预期两处**：`src/register-tools.ts`（T60）、`src/sdk-runtime.ts`（T62）—— 两个改动方都**如实上报漂移且都没去动 `REVISION.txt`**（这一点值得肯定：冻结文件只有一个写者）。README 表由 `sync-freeze-table.ps1` 重投影（**25/25 PASS**）。
 
-**冻结 revision —— P0.5.3（2026-10-14，25 个锚点）**：T63 之后 `client/**` 四个锚点再变（`index.js`/`panel.header.js`/`panel.tail.js`/`i18n.js`）⇒ 重新冻结、README 表再投影（**25/25 PASS**）。**T63（窄态修复）要点**：判据先行 —— **N1** 头部四块各 1 个行盒（`Range.getClientRects()` 去重 `top` 数 = 1）、**N1b** 四块**未被省略号截断**（`scrollWidth <= clientWidth+1`：**这条才让"换短文案"承重**，只加 `nowrap` 也能 1 行但那是被 `…` 吃掉）、**N2** 底栏按钮文字 1 行、**N3** 底栏无横向溢出且高 **47**、**N4** 命中盒**全 ≥24×24**（WCAG 2.2 SC 2.5.8 硬底线）、**N5** 主按钮**仍带文字**（不图标化）；副标题按设计 `nowrap+ellipsis` 的例外显式写进判据。**根因**：`.dsh-rw-btn` 默认 `flex-shrink:1` 且无 `nowrap` ⇒ 空间不足时被压到**比内容还窄**（「启动守护」压到 48.8px ⇒ 折 2 行）；title/hint 无 `nowrap`，在仅 63.7px 的文字列里逐字折行（列窄是因为窄态仍用全名「添加为 WSL 工作区」132px）。**修法**：CSS 兜底（按钮 `flex:none;white-space:nowrap`，title/hint `nowrap+ellipsis`）+ **窄态短文案**（主按钮「添加工作区」87px／hint「不改目标」+`title` 完整句／底栏「启动」48px／会话数窄态按设计隐藏；**4 个新键落在 `client.i18n.js` 的 zh/en 单源**，越出原 advisory scope 已获 Lead 追认）；**宽态（面板 ≥420）一字未变**（480/560/1280 实测同前）。**实测**：两主题 × 320/359/360/419/420 ⇒ **before 64 PASS/16 FAIL → after 96 PASS/0 FAIL**。**故意红的前两次"没咬"被当作有效诊断留档**：① 只去 CSS 兜底而保留短文案 ⇒ 仍 96 PASS（换成「启动」后有 37px 余量 ⇒ **CSS 兜底只在空间紧时承重**）；② 只回退文案而不动入口 ⇒ 仍 96 PASS（**页面读的是缓存 chunk** —— 正是 §11 那条机制）；红 v2（完整旧状态 + 换 rev）⇒ **78 PASS/18 FAIL/exit 1**，字节还原 ⇒ 96 PASS/exit 0。**门禁真拦了一次**：作者最后一次编辑落在 chunk（`i18n` 12:38）而非入口（12:32）⇒ `check-client-rev.ts` git/mtime/auto **三模式全 FAIL**；补入口 bump 记录后 **PASS/exit 0**（rev `0d0f1fb9fe9e`）。
+**冻结 revision —— P0.5.4（2026-10-14 15:20:53，25 个锚点）**：T63 之后 `client/**` 四个锚点再变（`index.js`/`panel.header.js`/`panel.tail.js`/`i18n.js`）⇒ 重新冻结、README 表再投影（**25/25 PASS**）。
+
+> **勘误（必须留痕）**：本条此前写作"**P0.5.3**"并称已重新冻结 —— **那是假的**。真实情况：Lead 那次把脚本路径写成 `spike/verify/explorer-20261012/tools/revision.ps1`，而它**实际在 `spike/verify/explorer-20261012/revision.ps1`**（不在 `tools/` 下）⇒ pwsh 报"无法识别为脚本文件名"（exit 64），**加上我只过滤输出、没看退出码** ⇒ 那次冻结从未发生；而 README 的冻结表是脚本**从陈旧的 `REVISION.txt` 反向投影**出来的 ⇒ **两边一致地陈旧**，我的 `-Mode Check` 才会 PASS。该错误由独立复验者 `stability-engineer`（T69）**从 `git log -- REVISION.txt` 的 mtime 与提交时间不一致**发现（冻结 12:05 < T63 13:19）。**现已在正确路径上重做：`Write exit=0`、生成时间 15:20:53、25 个锚点与磁盘逐条比对不一致 = 0**；`REVISION-p053-frozen.txt`（内容其实是 P0.5.2 的假归档）已删除。**教训**：① 冻结这类"声称"必须用**独立于工具输出的证据**（逐锚点比 hash+size，而不是只看工具自己的 PASS）；② **过滤输出时必看退出码**；③ 脚本路径不要凭记忆。**T63（窄态修复）要点**：判据先行 —— **N1** 头部四块各 1 个行盒（`Range.getClientRects()` 去重 `top` 数 = 1）、**N1b** 四块**未被省略号截断**（`scrollWidth <= clientWidth+1`：**这条才让"换短文案"承重**，只加 `nowrap` 也能 1 行但那是被 `…` 吃掉）、**N2** 底栏按钮文字 1 行、**N3** 底栏无横向溢出且高 **47**、**N4** 命中盒**全 ≥24×24**（WCAG 2.2 SC 2.5.8 硬底线）、**N5** 主按钮**仍带文字**（不图标化）；副标题按设计 `nowrap+ellipsis` 的例外显式写进判据。**根因**：`.dsh-rw-btn` 默认 `flex-shrink:1` 且无 `nowrap` ⇒ 空间不足时被压到**比内容还窄**（「启动守护」压到 48.8px ⇒ 折 2 行）；title/hint 无 `nowrap`，在仅 63.7px 的文字列里逐字折行（列窄是因为窄态仍用全名「添加为 WSL 工作区」132px）。**修法**：CSS 兜底（按钮 `flex:none;white-space:nowrap`，title/hint `nowrap+ellipsis`）+ **窄态短文案**（主按钮「添加工作区」87px／hint「不改目标」+`title` 完整句／底栏「启动」48px／会话数窄态按设计隐藏；**4 个新键落在 `client.i18n.js` 的 zh/en 单源**，越出原 advisory scope 已获 Lead 追认）；**宽态（面板 ≥420）一字未变**（480/560/1280 实测同前）。**实测**：两主题 × 320/359/360/419/420 ⇒ **before 64 PASS/16 FAIL → after 96 PASS/0 FAIL**。**故意红的前两次"没咬"被当作有效诊断留档**：① 只去 CSS 兜底而保留短文案 ⇒ 仍 96 PASS（换成「启动」后有 37px 余量 ⇒ **CSS 兜底只在空间紧时承重**）；② 只回退文案而不动入口 ⇒ 仍 96 PASS（**页面读的是缓存 chunk** —— 正是 §11 那条机制）；红 v2（完整旧状态 + 换 rev）⇒ **78 PASS/18 FAIL/exit 1**，字节还原 ⇒ 96 PASS/exit 0。**门禁真拦了一次**：作者最后一次编辑落在 chunk（`i18n` 12:38）而非入口（12:32）⇒ `check-client-rev.ts` git/mtime/auto **三模式全 FAIL**；补入口 bump 记录后 **PASS/exit 0**（rev `0d0f1fb9fe9e`）。
 
 **两条流程教训（都已落到做法上）**：
 1. **Lead 的 `git add -A` 会扫走 teammate 在飞的改动** —— 本轮发生了**三次**（有成员第三次遇到后主动报我）。⇒ 现在**只按显式路径提交**（`git add -- <paths>`），并在提交前先看这些路径的 porcelain。
