@@ -71,3 +71,33 @@ M1 的原文是"可见 `dsh1` **恰 1 次**"，但实测 **panel scope 恒为 2*
 ## 8. 纪律
 
 未起实例（复用他人的 8961/8966 与 headless CDP 8965，只读页面 + 两次 DOM 注入后**均复原**）；未碰用户宿主 19387（pid 33688）；未写用户全局 `~/.dsh/storages/workspace.json`；未装任何包；未创建 unit/守护/包装层/profile。
+
+---
+
+## 9. 附录（`usability-engineer` 续作，2026-10-14 ｜ HEAD `b9e8dfb` / P0.5.3）
+
+上一轮我在"字节还原"中途死亡；Lead 已接手写好正文（§1–§8）。本附录只补**正文未覆盖的两件**：**副本级红测**与**字节还原复绿**，并**修掉脚本里一处控制项缺陷**。
+
+### 9.1 修脚本：控制项的期望值不该用 `--expect`
+
+原实现的 `--selftest` 把控制项期望写成 `EXPECT`（= 断言期望，通常 1），而真实 baseline 是 **2** ⇒ **控制项自己假红**（`selftestVerdict: FAIL`，尽管注入行为完全正确）。
+已改为**以实测 baseline 为基准**（`expected: count` / `count + 1`），并**注入到"读数 scope 根"**（原先注入 panel 根而读 entries scope ⇒ 负例测不到）。修后：`selftestVerdict = PASS(三项控制全部符合预期)`（`out-m1-selftest.json`）。
+
+### 9.2 副本级红测（"必须能红"的**副本**形态）
+
+| 步骤 | 读数 |
+|---|---|
+| 副本入口追加注入（往 `.dsh-rw-entries` 塞第二个同名可见条目） | `28342 B / B138A277…` → **`28842 B / 1B8428704BC1BAF9`** |
+| 副本上跑：`--scope entries --up 1` | **count 2 ⇒ FAIL / exit 1** ✅（两条命中均为 `div.dsh-rw-entries > div.dsh-rw-row--dir > span.dsh-rw-rowname`）→ `out-m1-red-copy.json` |
+| **字节还原**（拷回 pristine 入口） | `sha256 = B138A277BCE45DB4`、28342 B、红标记串已无 ✅ |
+| 还原后**同实例直接复跑** | **count 仍 2 / exit 1** ⚠️ |
+| **重启该实例**后复跑 | **count 1 ⇒ PASS / exit 0** ✅ → `out-m1-red-restored.json` |
+
+### 9.3 由此得到的一条**机制补充**（给 `docs/client-contract.md §11` 的作者）
+
+§11 讲的是"**只改 chunk（入口不动）**⇒ 宿主不重扫、连空缓存浏览器也拿旧字节"。本附录补另一半：**即使改/还原的是入口本身，运行中的实例也不会立刻换字节** —— 必须**重启实例**后才生效（上表"同实例仍 2 / 重启后 1"）。
+⇒ 排查"改了没生效"时，**除了 `rev` 还要问"实例是否重启过"**；这条与判法无关，但会让"还原即复绿"的期望落空。
+
+### 9.4 与本轮 T64 的口径一致性
+
+本轮 T64 在同一基线（`b9e8dfb` / P0.5.3、孤立 `DSH_HOME`、headless CDP）上复核：`entries` scope = **1 / exit 0**、`panel` scope = **2 / exit 1**（两条命中与 §3 表一致：副标题路径 + 面包屑当前段）⇒ **与 Lead 正文结论一致，独立复现**。

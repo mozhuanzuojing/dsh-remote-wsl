@@ -1,9 +1,9 @@
 {
-  "ts": "2026-10-14T03:30:42.562Z",
+  "ts": "2026-10-14T07:12:35.018Z",
   "url": "http://127.0.0.1:8961/?token=***",
   "needle": "dsh1",
   "expect": 1,
-  "scope": "entries",
+  "scope": "panel",
   "readings": {
     "panel": {
       "root": "[data-dsh-remote-wsl=\"panel\"]",
@@ -16,7 +16,7 @@
           "occurrences": 1
         },
         {
-          "path": "section.dsh-rw-root > div.dsh-rw-body > section.dsh-rw-card > div.dsh-rw-entries > div.dsh-rw-row.dsh-rw-row--dir > span.dsh-rw-rowname",
+          "path": "section.dsh-rw-root > div.dsh-rw-body > section.dsh-rw-card > nav.dsh-rw-crumbs > span.dsh-rw-crumb.dsh-rw-crumb--current",
           "snippet": "dsh1",
           "occurrences": 1
         }
@@ -26,35 +26,29 @@
     "entries": {
       "root": ".dsh-rw-entries",
       "needle": "dsh1",
-      "count": 1,
-      "hits": [
-        {
-          "path": "div.dsh-rw-entries > div.dsh-rw-row.dsh-rw-row--dir > span.dsh-rw-rowname",
-          "snippet": "dsh1",
-          "occurrences": 1
-        }
-      ],
+      "count": 0,
+      "hits": [],
       "excluded": []
     }
   },
   "controls": {
     "attributeInjection": {
-      "count": 1,
-      "expected": 1,
+      "count": 2,
+      "baseline": 2,
       "ok": true,
       "note": "属性值（aria-label/title/data-*）不是文本节点 ⇒ 不计入"
     },
     "visibleInjection": {
-      "count": 1,
-      "expected": 2,
-      "ok": false,
-      "note": "注入第二处可见文本 ⇒ 计数必须 +1（在 panel scope 下）"
+      "count": 3,
+      "baseline": 2,
+      "ok": true,
+      "note": "注入第二处可见文本（注入到读数 scope 根内）⇒ 计数必须 +1"
     },
     "afterCleanup": {
-      "count": 1,
+      "count": 2,
       "ok": true
     }
   },
-  "verdict": "PASS(可见 dsh1 恰 1 次，scope=entries)",
-  "selftestVerdict": "FAIL(控制不符预期)"
+  "verdict": "FAIL(可见 dsh1 2 次 ≠ 期望 1，scope=panel)",
+  "selftestVerdict": "PASS(三项控制全部符合预期)"
 }

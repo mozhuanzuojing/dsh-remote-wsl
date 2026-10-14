@@ -667,6 +667,30 @@ html[data-input-modality=pointer] body :focus-visible:not(:read-write){--dsw-foc
 
 **反过来说"为什么不再往下加内容"**：面板的职责是"选一个 WSL 目录"（T27 §2.1），任何为了填满高度而新增的区块都会与"运维细节不抢主视线"（T27 §9.1-V5）冲突。**所以留白由 R1 转成"列表内的空间"，而不是靠塞东西。**
 
+#### 6.2.1 窄态文案表（T64 补，据 `client/**` 源码 + 实测）
+
+**触发条件 = 面板自身宽度**（不是视口）：`client.panel.helpers.js:22` 定义 **`NARROW_PX = 420`**，判定写成 `const narrow = width < NARROW_PX`（`client.panel.actions.js:194`）；`width` 由面板自身的宽度观测得到，**与浏览器视口宽度解耦**（实测：视口 320/359/420 时面板实宽只有 **264 / 303 / 364**，都落在窄态区间）。
+
+| 位置 | 键名（`client/i18n` 字典） | 宽态文案 | 窄态（`narrow`）文案 | 代码出处 |
+|---|---|---|---|---|
+| 头部主按钮（添加工作区） | `action.addWorkspace` / **`action.addWorkspaceShort`** | 添加为 WSL 工作区 | **添加工作区** | `client.panel.header.js:118`（`t(narrow ? "action.addWorkspaceShort" : "action.addWorkspace")`） |
+| 头部主按钮（在当前目录开会话） | `browser.openHere` / **`browser.openHereShort`** | 在此目录新建会话 | **新建会话** | `client.panel.header.js:117` |
+| 目标 scope hint | `header.distroScope` / **`header.distroScopeShort`** | 仅筛选，不改目标 | **不改目标** | `client.panel.tail.js:256`（`narrow ? t("header.distroScopeShort") : t("header.distroScope")`，`title` 恒为宽态全文） |
+| 底栏启动按钮 | `status.start` / **`status.startShort`** | 启动守护 | **启动** | `client.panel.tail.js:281`（busy 时用 `status.startBusy`） |
+| 底栏会话数 | —（非键，改由 CSS 承载） | 常显「会话 N 个」（`status.sessions`） | **整块隐藏**（`.dsh-rw-extra--hidden`）⇒ 会话数改由 `⋯` 菜单/诊断承载 | `client.panel.tail.js:274`（`"dsh-rw-extra" + (narrow ? " dsh-rw-extra--hidden" : "")`） |
+| 头部主按钮的取舍（N1 互斥） | — | 宽态：会话按钮 + 添加工作区次按钮并存 | **窄态：主体只留 1 个入口**（添加工作区进 `⋯`） | `client.panel.header.js:58`（`if (!narrow && primaryIsSession)`）、`client.panel.tail.js:162`（`if (narrow && primaryIsSession)` 剔除头部那个） |
+
+**T64 实测（zh-CN，`usability/arch-t64/out-t64-narrow-zh.json`）** —— 与上表的**对账结果（红/待查）**：
+
+| 视口 | 面板实宽（<420 ⇒ 应走窄态） | 头部主按钮**实测**文案 | 底栏启动按钮**实测**文案 | 会话数块 | N1 行盒 | N1b 省略 | N2 单行 | N4 命中盒 ≥24 |
+|---|---|---|---|---|---|---|---|---|
+| 320 | 264 | **添加为 WSL 工作区**（宽态文案） | **启动守护**（宽态文案） | **未隐藏**（`extraHidden=false`） | 1/1/1 ✅ | 无 ✅ | ✅ | **25/25** ✅ |
+| 359 | 303 | **添加为 WSL 工作区** | **启动守护** | **未隐藏** | 1/1/1 ✅ | 无 ✅ | ✅ | 25/25 ✅ |
+| 420 | 364 | **添加为 WSL 工作区** | **启动守护** | **未隐藏** | 1/1/1 ✅ | 无 ✅ | ✅ | 25/25 ✅ |
+
+⇒ **窄态短文案在本 build 的实测中未生效**（面板实宽 264/303/364 均 < 420，落窄态区间，但渲染的是宽态文案、会话数块也未隐藏）。四行盒/不省略/单行/命中盒**全部达标**（因此"窄态是否需要改文案"的量化结论：**布局不需要**——不换行、不省略、命中盒 25/25；**但对账上"实现声称的窄态分支未被观察到"属实**，最小复现＝上表三档；建议实现侧查"参与 `narrow` 判定的 `width` 与面板元素实宽是否同一量"（T64 未改 `client/**`）。
+> **en locale 未复核**：本轮用 CDP `Emulation.setLocaleOverride('en-US')` 构造 en，**未生效**（面板 `htmlLang` 仍 `zh-CN`、文案仍中文）⇒ 说明该面板语言不取自 `navigator.language`，而由宿主侧 locale 注入；en 窄态行盒**未测**（拦在"起一个 en locale 的宿主实例"这一环）。
+
 ### 6.3 空态 / 加载态 / 错误态（三态视觉，采纳 T27 复核的 V-b）
 
 | 态 | 视觉 | 尺寸 / 位置 | 为什么 |

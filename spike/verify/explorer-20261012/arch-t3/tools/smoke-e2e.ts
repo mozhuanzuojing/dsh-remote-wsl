@@ -9,14 +9,23 @@
  *
  * 用法：node --experimental-strip-types smoke-e2e.ts [--slot 8911] [--out <json>]
  * 纪律：只用 8911–8920；结束停自己的守护 + `systemctl reset-failed` 自己的 unit；不碰 19387/47604。
+ *
+ * ⚠️ **T70 修的纪律缝**：本脚本会 `import src/index.ts` + `apply()`。若用**默认** `DSH_HOME`，那一下会去写
+ * **用户全局** `~/.dsh/storages/workspace.json`（T67 实测：15:10:50/15:15:03 两次重建）。现在：
+ *  · 在任何 `import src/**` **之前**调 `isolateDshHome()`（把 `DSH_HOME` 指到 `%TEMP%`）；
+ *  · 收尾用 **"用户全局 workspace.json 前后 sha256 相同"** 作断言（不同 ⇒ 判红 + exit 1）。
  */
 import { writeFileSync } from 'node:fs';
+import { isolateDshHome } from '../../arch-t58/tools/dsh-guard.ts';
 
 const arg = (n: string, d: string) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : d; };
 const ROOT = arg('root', 'D:/project/dsh1/vendor/dsh-remote-wsl');
 const SLOT = Number(arg('slot', '8911'));
 const OUT = arg('out', '');
 if (!(SLOT >= 8911 && SLOT <= 8920)) { console.error(`拒跑：slot ${SLOT} 不在纪律段 8911–8920`); process.exit(3); }
+
+// ★ T70：必须在任何 "import src 下模块" 之前隔离 DSH_HOME（下面的 daemon-client / index.ts 都在此之后）
+const guard = isolateDshHome('t70-smoke-e2e');
 
 const DC: any = await import(`file:///${ROOT}/src/daemon-client.ts`);
 const steps: Array<Record<string, unknown>> = [];
@@ -120,6 +129,12 @@ rec('D1 收尾 stop + 快照确认本槽位已消失', (stopped2?.ok === true ||
 rec('D2 无孤儿残留', (snap2.orphans ?? []).length === 0, { orphans: (snap2.orphans ?? []).length });
 
 const fails = steps.filter((s) => s.ok !== true);
-if (OUT) writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), slot: SLOT, pass: steps.length - fails.length, total: steps.length, fails: fails.map((f) => f.step), steps }, null, 2), 'utf8');
+// ★ T70 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 本工具改写了用户文件 ⇒ 判红）
+let guardOk = true;
+let guardErr = '';
+try { guard.assertUnchanged(); } catch (e: any) { guardOk = false; guardErr = String(e?.message ?? e); say(`  [FAIL] T70 隔离断言 — ${guardErr}`); }
+if (OUT) writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), slot: SLOT, pass: steps.length - fails.length, total: steps.length, fails: fails.map((f) => f.step), guard: { isoHome: guard.isoHome, watched: guard.watched, shaBefore: guard.shaBefore, shaAfter: guard.shaNow(), ok: guardOk }, steps }, null, 2), 'utf8');
 say(`\n冒烟：${steps.length - fails.length}/${steps.length} PASS；失败：${fails.map((f) => f.step).join(', ') || '(无)'}`);
-process.exit(fails.length ? 1 : 0);
+say(`T70 隔离：用户全局 workspace.json sha 前后相同 = ${guardOk}`);
+guard.cleanup();
+process.exit(fails.length || !guardOk ? 1 : 0);
