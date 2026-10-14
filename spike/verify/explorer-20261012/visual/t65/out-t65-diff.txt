@@ -1,0 +1,118 @@
+| 主题 | 组 | kind | 静态比值 | 实测比值 | Δ | 静态判定 | 实测判定 |
+|---|---|---|---|---|---|---|---|
+| light | G1 正文 | text | 18.9 | 18.896452054380127 | 0 | PASS | PASS |
+| light | G1b 正文/底栏 | text | 18.08 | 18.082282383551934 | 0 | PASS | PASS |
+| light | G2 次要文字 | text | 5.8 | 5.799289506181867 | 0 | PASS | PASS |
+| light | G2b 次要/底栏 | text | 5.55 | 5.549422196980242 | 0 | PASS | PASS |
+| light | G3 三级/禁用文字 | text | — | 3.705581408755444 | — | — | FAIL(<4.5) |
+| light | G4 链接/焦点环 | nontext | 4.23 | 4.234920265946941 | 0 | PASS | PASS |
+| light | G4b 链接 | text | — | 4.234920265946941 | — | — | FAIL(<4.5) |
+| light | G5 success 点 | nontext | 2.28 | 2.2786093403477246 | 0 | FAIL(<3) | FAIL(<3) |
+| light | G5b success 文字 | text | — | 2.2786093403477246 | — | — | FAIL(<4.5) |
+| light | G6 error 文字 | text | — | 4.497629938189608 | — | — | FAIL(<4.5) |
+| light | G6b error 文字/底栏 | text | — | 4.303845735962393 | — | — | FAIL(<4.5) |
+| light | G7 warn 文字 | text | — | 2.1476626917618766 | — | — | FAIL(<4.5) |
+| light | G7b warn-label 文字 | text | — | 2.7938578363003685 | — | — | FAIL(<4.5) |
+| light | G7c warn-label/warn-tertiary | text | — | 2.5848551302684184 | — | — | FAIL(<4.5) |
+| light | G8 idle 点 | nontext | 1.48 | 1.482266131414131 | 0 | FAIL(<3) | FAIL(<3) |
+| light | G9 边框 l1 vs layer-1 | nontext | 1.09 | 1.090230993517392 | 0 | FAIL(<3) | FAIL(<3) |
+| light | G9b 边框 l2 vs layer-1 | nontext | 1.26 | 1.259690935041431 | 0 | FAIL(<3) | FAIL(<3) |
+| light | G9c 边框 l2 vs bg-base | nontext | 1.26 | 1.259690935041431 | 0 | FAIL(<3) | FAIL(<3) |
+| light | G10 危险按钮 hover | text | — | 4.497629938189608 | — | — | FAIL(<4.5) |
+| light | G11 正文/overlay | text | 15.97 | 15.967564678281837 | 0 | PASS | PASS |
+| light | G11b 次要/overlay | text | 4.9 | 4.9004188728950115 | 0 | PASS | PASS |
+| light | G12 次要/nav-hover | text | 55.21 | 5.213535228745009 | -50 | PASS | PASS |
+| light | G13 正文/nav-active | text | 216.24 | 16.23691928929162 | -200 | PASS | PASS |
+| light | G14 brand(单色) 正文 | text | 18.9 | 18.896452054380127 | 0 | PASS | PASS |
+| light | G15 焦点环 vs sidebar-fill | nontext | 4.05 | 4.052455132863376 | 0 | PASS | PASS |
+| light | G16 焦点环 vs overlay | nontext | 3.58 | 3.578521674824133 | 0 | PASS | PASS |
+| light | A1 边框 l3 vs layer-1 | nontext | 1.32 | 1.320083534140116 | 0 | FAIL(<3) | FAIL(<3) |
+| light | A2 边框 l4 vs layer-1 | nontext | 1.45 | 1.4534015443120838 | 0 | FAIL(<3) | FAIL(<3) |
+| light | A3 success点/success-tertiary | nontext | 2.09 | 2.0899976294406986 | 0 | FAIL(<3) | FAIL(<3) |
+| light | A4 success点/layer-2 | nontext | 2.28 | 2.2786093403477246 | 0 | FAIL(<3) | FAIL(<3) |
+| light | A5 error点/layer-2 | nontext | 4.5 | 4.497629938189608 | 0 | PASS | PASS |
+| light | A6 warn点/warn-tertiary | nontext | 1.99 | 1.987000503303324 | 0 | FAIL(<3) | FAIL(<3) |
+| light | A7 idle点/layer-2 | nontext | 1.48 | 1.482266131414131 | 0 | FAIL(<3) | FAIL(<3) |
+| light | A8 正文/success-tertiary | text | 17.33 | 17.332299705427967 | 0 | PASS | PASS |
+| light | A9 正文/warn-tertiary | text | 17.48 | 17.482847696114618 | 0 | PASS | PASS |
+| light | A10 label-tertiary/sidebar-fill | text | — | 3.5459232894899197 | — | — | FAIL(<4.5) |
+| light | A11 危险按钮静态描边 | nontext | 4.5 | 4.497629938189608 | 0 | PASS | PASS |
+| light | A12 正文/idle 禁用底 | text | 18.9 | 18.896452054380127 | 0 | PASS | PASS |
+| light | A13 焦点环/interactive-hover | nontext | 3.81 | 3.8112530268534566 | 0 | PASS | PASS |
+| light | A14 焦点环/interactive-active | nontext | 3.52 | 3.517884136555808 | 0 | PASS | PASS |
+| light | A15 正文/interactive-hover | text | 17.01 | 17.0060250409328 | 0 | PASS | PASS |
+| light | A16 次要/interactive-active | text | 4.82 | 4.817381975556505 | 0 | PASS | PASS |
+| light | A17 正文/nav-active | text | 216.24 | 16.23691928929162 | -200 | PASS | PASS |
+| light | A18 焦点环/menu-surface | nontext | 4.11 | 4.107884657076599 | 0 | PASS | PASS |
+| light | A19 正文/menu-surface | text | 18.33 | 18.32961203344277 | 0 | PASS | PASS |
+| light | A20 次要/menu-surface | text | 5.63 | 5.625327252545796 | 0 | PASS | PASS |
+| light | R1 焦点环/popover | nontext | 3.58 | 3.578521674824133 | 0 | PASS | PASS |
+| light | R2 内圈 hairline vs 焦点环 | nontext | 64.23 | 4.234920265946941 | -60 | PASS | PASS |
+| light | R3 正文/popover | text | 15.97 | 15.967564678281837 | 0 | PASS | PASS |
+| light | R4 次要/popover | text | 4.9 | 4.9004188728950115 | 0 | PASS | PASS |
+| light | R5 禁用/popover | text | — | 1.0661641298737554 | — | — | FAIL(<4.5) |
+| light | R6 正文/inset(bg-base) | text | 18.9 | 18.896452054380127 | 0 | PASS | PASS |
+| light | R7 border-l2 vs bg-base(dark) | nontext | 1.26 | 1.259690935041431 | 0 | FAIL(<3) | FAIL(<3) |
+| light | R8 hover 填充 vs layer-1 | nontext | 1.11 | 1.1111621915701728 | 0 | FAIL(<3) | FAIL(<3) |
+| light | R9 active 填充 vs layer-1 | nontext | 1.2 | 1.2038259651419756 | 0 | FAIL(<3) | FAIL(<3) |
+| light | R10 popover 面 vs layer-1 | nontext | 1.18 | 1.1834273062367484 | 0 | FAIL(<3) | FAIL(<3) |
+| light | R11 sidebar-fill vs layer-1 | nontext | 1.05 | 1.0450258243709754 | 0 | FAIL(<3) | FAIL(<3) |
+| light | R12 layer-2 vs layer-1 | nontext | 1 | 1 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | G1 正文 | text | 15.03 | 15.026101925946511 | 0 | PASS | PASS |
+| dark | G1b 正文/底栏 | text | 16.47 | 16.46953473723769 | 0 | PASS | PASS |
+| dark | G2 次要文字 | text | 10.42 | 10.424919542025554 | 0 | PASS | PASS |
+| dark | G2b 次要/底栏 | text | 11.43 | 11.426354977256201 | 0 | PASS | PASS |
+| dark | G3 三级/禁用文字 | text | 7.36 | 7.355684064256869 | 0 | PASS | PASS |
+| dark | G4 链接/焦点环 | nontext | 6.75 | 6.745719014105008 | 0 | PASS | PASS |
+| dark | G4b 链接 | text | 6.75 | 6.745719014105008 | 0 | PASS | PASS |
+| dark | G5 success 点 | nontext | 6.89 | 6.891336866831358 | 0 | PASS | PASS |
+| dark | G5b success 文字 | text | 6.89 | 6.891336866831358 | 0 | PASS | PASS |
+| dark | G6 error 文字 | text | 4.77 | 4.7747704581995825 | 0 | PASS | PASS |
+| dark | G6b error 文字/底栏 | text | 5.23 | 5.233442998803619 | 0 | PASS | PASS |
+| dark | G7 warn 文字 | text | 7.31 | 7.311513401279309 | 0 | PASS | PASS |
+| dark | G7b warn-label 文字 | text | 5.62 | 5.620423612189964 | 0 | PASS | PASS |
+| dark | G7c warn-label/warn-tertiary | text | 5.53 | 5.533326090329226 | 0 | PASS | PASS |
+| dark | G8 idle 点 | nontext | 2.1 | 2.1041476070686103 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | G9 边框 l1 vs layer-1 | nontext | 1.19 | 1.1899336205857973 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | G9b 边框 l2 vs layer-1 | nontext | 1.46 | 1.4638154907937715 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | G9c 边框 l2 vs bg-base | nontext | 1.41 | 1.4136331447936037 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | G10 危险按钮 hover | text | 4.77 | 4.7747704581995825 | 0 | PASS | PASS |
+| dark | G11 正文/overlay | text | 5.55 | 5.549422196980242 | 0 | PASS | PASS |
+| dark | G11b 次要/overlay | text | — | 3.8501189592193934 | — | — | FAIL(<4.5) |
+| dark | G12 次要/nav-hover | text | 9.25 | 9.252469072738661 | 0 | PASS | PASS |
+| dark | G13 正文/nav-active | text | 9.18 | 9.18096352350147 | 0 | PASS | PASS |
+| dark | G14 brand(单色) 正文 | text | 15.03 | 15.026101925946511 | 0 | PASS | PASS |
+| dark | G15 焦点环 vs sidebar-fill | nontext | 7.39 | 7.393724212572115 | 0 | PASS | PASS |
+| dark | G16 焦点环 vs overlay | nontext | 2.49 | 2.4913209703991765 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | A1 边框 l3 vs layer-1 | nontext | 1.68 | 1.6750585817705579 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | A2 边框 l4 vs layer-1 | nontext | — | 1.9187854101761392 | — | — | FAIL(<3) |
+| dark | A3 success点/success-tertiary | nontext | 5.25 | 5.2538261574526 | 0 | PASS | PASS |
+| dark | A4 success点/layer-2 | nontext | 6.12 | 6.116294804304264 | 0 | PASS | PASS |
+| dark | A5 error点/layer-2 | nontext | 4.24 | 4.237770451447917 | 0 | PASS | PASS |
+| dark | A6 warn点/warn-tertiary | nontext | 7.2 | 7.198209717741677 | 0 | PASS | PASS |
+| dark | A7 idle点/layer-2 | nontext | 1.87 | 1.8675022459786441 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | A8 正文/success-tertiary | text | 11.46 | 11.45561868018004 | 0 | PASS | PASS |
+| dark | A9 正文/warn-tertiary | text | 14.79 | 14.793248260230225 | 0 | PASS | PASS |
+| dark | A10 label-tertiary/sidebar-fill | text | 8.06 | 8.062283538968686 | 0 | PASS | PASS |
+| dark | A11 危险按钮静态描边 | nontext | 4.24 | 4.237770451447917 | 0 | PASS | PASS |
+| dark | A12 正文/idle 禁用底 | text | 13.34 | 13.33617423071505 | 0 | PASS | PASS |
+| dark | A13 焦点环/interactive-hover | nontext | 146.38 | 6.376406198089753 | -140 | PASS | PASS |
+| dark | A14 焦点环/interactive-active | nontext | 245.18 | 5.178775661745735 | -240 | PASS | PASS |
+| dark | A15 正文/interactive-hover | text | 1414.2 | 14.203456926295601 | -1400 | PASS | PASS |
+| dark | A16 次要/interactive-active | text | 248 | 8.003345453169956 | -240 | PASS | PASS |
+| dark | A17 正文/nav-active | text | 9.18 | 9.18096352350147 | 0 | PASS | PASS |
+| dark | A18 焦点环/menu-surface | nontext | 6.11 | 6.106816793578499 | 0 | PASS | PASS |
+| dark | A19 正文/menu-surface | text | 13.6 | 13.602946015320638 | 0 | PASS | PASS |
+| dark | A20 次要/menu-surface | text | 9.44 | 9.437551964116736 | 0 | PASS | PASS |
+| dark | R1 焦点环/popover | nontext | 2.49 | 2.4913209703991765 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | R2 内圈 hairline vs 焦点环 | nontext | 6.75 | 6.745719014105008 | 0 | PASS | PASS |
+| dark | R3 正文/popover | text | 5.55 | 5.549422196980242 | 0 | PASS | PASS |
+| dark | R4 次要/popover | text | — | 3.8501189592193934 | — | — | FAIL(<4.5) |
+| dark | R5 禁用/popover | text | — | 1.6543998992358802 | — | — | FAIL(<4.5) |
+| dark | R6 正文/inset(bg-base) | text | 17.45 | 17.45095194843412 | 0 | PASS | PASS |
+| dark | R7 border-l2 vs bg-base(dark) | nontext | 1.41 | 1.4136331447936037 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | R8 hover 填充 vs layer-1 | nontext | 1.27 | 1.2673271557577594 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | R9 active 填充 vs layer-1 | nontext | 1.57 | 1.565460204723816 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | R10 popover 面 vs layer-1 | nontext | 2.71 | 2.7076876461342363 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | R11 sidebar-fill vs layer-1 | nontext | 1.1 | 1.096061694403837 | 0 | FAIL(<3) | FAIL(<3) |
+| dark | R12 layer-2 vs layer-1 | nontext | 1.13 | 1.1267175777697418 | 0 | FAIL(<3) | FAIL(<3) |

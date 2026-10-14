@@ -1,0 +1,74 @@
+{
+  "ts": "2026-10-14T07:14:15.444Z",
+  "head": null,
+  "url": "http://127.0.0.1:8966/?token=***",
+  "integrity": {
+    "chunkCount": 9,
+    "allPass": true,
+    "chunks": {
+      "client.i18n.js": {
+        "diskBytes": 31440,
+        "servedBytes": 31499,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.i18n.js.map?rev=8f8232b10112"
+      },
+      "client.api.js": {
+        "diskBytes": 14847,
+        "servedBytes": 14905,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.api.js.map?rev=8f8232b10112"
+      },
+      "client.panel.js": {
+        "diskBytes": 9776,
+        "servedBytes": 9836,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.panel.js.map?rev=8f8232b10112"
+      },
+      "client.icon.js": {
+        "diskBytes": 2209,
+        "servedBytes": 2268,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.icon.js.map?rev=8f8232b10112"
+      },
+      "client.panel.helpers.js": {
+        "diskBytes": 12200,
+        "servedBytes": 12268,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.panel.helpers.js.map?rev=8f8232b10112"
+      },
+      "client.panel.actions.js": {
+        "diskBytes": 13292,
+        "servedBytes": 13360,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.panel.actions.js.map?rev=8f8232b10112"
+      },
+      "client.panel.header.js": {
+        "diskBytes": 8385,
+        "servedBytes": 8452,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.panel.header.js.map?rev=8f8232b10112"
+      },
+      "client.panel.browser.js": {
+        "diskBytes": 13782,
+        "servedBytes": 13850,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.panel.browser.js.map?rev=8f8232b10112"
+      },
+      "client.panel.tail.js": {
+        "diskBytes": 15766,
+        "servedBytes": 15831,
+        "prefixMatch": "PASS",
+        "appended": "\";\"",
+        "trailer": "//# sourceMappingURL=client.panel.tail.js.map?rev=8f8232b10112"
+      }
+    }
+  }
+}

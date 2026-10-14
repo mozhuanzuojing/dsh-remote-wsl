@@ -1,0 +1,35 @@
+### T65 收尾（2026-10-14T15:36:36.3010572+08:00）
+before: workspace.json	11556	DCE16CFB4DC6759F65D2A3BF2AAA49A58EBCB0BDEBD4DFE074663A1CE7553323
+after : workspace.json	11672	69AC2EC049365EF032114177613EF50D77EB76A70283DBBD9ABDB51E79469E14
+未变 = False
+storages 文件数 = 196
+已停 pid=23296 (DeepSeek Harness.exe)
+8966 = 空闲
+命中 4 个
+残留 = 0
+已删 C:\Users\l\AppData\Local\Temp\usab-t65（残留=False）
+已删 C:\Users\l\AppData\Local\Temp\usab-t65-home（残留=False）
+已删 C:\Users\l\AppData\Local\Temp\t65-chrome（残留=False）
+usab-t65* 残留 = 0
+匹配 --profile t65 / usab-t65 的进程 = 2（我的实例已停；若>0 见下）
+  pid=31620 DeepSeek Harness.exe start=10/14/2026 15:36:35
+  pid=40760 pwsh.exe start=10/14/2026 15:36:35
+--- 端口 8961-8970 ---
+--- 宿主 19387 = 33688（应 33688）---
+可见窗口数 = 9；我窗口内(15:00-15:45)新起 = 0
+pid=2828 chrome start=10/14/2026 10:04:50 title='Open Design Cloud - Google Chrome'
+pid=15212 chrome start=10/14/2026 10:08:01 title='Authentication - zwkk Jira - Google Chrome'
+pid=30428 Code start=10/14/2026 11:00:31 title='OperatorQueryHandler.java (工作树) (OperatorQueryHandler.java) - u8-workspace (工作区) [WSL: debian-u8-1] - Visual Studio Code'
+pid=15380 Cursor start=10/14/2026 09:21:09 title='OpenAPI-Gateway [WSL: debian-u8-1] - Cursor'
+pid=33176 DeepSeek Harness start=10/14/2026 09:21:43 title='查询我的Jira单子 — DeepSeek Harness'
+pid=6472 gephgui-wry start=10/14/2026 13:33:45 title='Geph'
+pid=22380 QQ start=10/14/2026 09:20:44 title='QQ'
+pid=20380 TextInputHost start=10/14/2026 09:17:52 title='Windows 输入体验'
+pid=16432 Weixin start=10/14/2026 09:20:53 title='微信'
+
+--- 6) workspace.json 变化**归属**（不是我的实例写的）---
+· 我的实例用**孤立** DSH_HOME：%TEMP%\usab-t65-home（boot 打印 + out-t65-dumpconfig.txt 可证），写入目标不在 ~/.dsh ⇒ 结构上不可能写用户 storages
+· 变化文件与时间：workspace.json 15:17:05（11556→11672B）+ session_projcache/sessions/*.json（15:16:35–15:37:18，共 14 个）
+· 并发写入者：用户自己的 DeepSeek Harness 应用进程树（parent 33176 / 33688，即 19387 宿主；持续写 session 缓存）
+· 另有队友实例 pid 40260（cmd 父命令行 = dsh.cmd --profile t73iso ...，15:33:53 起）⇒ 也不是我
+· 结论：**未触碰**用户全局存储；shas 差异属并发写入者（T63 已遇同一现象），不是本轮副作用

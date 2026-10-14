@@ -1,0 +1,2005 @@
+{
+  "ts": "2026-10-14T07:34:00.415Z",
+  "head": null,
+  "url": "http://127.0.0.1:8966/?token=***",
+  "contrast": [
+    {
+      "dark": false,
+      "tokenGroups": {
+        "colorScheme": "light",
+        "tokens": {
+          "--dsw-alias-label-primary": "#0f1115",
+          "--dsw-alias-bg-layer-1": "#fff",
+          "--dsw-specific-sidebar-fill": "#f9fafb",
+          "--dsw-alias-label-secondary": "#61666b",
+          "--dsw-alias-label-tertiary": "#81858c",
+          "--dsw-alias-state-business-primary": "#4176e6",
+          "--dsw-alias-link": "#4176e6",
+          "--dsw-alias-state-success-primary": "#22c55e",
+          "--dsw-alias-state-error-primary": "#ec1313",
+          "--dsw-alias-state-warn-primary": "#f59e0b",
+          "--dsw-alias-state-warn-label": "#dd8629",
+          "--dsw-alias-state-warn-tertiary": "#fef5e7",
+          "--dsw-alias-state-idle-primary": "#d4d4d4",
+          "--dsw-alias-border-l1": "#0000000a",
+          "--dsw-alias-border-l2": "#0000001a",
+          "--dsw-alias-bg-base": "#fff",
+          "--dsw-alias-bg-overlay": "#e9ecf2",
+          "--dsw-specific-sidebar-nav-item-hover": "#f1f3f5",
+          "--dsw-specific-sidebar-nav-item-active": "#ebeef2",
+          "--dsw-alias-brand-primary": "#0f1115",
+          "--dsw-alias-border-l3": "#0000001f",
+          "--dsw-alias-border-l4": "#00000029",
+          "--dsw-alias-state-success-tertiary": "#e6faed",
+          "--dsw-alias-bg-layer-2": "#fff",
+          "--dsw-alias-interactive-bg-hover": "#2631480f",
+          "--dsw-alias-interactive-bg-active": "#2631481a",
+          "--dsw-specific-menu": "#f8f9fa94",
+          "--dsw-alias-label-dimmed": "#e1e5ee"
+        },
+        "res": [
+          {
+            "id": "G1 正文",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#fff",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 18.896452054380127
+          },
+          {
+            "id": "G1b 正文/底栏",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#f9fafb",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgOpaqueHex": "#f9fafb/1.00",
+            "ratio": 18.082282383551934
+          },
+          {
+            "id": "G2 次要文字",
+            "kind": "text",
+            "fgRaw": "#61666b",
+            "bgRaw": "#fff",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 5.799289506181867
+          },
+          {
+            "id": "G2b 次要/底栏",
+            "kind": "text",
+            "fgRaw": "#61666b",
+            "bgRaw": "#f9fafb",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgOpaqueHex": "#f9fafb/1.00",
+            "ratio": 5.549422196980242
+          },
+          {
+            "id": "G3 三级/禁用文字",
+            "kind": "text",
+            "fgRaw": "#81858c",
+            "bgRaw": "#fff",
+            "fgHex": "#81858c/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 3.705581408755444
+          },
+          {
+            "id": "G4 链接/焦点环",
+            "kind": "nontext",
+            "fgRaw": "#4176e6",
+            "bgRaw": "#fff",
+            "fgHex": "#4176e6/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 4.234920265946941
+          },
+          {
+            "id": "G4b 链接",
+            "kind": "text",
+            "fgRaw": "#4176e6",
+            "bgRaw": "#fff",
+            "fgHex": "#4176e6/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 4.234920265946941
+          },
+          {
+            "id": "G5 success 点",
+            "kind": "nontext",
+            "fgRaw": "#22c55e",
+            "bgRaw": "#fff",
+            "fgHex": "#22c55e/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 2.2786093403477246
+          },
+          {
+            "id": "G5b success 文字",
+            "kind": "text",
+            "fgRaw": "#22c55e",
+            "bgRaw": "#fff",
+            "fgHex": "#22c55e/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 2.2786093403477246
+          },
+          {
+            "id": "G6 error 文字",
+            "kind": "text",
+            "fgRaw": "#ec1313",
+            "bgRaw": "#fff",
+            "fgHex": "#ec1313/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 4.497629938189608
+          },
+          {
+            "id": "G6b error 文字/底栏",
+            "kind": "text",
+            "fgRaw": "#ec1313",
+            "bgRaw": "#f9fafb",
+            "fgHex": "#ec1313/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgOpaqueHex": "#f9fafb/1.00",
+            "ratio": 4.303845735962393
+          },
+          {
+            "id": "G7 warn 文字",
+            "kind": "text",
+            "fgRaw": "#f59e0b",
+            "bgRaw": "#fff",
+            "fgHex": "#f59e0b/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 2.1476626917618766
+          },
+          {
+            "id": "G7b warn-label 文字",
+            "kind": "text",
+            "fgRaw": "#dd8629",
+            "bgRaw": "#fff",
+            "fgHex": "#dd8629/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 2.7938578363003685
+          },
+          {
+            "id": "G7c warn-label/warn-tertiary",
+            "kind": "text",
+            "fgRaw": "#dd8629",
+            "bgRaw": "#fef5e7",
+            "fgHex": "#dd8629/1.00",
+            "bgHex": "#fef5e7/1.00",
+            "bgOpaqueHex": "#fef5e7/1.00",
+            "ratio": 2.5848551302684184
+          },
+          {
+            "id": "G8 idle 点",
+            "kind": "nontext",
+            "fgRaw": "#d4d4d4",
+            "bgRaw": "#fff",
+            "fgHex": "#d4d4d4/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.482266131414131
+          },
+          {
+            "id": "G9 边框 l1 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#0000000a",
+            "bgRaw": "#fff",
+            "fgHex": "#000000/0.04",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.090230993517392
+          },
+          {
+            "id": "G9b 边框 l2 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#0000001a",
+            "bgRaw": "#fff",
+            "fgHex": "#000000/0.10",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.259690935041431
+          },
+          {
+            "id": "G9c 边框 l2 vs bg-base",
+            "kind": "nontext",
+            "fgRaw": "#0000001a",
+            "bgRaw": "#fff",
+            "fgHex": "#000000/0.10",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.259690935041431
+          },
+          {
+            "id": "G10 危险按钮 hover",
+            "kind": "text",
+            "fgRaw": "#fff",
+            "bgRaw": "#ec1313",
+            "fgHex": "#ffffff/1.00",
+            "bgHex": "#ec1313/1.00",
+            "bgOpaqueHex": "#ec1313/1.00",
+            "ratio": 4.497629938189608
+          },
+          {
+            "id": "G11 正文/overlay",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#e9ecf2",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#e9ecf2/1.00",
+            "bgOpaqueHex": "#e9ecf2/1.00",
+            "ratio": 15.967564678281837
+          },
+          {
+            "id": "G11b 次要/overlay",
+            "kind": "text",
+            "fgRaw": "#61666b",
+            "bgRaw": "#e9ecf2",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#e9ecf2/1.00",
+            "bgOpaqueHex": "#e9ecf2/1.00",
+            "ratio": 4.9004188728950115
+          },
+          {
+            "id": "G12 次要/nav-hover",
+            "kind": "text",
+            "fgRaw": "#61666b",
+            "bgRaw": "#f1f3f5",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#f1f3f5/1.00",
+            "bgOpaqueHex": "#f1f3f5/1.00",
+            "ratio": 5.213535228745009
+          },
+          {
+            "id": "G13 正文/nav-active",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#ebeef2",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ebeef2/1.00",
+            "bgOpaqueHex": "#ebeef2/1.00",
+            "ratio": 16.23691928929162
+          },
+          {
+            "id": "G14 brand(单色) 正文",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#fff",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 18.896452054380127
+          },
+          {
+            "id": "G15 焦点环 vs sidebar-fill",
+            "kind": "nontext",
+            "fgRaw": "#4176e6",
+            "bgRaw": "#f9fafb",
+            "fgHex": "#4176e6/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgOpaqueHex": "#f9fafb/1.00",
+            "ratio": 4.052455132863376
+          },
+          {
+            "id": "G16 焦点环 vs overlay",
+            "kind": "nontext",
+            "fgRaw": "#4176e6",
+            "bgRaw": "#e9ecf2",
+            "fgHex": "#4176e6/1.00",
+            "bgHex": "#e9ecf2/1.00",
+            "bgOpaqueHex": "#e9ecf2/1.00",
+            "ratio": 3.578521674824133
+          },
+          {
+            "id": "A1 边框 l3 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#0000001f",
+            "bgRaw": "#fff",
+            "fgHex": "#000000/0.12",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.320083534140116
+          },
+          {
+            "id": "A2 边框 l4 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#00000029",
+            "bgRaw": "#fff",
+            "fgHex": "#000000/0.16",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.4534015443120838
+          },
+          {
+            "id": "A3 success点/success-tertiary",
+            "kind": "nontext",
+            "fgRaw": "#22c55e",
+            "bgRaw": "#e6faed",
+            "fgHex": "#22c55e/1.00",
+            "bgHex": "#e6faed/1.00",
+            "bgOpaqueHex": "#e6faed/1.00",
+            "ratio": 2.0899976294406986
+          },
+          {
+            "id": "A4 success点/layer-2",
+            "kind": "nontext",
+            "fgRaw": "#22c55e",
+            "bgRaw": "#fff",
+            "fgHex": "#22c55e/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 2.2786093403477246
+          },
+          {
+            "id": "A5 error点/layer-2",
+            "kind": "nontext",
+            "fgRaw": "#ec1313",
+            "bgRaw": "#fff",
+            "fgHex": "#ec1313/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 4.497629938189608
+          },
+          {
+            "id": "A6 warn点/warn-tertiary",
+            "kind": "nontext",
+            "fgRaw": "#f59e0b",
+            "bgRaw": "#fef5e7",
+            "fgHex": "#f59e0b/1.00",
+            "bgHex": "#fef5e7/1.00",
+            "bgOpaqueHex": "#fef5e7/1.00",
+            "ratio": 1.987000503303324
+          },
+          {
+            "id": "A7 idle点/layer-2",
+            "kind": "nontext",
+            "fgRaw": "#d4d4d4",
+            "bgRaw": "#fff",
+            "fgHex": "#d4d4d4/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.482266131414131
+          },
+          {
+            "id": "A8 正文/success-tertiary",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#e6faed",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#e6faed/1.00",
+            "bgOpaqueHex": "#e6faed/1.00",
+            "ratio": 17.332299705427967
+          },
+          {
+            "id": "A9 正文/warn-tertiary",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#fef5e7",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#fef5e7/1.00",
+            "bgOpaqueHex": "#fef5e7/1.00",
+            "ratio": 17.482847696114618
+          },
+          {
+            "id": "A10 label-tertiary/sidebar-fill",
+            "kind": "text",
+            "fgRaw": "#81858c",
+            "bgRaw": "#f9fafb",
+            "fgHex": "#81858c/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgOpaqueHex": "#f9fafb/1.00",
+            "ratio": 3.5459232894899197
+          },
+          {
+            "id": "A11 危险按钮静态描边",
+            "kind": "nontext",
+            "fgRaw": "#ec1313",
+            "bgRaw": "#fff",
+            "fgHex": "#ec1313/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 4.497629938189608
+          },
+          {
+            "id": "A12 正文/idle 禁用底",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#fff",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 18.896452054380127
+          },
+          {
+            "id": "A13 焦点环/interactive-hover",
+            "kind": "nontext",
+            "fgRaw": "#4176e6",
+            "bgRaw": "#2631480f",
+            "fgHex": "#4176e6/1.00",
+            "bgHex": "#263148/0.06",
+            "bgOpaqueHex": "#f2f3f4/1.00",
+            "ratio": 3.8112530268534566
+          },
+          {
+            "id": "A14 焦点环/interactive-active",
+            "kind": "nontext",
+            "fgRaw": "#4176e6",
+            "bgRaw": "#2631481a",
+            "fgHex": "#4176e6/1.00",
+            "bgHex": "#263148/0.10",
+            "bgOpaqueHex": "#e9eaec/1.00",
+            "ratio": 3.517884136555808
+          },
+          {
+            "id": "A15 正文/interactive-hover",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#2631480f",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#263148/0.06",
+            "bgOpaqueHex": "#f2f3f4/1.00",
+            "ratio": 17.0060250409328
+          },
+          {
+            "id": "A16 次要/interactive-active",
+            "kind": "text",
+            "fgRaw": "#61666b",
+            "bgRaw": "#2631481a",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#263148/0.10",
+            "bgOpaqueHex": "#e9eaec/1.00",
+            "ratio": 4.817381975556505
+          },
+          {
+            "id": "A17 正文/nav-active",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#ebeef2",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ebeef2/1.00",
+            "bgOpaqueHex": "#ebeef2/1.00",
+            "ratio": 16.23691928929162
+          },
+          {
+            "id": "A18 焦点环/menu-surface",
+            "kind": "nontext",
+            "fgRaw": "#4176e6",
+            "bgRaw": "#f8f9fa94",
+            "fgHex": "#4176e6/1.00",
+            "bgHex": "#f8f9fa/0.58",
+            "bgOpaqueHex": "#fbfcfc/1.00",
+            "ratio": 4.107884657076599
+          },
+          {
+            "id": "A19 正文/menu-surface",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#f8f9fa94",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#f8f9fa/0.58",
+            "bgOpaqueHex": "#fbfcfc/1.00",
+            "ratio": 18.32961203344277
+          },
+          {
+            "id": "A20 次要/menu-surface",
+            "kind": "text",
+            "fgRaw": "#61666b",
+            "bgRaw": "#f8f9fa94",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#f8f9fa/0.58",
+            "bgOpaqueHex": "#fbfcfc/1.00",
+            "ratio": 5.625327252545796
+          },
+          {
+            "id": "R1 焦点环/popover",
+            "kind": "nontext",
+            "fgRaw": "#4176e6",
+            "bgRaw": "#e9ecf2",
+            "fgHex": "#4176e6/1.00",
+            "bgHex": "#e9ecf2/1.00",
+            "bgOpaqueHex": "#e9ecf2/1.00",
+            "ratio": 3.578521674824133
+          },
+          {
+            "id": "R2 内圈 hairline vs 焦点环",
+            "kind": "nontext",
+            "fgRaw": "#fff",
+            "bgRaw": "#4176e6",
+            "fgHex": "#ffffff/1.00",
+            "bgHex": "#4176e6/1.00",
+            "bgOpaqueHex": "#4176e6/1.00",
+            "ratio": 4.234920265946941
+          },
+          {
+            "id": "R3 正文/popover",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#e9ecf2",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#e9ecf2/1.00",
+            "bgOpaqueHex": "#e9ecf2/1.00",
+            "ratio": 15.967564678281837
+          },
+          {
+            "id": "R4 次要/popover",
+            "kind": "text",
+            "fgRaw": "#61666b",
+            "bgRaw": "#e9ecf2",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#e9ecf2/1.00",
+            "bgOpaqueHex": "#e9ecf2/1.00",
+            "ratio": 4.9004188728950115
+          },
+          {
+            "id": "R5 禁用/popover",
+            "kind": "text",
+            "fgRaw": "#e1e5ee",
+            "bgRaw": "#e9ecf2",
+            "fgHex": "#e1e5ee/1.00",
+            "bgHex": "#e9ecf2/1.00",
+            "bgOpaqueHex": "#e9ecf2/1.00",
+            "ratio": 1.0661641298737554
+          },
+          {
+            "id": "R6 正文/inset(bg-base)",
+            "kind": "text",
+            "fgRaw": "#0f1115",
+            "bgRaw": "#fff",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 18.896452054380127
+          },
+          {
+            "id": "R7 border-l2 vs bg-base(dark)",
+            "kind": "nontext",
+            "fgRaw": "#0000001a",
+            "bgRaw": "#fff",
+            "fgHex": "#000000/0.10",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.259690935041431
+          },
+          {
+            "id": "R8 hover 填充 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#2631480f",
+            "bgRaw": "#fff",
+            "fgHex": "#263148/0.06",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.1111621915701728
+          },
+          {
+            "id": "R9 active 填充 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#2631481a",
+            "bgRaw": "#fff",
+            "fgHex": "#263148/0.10",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.2038259651419756
+          },
+          {
+            "id": "R10 popover 面 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#e9ecf2",
+            "bgRaw": "#fff",
+            "fgHex": "#e9ecf2/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.1834273062367484
+          },
+          {
+            "id": "R11 sidebar-fill vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#fff",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1.0450258243709754
+          },
+          {
+            "id": "R12 layer-2 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#fff",
+            "bgRaw": "#fff",
+            "fgHex": "#ffffff/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgOpaqueHex": "#ffffff/1.00",
+            "ratio": 1
+          }
+        ]
+      },
+      "elements": {
+        "colorScheme": "light",
+        "res": [
+          {
+            "name": "标题 .dsh-rw-title",
+            "sel": ".dsh-rw-title",
+            "kind": "text",
+            "text": "远程资源管理器",
+            "fontSize": "13px",
+            "fontWeight": "600",
+            "fgKind": "color",
+            "fgRaw": "rgb(15, 17, 21)",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-title=#000000/0.00",
+              "dsh-rw-header-text=#000000/0.00",
+              "dsh-rw-header=#ffffff/1.00"
+            ],
+            "ratio": 18.896452054380127
+          },
+          {
+            "name": "副标题 .dsh-rw-subtitle",
+            "sel": ".dsh-rw-subtitle",
+            "kind": "text",
+            "text": "目标 debian-u8-1 · /home/g",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(97, 102, 107)",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-subtitle=#000000/0.00",
+              "dsh-rw-header-text=#000000/0.00",
+              "dsh-rw-header=#ffffff/1.00"
+            ],
+            "ratio": 5.799289506181867
+          },
+          {
+            "name": "头部提示 .dsh-rw-hint",
+            "sel": ".dsh-rw-hint",
+            "kind": "text",
+            "text": "仅筛选，不改目标",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(97, 102, 107)",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-hint=#000000/0.00",
+              "dsh-rw-header-meta=#000000/0.00",
+              "dsh-rw-header-text=#000000/0.00",
+              "dsh-rw-header=#ffffff/1.00"
+            ],
+            "ratio": 5.799289506181867
+          },
+          {
+            "name": "徽标 .dsh-rw-badge",
+            "sel": ".dsh-rw-badge",
+            "kind": "text",
+            "text": "未物化",
+            "fontSize": "11px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(97, 102, 107)",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-badge=#000000/0.00",
+              "dsh-rw-header-meta=#000000/0.00",
+              "dsh-rw-header-text=#000000/0.00",
+              "dsh-rw-header=#ffffff/1.00"
+            ],
+            "ratio": 5.799289506181867
+          },
+          {
+            "name": "底栏状态词 .dsh-rw-statusword",
+            "sel": ".dsh-rw-statusword",
+            "kind": "text",
+            "text": "远端守护未运行",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(15, 17, 21)",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgChainNote": [
+              "dsh-rw-statusword=#000000/0.00",
+              "dsh-rw-status=#f9fafb/1.00"
+            ],
+            "ratio": 18.082282383551934
+          },
+          {
+            "name": "底栏会话数 .dsh-rw-extra",
+            "sel": ".dsh-rw-extra",
+            "kind": "text",
+            "text": "· 会话 0 个",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(97, 102, 107)",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgChainNote": [
+              "dsh-rw-extra=#000000/0.00",
+              "dsh-rw-status=#f9fafb/1.00"
+            ],
+            "ratio": 5.549422196980242
+          },
+          {
+            "name": "底栏更新时间 .dsh-rw-updated",
+            "sel": ".dsh-rw-updated",
+            "kind": "text",
+            "text": "更新于 15:34:04",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(97, 102, 107)",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgChainNote": [
+              "dsh-rw-updated=#000000/0.00",
+              "dsh-rw-status=#f9fafb/1.00"
+            ],
+            "ratio": 5.549422196980242
+          },
+          {
+            "name": "卡片标题 .dsh-rw-cardhead",
+            "sel": ".dsh-rw-cardhead",
+            "kind": "text",
+            "text": "浏览目录 隐藏文件：不显示",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(15, 17, 21)",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-cardhead=#000000/0.00",
+              "dsh-rw-card=#ffffff/1.00"
+            ],
+            "ratio": 18.896452054380127
+          },
+          {
+            "name": "主按钮文字 .dsh-rw-btn--primary",
+            "sel": ".dsh-rw-btn--primary",
+            "kind": "text",
+            "text": "添加为 WSL 工作区",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(255, 255, 255)",
+            "fgHex": "#ffffff/1.00",
+            "bgHex": "#0f1115/1.00",
+            "bgChainNote": [
+              "dsh-rw-btn dsh-rw-btn-=#0f1115/1.00"
+            ],
+            "ratio": 18.896452054380127
+          },
+          {
+            "name": "普通按钮文字 .dsh-rw-btn",
+            "sel": ".dsh-rw-btn",
+            "kind": "text",
+            "text": "添加为 WSL 工作区",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(255, 255, 255)",
+            "fgHex": "#ffffff/1.00",
+            "bgHex": "#0f1115/1.00",
+            "bgChainNote": [
+              "dsh-rw-btn dsh-rw-btn-=#0f1115/1.00"
+            ],
+            "ratio": 18.896452054380127
+          },
+          {
+            "name": "chip 文字 .dsh-rw-chip",
+            "sel": ".dsh-rw-chip",
+            "kind": "text",
+            "text": "隐藏文件：不显示",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(97, 102, 107)",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-chip=#ffffff/1.00"
+            ],
+            "ratio": 5.799289506181867
+          },
+          {
+            "name": "面包屑 .dsh-rw-crumb",
+            "sel": ".dsh-rw-crumb",
+            "kind": "text",
+            "text": "/",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(97, 102, 107)",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-crumb=#000000/0.00",
+              "dsh-rw-crumbs=#000000/0.00",
+              "dsh-rw-card=#ffffff/1.00"
+            ],
+            "ratio": 5.799289506181867
+          },
+          {
+            "name": "行内动作 .dsh-rw-link",
+            "sel": ".dsh-rw-link",
+            "kind": "text",
+            "text": "进入",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(15, 17, 21)",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-link=#000000/0.00",
+              "dsh-rw-rowacts=#000000/0.00",
+              "dsh-rw-row dsh-rw-row-=#000000/0.00",
+              "dsh-rw-entries=#000000/0.00",
+              "dsh-rw-card=#ffffff/1.00"
+            ],
+            "ratio": 18.896452054380127
+          },
+          {
+            "name": "输入框文字 .dsh-rw-path-input",
+            "sel": ".dsh-rw-path-input",
+            "kind": "text",
+            "text": "",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(15, 17, 21)",
+            "fgHex": "#0f1115/1.00",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-path-input=#ffffff/1.00"
+            ],
+            "ratio": 18.896452054380127
+          },
+          {
+            "name": "状态点(空心/停止) border .dsh-rw-dot",
+            "sel": ".dsh-rw-dot",
+            "kind": "nontext-border",
+            "text": "",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "border-color",
+            "fgRaw": "rgba(0, 0, 0, 0.1)",
+            "fgHex": "#000000/0.10",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-dot dsh-rw-dot-=#ffffff/1.00"
+            ],
+            "ratio": 1.2538626591661473
+          },
+          {
+            "name": "按钮描边(非主) .dsh-rw-btn:not(--primary)",
+            "sel": ".dsh-rw-btn:not(.dsh-rw-btn--primary)",
+            "kind": "nontext-border",
+            "text": "跳转",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "border-color",
+            "fgRaw": "rgba(0, 0, 0, 0.1)",
+            "fgHex": "#000000/0.10",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-btn=#ffffff/1.00"
+            ],
+            "ratio": 1.2538626591661473
+          },
+          {
+            "name": "卡片描边 .dsh-rw-card",
+            "sel": ".dsh-rw-card",
+            "kind": "nontext-border",
+            "text": "浏览目录 隐藏文件：不显示 Home / /mn",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "border-color",
+            "fgRaw": "rgba(0, 0, 0, 0.04)",
+            "fgHex": "#000000/0.04",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-card=#ffffff/1.00"
+            ],
+            "ratio": 1.0921487501982265
+          },
+          {
+            "name": "输入框描边 .dsh-rw-path-input",
+            "sel": ".dsh-rw-path-input",
+            "kind": "nontext-border",
+            "text": "",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "border-color",
+            "fgRaw": "rgba(0, 0, 0, 0.1)",
+            "fgHex": "#000000/0.10",
+            "bgHex": "#ffffff/1.00",
+            "bgChainNote": [
+              "dsh-rw-path-input=#ffffff/1.00"
+            ],
+            "ratio": 1.2538626591661473
+          }
+        ]
+      },
+      "focus": {
+        "probes": [
+          {
+            "label": "底栏主按钮",
+            "sel": ".dsh-rw-status .dsh-rw-btn",
+            "applied": true,
+            "outlineColor": "rgb(65, 118, 230)",
+            "outlineWidth": "2px",
+            "outlineStyle": "auto",
+            "outlineOffset": "0px",
+            "boxShadow": "none",
+            "bgHex": "#ffffff/1.00",
+            "ringRatio": 4.234920265946941,
+            "shadowColor": null,
+            "shadowRatio": null,
+            "pairRatio": null
+          },
+          {
+            "label": "行内动作",
+            "sel": ".dsh-rw-link",
+            "applied": true,
+            "outlineColor": "rgb(65, 118, 230)",
+            "outlineWidth": "2px",
+            "outlineStyle": "auto",
+            "outlineOffset": "0px",
+            "boxShadow": "none",
+            "bgHex": "#ffffff/1.00",
+            "ringRatio": 4.234920265946941,
+            "shadowColor": null,
+            "shadowRatio": null,
+            "pairRatio": null
+          },
+          {
+            "label": "路径输入框",
+            "sel": ".dsh-rw-path-input",
+            "applied": true,
+            "outlineColor": "rgb(65, 118, 230)",
+            "outlineWidth": "2px",
+            "outlineStyle": "auto",
+            "outlineOffset": "0px",
+            "boxShadow": "none",
+            "bgHex": "#ffffff/1.00",
+            "ringRatio": 4.234920265946941,
+            "shadowColor": null,
+            "shadowRatio": null,
+            "pairRatio": null
+          },
+          {
+            "label": "菜单项(浮层上)",
+            "sel": ".dsh-rw-menu .dsh-rw-menuitem",
+            "applied": true,
+            "outlineColor": "rgb(65, 118, 230)",
+            "outlineWidth": "2px",
+            "outlineStyle": "auto",
+            "outlineOffset": "-2px",
+            "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 1px inset",
+            "bgHex": "#e9ecf2/1.00",
+            "ringRatio": 3.578521674824133,
+            "shadowColor": "rgb(255, 255, 255)",
+            "shadowRatio": 1.1834273062367484,
+            "pairRatio": 4.234920265946941
+          }
+        ],
+        "hoverFill": {
+          "rowBg": "rgba(0, 0, 0, 0)",
+          "effBg": "#ffffff/1.00"
+        }
+      }
+    },
+    {
+      "dark": true,
+      "tokenGroups": {
+        "colorScheme": "dark",
+        "tokens": {
+          "--dsw-alias-label-primary": "#f9fafb",
+          "--dsw-alias-bg-layer-1": "#232324",
+          "--dsw-specific-sidebar-fill": "#1b1b1c",
+          "--dsw-alias-label-secondary": "#cfd3d6",
+          "--dsw-alias-label-tertiary": "#adb2b8",
+          "--dsw-alias-state-business-primary": "#7aaaff",
+          "--dsw-alias-link": "#7aaaff",
+          "--dsw-alias-state-success-primary": "#22c55e",
+          "--dsw-alias-state-error-primary": "#f25a5a",
+          "--dsw-alias-state-warn-primary": "#f59e0b",
+          "--dsw-alias-state-warn-label": "#dd8629",
+          "--dsw-alias-state-warn-tertiary": "#27241f",
+          "--dsw-alias-state-idle-primary": "#545557",
+          "--dsw-alias-border-l1": "#ffffff0f",
+          "--dsw-alias-border-l2": "#ffffff1f",
+          "--dsw-alias-bg-base": "#151517",
+          "--dsw-alias-bg-overlay": "#61666b",
+          "--dsw-specific-sidebar-nav-item-hover": "#2c2c2e",
+          "--dsw-specific-sidebar-nav-item-active": "#43454a",
+          "--dsw-alias-brand-primary": "#f9fafb",
+          "--dsw-alias-border-l3": "#ffffff29",
+          "--dsw-alias-border-l4": "#fff3",
+          "--dsw-alias-state-success-tertiary": "#233c2c",
+          "--dsw-alias-bg-layer-2": "#2c2c2e",
+          "--dsw-alias-interactive-bg-hover": "#ffffff14",
+          "--dsw-alias-interactive-bg-active": "#ffffff24",
+          "--dsw-specific-menu": "#43454a73",
+          "--dsw-alias-label-dimmed": "#43454a"
+        },
+        "res": [
+          {
+            "id": "G1 正文",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#232324",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 15.026101925946511
+          },
+          {
+            "id": "G1b 正文/底栏",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#1b1b1c",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#1b1b1c/1.00",
+            "bgOpaqueHex": "#1b1b1c/1.00",
+            "ratio": 16.46953473723769
+          },
+          {
+            "id": "G2 次要文字",
+            "kind": "text",
+            "fgRaw": "#cfd3d6",
+            "bgRaw": "#232324",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 10.424919542025554
+          },
+          {
+            "id": "G2b 次要/底栏",
+            "kind": "text",
+            "fgRaw": "#cfd3d6",
+            "bgRaw": "#1b1b1c",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#1b1b1c/1.00",
+            "bgOpaqueHex": "#1b1b1c/1.00",
+            "ratio": 11.426354977256201
+          },
+          {
+            "id": "G3 三级/禁用文字",
+            "kind": "text",
+            "fgRaw": "#adb2b8",
+            "bgRaw": "#232324",
+            "fgHex": "#adb2b8/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 7.355684064256869
+          },
+          {
+            "id": "G4 链接/焦点环",
+            "kind": "nontext",
+            "fgRaw": "#7aaaff",
+            "bgRaw": "#232324",
+            "fgHex": "#7aaaff/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 6.745719014105008
+          },
+          {
+            "id": "G4b 链接",
+            "kind": "text",
+            "fgRaw": "#7aaaff",
+            "bgRaw": "#232324",
+            "fgHex": "#7aaaff/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 6.745719014105008
+          },
+          {
+            "id": "G5 success 点",
+            "kind": "nontext",
+            "fgRaw": "#22c55e",
+            "bgRaw": "#232324",
+            "fgHex": "#22c55e/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 6.891336866831358
+          },
+          {
+            "id": "G5b success 文字",
+            "kind": "text",
+            "fgRaw": "#22c55e",
+            "bgRaw": "#232324",
+            "fgHex": "#22c55e/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 6.891336866831358
+          },
+          {
+            "id": "G6 error 文字",
+            "kind": "text",
+            "fgRaw": "#f25a5a",
+            "bgRaw": "#232324",
+            "fgHex": "#f25a5a/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 4.7747704581995825
+          },
+          {
+            "id": "G6b error 文字/底栏",
+            "kind": "text",
+            "fgRaw": "#f25a5a",
+            "bgRaw": "#1b1b1c",
+            "fgHex": "#f25a5a/1.00",
+            "bgHex": "#1b1b1c/1.00",
+            "bgOpaqueHex": "#1b1b1c/1.00",
+            "ratio": 5.233442998803619
+          },
+          {
+            "id": "G7 warn 文字",
+            "kind": "text",
+            "fgRaw": "#f59e0b",
+            "bgRaw": "#232324",
+            "fgHex": "#f59e0b/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 7.311513401279309
+          },
+          {
+            "id": "G7b warn-label 文字",
+            "kind": "text",
+            "fgRaw": "#dd8629",
+            "bgRaw": "#232324",
+            "fgHex": "#dd8629/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 5.620423612189964
+          },
+          {
+            "id": "G7c warn-label/warn-tertiary",
+            "kind": "text",
+            "fgRaw": "#dd8629",
+            "bgRaw": "#27241f",
+            "fgHex": "#dd8629/1.00",
+            "bgHex": "#27241f/1.00",
+            "bgOpaqueHex": "#27241f/1.00",
+            "ratio": 5.533326090329226
+          },
+          {
+            "id": "G8 idle 点",
+            "kind": "nontext",
+            "fgRaw": "#545557",
+            "bgRaw": "#232324",
+            "fgHex": "#545557/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 2.1041476070686103
+          },
+          {
+            "id": "G9 边框 l1 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#ffffff0f",
+            "bgRaw": "#232324",
+            "fgHex": "#ffffff/0.06",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 1.1899336205857973
+          },
+          {
+            "id": "G9b 边框 l2 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#ffffff1f",
+            "bgRaw": "#232324",
+            "fgHex": "#ffffff/0.12",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 1.4638154907937715
+          },
+          {
+            "id": "G9c 边框 l2 vs bg-base",
+            "kind": "nontext",
+            "fgRaw": "#ffffff1f",
+            "bgRaw": "#151517",
+            "fgHex": "#ffffff/0.12",
+            "bgHex": "#151517/1.00",
+            "bgOpaqueHex": "#151517/1.00",
+            "ratio": 1.4136331447936037
+          },
+          {
+            "id": "G10 危险按钮 hover",
+            "kind": "text",
+            "fgRaw": "#232324",
+            "bgRaw": "#f25a5a",
+            "fgHex": "#232324/1.00",
+            "bgHex": "#f25a5a/1.00",
+            "bgOpaqueHex": "#f25a5a/1.00",
+            "ratio": 4.7747704581995825
+          },
+          {
+            "id": "G11 正文/overlay",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#61666b",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#61666b/1.00",
+            "bgOpaqueHex": "#61666b/1.00",
+            "ratio": 5.549422196980242
+          },
+          {
+            "id": "G11b 次要/overlay",
+            "kind": "text",
+            "fgRaw": "#cfd3d6",
+            "bgRaw": "#61666b",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#61666b/1.00",
+            "bgOpaqueHex": "#61666b/1.00",
+            "ratio": 3.8501189592193934
+          },
+          {
+            "id": "G12 次要/nav-hover",
+            "kind": "text",
+            "fgRaw": "#cfd3d6",
+            "bgRaw": "#2c2c2e",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgOpaqueHex": "#2c2c2e/1.00",
+            "ratio": 9.252469072738661
+          },
+          {
+            "id": "G13 正文/nav-active",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#43454a",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#43454a/1.00",
+            "bgOpaqueHex": "#43454a/1.00",
+            "ratio": 9.18096352350147
+          },
+          {
+            "id": "G14 brand(单色) 正文",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#232324",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 15.026101925946511
+          },
+          {
+            "id": "G15 焦点环 vs sidebar-fill",
+            "kind": "nontext",
+            "fgRaw": "#7aaaff",
+            "bgRaw": "#1b1b1c",
+            "fgHex": "#7aaaff/1.00",
+            "bgHex": "#1b1b1c/1.00",
+            "bgOpaqueHex": "#1b1b1c/1.00",
+            "ratio": 7.393724212572115
+          },
+          {
+            "id": "G16 焦点环 vs overlay",
+            "kind": "nontext",
+            "fgRaw": "#7aaaff",
+            "bgRaw": "#61666b",
+            "fgHex": "#7aaaff/1.00",
+            "bgHex": "#61666b/1.00",
+            "bgOpaqueHex": "#61666b/1.00",
+            "ratio": 2.4913209703991765
+          },
+          {
+            "id": "A1 边框 l3 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#ffffff29",
+            "bgRaw": "#232324",
+            "fgHex": "#ffffff/0.16",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 1.6750585817705579
+          },
+          {
+            "id": "A2 边框 l4 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#fff3",
+            "bgRaw": "#232324",
+            "fgHex": "#ffffff/0.20",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 1.9187854101761392
+          },
+          {
+            "id": "A3 success点/success-tertiary",
+            "kind": "nontext",
+            "fgRaw": "#22c55e",
+            "bgRaw": "#233c2c",
+            "fgHex": "#22c55e/1.00",
+            "bgHex": "#233c2c/1.00",
+            "bgOpaqueHex": "#233c2c/1.00",
+            "ratio": 5.2538261574526
+          },
+          {
+            "id": "A4 success点/layer-2",
+            "kind": "nontext",
+            "fgRaw": "#22c55e",
+            "bgRaw": "#2c2c2e",
+            "fgHex": "#22c55e/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgOpaqueHex": "#2c2c2e/1.00",
+            "ratio": 6.116294804304264
+          },
+          {
+            "id": "A5 error点/layer-2",
+            "kind": "nontext",
+            "fgRaw": "#f25a5a",
+            "bgRaw": "#2c2c2e",
+            "fgHex": "#f25a5a/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgOpaqueHex": "#2c2c2e/1.00",
+            "ratio": 4.237770451447917
+          },
+          {
+            "id": "A6 warn点/warn-tertiary",
+            "kind": "nontext",
+            "fgRaw": "#f59e0b",
+            "bgRaw": "#27241f",
+            "fgHex": "#f59e0b/1.00",
+            "bgHex": "#27241f/1.00",
+            "bgOpaqueHex": "#27241f/1.00",
+            "ratio": 7.198209717741677
+          },
+          {
+            "id": "A7 idle点/layer-2",
+            "kind": "nontext",
+            "fgRaw": "#545557",
+            "bgRaw": "#2c2c2e",
+            "fgHex": "#545557/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgOpaqueHex": "#2c2c2e/1.00",
+            "ratio": 1.8675022459786441
+          },
+          {
+            "id": "A8 正文/success-tertiary",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#233c2c",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#233c2c/1.00",
+            "bgOpaqueHex": "#233c2c/1.00",
+            "ratio": 11.45561868018004
+          },
+          {
+            "id": "A9 正文/warn-tertiary",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#27241f",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#27241f/1.00",
+            "bgOpaqueHex": "#27241f/1.00",
+            "ratio": 14.793248260230225
+          },
+          {
+            "id": "A10 label-tertiary/sidebar-fill",
+            "kind": "text",
+            "fgRaw": "#adb2b8",
+            "bgRaw": "#1b1b1c",
+            "fgHex": "#adb2b8/1.00",
+            "bgHex": "#1b1b1c/1.00",
+            "bgOpaqueHex": "#1b1b1c/1.00",
+            "ratio": 8.062283538968686
+          },
+          {
+            "id": "A11 危险按钮静态描边",
+            "kind": "nontext",
+            "fgRaw": "#f25a5a",
+            "bgRaw": "#2c2c2e",
+            "fgHex": "#f25a5a/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgOpaqueHex": "#2c2c2e/1.00",
+            "ratio": 4.237770451447917
+          },
+          {
+            "id": "A12 正文/idle 禁用底",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#2c2c2e",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgOpaqueHex": "#2c2c2e/1.00",
+            "ratio": 13.33617423071505
+          },
+          {
+            "id": "A13 焦点环/interactive-hover",
+            "kind": "nontext",
+            "fgRaw": "#7aaaff",
+            "bgRaw": "#ffffff14",
+            "fgHex": "#7aaaff/1.00",
+            "bgHex": "#ffffff/0.08",
+            "bgOpaqueHex": "#272729/1.00",
+            "ratio": 6.376406198089753
+          },
+          {
+            "id": "A14 焦点环/interactive-active",
+            "kind": "nontext",
+            "fgRaw": "#7aaaff",
+            "bgRaw": "#ffffff24",
+            "fgHex": "#7aaaff/1.00",
+            "bgHex": "#ffffff/0.14",
+            "bgOpaqueHex": "#363638/1.00",
+            "ratio": 5.178775661745735
+          },
+          {
+            "id": "A15 正文/interactive-hover",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#ffffff14",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#ffffff/0.08",
+            "bgOpaqueHex": "#272729/1.00",
+            "ratio": 14.203456926295601
+          },
+          {
+            "id": "A16 次要/interactive-active",
+            "kind": "text",
+            "fgRaw": "#cfd3d6",
+            "bgRaw": "#ffffff24",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#ffffff/0.14",
+            "bgOpaqueHex": "#363638/1.00",
+            "ratio": 8.003345453169956
+          },
+          {
+            "id": "A17 正文/nav-active",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#43454a",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#43454a/1.00",
+            "bgOpaqueHex": "#43454a/1.00",
+            "ratio": 9.18096352350147
+          },
+          {
+            "id": "A18 焦点环/menu-surface",
+            "kind": "nontext",
+            "fgRaw": "#7aaaff",
+            "bgRaw": "#43454a73",
+            "fgHex": "#7aaaff/1.00",
+            "bgHex": "#43454a/0.45",
+            "bgOpaqueHex": "#2a2b2e/1.00",
+            "ratio": 6.106816793578499
+          },
+          {
+            "id": "A19 正文/menu-surface",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#43454a73",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#43454a/0.45",
+            "bgOpaqueHex": "#2a2b2e/1.00",
+            "ratio": 13.602946015320638
+          },
+          {
+            "id": "A20 次要/menu-surface",
+            "kind": "text",
+            "fgRaw": "#cfd3d6",
+            "bgRaw": "#43454a73",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#43454a/0.45",
+            "bgOpaqueHex": "#2a2b2e/1.00",
+            "ratio": 9.437551964116736
+          },
+          {
+            "id": "R1 焦点环/popover",
+            "kind": "nontext",
+            "fgRaw": "#7aaaff",
+            "bgRaw": "#61666b",
+            "fgHex": "#7aaaff/1.00",
+            "bgHex": "#61666b/1.00",
+            "bgOpaqueHex": "#61666b/1.00",
+            "ratio": 2.4913209703991765
+          },
+          {
+            "id": "R2 内圈 hairline vs 焦点环",
+            "kind": "nontext",
+            "fgRaw": "#232324",
+            "bgRaw": "#7aaaff",
+            "fgHex": "#232324/1.00",
+            "bgHex": "#7aaaff/1.00",
+            "bgOpaqueHex": "#7aaaff/1.00",
+            "ratio": 6.745719014105008
+          },
+          {
+            "id": "R3 正文/popover",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#61666b",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#61666b/1.00",
+            "bgOpaqueHex": "#61666b/1.00",
+            "ratio": 5.549422196980242
+          },
+          {
+            "id": "R4 次要/popover",
+            "kind": "text",
+            "fgRaw": "#cfd3d6",
+            "bgRaw": "#61666b",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#61666b/1.00",
+            "bgOpaqueHex": "#61666b/1.00",
+            "ratio": 3.8501189592193934
+          },
+          {
+            "id": "R5 禁用/popover",
+            "kind": "text",
+            "fgRaw": "#43454a",
+            "bgRaw": "#61666b",
+            "fgHex": "#43454a/1.00",
+            "bgHex": "#61666b/1.00",
+            "bgOpaqueHex": "#61666b/1.00",
+            "ratio": 1.6543998992358802
+          },
+          {
+            "id": "R6 正文/inset(bg-base)",
+            "kind": "text",
+            "fgRaw": "#f9fafb",
+            "bgRaw": "#151517",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#151517/1.00",
+            "bgOpaqueHex": "#151517/1.00",
+            "ratio": 17.45095194843412
+          },
+          {
+            "id": "R7 border-l2 vs bg-base(dark)",
+            "kind": "nontext",
+            "fgRaw": "#ffffff1f",
+            "bgRaw": "#151517",
+            "fgHex": "#ffffff/0.12",
+            "bgHex": "#151517/1.00",
+            "bgOpaqueHex": "#151517/1.00",
+            "ratio": 1.4136331447936037
+          },
+          {
+            "id": "R8 hover 填充 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#ffffff14",
+            "bgRaw": "#232324",
+            "fgHex": "#ffffff/0.08",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 1.2673271557577594
+          },
+          {
+            "id": "R9 active 填充 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#ffffff24",
+            "bgRaw": "#232324",
+            "fgHex": "#ffffff/0.14",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 1.565460204723816
+          },
+          {
+            "id": "R10 popover 面 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#61666b",
+            "bgRaw": "#232324",
+            "fgHex": "#61666b/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 2.7076876461342363
+          },
+          {
+            "id": "R11 sidebar-fill vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#1b1b1c",
+            "bgRaw": "#232324",
+            "fgHex": "#1b1b1c/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 1.096061694403837
+          },
+          {
+            "id": "R12 layer-2 vs layer-1",
+            "kind": "nontext",
+            "fgRaw": "#2c2c2e",
+            "bgRaw": "#232324",
+            "fgHex": "#2c2c2e/1.00",
+            "bgHex": "#232324/1.00",
+            "bgOpaqueHex": "#232324/1.00",
+            "ratio": 1.1267175777697418
+          }
+        ]
+      },
+      "elements": {
+        "colorScheme": "dark",
+        "res": [
+          {
+            "name": "标题 .dsh-rw-title",
+            "sel": ".dsh-rw-title",
+            "kind": "text",
+            "text": "远程资源管理器",
+            "fontSize": "13px",
+            "fontWeight": "600",
+            "fgKind": "color",
+            "fgRaw": "rgb(249, 250, 251)",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#232324/1.00",
+            "bgChainNote": [
+              "dsh-rw-title=#000000/0.00",
+              "dsh-rw-header-text=#000000/0.00",
+              "dsh-rw-header=#232324/1.00"
+            ],
+            "ratio": 15.026101925946511
+          },
+          {
+            "name": "副标题 .dsh-rw-subtitle",
+            "sel": ".dsh-rw-subtitle",
+            "kind": "text",
+            "text": "目标 debian-u8-1 · /home/g",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(207, 211, 214)",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#232324/1.00",
+            "bgChainNote": [
+              "dsh-rw-subtitle=#000000/0.00",
+              "dsh-rw-header-text=#000000/0.00",
+              "dsh-rw-header=#232324/1.00"
+            ],
+            "ratio": 10.424919542025554
+          },
+          {
+            "name": "头部提示 .dsh-rw-hint",
+            "sel": ".dsh-rw-hint",
+            "kind": "text",
+            "text": "仅筛选，不改目标",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(207, 211, 214)",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#232324/1.00",
+            "bgChainNote": [
+              "dsh-rw-hint=#000000/0.00",
+              "dsh-rw-header-meta=#000000/0.00",
+              "dsh-rw-header-text=#000000/0.00",
+              "dsh-rw-header=#232324/1.00"
+            ],
+            "ratio": 10.424919542025554
+          },
+          {
+            "name": "徽标 .dsh-rw-badge",
+            "sel": ".dsh-rw-badge",
+            "kind": "text",
+            "text": "未物化",
+            "fontSize": "11px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(207, 211, 214)",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#232324/1.00",
+            "bgChainNote": [
+              "dsh-rw-badge=#000000/0.00",
+              "dsh-rw-header-meta=#000000/0.00",
+              "dsh-rw-header-text=#000000/0.00",
+              "dsh-rw-header=#232324/1.00"
+            ],
+            "ratio": 10.424919542025554
+          },
+          {
+            "name": "底栏状态词 .dsh-rw-statusword",
+            "sel": ".dsh-rw-statusword",
+            "kind": "text",
+            "text": "远端守护未运行",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(249, 250, 251)",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#1b1b1c/1.00",
+            "bgChainNote": [
+              "dsh-rw-statusword=#000000/0.00",
+              "dsh-rw-status=#1b1b1c/1.00"
+            ],
+            "ratio": 16.46953473723769
+          },
+          {
+            "name": "底栏会话数 .dsh-rw-extra",
+            "sel": ".dsh-rw-extra",
+            "kind": "text",
+            "text": "· 会话 0 个",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(207, 211, 214)",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#1b1b1c/1.00",
+            "bgChainNote": [
+              "dsh-rw-extra=#000000/0.00",
+              "dsh-rw-status=#1b1b1c/1.00"
+            ],
+            "ratio": 11.426354977256201
+          },
+          {
+            "name": "底栏更新时间 .dsh-rw-updated",
+            "sel": ".dsh-rw-updated",
+            "kind": "text",
+            "text": "更新于 15:34:10",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(207, 211, 214)",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#1b1b1c/1.00",
+            "bgChainNote": [
+              "dsh-rw-updated=#000000/0.00",
+              "dsh-rw-status=#1b1b1c/1.00"
+            ],
+            "ratio": 11.426354977256201
+          },
+          {
+            "name": "卡片标题 .dsh-rw-cardhead",
+            "sel": ".dsh-rw-cardhead",
+            "kind": "text",
+            "text": "浏览目录 隐藏文件：不显示",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(249, 250, 251)",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgChainNote": [
+              "dsh-rw-cardhead=#000000/0.00",
+              "dsh-rw-card=#2c2c2e/1.00"
+            ],
+            "ratio": 13.33617423071505
+          },
+          {
+            "name": "主按钮文字 .dsh-rw-btn--primary",
+            "sel": ".dsh-rw-btn--primary",
+            "kind": "text",
+            "text": "添加为 WSL 工作区",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(35, 35, 36)",
+            "fgHex": "#232324/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgChainNote": [
+              "dsh-rw-btn dsh-rw-btn-=#f9fafb/1.00"
+            ],
+            "ratio": 15.026101925946511
+          },
+          {
+            "name": "普通按钮文字 .dsh-rw-btn",
+            "sel": ".dsh-rw-btn",
+            "kind": "text",
+            "text": "添加为 WSL 工作区",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(35, 35, 36)",
+            "fgHex": "#232324/1.00",
+            "bgHex": "#f9fafb/1.00",
+            "bgChainNote": [
+              "dsh-rw-btn dsh-rw-btn-=#f9fafb/1.00"
+            ],
+            "ratio": 15.026101925946511
+          },
+          {
+            "name": "chip 文字 .dsh-rw-chip",
+            "sel": ".dsh-rw-chip",
+            "kind": "text",
+            "text": "隐藏文件：不显示",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(207, 211, 214)",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#151517/1.00",
+            "bgChainNote": [
+              "dsh-rw-chip=#151517/1.00"
+            ],
+            "ratio": 12.10724983037942
+          },
+          {
+            "name": "面包屑 .dsh-rw-crumb",
+            "sel": ".dsh-rw-crumb",
+            "kind": "text",
+            "text": "/",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(207, 211, 214)",
+            "fgHex": "#cfd3d6/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgChainNote": [
+              "dsh-rw-crumb=#000000/0.00",
+              "dsh-rw-crumbs=#000000/0.00",
+              "dsh-rw-card=#2c2c2e/1.00"
+            ],
+            "ratio": 9.252469072738661
+          },
+          {
+            "name": "行内动作 .dsh-rw-link",
+            "sel": ".dsh-rw-link",
+            "kind": "text",
+            "text": "进入",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(249, 250, 251)",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#2c2c2e/1.00",
+            "bgChainNote": [
+              "dsh-rw-link=#000000/0.00",
+              "dsh-rw-rowacts=#000000/0.00",
+              "dsh-rw-row dsh-rw-row-=#000000/0.00",
+              "dsh-rw-entries=#000000/0.00",
+              "dsh-rw-card=#2c2c2e/1.00"
+            ],
+            "ratio": 13.33617423071505
+          },
+          {
+            "name": "输入框文字 .dsh-rw-path-input",
+            "sel": ".dsh-rw-path-input",
+            "kind": "text",
+            "text": "",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "color",
+            "fgRaw": "rgb(249, 250, 251)",
+            "fgHex": "#f9fafb/1.00",
+            "bgHex": "#151517/1.00",
+            "bgChainNote": [
+              "dsh-rw-path-input=#151517/1.00"
+            ],
+            "ratio": 17.45095194843412
+          },
+          {
+            "name": "状态点(空心/停止) border .dsh-rw-dot",
+            "sel": ".dsh-rw-dot",
+            "kind": "nontext-border",
+            "text": "",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "border-color",
+            "fgRaw": "rgba(255, 255, 255, 0.12)",
+            "fgHex": "#ffffff/0.12",
+            "bgHex": "#151517/1.00",
+            "bgChainNote": [
+              "dsh-rw-dot dsh-rw-dot-=#151517/1.00"
+            ],
+            "ratio": 1.4061168521398923
+          },
+          {
+            "name": "按钮描边(非主) .dsh-rw-btn:not(--primary)",
+            "sel": ".dsh-rw-btn:not(.dsh-rw-btn--primary)",
+            "kind": "nontext-border",
+            "text": "跳转",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "border-color",
+            "fgRaw": "rgba(255, 255, 255, 0.12)",
+            "fgHex": "#ffffff/0.12",
+            "bgHex": "#151517/1.00",
+            "bgChainNote": [
+              "dsh-rw-btn=#151517/1.00"
+            ],
+            "ratio": 1.4061168521398923
+          },
+          {
+            "name": "卡片描边 .dsh-rw-card",
+            "sel": ".dsh-rw-card",
+            "kind": "nontext-border",
+            "text": "浏览目录 隐藏文件：不显示 Home / /mn",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "fgKind": "border-color",
+            "fgRaw": "rgba(255, 255, 255, 0.06)",
+            "fgHex": "#ffffff/0.06",
+            "bgHex": "#2c2c2e/1.00",
+            "bgChainNote": [
+              "dsh-rw-card=#2c2c2e/1.00"
+            ],
+            "ratio": 1.2030191499605305
+          },
+          {
+            "name": "输入框描边 .dsh-rw-path-input",
+            "sel": ".dsh-rw-path-input",
+            "kind": "nontext-border",
+            "text": "",
+            "fontSize": "12px",
+            "fontWeight": "400",
+            "fgKind": "border-color",
+            "fgRaw": "rgba(255, 255, 255, 0.12)",
+            "fgHex": "#ffffff/0.12",
+            "bgHex": "#151517/1.00",
+            "bgChainNote": [
+              "dsh-rw-path-input=#151517/1.00"
+            ],
+            "ratio": 1.4061168521398923
+          }
+        ]
+      },
+      "focus": {
+        "probes": [
+          {
+            "label": "底栏主按钮",
+            "sel": ".dsh-rw-status .dsh-rw-btn",
+            "applied": true,
+            "outlineColor": "rgb(122, 170, 255)",
+            "outlineWidth": "2px",
+            "outlineStyle": "auto",
+            "outlineOffset": "0px",
+            "boxShadow": "none",
+            "bgHex": "#151517/1.00",
+            "ringRatio": 7.83431517721251,
+            "shadowColor": null,
+            "shadowRatio": null,
+            "pairRatio": null
+          },
+          {
+            "label": "行内动作",
+            "sel": ".dsh-rw-link",
+            "applied": true,
+            "outlineColor": "rgb(122, 170, 255)",
+            "outlineWidth": "2px",
+            "outlineStyle": "auto",
+            "outlineOffset": "0px",
+            "boxShadow": "none",
+            "bgHex": "#2c2c2e/1.00",
+            "ringRatio": 5.987054029509049,
+            "shadowColor": null,
+            "shadowRatio": null,
+            "pairRatio": null
+          },
+          {
+            "label": "路径输入框",
+            "sel": ".dsh-rw-path-input",
+            "applied": true,
+            "outlineColor": "rgb(122, 170, 255)",
+            "outlineWidth": "2px",
+            "outlineStyle": "auto",
+            "outlineOffset": "0px",
+            "boxShadow": "none",
+            "bgHex": "#151517/1.00",
+            "ringRatio": 7.83431517721251,
+            "shadowColor": null,
+            "shadowRatio": null,
+            "pairRatio": null
+          },
+          {
+            "label": "菜单项(浮层上)",
+            "sel": ".dsh-rw-menu .dsh-rw-menuitem",
+            "applied": true,
+            "outlineColor": "rgb(122, 170, 255)",
+            "outlineWidth": "2px",
+            "outlineStyle": "auto",
+            "outlineOffset": "-2px",
+            "boxShadow": "rgb(35, 35, 36) 0px 0px 0px 1px inset",
+            "bgHex": "#61666b/1.00",
+            "ringRatio": 2.4913209703991765,
+            "shadowColor": "rgb(35, 35, 36)",
+            "shadowRatio": 2.7076876461342363,
+            "pairRatio": 6.745719014105008
+          }
+        ],
+        "hoverFill": {
+          "rowBg": "rgba(0, 0, 0, 0)",
+          "effBg": "#2c2c2e/1.00"
+        }
+      }
+    }
+  ]
+}
