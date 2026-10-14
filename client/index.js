@@ -152,7 +152,10 @@ window.__ModuleLoader__.load({
 			".dsh-rw-extra{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-spacer{flex:1;min-width:0}",
 			".dsh-rw-updated{flex:none;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;white-space:nowrap}",
-			".dsh-rw-menu{position:absolute;bottom:calc(100% + 4px);right:0;width:240px;z-index:30;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:0;box-shadow:0 4px 12px rgba(0,0,0,.08)}",
+			// T52：规格 §7.2.4 的「宽 240 固定」指**外框**。宿主无全局 box-sizing 重置 ⇒ 不写 border-box 时
+			// `width:240 + padding:4×2 + border:1×2` 按内容盒渲染成 **250**（真实 Chromium 实测，见
+			// client-panel/REPORT-menu-boxsizing.md ①）。与同族 7 条（row/recent-row/menuitem/status/dot/crumb/link）一致。
+			".dsh-rw-menu{position:absolute;bottom:calc(100% + 4px);right:0;box-sizing:border-box;width:240px;z-index:30;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:0;box-shadow:0 4px 12px rgba(0,0,0,.08)}",
 			".dsh-rw-group{display:flex;flex-direction:column;gap:0}",
 			// T42/R3：组标题取色 `label-secondary` 在 dark 只有 3.85:1（<4.5）⇒ 改 `label-primary`
 			//（实测 15.97 / 5.55 ✓✓；17 token 闭集内没有第三个选项，`brand-primary` 与它 RGB 相同）。
