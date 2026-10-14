@@ -1,7 +1,7 @@
 PASS  A1 footerH=47 (light)                   
 PASS  A1b narrow320 footerH=47 (light)        
-PASS  A2 V1 命中区全 ≥24 (light)                   — 25 个可点元素
-PASS  A3 状态词不被省略 (light)                       — 91==91
+PASS  A2 V1 命中区全 ≥24 (light)                   — 1 个可点元素
+PASS  A3 状态词不被省略 (light)                       — 104==104
 PASS  A3b 320 状态词不被省略 (light)                 
 PASS  A4 菜单外框宽=240 (light)                    
 PASS  A5 组标题对比度 ≥4.5 (light)                   — 15.97
@@ -10,8 +10,8 @@ PASS  A7 菜单不遮状态词 (light)
 PASS  A8 组标注一致 (light)                         — 2 组：dsh-rw-menu-daemon, dsh-rw-menu-diagnostics
 PASS  A1 footerH=47 (dark)                    
 PASS  A1b narrow320 footerH=47 (dark)         
-PASS  A2 V1 命中区全 ≥24 (dark)                    — 25 个可点元素
-PASS  A3 状态词不被省略 (dark)                        — 91==91
+PASS  A2 V1 命中区全 ≥24 (dark)                    — 1 个可点元素
+PASS  A3 状态词不被省略 (dark)                        — 104==104
 PASS  A3b 320 状态词不被省略 (dark)                  
 PASS  A4 菜单外框宽=240 (dark)                     
 PASS  A5 组标题对比度 ≥4.5 (dark)                    — 5.55

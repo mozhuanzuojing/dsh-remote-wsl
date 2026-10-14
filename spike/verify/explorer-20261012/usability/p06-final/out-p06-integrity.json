@@ -7,7 +7,7 @@
       "appended": "\";\"",
       "prefixMatch": "PASS",
       "diskSha256_16": "47525217062f3107",
-      "trailer": "//# sourceMappingURL=client.i18n.js.map?rev=9ca1980db29f"
+      "trailer": "//# sourceMappingURL=client.i18n.js.map?rev=59faf7156bc2"
     },
     "client.api.js": {
       "servedBytes": 14905,
@@ -15,15 +15,7 @@
       "appended": "\";\"",
       "prefixMatch": "PASS",
       "diskSha256_16": "5a192b93a62900e0",
-      "trailer": "//# sourceMappingURL=client.api.js.map?rev=9ca1980db29f"
-    },
-    "client.panel.js": {
-      "servedBytes": 9836,
-      "diskBytes": 9776,
-      "appended": "\";\"",
-      "prefixMatch": "PASS",
-      "diskSha256_16": "e018be93236fbd57",
-      "trailer": "//# sourceMappingURL=client.panel.js.map?rev=9ca1980db29f"
+      "trailer": "//# sourceMappingURL=client.api.js.map?rev=59faf7156bc2"
     },
     "client.icon.js": {
       "servedBytes": 2268,
@@ -31,7 +23,15 @@
       "appended": "\";\"",
       "prefixMatch": "PASS",
       "diskSha256_16": "e9a824f50e45e5d4",
-      "trailer": "//# sourceMappingURL=client.icon.js.map?rev=9ca1980db29f"
+      "trailer": "//# sourceMappingURL=client.icon.js.map?rev=59faf7156bc2"
+    },
+    "client.panel.js": {
+      "servedBytes": 9836,
+      "diskBytes": 9776,
+      "appended": "\";\"",
+      "prefixMatch": "PASS",
+      "diskSha256_16": "e018be93236fbd57",
+      "trailer": "//# sourceMappingURL=client.panel.js.map?rev=59faf7156bc2"
     },
     "client.panel.helpers.js": {
       "servedBytes": 12268,
@@ -39,7 +39,7 @@
       "appended": "\";\"",
       "prefixMatch": "PASS",
       "diskSha256_16": "efa1e85cca69012b",
-      "trailer": "//# sourceMappingURL=client.panel.helpers.js.map?rev=9ca1980db29f"
+      "trailer": "//# sourceMappingURL=client.panel.helpers.js.map?rev=59faf7156bc2"
     },
     "client.panel.actions.js": {
       "servedBytes": 13360,
@@ -47,7 +47,7 @@
       "appended": "\";\"",
       "prefixMatch": "PASS",
       "diskSha256_16": "d45d9f9acbc895a1",
-      "trailer": "//# sourceMappingURL=client.panel.actions.js.map?rev=9ca1980db29f"
+      "trailer": "//# sourceMappingURL=client.panel.actions.js.map?rev=59faf7156bc2"
     },
     "client.panel.header.js": {
       "servedBytes": 8055,
@@ -55,7 +55,7 @@
       "appended": "\";\"",
       "prefixMatch": "PASS",
       "diskSha256_16": "b5c1a2c06c7ed495",
-      "trailer": "//# sourceMappingURL=client.panel.header.js.map?rev=9ca1980db29f"
+      "trailer": "//# sourceMappingURL=client.panel.header.js.map?rev=59faf7156bc2"
     },
     "client.panel.browser.js": {
       "servedBytes": 13850,
@@ -63,7 +63,7 @@
       "appended": "\";\"",
       "prefixMatch": "PASS",
       "diskSha256_16": "a4bcafa8e2141ea5",
-      "trailer": "//# sourceMappingURL=client.panel.browser.js.map?rev=9ca1980db29f"
+      "trailer": "//# sourceMappingURL=client.panel.browser.js.map?rev=59faf7156bc2"
     },
     "client.panel.tail.js": {
       "servedBytes": 15451,
@@ -71,7 +71,7 @@
       "appended": "\";\"",
       "prefixMatch": "PASS",
       "diskSha256_16": "f5cbcf7c4820016c",
-      "trailer": "//# sourceMappingURL=client.panel.tail.js.map?rev=9ca1980db29f"
+      "trailer": "//# sourceMappingURL=client.panel.tail.js.map?rev=59faf7156bc2"
     }
   },
   "allPass": true

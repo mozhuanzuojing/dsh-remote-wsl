@@ -5,9 +5,9 @@
       "theme": "light",
       "footerH": 47,
       "statusWord": {
-        "text": "远端守护未运行",
-        "scrollW": 91,
-        "clientW": 91,
+        "text": "远端守护状态未知",
+        "scrollW": 104,
+        "clientW": 104,
         "notElided": true
       },
       "menuBtnRect": {
@@ -17,13 +17,13 @@
         "y": 865,
         "bottom": 889
       },
-      "hitCount": 25,
+      "hitCount": 1,
       "under24Count": 0,
       "under24": [],
       "shadowCount": 0,
       "shadows": [],
-      "rowCount": 11,
-      "panelText": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区 浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 _reports 进入 bin data dsh-handoff-20260820.md dsh-kit dsh-liangwengu dsh-shadow dsh-vscode open-design-daemon.service vendor windows-mcp-dsh-config.spec.md 最近目录 诊断信息（与 wsl_status 同源） 远端守护未运"
+      "rowCount": 0,
+      "panelText": "远程资源管理器 尚未取得目标发行版 添加为 WSL 工作区 正在读取远端信息… 远端守护状态未知 · 状态读取中…"
     },
     "menu": {
       "theme": "light",
@@ -92,9 +92,9 @@
       "footerH": 47,
       "footerNoWrap": true,
       "statusWord": {
-        "text": "远端守护未运行",
-        "scrollW": 91,
-        "clientW": 91,
+        "text": "远端守护状态未知",
+        "scrollW": 104,
+        "clientW": 104,
         "notElided": true
       },
       "menuBtnRect": {
@@ -112,9 +112,9 @@
       "theme": "dark",
       "footerH": 47,
       "statusWord": {
-        "text": "远端守护未运行",
-        "scrollW": 91,
-        "clientW": 91,
+        "text": "远端守护状态未知",
+        "scrollW": 104,
+        "clientW": 104,
         "notElided": true
       },
       "menuBtnRect": {
@@ -124,13 +124,13 @@
         "y": 865,
         "bottom": 889
       },
-      "hitCount": 25,
+      "hitCount": 1,
       "under24Count": 0,
       "under24": [],
       "shadowCount": 0,
       "shadows": [],
-      "rowCount": 11,
-      "panelText": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区 浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 _reports 进入 bin data dsh-handoff-20260820.md dsh-kit dsh-liangwengu dsh-shadow dsh-vscode open-design-daemon.service vendor windows-mcp-dsh-config.spec.md 最近目录 诊断信息（与 wsl_status 同源） 远端守护未运"
+      "rowCount": 0,
+      "panelText": "远程资源管理器 尚未取得目标发行版 添加为 WSL 工作区 正在读取远端信息… 远端守护状态未知 · 状态读取中…"
     },
     "menu": {
       "theme": "dark",
@@ -199,9 +199,9 @@
       "footerH": 47,
       "footerNoWrap": true,
       "statusWord": {
-        "text": "远端守护未运行",
-        "scrollW": 91,
-        "clientW": 91,
+        "text": "远端守护状态未知",
+        "scrollW": 104,
+        "clientW": 104,
         "notElided": true
       },
       "menuBtnRect": {

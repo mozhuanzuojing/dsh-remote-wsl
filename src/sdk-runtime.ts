@@ -97,6 +97,12 @@ export const RUNTIME_PROFILE_DAEMON = {
   closeHook: null,
   /** 空闲自回收（宿主形态：`cfg.idleTimeoutMs`）；0 = 不做。 */
   idleTimeoutMs: 0,
+  /**
+   * 一轮 `session/prompt` 被**上游拒绝**（JSON-RPC error / 写 stdin 失败）时，是否顺手把运行时关掉。
+   * 守护形态保持 `false`：语义 #6 只要求"空正文不换 sessionId"，一次请求失败不该牺牲已有上下文。
+   * 宿主逃生舱在 `runtimeAdapter()` 里默认 `true` —— 它自己的文档语义本就是"放弃一轮 = 关掉运行时"。
+   */
+  closeOnPromptError: false,
   /** 文案。 */
   text: {
     requestClosed: () => 'runtime closed',
@@ -104,6 +110,8 @@ export const RUNTIME_PROFILE_DAEMON = {
     stdinWriteFailed: (m) => `stdin write failed: ${m}`,
     requestTimeout: (method, ms) => `${method} timeout after ${ms}ms`,
     spawnError: (key, m) => `runtime spawn error key=${key}: ${m}`,
+    /** 进程在 `initialize` 完成前就退出（非零退出 / 坏 cwd 等）——必须带 exitCode 与 stderr 尾巴上行。 */
+    startExited: (code, tail) => `runtime exited during initialize (exit=${code})${tail ? `: ${tail}` : ''}`,
     noText: null,
   },
 };
@@ -111,6 +119,9 @@ export const RUNTIME_PROFILE_DAEMON = {
 /** 以守护形态为底座做浅覆盖（`text` / `quietLabels` 逐键合并，避免调用方写全量）。 */
 export const runtimeAdapter = (overrides = {}) => ({
   ...RUNTIME_PROFILE_DAEMON,
+  // 宿主逃生舱的默认：一轮被上游拒绝 ⇒ 关掉运行时（它的兜底路径本来就是"停稳运行时再读日志"）。
+  // 守护形态不受影响（`RUNTIME_PROFILE_DAEMON.closeOnPromptError === false`）。
+  closeOnPromptError: true,
   ...overrides,
   quietLabels: { ...RUNTIME_PROFILE_DAEMON.quietLabels, ...(overrides.quietLabels ?? {}) },
   text: { ...RUNTIME_PROFILE_DAEMON.text, ...(overrides.text ?? {}) },
@@ -165,6 +176,10 @@ export class SdkRuntime {
     this.turns = 0;
     this.startedAt = null;
     this.exitCode = undefined;
+    /** spawn 的 `'error'`（ENOENT / EACCES…）——用来把真实原因回抛，而不是伪装成 `initialize 超时`。 */
+    this.spawnError = null;
+    /** 上一轮 `session/prompt` 的失败原因（失败后运行时状态不再"看着一切正常"）。 */
+    this.lastTurnError = null;
   }
 
   /** 运行时进程链的根 PID（`bash -c` 里 `exec mise …` ⇒ 这个 pid 就是 mise/pnpm 那层）。 */
@@ -188,33 +203,78 @@ export class SdkRuntime {
   async start() {
     const script = this.ad.scriptFor ? this.ad.scriptFor({ cwd: this.cwd, version: this.version, profile: this.profile }) : this.#defaultScript();
     this.log(`spawning runtime key=${this.key} dsh@${this.version} cwd=${this.cwd}`);
-    this.child = this.ad.spawnRuntime
-      ? this.ad.spawnRuntime({ script, self: this })
-      : spawn('/bin/bash', ['-c', script], {
-          stdio: ['pipe', 'pipe', 'pipe'],
-          env: this.env,
-          // detached ⇒ 自成进程组：回收时 kill(-pid) 连带 pnpm/node 全树，
-          // 这正是 lib/index.js 记录的"包装层被杀、Linux 侧进程变孤儿"那个坑的解。
-          detached: true,
-        });
-    this.child.stdout.setEncoding('utf8');
-    this.child.on('error', (e) => {
-      this.closed = true;
-      if (this.ad.logSpawnError) this.log(this.ad.text.spawnError(this.key, e.message));
-    });
-    this.child.stdout.on('data', (c) => this.pump(c));
-    this.child.stderr.setEncoding('utf8');
-    this.child.stderr.on('data', (c) => {
-      this.stderrTail = (this.stderrTail + c).slice(-this.ad.stderrTailLimit);
-    });
-    this.exited = new Promise((res) => this.child.once('exit', (code) => {
-      this.exitCode = code;
-      res(code);
-    }));
-    await this.request('initialize', { cwd: this.cwd, provider: this.provider, model: this.model }, this.ad.initTimeoutMs);
+    // 失败信号：spawn 的 `'error'`（ENOENT/EACCES）与"initialize 期间就退出"（非零退出/坏 cwd）。
+    // 这两条以前都没有出口 ⇒ 真实原因被 `initialize 超时` 盖住（F56-1 的一半 / F56-2）。
+    let rejectSpawn;
+    const spawnFailure = new Promise((_, rej) => { rejectSpawn = rej; });
+    spawnFailure.catch(() => {}); // race 若是别的分支先赢，这里绝不能变成 unhandled rejection
+    let exitedDuringInit;
+    try {
+      this.child = this.ad.spawnRuntime
+        ? this.ad.spawnRuntime({ script, self: this })
+        : spawn('/bin/bash', ['-c', script], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            env: this.env,
+            // detached ⇒ 自成进程组：回收时 kill(-pid) 连带 pnpm/node 全树，
+            // 这正是 lib/index.js 记录的"包装层被杀、Linux 侧进程变孤儿"那个坑的解。
+            detached: true,
+          });
+      this.child.stdout.setEncoding('utf8');
+      this.child.on('error', (e) => {
+        this.spawnError = e;
+        this.closed = true;
+        if (this.ad.logSpawnError) this.log(this.ad.text.spawnError(this.key, e.message));
+        rejectSpawn(new Error(this.ad.text.spawnError(this.key, e.message)));
+      });
+      this.child.stdout.on('data', (c) => this.pump(c));
+      this.child.stderr.setEncoding('utf8');
+      this.child.stderr.on('data', (c) => {
+        this.stderrTail = (this.stderrTail + c).slice(-this.ad.stderrTailLimit);
+      });
+      this.exited = new Promise((res) => this.child.once('exit', (code) => {
+        this.exitCode = code;
+        res(code);
+      }));
+      exitedDuringInit = this.exited.then((code) => {
+        throw new Error(this.ad.text.startExited(code, this.stderrTail.slice(-300)));
+      });
+      exitedDuringInit.catch(() => {}); // 起成功之后再退出属于正常关停，不该变成 unhandled
+      await Promise.race([
+        this.request('initialize', { cwd: this.cwd, provider: this.provider, model: this.model }, this.ad.initTimeoutMs),
+        spawnFailure,
+        exitedDuringInit,
+      ]);
+    } catch (e) {
+      // 根因修复（F56-1 / F56-3）：**启动失败必须收尾并收敛状态**。
+      // 以前 spawn 失败只置 `closed`，而 `close()` 见 `closed` 就 early-return ⇒ closeHook
+      // （宿主形态 = `reapWsl` + `removeScript`）从不执行 ⇒ `/tmp/dsh-rwsl-*.sh` 永久残留；
+      // 且 `closed` 的语义在此被"混用"，池的复用判据 `!existing.closed` 也拦不住别的失败形态。
+      await this.#abortStart();
+      throw e;
+    }
     this.startedAt = Date.now();
     this.log(`runtime ready key=${this.key} pid=${this.runtimePid} session=${this.sessionId}`);
     return this;
+  }
+
+  /**
+   * 启动失败的**统一收尾**（幂等、绝不抛）：
+   *  · 状态收敛：`closed = true` ⇒ ① 后续 `prompt()`/`request()` 走"已关闭"的**友好文案**（不再是裸
+   *    `TypeError: … undefined (reading 'stdin')`）；② 运行时池的复用判据 `!existing.closed` 生效
+   *    ⇒ **坏运行时会自然被驱逐、同 key 重取会重建**（F56-3，不需要改池）。
+   *  · 资源回收：关 stdin、杀包装层/进程组、跑 adapter 的 `closeHook`（宿主形态 = `reapWsl` +
+   *    `removeScript` ⇒ `/tmp/dsh-rwsl-*.sh` 不再残留，F56-1）；也顺带把 WSL 侧已起的进程收掉。
+   */
+  async #abortStart() {
+    this.closed = true;
+    const child = this.child;
+    try { child?.stdin?.end(); } catch { /* ignore */ }
+    try { if (child?.pid) child.kill(); } catch { /* 已退出 */ }
+    if (child?.pid && this.ad.killMode === 'process-group') {
+      // 关键：杀**进程组**（守护形态 bash 是 detached 的组长），只杀包装层会留孤儿
+      try { process.kill(-child.pid, 'SIGKILL'); } catch { /* ESRCH = 已经退了 */ }
+    }
+    try { await this.ad.closeHook?.({ self: this }); } catch { /* 回收失败也要把真实错误抛给调用方 */ }
   }
 
   request(method, params, timeoutMs = this.promptTimeoutMs) {
@@ -342,10 +402,21 @@ export class SdkRuntime {
     this.turnDone = new Promise((res) => {
       this.resolveTurn = res;
     });
-    await this.request('session/prompt', {
-      sessionId: this.sessionId,
-      contentBlocks: [{ type: 'text', text }],
-    });
+    try {
+      await this.request('session/prompt', {
+        sessionId: this.sessionId,
+        contentBlocks: [{ type: 'text', text }],
+      });
+    } catch (e) {
+      // F56-4：这一轮被上游**拒绝**（JSON-RPC error / 写 stdin 失败）时，运行时状态不能再"看着一切正常"。
+      //  · 记下失败原因（失败后不再假装这一轮没发生）；
+      //  · 宿主逃生舱（`runtimeAdapter()` 的默认）按自己的语义"放弃一轮 = 关掉运行时"收尾 ⇒ `closed=true`，
+      //    状态与实际一致；
+      //  · 守护形态保持不动（语义 #6：不因为一次失败就去换 sessionId、丢上下文）——由 caller 决定重试或丢弃。
+      this.lastTurnError = e?.message ?? String(e);
+      if (this.ad.closeOnPromptError) { try { await this.close(); } catch { /* ignore */ } }
+      throw e;
+    }
     this.armQuiet();
     await Promise.race([this.turnDone, sleep(this.promptTimeoutMs)]);
     if (this.quietTimer) clearTimeout(this.quietTimer);
@@ -397,7 +468,7 @@ export class SdkRuntime {
 
   async close() {
     if (this.closed) {
-      return this.ad.closeResult === 'void' ? undefined : { alreadyClosed: true, exitCode: this.exitCode };
+      return this.ad.closeResult === 'void' ? undefined : { alreadyClosed: true, exitCode: this.exitCode, exited: this.exitCode !== undefined };
     }
     this.closed = true;
     if (this.quietTimer) clearTimeout(this.quietTimer);
@@ -421,7 +492,7 @@ export class SdkRuntime {
         /* 已退出 */
       }
       await this.ad.closeHook?.({ self: this });
-      return this.ad.closeResult === 'void' ? undefined : { exitCode: this.exitCode };
+      return this.ad.closeResult === 'void' ? undefined : { exitCode: this.exitCode, exited: this.exitCode !== undefined };
     }
     // 关键：杀**进程组**，不是只杀包装层（否则 pnpm/node 变孤儿继续跑、还抢模型配额）
     for (const sig of ['SIGTERM', 'SIGKILL']) {
@@ -433,6 +504,7 @@ export class SdkRuntime {
       }
       await Promise.race([this.exited, sleep(2000)]);
     }
-    return { exitCode: this.exitCode };
+    // F56-4：`exitCode: null` 以前无法区分"正常退出码为空"与"3 秒内没等到退出"⇒ 补一个显式 `exited`。
+    return { exitCode: this.exitCode, exited: this.exitCode !== undefined };
   }
 }

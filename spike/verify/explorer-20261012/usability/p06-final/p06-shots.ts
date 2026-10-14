@@ -52,6 +52,16 @@ async function load(cdp: C, w = 1280, h = 900, dark = false, init?: string, opts
   await cdp.send('Page.navigate', { url: URL_ }); await sleep(2600);
   if (sid) { try { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: sid }); } catch {} }
   try { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: rLib.identifier }); } catch {}
+  // ⚠️ 全新孤立 profile 第一次打开会出现 DSH 的「预览版说明」模态，会盖住面板 ⇒ 必须点掉再拍
+  //    （T54 自查踩到：首版 12 张全被该模态遮住，作废重拍）
+  const dismissed = await cdp.ev(`(() => {
+    const cand = Array.from(document.querySelectorAll('button,[role="button"]')).find((x)=>/^(继续|我知道了|同意|Got it|Continue|OK)$/.test(((x.innerText||x.textContent||'')+'').trim()));
+    if (cand) { cand.click(); return 'dismissed'; }
+    return 'none';
+  })()`);
+  rep.dismissed = rep.dismissed || [];
+  rep.dismissed.push(dismissed);
+  if (dismissed === 'dismissed') await sleep(600);
   if (opts.openPanel !== false) { await cdp.ev(RAIL); await sleep(opts.settle ?? 2400); }
 }
 async function shot(cdp: C, f: string) { const r = await cdp.send('Page.captureScreenshot', { format: 'png' }); const p = path.join(OUT, f); fs.writeFileSync(p, Buffer.from(r.data, 'base64')); return { file: f, bytes: fs.statSync(p).size }; }
