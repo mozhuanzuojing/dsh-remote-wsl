@@ -470,14 +470,16 @@ export class SdkRuntime {
     if (this.closed) {
       return this.ad.closeResult === 'void' ? undefined : { alreadyClosed: true, exitCode: this.exitCode, exited: this.exitCode !== undefined };
     }
-    this.closed = true;
     if (this.quietTimer) clearTimeout(this.quietTimer);
     if (this.idleTimer) clearTimeout(this.idleTimer);
+    // ⚠️ 顺序是**语义**的一部分（F56-5，T62 修）：以前先 `this.closed = true` 再 `request('shutdown')`，
+    // 而 `request()` 见 `closed` 立刻 reject ⇒ **这条优雅关闭从来没发出去过**（每一步都静默走 kill 路径）。
     try {
       await this.request('shutdown', undefined, 3000);
     } catch {
       /* 运行时可能已经走了 */
     }
+    this.closed = true;
     try {
       this.child.stdin.end();
     } catch {

@@ -51,6 +51,8 @@ process.stdin.on('data', (c) => {
     w({ jsonrpc: '2.0', id: msg.id, result: {} });
   }
 });
+// stdin 关闭也退出 —— 让"优雅关闭"这条路径有确定的终态（A6 正例用）
+process.stdin.on('end', () => process.exit(0));
 setTimeout(() => process.exit(0), 60000);
 `;
 
@@ -153,16 +155,21 @@ const check = (id: string, ok: boolean, detail: string) => { results.push({ id, 
   try { await rt.close(); } catch { /* ignore */ }
 }
 
-// ── A6（F56-4）：`close()` 必须显式给出 `exited`（守护形态适配器 + 桩子进程真调）──
+// ── A6（F56-4 + F56-5）：`close()` 必须显式给出 `exited`，且优雅 `shutdown` 真的发得出去 ──
+//  用**守护形态适配器**（`RUNTIME_PROFILE_DAEMON`）+ 桩子进程真调；`killMode:'wrapper'` 让它走
+//  Windows 可用的 `child.kill()`（`process.kill(-pid)` 在 Windows 上无效，那是平台事实，不是缺陷）。
 {
   const dir = copySrc('close');
   if (MODE === 'red') applyOldNothing(dir);
   const mod: any = await import(`file:///${dir}/sdk-runtime.ts`);
-  const adapter = { ...mod.RUNTIME_PROFILE_DAEMON, closeResult: 'exitCode', spawnRuntime: () => spawn(process.execPath, [STUB, 'notext'], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true }) };
+  const adapter = { ...mod.RUNTIME_PROFILE_DAEMON, closeResult: 'exitCode', killMode: 'wrapper', spawnRuntime: () => spawn(process.execPath, [STUB, 'notext'], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true }) };
   const rt = new mod.SdkRuntime({ key: 'k-close', version: VERSION, cwd: '/home/g', adapter });
   await rt.start();
+  const t0 = Date.now();
   const r: any = await rt.close();
-  check('A6 F56-4 close() 显式回报 exited（daemon 形态）', r && typeof r.exited === 'boolean' && r.exitCode === 0, JSON.stringify(r));
+  const ms = Date.now() - t0;
+  check('A6 F56-4 close() 显式回报 exited=true（真退出）', r && typeof r.exited === 'boolean' && r.exitCode === 0 && r.exited === true, `${JSON.stringify(r)} closeMs=${ms}`);
+  check('A6b F56-5 优雅 shutdown 真的发出去了（不再是死代码）', ms < 1500, `close() 用时 ${ms}ms（< 1500ms = 没走 3s 超时；死代码时恒为 3s+）`);
 }
 
 function applyOldNothing(_dir: string): void { /* 其余断言在 red 模式下用同一份代码，只有 F56-1 需要"旧行为"对照 */ }

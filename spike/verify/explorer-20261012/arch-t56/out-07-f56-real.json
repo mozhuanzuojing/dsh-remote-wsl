@@ -1,7 +1,7 @@
 {
-  "at": "2026-10-14T03:54:43.964Z",
+  "at": "2026-10-14T03:56:21.775Z",
   "mode": "real",
-  "winpid": 36900,
+  "winpid": 27652,
   "results": [
     {
       "id": "A1 F56-1 错误可读（不再伪装成超时）",
@@ -29,9 +29,14 @@
       "detail": "Error: JSON-RPC -32603: stub boom closed=true alive=false lastTurnError=JSON-RPC -32603: stub boom"
     },
     {
-      "id": "A6 F56-4 close() 显式回报 exited（daemon 形态）",
-      "ok": false,
-      "detail": "{\"exited\":false}"
+      "id": "A6 F56-4 close() 显式回报 exited=true（真退出）",
+      "ok": true,
+      "detail": "{\"exitCode\":0,\"exited\":true} closeMs=8"
+    },
+    {
+      "id": "A6b F56-5 优雅 shutdown 真的发出去了（不再是死代码）",
+      "ok": true,
+      "detail": "close() 用时 8ms（< 1500ms = 没走 3s 超时；死代码时恒为 3s+）"
     }
   ]
 }
