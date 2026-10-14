@@ -107,7 +107,15 @@ function renderHeader(props) {
 								});
 							},
 						},
-						action.busy === primaryBusyKey ? (primaryIsSession ? t("row.openBusy") : t("action.addWorkspaceBusy")) : t(primaryIsSession ? "browser.openHere" : "action.addWorkspace"),
+						// T63：窄态（面板 <420，最窄 264px）换短文案，把宽度让回给标题/副标题（否则「添加为 WSL 工作区」
+						// 占 132px，头部文字列只剩 63.7px ⇒ 标题折 2 行、副标题折 4 行）。完整名仍在 aria-label/title 里。
+						action.busy === primaryBusyKey
+							? primaryIsSession
+								? t("row.openBusy")
+								: t("action.addWorkspaceBusy")
+							: primaryIsSession
+								? t(narrow ? "browser.openHereShort" : "browser.openHere")
+								: t(narrow ? "action.addWorkspaceShort" : "action.addWorkspace"),
 					),
 				);
 				headerButtons.push(

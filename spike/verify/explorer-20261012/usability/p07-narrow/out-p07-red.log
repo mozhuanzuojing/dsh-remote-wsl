@@ -1,0 +1,15 @@
+### 故意红（破坏只在 %TEMP% 的 vendor 副本上；工作树不碰）
+基线 sha client.panel.header.js = 7B4C67EF9CE44EB737D9FD79719C95D0809ED532471E7C075EAB38417BD639D9
+基线 sha client.panel.tail.js = FEFE4775DCA2374276B69C2ADE19C38D1C44FF4541969EAD4C4157272918C366
+基线 sha index.js = F0FA6869C552990A51E94F5C36402B4E1C55CA0A3127A7B442C93D03C38F28AF
+--- RED-A 断言（期望 N2 FAIL / exit 1）---
+PASS = 96   FAIL = 0
+==> PASS
+RED-A exit=0
+PASS = 96   FAIL = 0
+==> PASS
+RED-B exit=0
+byte-identical = True
+PASS = 96   FAIL = 0
+==> PASS
+restored exit=0

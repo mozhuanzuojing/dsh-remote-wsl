@@ -252,7 +252,8 @@ function renderTail(props) {
 										"span",
 										{ className: "dsh-rw-header-meta" },
 										React.createElement("span", { className: "dsh-rw-badge" }, t("row.notMaterialized")),
-										React.createElement("span", { className: "dsh-rw-hint" }, t("header.distroScope")),
+										// T63：窄态换更短文案（「不改目标」），完整句永远在 `title` 里 ⇒ 不丢信息
+										React.createElement("span", { className: "dsh-rw-hint", title: t("header.distroScope") }, narrow ? t("header.distroScopeShort") : t("header.distroScope")),
 									)
 								: null,
 						),
@@ -270,13 +271,14 @@ function renderTail(props) {
 						React.createElement(StatusDot, { kind: stateKind }),
 						React.createElement("span", { className: "dsh-rw-statusword" }, statusWord),
 						drifted ? React.createElement(React.Fragment, null, icon("warn", "dsh-rw-drift"), React.createElement("span", { className: "dsh-rw-statusword" }, t("status.drifted"))) : null,
-						extra.length > 0 ? React.createElement("span", { className: "dsh-rw-extra" }, " · ", extra) : null,
+						extra.length > 0 ? React.createElement("span", { className: "dsh-rw-extra" + (narrow ? " dsh-rw-extra--hidden" : "") }, " · ", extra) : null,
 						React.createElement("span", { className: "dsh-rw-spacer" }),
 						factsVisible && daemonKnown && daemon.running !== true
 							? React.createElement(
 									"button",
 									{ type: "button", className: "dsh-rw-btn", disabled: action.busy !== null, onClick: () => runDaemon("ensure"), "aria-label": t("status.startAria"), title: t("status.startAria") },
-									action.busy === "daemon:ensure" ? t("status.startBusy") : t("status.start"),
+									// T63：窄态换短文案「启动」（4 个 CJK 需 ~52px > 底栏能给的 49px ⇒ 会折成两行）
+									action.busy === "daemon:ensure" ? t("status.startBusy") : narrow ? t("status.startShort") : t("status.start"),
 								)
 							: null,
 						updated !== null && !hideUpdated ? React.createElement("span", { className: "dsh-rw-updated" }, updated) : null,

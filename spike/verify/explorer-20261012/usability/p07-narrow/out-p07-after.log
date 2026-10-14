@@ -1,0 +1,20 @@
+after light  320  panel=264 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after light  359  panel=303 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after light  360  panel=304 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after light  419  panel=363 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after light  420  panel=364 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after light  480  panel=424 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after light  560  panel=504 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after light 1280  panel=1000 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after dark   320  panel=264 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after dark   359  panel=303 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after dark   360  panel=304 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after dark   419  panel=363 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after dark   420  panel=364 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after dark   480  panel=424 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after dark   560  panel=504 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+after dark  1280  panel=1000 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+
+
+PASS = 96   FAIL = 0
+==> PASS

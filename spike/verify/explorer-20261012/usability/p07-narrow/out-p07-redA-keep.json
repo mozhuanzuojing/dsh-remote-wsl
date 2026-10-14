@@ -1,0 +1,1662 @@
+[
+  {
+    "tag": "redA",
+    "dark": false,
+    "reqW": 320,
+    "theme": "light",
+    "innerWidth": 320,
+    "panelW": 264,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 109,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 187,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 228,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 264,
+    "footerClientW": 264,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": false,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 37,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": false,
+    "reqW": 359,
+    "theme": "light",
+    "innerWidth": 359,
+    "panelW": 303,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 148,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 226,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 267,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 303,
+    "footerClientW": 303,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": false,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 76,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": false,
+    "reqW": 360,
+    "theme": "light",
+    "innerWidth": 360,
+    "panelW": 304,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 149,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 227,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 268,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 304,
+    "footerClientW": 304,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": false,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 77,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": false,
+    "reqW": 419,
+    "theme": "light",
+    "innerWidth": 419,
+    "panelW": 363,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 208,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 286,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 236,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 363,
+    "footerClientW": 363,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 44.7,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:50:14",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": false,
+    "reqW": 420,
+    "theme": "light",
+    "innerWidth": 420,
+    "panelW": 364,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 209,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 287,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 237,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 364,
+    "footerClientW": 364,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 45.7,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:50:20",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": false,
+    "reqW": 480,
+    "theme": "light",
+    "innerWidth": 480,
+    "panelW": 424,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 仅筛选，不改目标",
+      "primary": "添加为 WSL 工作区",
+      "start": "启动守护"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 223.7,
+    "actsW": 164.3,
+    "primaryRect": {
+      "w": 132.3,
+      "h": 28,
+      "x": 302,
+      "y": 10
+    },
+    "startRect": {
+      "w": 74,
+      "h": 28,
+      "x": 271,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 424,
+    "footerClientW": 424,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra",
+        "w": 54.9,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 16.8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 74,
+        "txt": "启动守护",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:50:25",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": false,
+    "reqW": 560,
+    "theme": "light",
+    "innerWidth": 560,
+    "panelW": 504,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 仅筛选，不改目标",
+      "primary": "添加为 WSL 工作区",
+      "start": "启动守护"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 303.7,
+    "actsW": 164.3,
+    "primaryRect": {
+      "w": 132.3,
+      "h": 28,
+      "x": 382,
+      "y": 10
+    },
+    "startRect": {
+      "w": 74,
+      "h": 28,
+      "x": 351,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 504,
+    "footerClientW": 504,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra",
+        "w": 54.9,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 96.8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 74,
+        "txt": "启动守护",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:50:31",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": false,
+    "reqW": 1280,
+    "theme": "light",
+    "innerWidth": 1280,
+    "panelW": 1000,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 仅筛选，不改目标",
+      "primary": "添加为 WSL 工作区",
+      "start": "启动守护"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 799.7,
+    "actsW": 164.3,
+    "primaryRect": {
+      "w": 132.3,
+      "h": 28,
+      "x": 1102,
+      "y": 10
+    },
+    "startRect": {
+      "w": 74,
+      "h": 28,
+      "x": 1071,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 1000,
+    "footerClientW": 1000,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra",
+        "w": 54.9,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 592.8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 74,
+        "txt": "启动守护",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:50:37",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": true,
+    "reqW": 320,
+    "theme": "dark",
+    "innerWidth": 320,
+    "panelW": 264,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 109,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 187,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 228,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 264,
+    "footerClientW": 264,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": false,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 37,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": true,
+    "reqW": 359,
+    "theme": "dark",
+    "innerWidth": 359,
+    "panelW": 303,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 148,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 226,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 267,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 303,
+    "footerClientW": 303,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": false,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 76,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": true,
+    "reqW": 360,
+    "theme": "dark",
+    "innerWidth": 360,
+    "panelW": 304,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 149,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 227,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 268,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 304,
+    "footerClientW": 304,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": false,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 77,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": true,
+    "reqW": 419,
+    "theme": "dark",
+    "innerWidth": 419,
+    "panelW": 363,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 208,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 286,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 236,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 363,
+    "footerClientW": 363,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 44.7,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:51:00",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": true,
+    "reqW": 420,
+    "theme": "dark",
+    "innerWidth": 420,
+    "panelW": 364,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 不改目标",
+      "primary": "添加工作区",
+      "start": "启动"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 209,
+    "actsW": 119,
+    "primaryRect": {
+      "w": 87,
+      "h": 28,
+      "x": 287,
+      "y": 10
+    },
+    "startRect": {
+      "w": 48,
+      "h": 28,
+      "x": 237,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 364,
+    "footerClientW": 364,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra dsh-rw-extra-",
+        "w": 0,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 45.7,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 48,
+        "txt": "启动",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:51:05",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": true,
+    "reqW": 480,
+    "theme": "dark",
+    "innerWidth": 480,
+    "panelW": 424,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 仅筛选，不改目标",
+      "primary": "添加为 WSL 工作区",
+      "start": "启动守护"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 223.7,
+    "actsW": 164.3,
+    "primaryRect": {
+      "w": 132.3,
+      "h": 28,
+      "x": 302,
+      "y": 10
+    },
+    "startRect": {
+      "w": 74,
+      "h": 28,
+      "x": 271,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 424,
+    "footerClientW": 424,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra",
+        "w": 54.9,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 16.8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 74,
+        "txt": "启动守护",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:51:10",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": true,
+    "reqW": 560,
+    "theme": "dark",
+    "innerWidth": 560,
+    "panelW": 504,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 仅筛选，不改目标",
+      "primary": "添加为 WSL 工作区",
+      "start": "启动守护"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 303.7,
+    "actsW": 164.3,
+    "primaryRect": {
+      "w": 132.3,
+      "h": 28,
+      "x": 382,
+      "y": 10
+    },
+    "startRect": {
+      "w": 74,
+      "h": 28,
+      "x": 351,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 504,
+    "footerClientW": 504,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra",
+        "w": 54.9,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 96.8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 74,
+        "txt": "启动守护",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:51:16",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  },
+  {
+    "tag": "redA",
+    "dark": true,
+    "reqW": 1280,
+    "theme": "dark",
+    "innerWidth": 1280,
+    "panelW": 1000,
+    "lines": {
+      "title": 1,
+      "subtitle": 1,
+      "meta": 2,
+      "badge": 1,
+      "hint": 1,
+      "primary": 1,
+      "start": 1
+    },
+    "texts": {
+      "title": "远程资源管理器",
+      "subtitle": "目标 debian-u8-1 · /home/g/project/dsh1",
+      "meta": "未物化 仅筛选，不改目标",
+      "primary": "添加为 WSL 工作区",
+      "start": "启动守护"
+    },
+    "titleWS": "nowrap",
+    "panelW2": null,
+    "textColW": 799.7,
+    "actsW": 164.3,
+    "primaryRect": {
+      "w": 132.3,
+      "h": 28,
+      "x": 1102,
+      "y": 10
+    },
+    "startRect": {
+      "w": 74,
+      "h": 28,
+      "x": 1071,
+      "y": 863
+    },
+    "startScrollH": 26,
+    "startClientH": 26,
+    "startWS": "normal",
+    "elided": {
+      "title": false,
+      "badge": false,
+      "hint": false,
+      "primary": false,
+      "start": false
+    },
+    "footerH": 47,
+    "footerScrollW": 1000,
+    "footerClientW": 1000,
+    "wordScrollW": 91,
+    "wordClientW": 91,
+    "wordElided": false,
+    "extraElided": false,
+    "extraTxt": "· 会话 0 个",
+    "updVisible": true,
+    "headerKids": [
+      {
+        "cls": "dsh-rw-dot dsh-rw-dot--sto",
+        "w": 8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-statusword",
+        "w": 91,
+        "txt": "远端守护未运行",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-extra",
+        "w": 54.9,
+        "txt": "· 会话 0 个",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-spacer",
+        "w": 592.8,
+        "txt": "",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-btn",
+        "w": 74,
+        "txt": "启动守护",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-updated",
+        "w": 83.3,
+        "txt": "更新于 12:51:21",
+        "elided": false
+      },
+      {
+        "cls": "dsh-rw-iconbtn",
+        "w": 24,
+        "txt": "",
+        "elided": false
+      }
+    ],
+    "hitCount": 25,
+    "under24Count": 0,
+    "under24": []
+  }
+]

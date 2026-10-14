@@ -1,0 +1,9 @@
+PASS  菜单回归 light/320 menuW=240 footerH=47 遮状态词=false
+PASS  菜单回归 light/420 menuW=240 footerH=47 遮状态词=false
+PASS  菜单回归 light/1280 menuW=240 footerH=47 遮状态词=false
+PASS  菜单回归 dark/320 menuW=240 footerH=47 遮状态词=false
+PASS  菜单回归 dark/420 menuW=240 footerH=47 遮状态词=false
+PASS  菜单回归 dark/1280 menuW=240 footerH=47 遮状态词=false
+
+菜单回归：6/6 PASS
+==> PASS

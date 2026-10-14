@@ -28,6 +28,10 @@
  * T52：`.dsh-rw-menu` 的 CSS 就在**本文件**的 CSS 数组里 ⇒ 那次改动本身就是入口变更。
  * T53：`client.panel.tail.js` 的菜单组标题去掉误导性 `role="presentation"`（N4 对账，
  *      见 spike/verify/explorer-20261012/client-panel/REPORT-n4-grouplabel.md）⇒ 由此处 bump 入口。
+ * T63：窄态（面板 <420）换短文案 + 头部/按钮禁止折行的 CSS（见
+ *      spike/verify/explorer-20261012/usability/p07-narrow/REPORT-narrow320-fix.md）。
+ *      本轮同时改了 3 个 chunk（i18n / header / tail）⇒ **最后一次编辑必须落在入口**，
+ *      否则 `check-client-rev.ts` 会判 FAIL（入口的 mtime/内容不再是最新）。
  */
 
 window.__ModuleLoader__.load({
@@ -65,7 +69,11 @@ window.__ModuleLoader__.load({
 			".dsh-rw-header{display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:var(--dsw-alias-bg-layer-1);border-bottom:1px solid var(--dsw-alias-border-l1);box-shadow:none}",
 			".dsh-rw-header-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}",
 			".dsh-rw-header-meta{display:flex;align-items:center;gap:6px;min-width:0}",
-			".dsh-rw-title{font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}",
+			// T63：窄态（面板实宽 <420 时最窄只有 264px）下不许出现"文字折行"⇒ 头部三块各**固定 1 行**
+			// （title/hint 超宽走 `…`，subtitle 本来就有）；按钮**永不折行**（`white-space:nowrap` + `flex:none`：
+			// 默认 `flex-shrink:1` 会把按钮压到比内容还窄，「启动守护」被压到 48.8px 就折成两行）。
+			// 配合 chunk 侧"窄态换更短文案"（见 client-panel/REPORT-narrow320-fix.md），不是靠压缩命中盒。
+			".dsh-rw-title{font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
 			".dsh-rw-subtitle{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-header-actions{display:flex;align-items:center;gap:8px;flex:none}",
 			".dsh-rw-body{flex:1;min-height:0;overflow:auto;padding:8px 8px 4px;display:flex;flex-direction:column;gap:8px}",
@@ -97,7 +105,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-drift{color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-menuicon--warn{color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-menuicon--error{color:var(--dsw-alias-state-error-primary)}",
-			".dsh-rw-btn{display:inline-flex;align-items:center;gap:4px;height:28px;padding:4px 10px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;box-shadow:none}",
+			".dsh-rw-btn{display:inline-flex;align-items:center;gap:4px;flex:none;white-space:nowrap;height:28px;padding:4px 10px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;box-shadow:none}",
 			".dsh-rw-btn:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
 			".dsh-rw-btn:active:enabled{background:var(--dsw-alias-interactive-bg-active)}",
 			".dsh-rw-btn:disabled{color:var(--dsw-alias-label-dimmed);border-color:var(--dsw-alias-border-l1);cursor:default}",
@@ -120,7 +128,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-link{display:inline-flex;align-items:center;justify-content:center;min-width:24px;min-height:24px;box-sizing:border-box;background:none;border:none;color:var(--dsw-alias-brand-primary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;padding:0 4px}",
 			".dsh-rw-link:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
 			".dsh-rw-link:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
-			".dsh-rw-hint{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-hint{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
 			".dsh-rw-note{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;box-shadow:none}",
 			".dsh-rw-note--error{border-color:var(--dsw-alias-state-error-primary)}",
 			".dsh-rw-note-text{white-space:pre-wrap;word-break:break-word;direction:ltr;unicode-bidi:isolate;text-align:left}",
@@ -155,6 +163,8 @@ window.__ModuleLoader__.load({
 			".dsh-rw-dot--error{background:var(--dsw-alias-state-error-primary)}",
 			".dsh-rw-statusword{flex:none;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);white-space:nowrap}",
 			".dsh-rw-extra{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}",
+			// T63：窄态（<420）会话数改由**菜单/诊断**承载 ⇒ 底栏只留状态词 + 主按钮，避免"会话 N 个"被挤成省略号
+			".dsh-rw-extra--hidden{display:none}",
 			".dsh-rw-spacer{flex:1;min-width:0}",
 			".dsh-rw-updated{flex:none;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;white-space:nowrap}",
 			// T52：规格 §7.2.4 的「宽 240 固定」指**外框**。宿主无全局 box-sizing 重置 ⇒ 不写 border-box 时

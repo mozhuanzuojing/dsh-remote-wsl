@@ -1,0 +1,26 @@
+menu light  320  panel=264 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu light  359  panel=303 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu light  360  panel=304 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu light  419  panel=363 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu light  420  panel=364 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu light  480  panel=424 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu light  560  panel=504 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu light 1280  panel=1000 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu dark   320  panel=264 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu dark   359  panel=303 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu dark   360  panel=304 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu dark   419  panel=363 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu dark   420  panel=364 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=48 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu dark   480  panel=424 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu dark   560  panel=504 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu dark  1280  panel=1000 title行=1 sub行=1 meta行=2 hint行=1 start行=1 startW=74 footerH=47 footer溢出=false word省略=false extra省略=false <24=0
+menu light  320 menuW=240 footerH=47 遮状态词=false 遮底栏=false 间隙=3
+menu light  420 menuW=240 footerH=47 遮状态词=false 遮底栏=false 间隙=3
+menu light 1280 menuW=240 footerH=47 遮状态词=false 遮底栏=false 间隙=3
+menu dark   320 menuW=240 footerH=47 遮状态词=false 遮底栏=false 间隙=3
+menu dark   420 menuW=240 footerH=47 遮状态词=false 遮底栏=false 间隙=3
+menu dark  1280 menuW=240 footerH=47 遮状态词=false 遮底栏=false 间隙=3
+
+
+菜单回归：6/6 PASS
+==> PASS

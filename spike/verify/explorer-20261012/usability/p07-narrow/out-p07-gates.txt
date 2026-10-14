@@ -1,0 +1,31 @@
+### T63 最终静态门禁（2026-10-14T13:14:26.0664103+08:00）
+--- panel-smoke-node.ts ---
+
+panel-smoke-node: 16/16 PASS
+exit=0
+--- css-token-audit.ts ---
+C1 hardcoded colors  = 0  <== PASS
+C1 shadow 豁免（中性半透明黑，α∈[0.04,0.28]）= 2
+C1 soft keywords     = 1 (transparent/currentColor，非硬编码色)
+C2 token set ⊆ allow = PASS
+S1 label-dimmed 域   = OK（未使用，或只用于 :disabled/::placeholder）
+==> EXIT 0（门禁通过）
+exit=0
+--- box-sizing-audit.ts ---
+真陷阱数 = 0   候选 = 2   OK = 8   无尺寸声明(跳过) = 87
+==> PASS（真陷阱 0 条；候选 2 条需人工核对）
+exit=0
+--- CJK 剥注释 ---
+CSS 数组内含 CJK 行=24；非注释行=0（期望 0）
+--- git diff --stat（本轮）---
+ client/client.i18n.js         |  9 +++++++++
+ client/client.panel.header.js | 10 +++++++++-
+ client/client.panel.tail.js   |  8 +++++---
+ client/index.js               | 16 +++++++++++++---
+ 4 files changed, 36 insertions(+), 7 deletions(-)
+--- 我方交付面 ---
+ M client/client.i18n.js
+ M client/client.panel.header.js
+ M client/client.panel.tail.js
+ M client/index.js
+?? spike/verify/explorer-20261012/usability/p07-narrow/
