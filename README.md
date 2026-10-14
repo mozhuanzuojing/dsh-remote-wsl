@@ -725,7 +725,7 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 **冻结 revision —— P0.4（2026-10-13，14 个锚点）**：与 P0.3 比变 **6 个**（`src/daemon-client.ts`、`src/explorer.ts`、`src/index.ts`、`client/client.api.js`、`client/client.panel.js`、`client/index.js`），并**新增 `client/client.i18n.js`**（锚点集 13 → 14）。独立验证者 `p0-verify` 连续三轮（T26/T31/T33）复算；**T33 结论：锚点 14/14 一致 ⇒ 验证有效，本轮"未实现/判红"项 = 0**（报告：`spike/verify/explorer-20261012/REPORT-t33-ux-fixes-verify.md`；UX 三份报告见同目录 `REPORT-t26-*`/`REPORT-t31-*`/`REPORT-t33-*`）。
 
-<!-- FREEZE-TABLE-BEGIN -->
+**历史冻结表（P0.4，14 锚点；已被 P0.5.1 取代，保留供追溯）**
 | 文件 | 大小 | SHA256 |
 |---|---:|---|
 | `src/daemon-client.ts` | 53,881 | `cb420d25ef1bcf9535cbf2f3dbb3faad95fa0d5321b31d0ca798103de59dbed1` |
@@ -742,6 +742,61 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 | `client/client.panel.js` | 55,803 | `7719876a65a048c6999f5c05f8c49a247dbf75dee3f85f2351f61e86ba523387` |
 | `client/index.js` | 25,609 | `5f2430ead9e8b3e33a2d4fbe38e00f1fc774a5f9129f73b4749957d970b5e5e8` |
 | `package.json` | 1,548 | `ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087` |
+**（本节为历史记录，P0.5.1 冻结表见文末「架构债重构轮」一节）**
+
+> **上表由脚本从 `REVISION.txt` 投影生成**：`spike/verify/explorer-20261012/tools/sync-freeze-table.ps1`（`-Mode Generate` 生成 / `-Mode Check` 逐字校验锚点，**提交前必跑**）。**只包当前这一张**；历史冻结表（P0/P0.1/P0.2/P0.3/P0.4 与 0.1.0 对照）保持原样不加标记。提交前另跑 `tools/precommit-check.ps1`（**13 项**：含 failed unit 必须为 0、残留与窗口枚举、**client chunk rev 门禁（07）**、**漏 import 扫描（08）**）。
+
+---
+
+## 架构债重构轮（P0.5.1）：冻结 revision 与结果
+
+**起因**：用户给出架构债转交包 `docs/2026-10-13-arch-review-teammates.md`（六块互不重叠的大改 + 波次 + 写域 + 门禁），并要求**用 teammate 执行**。
+
+**六块全部落地**（T1–T6，各自的报告与原始输出在 `spike/verify/explorer-20261012/arch-t*/`）：
+
+| 包 | 内容 | 结果 |
+|---|---|---|
+| **T1** | `SdkRuntime`/`ALLOW_BUILDS`/`unc` 去重 | 唯一实现落 `sdk-runtime.ts`；`index.ts` 内嵌副本改 **import + adapter**（14 条差异）；`class SdkRuntime` **1 处** |
+| **T2** | 文档陈旧面刷新 | GAP #8/#9 拆「现状（守护已闭合跨宿主会话）vs 真缺口（桌面壳 attach）」；方法表 4→6、工具 6→7；**并纠正了我传错的 i18n 键数口径** |
+| **T3** | `daemon-client.ts` 1068 行 | → **1,789 B 薄 re-export** + `daemon-protocol`/`daemon-launch`/`daemon-lifecycle`；**导出矩阵 31/31**（present/typeof/arity 零差异）+ 逐导出真调探针 |
+| **T4** | 方法表单源 + 选择器命名 | 三道机械保证（跨任务门禁 13 断言 + `check-explorer-methods.ts` 8 断言含**顺序一致** + client 内 `METHOD_NAMES` 派生）；具名所有权选择器 **`selectOwnedDaemon`（绝不回落 `live[0]`，F33 边界）** |
+| **T5** | `src/index.ts` 1491 行 | → **266 行** wiring + `wsl-io`/`register-tools`/`in-host-runtime`；**工具面与 HEAD 逐字节相同** |
+| **T6** | `client.panel.js` 1293 行 | → **6 chunk 全部 <400 行**；**先造判据再拆**（`panel-smoke-node.mjs` 真装载+真调渲染，先在未拆分基线自证量具）；生成器 staging→检查通过才落盘 ⇒ **全程无半成品** |
+
+**同轮修掉的真实缺陷**（每条都有故意红）：`wsl_open_ui` **缺 2 个 import**（`allowBuildFlags` 启动 + **`reapWsl` 收尾** —— 只补第一个会让 `{stop:true}` 崩在 `reapWsl`，**杀不掉的 `dsh web` + 端口占用 + `/tmp` 残留**）｜`.dsh-rw-menu` **声明 240 渲染 250**（宿主无全局 `box-sizing` 重置）｜组标题 `role="presentation"` **误导性 no-op**｜UX 二轮六条（命中区 **≥24×24**、底栏 `box-sizing`+**47px**、N1/N3/N5、组标题 **`label-primary`**）。
+
+**三个"同型"教训都变成了门禁**：① **chunk 陈旧**（rev 取自入口元数据 + 平台扫描快照 chunk 字节而重扫闸门看入口 ⇒ 只改 chunk 连空缓存客户端也拿旧脚本）⇒ `precommit` **第 07 项**；② **零构建 TS 漏 import 只在调用期报错**（同型三次：T3/T5/T47）⇒ 逐工具**真调探针** + `precommit` **第 08 项**（漏 import 扫描，退出码 3 记 WARN、绝不记 PASS）；③ **量具自身的红/白能力**：`box-sizing-audit` 旧判据"**既漏又误**"（把"某声明块出现过 border-box"当成"该选择器最终是 border-box"）已按**层叠生效值**重写并加夹具矩阵；扫描器还修掉一个**真词法器 bug**（缺正则字面量分支 ⇒ 正则里的引号把词法器拖进字符串态、之后整段被抹白 ⇒ 6 个假红）。
+
+**冻结 revision —— P0.5.1（2026-10-14，25 个锚点：src 14 / client 10 / package.json 1）**：由 `revision.ps1 -Mode Write -ConfirmFreeze` 生成（`-Mode Check` 复算：锚点一致、advisory 有变 ⇒ exit 3 需解释）。**独立性说明（如实）**：本轮的**终验与冻结由 Lead 执行** —— 独立验证者 `p0-verify` 在 T46（抓出 `wsl_open_ui` P0）后**上下文耗尽退出**，其后 `host-explorer`/`reliability-keeper`/`usability-engineer`/`stability-engineer` 也相继耗尽 ⇒ **T47–T53 的验证强度弱于 T26/T31/T33/T46 那几轮**（那几轮均有独立验证者 + 故意红）。
+
+<!-- FREEZE-TABLE-BEGIN -->
+| 文件 | 大小 | SHA256 |
+|---|---:|---|
+| `src/daemon-client.ts` | 1,789 | `a7e8854e828fd4d2baf7e39983d5f98cd34e566a4ae8151abb8df9410a9b99b7` |
+| `src/daemon-launch.ts` | 18,935 | `a9a89c8383da87dea13b6028b047cb553c62ae27635c0409924beaa612530f11` |
+| `src/daemon-lifecycle.ts` | 23,436 | `4f8db0399af0f567bf6e6866bda318991161c842b2a6cc166b2f7b4c091efa96` |
+| `src/daemon-protocol.ts` | 15,236 | `2b83af00f3bcb74be7fc36b34de8f9e75e45c98aeaadb37b7347df81b580ba24` |
+| `src/daemon.ts` | 24,754 | `e471a5807054f00869b763a7b2f1383412104faabc4f562ae352bfdf04e5bffc` |
+| `src/explorer.ts` | 50,494 | `12e66a90eae54de22835349d2470841fabb5b10f102133d13660eb23490312d0` |
+| `src/in-host-runtime.ts` | 5,456 | `e53ac2a889dfaa16a9e45c0905989fa890f318ccefe881236861ec1e3a6cd68c` |
+| `src/index.ts` | 15,040 | `2d2ae401067934bcbdfe6e89423b69a02e9c7c3bc660bef13b8f1552cedf41fb` |
+| `src/register-tools.ts` | 43,546 | `b00b68ee0d5d91baefddecd07b7334d4538cf67ead4d9fdf93eaeeca22895ea1` |
+| `src/sdk-runtime.ts` | 18,342 | `22d854b47659312a7b94ac6fb4d770d95f1cbabdd3126a6d98da5fa748b2a7ad` |
+| `src/selftest.ts` | 21,772 | `1aaa5d1b938543d8d8d163af57df9e123851639123fba4e8c6ef65a90e845d94` |
+| `src/shell-env.ts` | 12,480 | `9a9f6e5592c197f54686e177bf6d85aaa646b9d2b61c02bd4414fd3f37ae54b1` |
+| `src/version.ts` | 14,325 | `f2dacb90943cfae006e0161ec5737dd4bcff0c584dc291ba59ef5a074adbb7e3` |
+| `src/wsl-io.ts` | 19,458 | `09894de7aab401bda2bd820526fbc1297b593d6cbb932b3be96b15aae00427ab` |
+| `client/client.api.js` | 14,847 | `5a192b93a62900e088e3427712ae2f76ceb6241c579f5c04a6abf83c086fbe28` |
+| `client/client.i18n.js` | 30,998 | `47525217062f31073b4c1d12e42ee2c5387acc57a99cf6c7dde761282b3e2da4` |
+| `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
+| `client/client.panel.actions.js` | 13,292 | `d45d9f9acbc895a1a99b07ee1de32764e2e0ea9bce9bb31aba5c2038a0ce9446` |
+| `client/client.panel.browser.js` | 13,782 | `a4bcafa8e2141ea59e7b14ea2acad50d6ccfe3911112f16df439cd2554560607` |
+| `client/client.panel.header.js` | 7,988 | `b5c1a2c06c7ed495fdcac33d1696b7765b50e54ea6c1a9d7ca88f0119b88ad91` |
+| `client/client.panel.helpers.js` | 12,200 | `efa1e85cca69012b6d10ea6a1133150fa9795ca7dd1a958a86b127c704e016c7` |
+| `client/client.panel.js` | 9,776 | `e018be93236fbd578bfbc40611b5b49591a873414333be7b79fa7ed9a56ce081` |
+| `client/client.panel.tail.js` | 15,386 | `f5cbcf7c4820016ca98c399e2aca227d0f08e7dd917b2f657f4ef4550b67a2b3` |
+| `client/index.js` | 29,194 | `e9498d7260770c6550e40b71d9f6f9f03e5d77ff983e911e051886daf75cfe7f` |
+| `package.json` | 1,548 | `ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087` |
 <!-- FREEZE-TABLE-END -->
 
-> **上表由脚本从 `REVISION.txt` 投影生成**：`spike/verify/explorer-20261012/tools/sync-freeze-table.ps1`（`-Mode Generate` 生成 / `-Mode Check` 逐字校验 14 锚点，**提交前必跑**）。**只包当前这一张**；历史冻结表（P0/P0.1/P0.2/P0.3 与 0.1.0 对照）保持原样不加标记。提交前另跑 `tools/precommit-check.ps1`（12 项：含 failed unit 必须为 0、残留与窗口枚举、**client chunk rev 门禁**）。
+**仍未复核（不许当通过）**：T1 的 `initialize timeout` 冷启动判定与**宿主逃生舱 5 个失败分支**（只读码）｜T3 的 `stopAllDaemons` 全量语义｜`wsl_open_ui` 的 `open:true` 分支与 `WebHost.start()` 失败/超时路径｜实例内面板 DOM 的菜单 rect（本轮用真实 Chromium + 最小 DOM 的机制实测）｜M1「可见 `dsh1` 恰 1」**无检查器**｜M12④ 与 M6–M12 部分条目｜dark 除 V7 外逐项｜像素截图｜读屏器实机播报。
