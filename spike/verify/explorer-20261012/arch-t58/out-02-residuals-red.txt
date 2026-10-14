@@ -1,0 +1,29 @@
+[红测] 副本已变异：stopAllDaemons 返回行 ok 硬编码 true
+[sha] 红测（应变） 副本=94da960ca0dfb279 真实现=4f8db0399af0f567 ⇒ 逐字节相同 = false
+
+===== 分支 2：remaining>0 ⇒ ok:false =====
+(node:36952) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/l/AppData/Local/Temp/t67-red-src-36952/daemon-client.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  [PASS] 2.0 孤立世界里起了真守护 — {"ok":true,"pid":419024}
+    (stop) daemon shutdown on slot 8916 (port 8916): ok=false 守护调用失败(timeout): no reply within 5000ms（Windows 侧 3000ms 握手判据）
+    (stop) stop 未完成：槽位 8916（端口 8916）仍有本方守护 pid=419024 ⇒ 按 P1 保留元数据（不制造隐形孤儿）
+  [FAIL] 2.1 SIGSTOP 后 stop --all 判 ok:false — ok=true
+  [PASS] 2.2 remaining 非空且带 pid/port — [{"pid":419024,"port":8916,"metaPort":8916}]
+  [PASS] 2.3 可读原因（stopped[].error / alivePids） — alivePids=[419024] reason=remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 419024）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 sto
+  完整 JSON：{"ok":true,"stopped":[{"ok":false,"port":8916,"slot":8916,"pid":419024,"version":"0.2.0-rc.2","reaped":[],"transport":"timeout","alivePids":[419024],"error":"remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 419024）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"}],"killed":[{"pid":419024,"port":8916,"metaPort":8916}],"remaining":[{"pid":419024,"port":8916,"metaPort":8916}]}
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+remote-wsl(explorer): daemon shutdown on slot 8916 (port 8916): ok=false 守护调用失败(timeout): no reply within 5000ms（Windows 侧 3000ms 握手判据）
+remote-wsl(explorer): stop 未完成：槽位 8916（端口 8916）仍有本方守护 pid=419024 ⇒ 按 P1 保留元数据（不制造隐形孤儿）
+  [PASS] 2.4 explorer.daemon{stop} 透传 ok:false + notes 非空 — {"status":200,"ok":false,"notes":["remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 419024）。已按 P1 规矩**保留元数据** daemon.8916.j"]}
+  explorer.daemon{stop,slot=8916} 原始 JSON：{"action":"stop","ok":false,"idempotent":true,"alreadyStopped":false,"slot":8916,"port":8916,"pid":419024,"version":"0.2.0-rc.2","reaped":0,"notes":["remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 419024）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"]}
+  [PASS] 2.5 解除 STOP 后 stop --all 收干净（ok:true + remaining 空） — {"ok":true,"remaining":0,"stopped":1}
+  状态：PID 
+ 419024 Tsl
+  [PASS] ISO-1 真实 ~/.dsh/remote-wsl 目录未变 — before=[107975 launch-stderr.log | 4096 . | 4096 .. | 98892 daemon.log] after=[107975 launch-stderr.log | 4096 . | 4096 .. | 98892 daemon.log]
+  [PASS] ISO-2 真实世界里"他人的守护"未被停/未被算进 remaining — before=[] after=[]
+
+收尾读数：我的 /tmp 脚本 = 0；孤立目录 = /tmp/t67-remaining
+
+模式 red：7/8 通过；失败：2.1 SIGSTOP 后 stop --all 判 ok:false

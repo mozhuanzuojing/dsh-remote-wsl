@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-14T07:13:16.584Z",
+  "mode": "red",
+  "winpid": 36952,
+  "realScanBefore": [],
+  "realLsBefore": "107975 launch-stderr.log\n4096 .\n4096 ..\n98892 daemon.log",
+  "results": [
+    {
+      "id": "2.0 孤立世界里起了真守护",
+      "ok": true,
+      "detail": "{\"ok\":true,\"pid\":419024}"
+    },
+    {
+      "id": "2.1 SIGSTOP 后 stop --all 判 ok:false",
+      "ok": false,
+      "detail": "ok=true"
+    },
+    {
+      "id": "2.2 remaining 非空且带 pid/port",
+      "ok": true,
+      "detail": "[{\"pid\":419024,\"port\":8916,\"metaPort\":8916}]"
+    },
+    {
+      "id": "2.3 可读原因（stopped[].error / alivePids）",
+      "ok": true,
+      "detail": "alivePids=[419024] reason=remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 419024）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 sto"
+    },
+    {
+      "id": "2.4 explorer.daemon{stop} 透传 ok:false + notes 非空",
+      "ok": true,
+      "detail": "{\"status\":200,\"ok\":false,\"notes\":[\"remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 419024）。已按 P1 规矩**保留元数据** daemon.8916.j\"]}"
+    },
+    {
+      "id": "2.5 解除 STOP 后 stop --all 收干净（ok:true + remaining 空）",
+      "ok": true,
+      "detail": "{\"ok\":true,\"remaining\":0,\"stopped\":1}"
+    },
+    {
+      "id": "ISO-1 真实 ~/.dsh/remote-wsl 目录未变",
+      "ok": true,
+      "detail": "before=[107975 launch-stderr.log | 4096 . | 4096 .. | 98892 daemon.log] after=[107975 launch-stderr.log | 4096 . | 4096 .. | 98892 daemon.log]"
+    },
+    {
+      "id": "ISO-2 真实世界里\"他人的守护\"未被停/未被算进 remaining",
+      "ok": true,
+      "detail": "before=[] after=[]"
+    }
+  ]
+}

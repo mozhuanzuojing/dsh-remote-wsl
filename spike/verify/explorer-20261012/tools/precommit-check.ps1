@@ -41,11 +41,22 @@ param(
   [switch] $FailOnVisibleWindow,
   [switch] $SkipNetwork,
   [switch] $WithControls,
-  [int] $NetworkTimeoutSec = 25
+  [int] $NetworkTimeoutSec = 25,
+  # ── T68：05f 可见窗口归属（机器可判：启动时间 + 父链；**禁凭标题**）────────────────
+  # 本次"运行时间窗"的起点。默认 = 脚本启动时刻往前 $WindowSlackMinutes 分钟。
+  # 旁路：显式给一个时间点复现（例如把窗口起点指到 notepad 启动之前）。
+  [datetime] $WindowSince = [datetime]::MinValue,
+  # 允许的时钟/启动抖动（分钟）。落窗外 ⇒ 不可能是本次动作造的窗口。
+  [int] $WindowSlackMinutes = 15,
+  # 复现/负向测试用：注入一个**取不到启动时间的假 pid**，证明"不可判定 ⇒ WARN（不落成 PASS）"。
+  [switch] $WindowProbeUndecidable
 )
 
 $ErrorActionPreference = 'Continue'
 $results = New-Object System.Collections.Generic.List[object]
+# 运行时间窗起点（05f 用；越早记录越准 —— 前面的 git/wsl 探测也要算进来）
+$RunStartedAt = Get-Date
+if ($WindowSince -eq [datetime]::MinValue) { $WindowSince = $RunStartedAt.AddMinutes(-1 * [Math]::Abs($WindowSlackMinutes)) }
 
 function Add-Result([string] $id, [string] $name, [string] $verdict, [string] $detail) {
   $results.Add([pscustomobject]@{ Id = $id; Name = $name; Verdict = $verdict; Detail = $detail })
@@ -212,22 +223,102 @@ else { Add-Result '05d' 'dsh-rwsl* unit' 'FAIL' "$($unitLines.Count) 个 unit（
 if ($failedCount -eq 0) { Add-Result '05e' 'failed user unit = 0' 'PASS' 'systemctl --user list-units --state=failed 实列 0 行' }
 else { Add-Result '05e' 'failed user unit = 0' 'FAIL' "failed user unit = $failedCount（必须 0；收尾需 stop + reset-failed）$(if ($instrumentMismatch) { ' [量具不一致，已按实列行数判定]' })" }
 
-# 05f 可见窗口（归属禁凭标题猜）
+# 05f 可见窗口归属（T68：**机器可判** —— 启动时间窗 + 父链；**标题只作参考、禁作依据**）
+#
+# 判据（与本项目历轮手工裁定一致）：
+#   · 窗口进程**启动时刻落在运行时间窗内** ∧ 父链里出现"我方工具链"名字 ⇒ **FAIL（我方产生了可见窗口）**
+#   · 落在窗外 ⇒ 一定是早于本次运行的进程 ⇒ **PASS（归属他人）**
+#   · 取不到启动时间/父链 ⇒ **WARN（绝不记 PASS）**
+# 为什么"启动时间"是主判据：同一台机器上用户的 VS Code / 浏览器 / 用户宿主都在跑，
+# 命令行与标题都可能与我们高度相似（F-37 第一次就是被标题误导过）⇒ **只认时间与进程树**。
+
+$OUR_CHAIN_NAMES = @(
+  'pwsh', 'powershell', 'cmd', 'conhost', 'node', 'dsh', 'bash', 'wsl', 'wslhost', 'wslrelay',
+  'windowsterminal', 'wt', 'python', 'python3'
+)
+# 明确**不算我方**的名字：用户的桌面壳 / 用户宿主 / 编辑器 / 浏览器（它们常在父链上，绝不能被算成我们）
+$NEVER_OURS_NAMES = @(
+  'explorer', 'deepseek harness', 'code', 'cursor', 'chrome', 'msedge', 'firefox',
+  'qq', 'weixin', 'textinputhost', 'gephgui-wry'
+)
+
+function Get-ProcChain([int] $TargetPid, [int] $MaxDepth = 8) {
+  # 返回父链（含自身，最多 MaxDepth 层）。取不到 ⇒ 返回 @()（调用方据此判"不可判定"）。
+  # ⚠ 参数**不能**叫 `$Pid`：PowerShell 的 `$PID` 是只读自动变量（大小写不敏感），
+  #   命名成 `$Pid` 会让绑定失败 ⇒ 父链恒空、全部误判成 UNDECIDABLE（T68 首跑就踩到）。
+  $script:ChainLastError = $null
+  $chain = @()
+  $cur = $TargetPid
+  for ($i = 0; $i -lt $MaxDepth -and $cur -gt 0; $i++) {
+    $ci = $null
+    try { $ci = Get-CimInstance Win32_Process -Filter "ProcessId=$cur" -ErrorAction Stop }
+    catch { $script:ChainLastError = "Get-CimInstance(pid=$cur) 失败: $($_.Exception.Message)"; break }
+    if ($null -eq $ci) { $script:ChainLastError = "pid=$cur 在 Win32_Process 里查不到（可能已退出）"; break }
+    $chain += [pscustomobject]@{ Pid = [int]$ci.ProcessId; Parent = [int]$ci.ParentProcessId; Name = [string]$ci.Name }
+    $cur = [int]$ci.ParentProcessId
+  }
+  return $chain
+}
+
+function Test-ChainIsOurs($Chain) {
+  foreach ($e in $Chain) {
+    $n = ([string]$e.Name).ToLowerInvariant() -replace '\.exe$', ''
+    if ($NEVER_OURS_NAMES -contains $n) { return $false }   # 碰到用户应用 ⇒ 明确不是我们
+    if ($OUR_CHAIN_NAMES -contains $n) { return $true }
+  }
+  return $false
+}
+
 $winLines = @()
 $ourWindows = @()
-foreach ($p in (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })) {
+$undecidableWindows = @()
+$foreignWindows = @()
+
+$procs = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
+if ($WindowProbeUndecidable) {
+  # 注入一个不存在的 pid：证明"取不到启动时间/父链 ⇒ WARN"这条分支真的会走（T68 验收③）
+  $procs += [pscustomobject]@{ Id = 999999; ProcessName = '<injected-undecidable>'; StartTime = $null; MainWindowTitle = '(injected)'; MainWindowHandle = 1 }
+}
+
+foreach ($p in $procs) {
   $o = Get-OwnerInfo $p.Id
-  $mark = if (Test-IsOurs $o.Cmd) { 'OURS?' } else { 'foreign' }
-  if ($mark -eq 'OURS?') { $ourWindows += $p }
-  $winLines += ("pid={0} parent={1} {2}  start={3:HH:mm:ss}  [{4}]`n    title(仅供参考,禁作为归属依据)= {5}`n    cmd= {6}" -f `
-      $o.Pid, $o.Parent, $o.Name, $p.StartTime, $mark, $p.MainWindowTitle, $o.Cmd)
+  $chain = @(Get-ProcChain $p.Id)
+  $started = $null
+  try { if ($p.StartTime) { $started = [datetime]$p.StartTime } } catch { $started = $null }
+  $chainOurs = Test-ChainIsOurs $chain
+  $inWindow = ($null -ne $started) -and ($started -ge $WindowSince)
+
+  if ($null -eq $started -or $chain.Count -eq 0) {
+    $verdict = 'UNDECIDABLE'
+    $undecidableWindows += $p.Id
+    if ($null -eq $started) { $script:ChainLastError = "取不到 StartTime（pid=$($p.Id)）" }
+  }
+  elseif ($chainOurs -and $inWindow) {
+    $verdict = 'OURS'
+    $ourWindows += $p.Id
+  }
+  else {
+    $verdict = 'foreign'
+    $foreignWindows += $p.Id
+  }
+
+  $chainText = if ($chain.Count -gt 0) { ($chain | ForEach-Object { "$($_.Name)#$($_.Pid)" }) -join ' <- ' } else { "(取不到父链：$($script:ChainLastError))" }
+  $startText = if ($null -ne $started) { $started.ToString('yyyy-MM-dd HH:mm:ss') } else { '(取不到启动时间)' }
+  $winLines += ("pid={0} {1}  start={2}  parent={3}  verdict={4}`n    chain= {5}`n    inWindow={6}  chainIsOurs={7}`n    title(仅供参考,禁作为归属依据)= {8}`n    cmd= {9}" -f `
+      $o.Pid, $o.Name, $startText, $o.Parent, $verdict, $chainText, $inWindow, $chainOurs, $p.MainWindowTitle, $o.Cmd)
 }
-Write-Raw '05f visible windows (pid/parent/cmdline = 归属证据)' (($winLines -join "`n"))
-if ($ourWindows.Count -gt 0 -or ($FailOnVisibleWindow -and $winLines.Count -gt 0)) {
-  Add-Result '05f' '可见窗口（归属证据）' 'FAIL' "$($winLines.Count) 个可见窗口，其中可归属我们的 $($ourWindows.Count) 个"
+$winLines += ("`n窗口起点 WindowSince = {0:yyyy-MM-dd HH:mm:ss}（脚本启动 {1:yyyy-MM-dd HH:mm:ss}，抖动 {2} 分钟）" -f $WindowSince, $RunStartedAt, $WindowSlackMinutes)
+$winLines += ("归属汇总：ours={0} foreign={1} undecidable={2}" -f $ourWindows.Count, $foreignWindows.Count, $undecidableWindows.Count)
+Write-Raw '05f visible windows (pid/start/parent-chain = 归属证据, 禁凭标题)' (($winLines -join "`n"))
+
+if ($ourWindows.Count -gt 0 -or ($FailOnVisibleWindow -and $procs.Count -gt 0)) {
+  Add-Result '05f' '可见窗口（归属机器判定）' 'FAIL' "$($procs.Count) 个可见窗口；**可归属我方 pid = $($ourWindows -join ', ')**（启动时间落在窗内 ∧ 父链含我方工具链）"
 }
-elseif ($winLines.Count -eq 0) { Add-Result '05f' '可见窗口（归属证据）' 'PASS' '当前无可见顶层窗口' }
-else { Add-Result '05f' '可见窗口（归属证据）' 'WARN' "$($winLines.Count) 个可见窗口，命令行不含我们的标记 ⇒ 归属交人判（**禁凭标题猜**）" }
+elseif ($procs.Count -eq 0) { Add-Result '05f' '可见窗口（归属机器判定）' 'PASS' '当前无可见顶层窗口' }
+elseif ($undecidableWindows.Count -gt 0) {
+  Add-Result '05f' '可见窗口（归属机器判定）' 'WARN' "$($procs.Count) 个可见窗口中 $($undecidableWindows.Count) 个**取不到启动时间/父链** ⇒ 无法判定（pid=$($undecidableWindows -join ', ')）；**绝不记 PASS**"
+}
+else { Add-Result '05f' '可见窗口（归属机器判定）' 'PASS' "$($procs.Count) 个可见窗口全部归属他人（均早于本次运行窗或父链为用户应用）；逐窗证据见原始输出" }
 
 # 05g 活宿主 19387
 $host19387 = @(Get-NetTCPConnection -LocalPort 19387 -State Listen -ErrorAction SilentlyContinue)

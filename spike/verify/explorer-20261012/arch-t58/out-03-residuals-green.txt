@@ -1,0 +1,24 @@
+[sha] real（应还原一致） 副本=4f8db0399af0f567 真实现=4f8db0399af0f567 ⇒ 逐字节相同 = true
+
+===== 分支 2：remaining>0 ⇒ ok:false =====
+  [PASS] 2.0 孤立世界里起了真守护 — {"ok":true,"pid":423399}
+    (stop) daemon shutdown on slot 8916 (port 8916): ok=false 守护调用失败(timeout): no reply within 5000ms（Windows 侧 3000ms 握手判据）
+    (stop) stop 未完成：槽位 8916（端口 8916）仍有本方守护 pid=423399 ⇒ 按 P1 保留元数据（不制造隐形孤儿）
+  [PASS] 2.1 SIGSTOP 后 stop --all 判 ok:false — ok=false
+  [PASS] 2.2 remaining 非空且带 pid/port — [{"pid":423399,"port":8916,"metaPort":8916}]
+  [PASS] 2.3 可读原因（stopped[].error / alivePids） — alivePids=[423399] reason=remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 423399）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 sto
+  完整 JSON：{"ok":false,"stopped":[{"ok":false,"port":8916,"slot":8916,"pid":423399,"version":"0.2.0-rc.2","reaped":[],"transport":"timeout","alivePids":[423399],"error":"remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 423399）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"}],"killed":[{"pid":423399,"port":8916,"metaPort":8916}],"remaining":[{"pid":423399,"port":8916,"metaPort":8916}]}
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+remote-wsl(explorer): daemon shutdown on slot 8916 (port 8916): ok=false 守护调用失败(timeout): no reply within 5000ms（Windows 侧 3000ms 握手判据）
+remote-wsl(explorer): stop 未完成：槽位 8916（端口 8916）仍有本方守护 pid=423399 ⇒ 按 P1 保留元数据（不制造隐形孤儿）
+  [PASS] 2.4 explorer.daemon{stop} 透传 ok:false + notes 非空 — {"status":200,"ok":false,"notes":["remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 423399）。已按 P1 规矩**保留元数据** daemon.8916.j"]}
+  explorer.daemon{stop,slot=8916} 原始 JSON：{"action":"stop","ok":false,"idempotent":true,"alreadyStopped":false,"slot":8916,"port":8916,"pid":423399,"version":"0.2.0-rc.2","reaped":0,"notes":["remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 423399）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"]}
+  [PASS] 2.5 解除 STOP 后 stop --all 收干净（ok:true + remaining 空） — {"ok":true,"remaining":0,"stopped":1}
+  状态：PID 
+ 423399 Tsl
+  [PASS] ISO-1 真实 ~/.dsh/remote-wsl 目录未变 — before=[107975 launch-stderr.log | 4096 . | 4096 .. | 98892 daemon.log] after=[107975 launch-stderr.log | 4096 . | 4096 .. | 98892 daemon.log]
+  [PASS] ISO-2 真实世界里"他人的守护"未被停/未被算进 remaining — before=[] after=[]
+
+收尾读数：我的 /tmp 脚本 = 0；孤立目录 = /tmp/t67-remaining
+
+模式 real：8/8 通过

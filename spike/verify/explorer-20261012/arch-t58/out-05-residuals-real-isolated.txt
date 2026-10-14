@@ -1,0 +1,46 @@
+[纪律] 孤立 DSH_HOME = C:\Users\l\AppData\Local\Temp\t67-dsh-home-39612；用户全局 workspace.json sha(前) = a1b6d08d9c485553
+[sha] real（应还原一致） 副本=4f8db0399af0f567 真实现=4f8db0399af0f567 ⇒ 逐字节相同 = true
+
+===== 分支 1：legacy 单文件记录（daemon.json）=====
+  [PASS] 1.1 孤立世界里起了真守护 — {"ok":true,"slot":8915,"pid":430697,"mode":"systemd"}
+  [PASS] 1.2 legacy 记录被识别（legacy=true 且 port 对得上） — {"legacy":true,"slot":8915,"port":8915,"hasToken":true}
+  [PASS] 1.3 元数据在 + 进程在（身份扫描看得见） — [{"pid":430697,"port":8915,"metaPort":8915}]
+  种 legacy 前/后的 state 目录：
+    改前(槽位文件) meta=253B token=64B
+    改后: 120 . | 253 daemon.json | 367 daemon.log | 367 launch-stderr.log | 60 .. | 65 daemon.token
+    (stop) daemon shutdown on slot 8915 (port 8915): ok=true 
+  [PASS] 1.4 stop --all 认出并停掉了 legacy 守护 — {"ok":true,"stopped":[{"ok":true,"slot":8915,"port":8915}],"remaining":0}
+  [PASS] 1.5 legacy 文件被清（daemon.json / daemon.token 都不在了） — after=[60 .. | 676 daemon.log | 676 launch-stderr.log | 80 .]
+  [PASS] 1.6 进程真的没了（身份扫描为空） — []
+
+===== 分支 2：remaining>0 ⇒ ok:false =====
+  [PASS] 2.0 孤立世界里起了真守护 — {"ok":true,"pid":433538}
+    (stop) daemon shutdown on slot 8916 (port 8916): ok=false 守护调用失败(timeout): no reply within 5000ms（Windows 侧 3000ms 握手判据）
+    (stop) stop 未完成：槽位 8916（端口 8916）仍有本方守护 pid=433538 ⇒ 按 P1 保留元数据（不制造隐形孤儿）
+  [PASS] 2.1 SIGSTOP 后 stop --all 判 ok:false — ok=false
+  [PASS] 2.2 remaining 非空且带 pid/port — [{"pid":433538,"port":8916,"metaPort":8916}]
+  [PASS] 2.3 可读原因（stopped[].error / alivePids） — alivePids=[433538] reason=remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 433538）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 sto
+  完整 JSON：{"ok":false,"stopped":[{"ok":false,"port":8916,"slot":8916,"pid":433538,"version":"0.2.0-rc.2","reaped":[],"transport":"timeout","alivePids":[433538],"error":"remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 433538）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"}],"killed":[{"pid":433538,"port":8916,"metaPort":8916}],"remaining":[{"pid":433538,"port":8916,"metaPort":8916}]}
+remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
+remote-wsl(explorer): daemon shutdown on slot 8916 (port 8916): ok=false 守护调用失败(timeout): no reply within 5000ms（Windows 侧 3000ms 握手判据）
+remote-wsl(explorer): stop 未完成：槽位 8916（端口 8916）仍有本方守护 pid=433538 ⇒ 按 P1 保留元数据（不制造隐形孤儿）
+  [PASS] 2.4 explorer.daemon{stop} 透传 ok:false + notes 非空 — {"status":200,"ok":false,"notes":["remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 433538）。已按 P1 规矩**保留元数据** daemon.8916.j"]}
+  explorer.daemon{stop,slot=8916} 原始 JSON：{"action":"stop","ok":false,"idempotent":true,"alreadyStopped":false,"slot":8916,"port":8916,"pid":433538,"version":"0.2.0-rc.2","reaped":0,"notes":["remote-wsl: stop 未完成：槽位 8916（端口 8916）的本方守护进程仍在（pid 433538）。已按 P1 规矩**保留元数据** daemon.8916.json ⇒ 它仍是**可发现**的（wsl_status / snapshot.daemon 会报出来，也可再次 stop）；没有变成\"元数据已删、进程还在\"的隐形孤儿。"]}
+  [PASS] 2.5 解除 STOP 后 stop --all 收干净（ok:true + remaining 空） — {"ok":true,"remaining":0,"stopped":1}
+  状态：PID 
+ 433538 Tsl
+
+===== 分支 3：连续两次 --all + 重建最小 iso 目录 =====
+  [PASS] 3.1 第二次 --all 是空集且 ok:true（无副作用） — {"first":{"ok":true,"stopped":0},"second":{"ok":true,"stopped":0,"killed":0,"remaining":0}}
+  [PASS] 3.2 iso 目录 /tmp/t67-iso-a 起守护（port 8917） — {"ok":true,"pid":439061,"slot":8917}
+  [PASS] 3.2 iso 目录 /tmp/t67-iso-b 起守护（port 8918） — {"ok":true,"pid":439795,"slot":8918}
+  [PASS] 3.3 iso 目录 /tmp/t67-iso-a stop --all 收干净 — {"ok":true,"remaining":0}
+  [PASS] 3.3 iso 目录 /tmp/t67-iso-b stop --all 收干净 — {"ok":true,"remaining":0}
+  [PASS] 3.4 第二轮循环可重复（重建 → 停 成功） — {"ensureOk":true,"stopOk":true}
+  [PASS] ISO-3 用户全局 `storages/workspace.json` 未被触碰（前后 sha 相同） — before=a1b6d08d9c485553 after=a1b6d08d9c485553
+  [PASS] ISO-1 真实 ~/.dsh/remote-wsl 目录未变 — before=[107975 launch-stderr.log | 4096 . | 4096 .. | 98892 daemon.log] after=[107975 launch-stderr.log | 4096 . | 4096 .. | 98892 daemon.log]
+  [PASS] ISO-2 真实世界里"他人的守护"未被停/未被算进 remaining — before=[] after=[]
+
+收尾读数：我的 /tmp 脚本 = 0；孤立目录 = /tmp/t67-iso-a /tmp/t67-iso-b /tmp/t67-legacy /tmp/t67-remaining
+
+模式 real：21/21 通过
