@@ -91,7 +91,7 @@ Write-Raw '01 git status --short' $statusRaw
 $syncScript = Join-Path $PSScriptRoot 'sync-freeze-table.ps1'
 $freezeOut = (& pwsh -NoProfile -File $syncScript -Mode Check 2>&1 | Out-String)
 $freezeCode = $LASTEXITCODE
-if ($freezeCode -eq 0) { Add-Result '02' 'README 冻结表 vs REVISION' 'PASS' '13 锚点逐字一致' }
+if ($freezeCode -eq 0) { $n = ([regex]::Match($freezeOut, 'RESULT: PASS — (\d+)/(\d+)')).Groups[2].Value; if (-not $n) { $n = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\REVISION.txt') | Select-String -Pattern '^\s*[0-9a-f]{64}\s').Count }; Add-Result '02' 'README 冻结表 vs REVISION' 'PASS' "$n 锚点逐字一致" }
 else { Add-Result '02' 'README 冻结表 vs REVISION' 'FAIL' "sync-freeze-table -Mode Check 退出码 $freezeCode" }
 Write-Raw '02 sync-freeze-table -Mode Check' $freezeOut
 
