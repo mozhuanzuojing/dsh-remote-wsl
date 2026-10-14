@@ -1,0 +1,137 @@
+[guard] 孤立 DSH_HOME = C:\Users\l\AppData\Local\Temp\probe-wsl-path-home-39684
+[guard] 观察的注册表 = C:\Users\l\.dsh\storages\workspace.json  sha(前) = 69ac2ec049365ef0
+remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
+{
+  "entry": "D:/project/dsh1/vendor/dsh-remote-wsl/src/index.ts",
+  "distro": "debian-u8-1",
+  "toolRegistered": true,
+  "toolNames": [
+    "wsl_status",
+    "wsl_exec",
+    "wsl_agent",
+    "wsl_daemon",
+    "wsl_open_ui",
+    "wsl_sync_version",
+    "wsl_path"
+  ],
+  "cases": [
+    {
+      "label": "to-wsl: D:\\project\\net1",
+      "args": {
+        "path": "D:\\project\\net1",
+        "direction": "to-wsl"
+      },
+      "ok": true,
+      "text": "path: D:\\project\\net1\ndirection: to-wsl（输入形态: Windows）\nto-wsl     : /mnt/d/project/net1   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"D:\\\\project\\\\net1\"",
+      "verdict": "PASS"
+    },
+    {
+      "label": "to-windows: /mnt/d/project/net1",
+      "args": {
+        "path": "/mnt/d/project/net1",
+        "direction": "to-windows"
+      },
+      "ok": true,
+      "text": "path: /mnt/d/project/net1\ndirection: to-windows（输入形态: WSL）\nto-windows : D:\\project\\net1   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"/mnt/d/project/net1\"",
+      "verdict": "PASS"
+    },
+    {
+      "label": "both 默认（不带 direction）",
+      "args": {
+        "path": "D:\\project\\net1"
+      },
+      "ok": true,
+      "text": "path: D:\\project\\net1\ndirection: both（输入形态: Windows）\nto-wsl     : /mnt/d/project/net1   <- 生效\nto-windows : (不回显：输入已是 Windows 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-wsl。)\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"D:\\\\project\\\\net1\"\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"D:\\\\project\\\\net1\"",
+      "verdict": "PASS"
+    },
+    {
+      "label": "含空格: D:\\project\\my dir\\x.txt",
+      "args": {
+        "path": "D:\\project\\my dir\\x.txt",
+        "direction": "to-wsl"
+      },
+      "ok": true,
+      "text": "path: D:\\project\\my dir\\x.txt\ndirection: to-wsl（输入形态: Windows）\nto-wsl     : /mnt/d/project/my dir/x.txt   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"D:\\\\project\\\\my dir\\\\x.txt\"",
+      "verdict": "PASS"
+    },
+    {
+      "label": "含空格反向: /mnt/d/my dir/x.txt",
+      "args": {
+        "path": "/mnt/d/my dir/x.txt",
+        "direction": "to-windows"
+      },
+      "ok": true,
+      "text": "path: /mnt/d/my dir/x.txt\ndirection: to-windows（输入形态: WSL）\nto-windows : D:\\my dir\\x.txt   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"/mnt/d/my dir/x.txt\"",
+      "verdict": "PASS"
+    },
+    {
+      "label": "注入: $(id)",
+      "args": {
+        "path": "/mnt/c/Users/l/$(id).txt"
+      },
+      "ok": true,
+      "text": "path: /mnt/c/Users/l/$(id).txt\ndirection: both（输入形态: WSL）\nto-wsl     : (不回显：输入已是 WSL 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-windows。)\nto-windows : C:\\Users\\l\\$(id).txt   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"/mnt/c/Users/l/$(id).txt\"\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"/mnt/c/Users/l/$(id).txt\"",
+      "verdict": "PASS"
+    },
+    {
+      "label": "注入: 反引号 `id`",
+      "args": {
+        "path": "/mnt/c/`id`.txt"
+      },
+      "ok": true,
+      "text": "path: /mnt/c/`id`.txt\ndirection: both（输入形态: WSL）\nto-wsl     : (不回显：输入已是 WSL 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-windows。)\nto-windows : C:\\`id`.txt   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"/mnt/c/`id`.txt\"\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"/mnt/c/`id`.txt\"",
+      "verdict": "PASS"
+    },
+    {
+      "label": "注入: 分号 ;",
+      "args": {
+        "path": "/mnt/c/a;echo T14-INJECTED"
+      },
+      "ok": true,
+      "text": "path: /mnt/c/a;echo T14-INJECTED\ndirection: both（输入形态: WSL）\nto-wsl     : (不回显：输入已是 WSL 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-windows。)\nto-windows : C:\\a;echo T14-INJECTED   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"/mnt/c/a;echo T14-INJECTED\"\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"/mnt/c/a;echo T14-INJECTED\"",
+      "verdict": "PASS(字面量保留)"
+    },
+    {
+      "label": "注入: 管道 |",
+      "args": {
+        "path": "/mnt/c/a|echo T14-PIPE"
+      },
+      "ok": true,
+      "text": "path: /mnt/c/a|echo T14-PIPE\ndirection: both（输入形态: WSL）\nto-wsl     : (不回显：输入已是 WSL 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-windows。)\nto-windows : C:\\aecho T14-PIPE   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"/mnt/c/a|echo T14-PIPE\"\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"/mnt/c/a|echo T14-PIPE\"",
+      "verdict": "PASS(字面量保留)"
+    },
+    {
+      "label": "注入: 混引号",
+      "args": {
+        "path": "D:\\a\"b'c"
+      },
+      "ok": true,
+      "text": "path: D:\\a\"b'c\ndirection: both（输入形态: Windows）\nto-wsl     : /mnt/d/a\"b'c   <- 生效\nto-windows : (不回显：输入已是 Windows 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-wsl。)\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"D:\\\\a\\\"b'c\"\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"D:\\\\a\\\"b'c\"",
+      "verdict": "PASS"
+    },
+    {
+      "label": "注入: touch 探针",
+      "args": {
+        "path": "/mnt/c/$(touch /tmp/t14-pwned-a).txt"
+      },
+      "ok": true,
+      "text": "path: /mnt/c/$(touch /tmp/t14-pwned-a).txt\ndirection: both（输入形态: WSL）\nto-wsl     : (不回显：输入已是 WSL 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-windows。)\nto-windows : C:\\$(touch \\tmp\\t14-pwned-a).txt   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"/mnt/c/$(touch /tmp/t14-pwned-a).txt\"\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"/mnt/c/$(touch /tmp/t14-pwned-a).txt\"",
+      "verdict": "see-marker-check"
+    },
+    {
+      "label": "注入: sleep 探针",
+      "args": {
+        "path": "/mnt/c/$(sleep 37).txt"
+      },
+      "ok": true,
+      "text": "path: /mnt/c/$(sleep 37).txt\ndirection: both（输入形态: WSL）\nto-wsl     : (不回显：输入已是 WSL 形态；wslpath 对同形态输入会把反斜杠/前缀当转义处理，该值无意义。需要另一种形态请用 to-windows。)\nto-windows : C:\\$(sleep 37).txt   <- 生效\ncommands executed (path 走位置参数 argv，无字符串拼接):\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -a -u -- \"$1\"' _ \"/mnt/c/$(sleep 37).txt\"\n  wsl.exe -d debian-u8-1 -e bash -c 'wslpath -w -- \"$1\"' _ \"/mnt/c/$(sleep 37).txt\"",
+      "verdict": "see-process-check"
+    },
+    {
+      "label": "空路径",
+      "args": {
+        "path": ""
+      },
+      "ok": false,
+      "text": "THROW: remote-wsl: wsl_path 需要非空 path（Windows 路径或 WSL 路径）",
+      "verdict": "PASS"

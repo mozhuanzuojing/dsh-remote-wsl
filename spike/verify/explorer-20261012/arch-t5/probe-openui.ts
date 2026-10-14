@@ -9,6 +9,10 @@
  *
  * 用法：node probe-openui.ts <port>
  */
+// ── T73：本工具自己设了孤立 DSH_HOME；这里补"用户全局 workspace.json 前后 sha"闭环 ──
+import { watchGlobalWorkspace } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = watchGlobalWorkspace();
+
 import { mkdirSync } from 'node:fs';
 
 const PORT = Number(process.argv[2] || 8915);
@@ -48,4 +52,6 @@ const call = async (label, args) => {
 await call('②a stop:true（无害态）', { port: PORT, stop: true });
 const started = await call('②b 真正启动（open:false）', { port: PORT, open: false });
 await call('②c 收尾 stop:true', { port: PORT, stop: true });
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(started.ok && /http|url|listening|ok/i.test(started.out) ? 0 : 1);

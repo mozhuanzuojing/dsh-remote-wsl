@@ -5,6 +5,10 @@
  * 做的事：把插件 apply 到桩 ctx（真 deps），调 `wsl_agent` 跑**一轮真模型调用**，打印输出头部。
  * 判据：两种形态都必须真的拿到模型正文（而不是报错/超时）—— 这是"去重不改行为"的端到端证据。
  */
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('arch-t1-probe-runtime-smoke-t1');
+
 const root = process.argv[2].replace(/\\/g, '/');
 const mode = process.argv[3];
 const mod = await import(`file:///${root}/src/index.ts`);
@@ -35,4 +39,6 @@ try {
   console.log(`SMOKE ${mode}: THREW ms=${Date.now() - t0} :: ${String(e?.message ?? e).slice(0, 300)}`);
   process.exit(1);
 }
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

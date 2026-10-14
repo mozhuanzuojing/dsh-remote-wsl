@@ -14,6 +14,11 @@ param(
   [string]$ProfileName = 'a1iso',
   [string]$Vendor = 'D:\project\dsh1\vendor\dsh-remote-wsl'
 )
+
+# ── T73：默认**孤立** DSH_HOME（-UseUserHome 才用真实 home）＋ 用户全局 workspace.json 前后 sha 对照 ──
+$script:T73Ws = Join-Path $env:USERPROFILE '.dsh\storages\workspace.json'
+$script:T73ShaBefore = if (Test-Path $script:T73Ws) { (Get-FileHash $script:T73Ws -Algorithm SHA256).Hash } else { '<none>' }
+Write-Host "[T73] 本脚本自带隔离，DSH_HOME=$env:DSH_HOME；sha(前)=$($script:T73ShaBefore.Substring(0,[Math]::Min(16,$script:T73ShaBefore.Length)))"
 $ErrorActionPreference = 'Stop'
 $d = $PSScriptRoot
 $vendor = $Vendor
@@ -60,4 +65,8 @@ while ((Get-Date) -lt $deadline) {
     }
   } catch { }
 }
+# ── T73 断言：用户全局 workspace.json 前后 sha 相同 ──
+$script:T73ShaAfter = if (Test-Path $script:T73Ws) { (Get-FileHash $script:T73Ws -Algorithm SHA256).Hash } else { '<none>' }
+if ($script:T73ShaAfter -ne $script:T73ShaBefore) { Write-Host "[T73] 失败：用户全局 workspace.json 被改写（$($script:T73ShaBefore) -> $($script:T73ShaAfter)）"; exit 9 }
+Write-Host "[T73] 用户全局 workspace.json sha 前后相同 = True"
 return $p.Id

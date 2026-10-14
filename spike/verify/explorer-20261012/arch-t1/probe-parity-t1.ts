@@ -5,6 +5,10 @@
  * 输出：每个被测面的**字段名集合**（不是值 —— 值里有会话数/时间戳这类每次都变的东西）。
  * 判据：两棵树输出的 fields 行必须逐字相同；值行允许不同（只做参考）。
  */
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('arch-t1-probe-parity-t1');
+
 const root = process.argv[2];
 if (!root) { console.error('需要 pluginRoot'); process.exit(2); }
 const mod = await import(`file:///${root.replace(/\\/g, '/')}/src/index.ts`);
@@ -54,4 +58,6 @@ const txt = String(await tools.get('wsl_status').execute({}, { signal: new Abort
 const labels = txt.split('\n').map((l) => (l.split(':')[0] ?? '').trim()).filter(Boolean);
 console.log(`wsl_status.labels   = ${[...new Set(labels)].join(' | ')}`);
 console.log(`wsl_status.lineCount= ${txt.split('\n').length}`);
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

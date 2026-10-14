@@ -1,0 +1,3 @@
+[T73] DSH_HOME=C:\Users\l\AppData\Local\Temp\stability-boot-stabhost-home（UseUserHome=False） sha(前)=69AC2EC049365EF0
+端口 8915 不在分配的 8981–8990 段内 —— 拒绝
+EXITCODE=5

@@ -16,6 +16,10 @@
  * 产物：out-D2-delta-summary.json、out-D2-*.txt
  * 纪律：只用自己的槽位段（8972–8974）；只读被验对象；不启宿主；不碰 19387。
  */
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from '../arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('reliability-inject-delta');
+
 import { writeFileSync, appendFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -269,4 +273,6 @@ if (PHASE === 'stopmine') {
   const r = await DC.stopDaemon({ ...baseConfig, daemonPort: MY_SLOT }, { log: () => {}, slot: MY_SLOT });
   console.log(`stopmine: slot=${MY_SLOT} ok=${r?.ok} alreadyStopped=${r?.alreadyStopped === true} pid=${r?.pid ?? '-'}`);
 }
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

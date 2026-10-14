@@ -1,3 +1,7 @@
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('host-f38-probe-tool-line');
+
 // probe-tool-line.ts —— F-38c 工具面：wsl_daemon action=start 输出里必须出现机器可读的 `launch: mode=… warning=…`
 import { spawnSync } from 'node:child_process';
 const mod = await import('file:///D:/project/dsh1/vendor/dsh-remote-wsl/src/index.ts');
@@ -25,4 +29,6 @@ const cleanup = spawnSync('wsl.exe', ['-d', 'debian-u8-1', '-u', 'g', '--', 'bas
 console.log(`start 后 state 目录 = [${cleanup}]（应无 launch.*.sh：守护已自删）`);
 console.log('--- stop ---');
 console.log(await call('wsl_daemon', { action: 'stop' }).then((s) => s.split('\n')[0]));
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

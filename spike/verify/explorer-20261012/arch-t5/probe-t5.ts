@@ -6,6 +6,10 @@
  *   smoke  ：面板 snapshot→listDir→ensure→openSession + wsl_status（真 deps、真 WSL）
  *   unload ：起守护（看 mode）⇒ 跑 disposer ⇒ 断言守护仍在（"卸载不杀守护"）
  */
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('arch-t5-probe-t5');
+
 const root = process.argv[2].replace(/\\/g, '/');
 const mode = process.argv[3];
 
@@ -88,4 +92,6 @@ console.log(`SMOKE openSession(warm=true) => ${wtxt.slice(0, 260)}`);
 const ok = 'sessionId' in os && os.created === false && typeof osw.sessionId === 'string' && osw.sessionId.length > 0 && osw.created === true;
 console.log(`SMOKE 判定：no-warm 返回 sessionId 字段且 created=false + warm 真起一轮（sessionId 非空、created=true）= ${ok}`);
 await handlers['explorer.daemon']({ action: 'stop', slot: 8912 });
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(ok ? 0 : 1);

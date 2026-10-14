@@ -1,3 +1,7 @@
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('host-prefix-probe-t22');
+
 // probe-t22.ts —— task-22：index.ts 双前缀收口的**同一位置真实原文**对照。
 // 模式：start / status / fail-inst（伪造发行版，无需改环境）/ fail-on（=on + 托管失败，用于触发双前缀）
 const MODE = process.argv[2] || 'start';
@@ -49,4 +53,6 @@ if (MODE === 'start') {
   console.log('<<<THROWN-RAW-END');
   audit(MODE, thrown);
 }
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

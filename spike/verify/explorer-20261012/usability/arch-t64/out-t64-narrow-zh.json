@@ -1,5 +1,5 @@
 {
-  "ts": "2026-10-14T07:19:49.083Z",
+  "ts": "2026-10-14T07:27:05.946Z",
   "phase": "narrow",
   "locale": "zh",
   "narrow": [
@@ -8,13 +8,13 @@
       "innerWidth": 320,
       "panelWidth": 264,
       "locale": "zh-CN",
-      "headerBtnLabel": "添加为 WSL 工作区",
+      "headerBtnLabel": "添加工作区",
       "hintText": "未物化",
       "statusText": "远端守护未运行",
       "extraPresent": true,
-      "extraHiddenClass": false,
+      "extraHiddenClass": true,
       "visibleButtonLabels": [
-        "添加为 WSL 工作区|把 /home/g/proj",
+        "添加工作区|把 /home/g/proj",
         "|重新读取 explorer.",
         "隐藏文件：不显示|显示 . 开头的隐藏条目（当",
         "Home|家目录：跳转到 /home/",
@@ -37,7 +37,7 @@
         "|复制此路径",
         "|进入目录 /home/g/p",
         "|复制此路径",
-        "启动守护|启动守护（幂等；不会停止任何",
+        "启动|启动守护（幂等；不会停止任何",
         "|更多操作"
       ],
       "N1": {
@@ -47,11 +47,11 @@
       },
       "N1b": {
         "btn": {
-          "text": "添加为 WSL 工作区",
+          "text": "添加工作区",
           "textOverflow": "clip",
-          "whiteSpace": "normal",
-          "scrollW": 130,
-          "clientW": 130,
+          "whiteSpace": "nowrap",
+          "scrollW": 85,
+          "clientW": 85,
           "elided": false
         },
         "hint": {
@@ -81,8 +81,8 @@
         "count": 25,
         "acts": [
           {
-            "label": "添加为 WSL 工作区",
-            "w": 132,
+            "label": "添加工作区",
+            "w": 87,
             "h": 28,
             "ok": true
           },
@@ -219,8 +219,8 @@
             "ok": true
           },
           {
-            "label": "启动守护",
-            "w": 49,
+            "label": "启动",
+            "w": 48,
             "h": 28,
             "ok": true
           },
@@ -234,10 +234,10 @@
       },
       "allButtons": [
         {
-          "label": "添加为 WSL 工作区",
+          "label": "添加工作区",
           "aria": "把 /home/g/project/dsh1 登记为",
           "visible": true,
-          "w": 132,
+          "w": 87,
           "h": 28,
           "inHeader": true,
           "inMenu": false,
@@ -464,10 +464,10 @@
           "inFooter": false
         },
         {
-          "label": "启动守护",
+          "label": "启动",
           "aria": "启动守护（幂等；不会停止任何已有守护）",
           "visible": true,
-          "w": 49,
+          "w": 48,
           "h": 28,
           "inHeader": false,
           "inMenu": false,
@@ -490,13 +490,13 @@
       "innerWidth": 359,
       "panelWidth": 303,
       "locale": "zh-CN",
-      "headerBtnLabel": "添加为 WSL 工作区",
+      "headerBtnLabel": "添加工作区",
       "hintText": "未物化",
       "statusText": "远端守护未运行",
       "extraPresent": true,
-      "extraHiddenClass": false,
+      "extraHiddenClass": true,
       "visibleButtonLabels": [
-        "添加为 WSL 工作区|把 /home/g/proj",
+        "添加工作区|把 /home/g/proj",
         "|重新读取 explorer.",
         "隐藏文件：不显示|显示 . 开头的隐藏条目（当",
         "Home|家目录：跳转到 /home/",
@@ -519,7 +519,7 @@
         "|复制此路径",
         "|进入目录 /home/g/p",
         "|复制此路径",
-        "启动守护|启动守护（幂等；不会停止任何",
+        "启动|启动守护（幂等；不会停止任何",
         "|更多操作"
       ],
       "N1": {
@@ -529,11 +529,11 @@
       },
       "N1b": {
         "btn": {
-          "text": "添加为 WSL 工作区",
+          "text": "添加工作区",
           "textOverflow": "clip",
-          "whiteSpace": "normal",
-          "scrollW": 130,
-          "clientW": 130,
+          "whiteSpace": "nowrap",
+          "scrollW": 85,
+          "clientW": 85,
           "elided": false
         },
         "hint": {
@@ -563,8 +563,8 @@
         "count": 25,
         "acts": [
           {
-            "label": "添加为 WSL 工作区",
-            "w": 132,
+            "label": "添加工作区",
+            "w": 87,
             "h": 28,
             "ok": true
           },
@@ -701,8 +701,8 @@
             "ok": true
           },
           {
-            "label": "启动守护",
-            "w": 68,
+            "label": "启动",
+            "w": 48,
             "h": 28,
             "ok": true
           },
@@ -716,10 +716,10 @@
       },
       "allButtons": [
         {
-          "label": "添加为 WSL 工作区",
+          "label": "添加工作区",
           "aria": "把 /home/g/project/dsh1 登记为",
           "visible": true,
-          "w": 132,
+          "w": 87,
           "h": 28,
           "inHeader": true,
           "inMenu": false,
@@ -946,10 +946,10 @@
           "inFooter": false
         },
         {
-          "label": "启动守护",
+          "label": "启动",
           "aria": "启动守护（幂等；不会停止任何已有守护）",
           "visible": true,
-          "w": 68,
+          "w": 48,
           "h": 28,
           "inHeader": false,
           "inMenu": false,
@@ -972,13 +972,13 @@
       "innerWidth": 420,
       "panelWidth": 364,
       "locale": "zh-CN",
-      "headerBtnLabel": "添加为 WSL 工作区",
+      "headerBtnLabel": "添加工作区",
       "hintText": "未物化",
       "statusText": "远端守护未运行",
       "extraPresent": true,
-      "extraHiddenClass": false,
+      "extraHiddenClass": true,
       "visibleButtonLabels": [
-        "添加为 WSL 工作区|把 /home/g/proj",
+        "添加工作区|把 /home/g/proj",
         "|重新读取 explorer.",
         "隐藏文件：不显示|显示 . 开头的隐藏条目（当",
         "Home|家目录：跳转到 /home/",
@@ -1001,7 +1001,7 @@
         "|复制此路径",
         "|进入目录 /home/g/p",
         "|复制此路径",
-        "启动守护|启动守护（幂等；不会停止任何",
+        "启动|启动守护（幂等；不会停止任何",
         "|更多操作"
       ],
       "N1": {
@@ -1011,11 +1011,11 @@
       },
       "N1b": {
         "btn": {
-          "text": "添加为 WSL 工作区",
+          "text": "添加工作区",
           "textOverflow": "clip",
-          "whiteSpace": "normal",
-          "scrollW": 130,
-          "clientW": 130,
+          "whiteSpace": "nowrap",
+          "scrollW": 85,
+          "clientW": 85,
           "elided": false
         },
         "hint": {
@@ -1045,8 +1045,8 @@
         "count": 25,
         "acts": [
           {
-            "label": "添加为 WSL 工作区",
-            "w": 132,
+            "label": "添加工作区",
+            "w": 87,
             "h": 28,
             "ok": true
           },
@@ -1183,8 +1183,8 @@
             "ok": true
           },
           {
-            "label": "启动守护",
-            "w": 53,
+            "label": "启动",
+            "w": 48,
             "h": 28,
             "ok": true
           },
@@ -1198,10 +1198,10 @@
       },
       "allButtons": [
         {
-          "label": "添加为 WSL 工作区",
+          "label": "添加工作区",
           "aria": "把 /home/g/project/dsh1 登记为",
           "visible": true,
-          "w": 132,
+          "w": 87,
           "h": 28,
           "inHeader": true,
           "inMenu": false,
@@ -1428,10 +1428,10 @@
           "inFooter": false
         },
         {
-          "label": "启动守护",
+          "label": "启动",
           "aria": "启动守护（幂等；不会停止任何已有守护）",
           "visible": true,
-          "w": 53,
+          "w": 48,
           "h": 28,
           "inHeader": false,
           "inMenu": false,

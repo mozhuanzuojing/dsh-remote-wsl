@@ -33,6 +33,32 @@ export interface DshHomeGuard {
 
 const shaOf = (p: string): string | null => (existsSync(p) ? createHash('sha256').update(readFileSync(p)).digest('hex') : null);
 
+/** 被观察文件的路径（默认用户全局 `~/.dsh/storages/workspace.json`；`T70_WATCH_WS` 可指替身）。 */
+export function watchedWorkspacePath(): string {
+  return process.env.T70_WATCH_WS || join(homedir(), '.dsh', 'storages', 'workspace.json');
+}
+
+/**
+ * **只断言**版（不改 `DSH_HOME`）：给那些**本来就自己设了孤立 home** 的工具补"前后 sha"闭环。
+ * 用法：`const dshGuard = watchGlobalWorkspace();` … 收尾 `dshGuard.assertUnchanged();`
+ */
+export function watchGlobalWorkspace(): Omit<DshHomeGuard, 'isoHome' | 'cleanup'> {
+  const watched = watchedWorkspacePath();
+  const shaBefore = shaOf(watched);
+  console.log(`[guard] 观察的注册表 = ${watched}  sha(前) = ${shaBefore?.slice(0, 16) ?? '(不存在)'}`);
+  return {
+    watched,
+    shaBefore,
+    shaNow: () => shaOf(watched),
+    assertUnchanged() {
+      const after = shaOf(watched);
+      const same = shaBefore === after;
+      console.log(`[guard] sha(后) = ${after?.slice(0, 16) ?? '(不存在)'} ⇒ 前后相同 = ${same}`);
+      if (!same) throw new Error(`T70 隔离断言失败：${watched} 在本次运行中被改写（before=${shaBefore} after=${after}）`);
+    },
+  };
+}
+
 /**
  * 把 `DSH_HOME` 指到 `%TEMP%\<label>-home-<pid>` 并**记录被观察文件的 sha**。
  * ⚠️ 必须在 `import ... src/index.ts` 之前调用（模块在 import 期就可能捕获存储根）。

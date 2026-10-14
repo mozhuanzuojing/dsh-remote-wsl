@@ -21,8 +21,21 @@ param(
   [string]$Vendor = 'D:\project\dsh1\vendor\dsh-remote-wsl',
   [string]$DshHome = $env:DSH_HOME,
   [string]$DshCmd = 'C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd',
-  [string]$OutDir = $PSScriptRoot
+  [string]$OutDir = $PSScriptRoot,
+  [switch]$UseUserHome
 )
+
+# ── T73：默认**孤立** DSH_HOME（-UseUserHome 才用真实 home）＋ 用户全局 workspace.json 前后 sha 对照 ──
+$script:T73Ws = Join-Path $env:USERPROFILE '.dsh\storages\workspace.json'
+$script:T73ShaBefore = if (Test-Path $script:T73Ws) { (Get-FileHash $script:T73Ws -Algorithm SHA256).Hash } else { '<none>' }
+if (-not $UseUserHome) {
+  $env:DSH_HOME = Join-Path $env:TEMP 'boot-testhost-home'
+  New-Item -ItemType Directory -Force -Path (Join-Path $env:DSH_HOME 'storages') | Out-Null
+  # ⚠️ 有些脚本另有 `param([string]$DshHome = $env:DSH_HOME)`：它的默认值在**本块之前**就求值成用户 home，
+  #    会让脚本后面按用户 home 拼 profile 路径（T73 复跑实测：boot-testhost 因此去用户目录找 profile）⇒ 一并覆盖。
+  if (Get-Variable -Name DshHome -Scope 0 -ErrorAction SilentlyContinue) { $DshHome = $env:DSH_HOME }
+}
+Write-Host "[T73] DSH_HOME=$env:DSH_HOME（UseUserHome=$([bool]$UseUserHome)） sha(前)=$($script:T73ShaBefore.Substring(0,[Math]::Min(16,$script:T73ShaBefore.Length)))"
 $ErrorActionPreference = 'Stop'
 if (-not $DshHome) { $DshHome = Join-Path $env:USERPROFILE '.dsh' }
 
@@ -132,4 +145,8 @@ if (-not $ready) { Write-Host "未就绪：看 $logFile / $logFile.err"; exit 3 
 $nowLive = Get-LiveHostPid
 Write-Host "活宿主 pid 仍为 $nowLive（启动前 $livePid）—— 必须相等"
 if ($nowLive -ne $livePid) { Write-Host "!! 活宿主 pid 变了：说明碰到了用户宿主，立即停下报告"; exit 4 }
+# ── T73 断言：用户全局 workspace.json 前后 sha 相同 ──
+$script:T73ShaAfter = if (Test-Path $script:T73Ws) { (Get-FileHash $script:T73Ws -Algorithm SHA256).Hash } else { '<none>' }
+if ($script:T73ShaAfter -ne $script:T73ShaBefore) { Write-Host "[T73] 失败：用户全局 workspace.json 被改写（$($script:T73ShaBefore) -> $($script:T73ShaAfter)）"; exit 9 }
+Write-Host "[T73] 用户全局 workspace.json sha 前后相同 = True"
 exit 0

@@ -37,8 +37,21 @@ param(
   # 故意红测试：-ExpectedSlot 8912 ⇒ capture 必须 exit 3（证明前置断言有区分力）。
   [int]$ExpectedSlot = 8972,
   [string]$NodeExe = 'C:\Users\l\AppData\Local\mise\shims\node.exe',
-  [switch]$Go
+  [switch]$Go,
+  [switch]$UseUserHome
 )
+
+# ── T73：默认**孤立** DSH_HOME（-UseUserHome 才用真实 home）＋ 用户全局 workspace.json 前后 sha 对照 ──
+$script:T73Ws = Join-Path $env:USERPROFILE '.dsh\storages\workspace.json'
+$script:T73ShaBefore = if (Test-Path $script:T73Ws) { (Get-FileHash $script:T73Ws -Algorithm SHA256).Hash } else { '<none>' }
+if (-not $UseUserHome) {
+  $env:DSH_HOME = Join-Path $env:TEMP 'reliability-inject-a-daemon-kill-home'
+  New-Item -ItemType Directory -Force -Path (Join-Path $env:DSH_HOME 'storages') | Out-Null
+  # ⚠️ 有些脚本另有 `param([string]$DshHome = $env:DSH_HOME)`：它的默认值在**本块之前**就求值成用户 home，
+  #    会让脚本后面按用户 home 拼 profile 路径（T73 复跑实测：boot-testhost 因此去用户目录找 profile）⇒ 一并覆盖。
+  if (Get-Variable -Name DshHome -Scope 0 -ErrorAction SilentlyContinue) { $DshHome = $env:DSH_HOME }
+}
+Write-Host "[T73] DSH_HOME=$env:DSH_HOME（UseUserHome=$([bool]$UseUserHome)） sha(前)=$($script:T73ShaBefore.Substring(0,[Math]::Min(16,$script:T73ShaBefore.Length)))"
 
 $ErrorActionPreference = 'Stop'
 $Dir = $PSScriptRoot
@@ -328,3 +341,8 @@ if ($Phase -eq 'restore') {
 
 Assert-LiveHostUntouched 'end'
 Write-Host "INJ-A -Phase $Phase 完成；活宿主 pid 仍为 $LiveHostPidBaseline（未被碰）"
+
+# ── T73 断言：用户全局 workspace.json 前后 sha 相同 ──
+$script:T73ShaAfter = if (Test-Path $script:T73Ws) { (Get-FileHash $script:T73Ws -Algorithm SHA256).Hash } else { '<none>' }
+if ($script:T73ShaAfter -ne $script:T73ShaBefore) { Write-Host "[T73] 失败：用户全局 workspace.json 被改写（$($script:T73ShaBefore) -> $($script:T73ShaAfter)）"; exit 9 }
+Write-Host "[T73] 用户全局 workspace.json sha 前后相同 = True"

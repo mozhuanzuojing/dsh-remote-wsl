@@ -42,6 +42,8 @@ for (const f of walk(ROOT).sort()) {
   const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
   if (ONLY && !rel.includes(ONLY)) continue;
   if (/\.orig\.ts$/.test(rel)) continue; // 快照/备份文件不是工具
+  // 工具**自身**排除：它们的正则字面量里就写着 `dsh web` / `isolateDshHome\(` ⇒ 会自匹配（误判过）
+  if (rel.startsWith('arch-t58/tools/')) { continue; }
   const raw = readFileSync(f, 'utf8');
   // ⚠️ **先剥注释再判**（三处踩过的坑都记在这里）：
   //   ① 不剥注释 ⇒ 注释里提到 `dsh web` 就被当成"起实例"（首版误报了 splice-t1 / split-t5* / harness-t60）；
@@ -61,12 +63,29 @@ for (const f of walk(ROOT).sort()) {
   // 收紧：起**宿主/实例**要同时出现 profile 与 port（且是 dsh/web 语境）
   const startsHost = /(?:\bdsh(?:\.cmd)?\b[^\n]*--profile[^\n]*--port)|(?:--profile[^\n]*--port[^\n]*(?:--no-open|web))|(?:\bdsh web\b)/.test(text);
   const setsDshHome = /(process\.env\.DSH_HOME\s*=|\$env:DSH_HOME\s*=)/.test(text);
+  // ⚠️ `shaAssert` 必须用**原文 raw**判：断言的"依据说明"往往写在注释里（`…workspace.json 前后 sha…`），
+  //    而上面的 `text` 已剥注释 ⇒ 会把这些文件全判成"无断言"（收紧那次一次误判 26 个）。
+  //    而 `isolates` / `assertCall` 必须用**剥注释后的 text**：必须是**真调用**，注释里写不算。
   const guard = /dsh-guard/.test(text);
-  const shaAssert = /workspace\.json/.test(text) && /(sha256|sha\(|ShaBefore|ShaAfter|ShaDiff|前后)/i.test(text);
+  const isolates = /isolateDshHome\(|process\.env\.DSH_HOME\s*=|\$env:DSH_HOME\s*=/.test(text);
+  // 断言形式分类型，且要认**多种既有写法**（否则会把"本来就有断言"的文件误判成 ⚠）：
+  //   `.ts` 新护栏 `assertUnchanged()` ｜ 旧工具 `wsBefore === wsAfter` ｜ `.ps1` `T73ShaAfter` / `ShaDiff` / `ShaAfter`。
+  const assertCall = /\.\s*assertUnchanged\(|T73ShaAfter|ShaAfter|ShaDiff|wsAfter|afterSha/i.test(text);
+  const shaAssert = /workspace\.json/.test(raw) && /(sha256|sha\(|ShaBefore|ShaAfter|ShaDiff|前后)/i.test(raw);
   let orderOk: boolean | null = null;
   if (hostEntry) {
-    const importIdx = lines.findIndex((l) => /(?:import\(|require\().*\/src\/index\.ts/.test(l));
-    const isoIdx = lines.findIndex((l) => /(process\.env\.DSH_HOME\s*=|isolateDshHome\()/.test(l));
+    // ⚠️ 顺序判据必须覆盖**三种**引用形态，否则会把自己改好的文件误判（首跑踩过：
+    //    `probe-ground-truth.ts` / `reliability/inject-{b-adapter,delta}.ts` 经 `const LIB = '…/src/index.ts'`
+    //    间接导入 ⇒ 只找字面 `import(…src/index.ts)` 会得 importIdx=-1 ⇒ 误报"隔离在 import 之后"）：
+    //   a) 字面 `await import('…/src/index.ts')`；b) 路径常量那一行；c) `await import(LIB|SRC…|MOD…)`。
+    const cand: number[] = [];
+    lines.forEach((l, i) => {
+      if (/(?:import\(|require\().*\/src\/index\.ts/.test(l)) cand.push(i);
+      else if (/const\s+[A-Z_]*\s*=\s*['"][^'"]*\/src\/index\.ts['"]/.test(l)) cand.push(i);
+      else if (/(?:import\(|require\()\s*(?:LIB|SRC\w*|INDEX\w*|MOD\w*|ENTRY\w*)\b/.test(l)) cand.push(i);
+    });
+    const importIdx = cand.length ? Math.min(...cand) : -1;
+    const isoIdx = lines.findIndex((l) => /(process\.env\.DSH_HOME\s*=|isolateDshHome\(|watchGlobalWorkspace\()/.test(l));
     orderOk = isoIdx !== -1 && importIdx !== -1 ? isoIdx < importIdx : false;
   }
   if ((hostEntry || applyCall || startsHost) && !QUIET) {
@@ -81,9 +100,9 @@ for (const f of walk(ROOT).sort()) {
   const needs = hostEntry || applyCall || startsHost;
   let verdict: Row['verdict'];
   if (!needs) verdict = 'N/A（不触 storages）';
-  else if (!setsDshHome && !guard) verdict = '✗ 缺隔离（同病）';
+  else if (!isolates) verdict = '✗ 缺隔离（同病）';
   else if (orderOk === false) verdict = '✗ 隔离在 import 之后（无效）';
-  else if (!shaAssert && !guard) verdict = '⚠ 有隔离但无前后 sha 断言';
+  else if (!(shaAssert && assertCall)) verdict = '⚠ 有隔离但无前后 sha 断言';
   else verdict = '✓ 合规';
   rows.push({ tool: rel, hostEntry, applyCall, startsHost, setsDshHome, guard, shaAssert, orderOk, verdict });
 }

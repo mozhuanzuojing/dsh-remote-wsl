@@ -23,6 +23,10 @@
  *
  * 纪律：只用自己的槽位 8972（存在则拒绝跑）；结束回到"8972 无守护"的起点；不碰 19387。
  */
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from '../arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('reliability-inject-b-adapter');
+
 import { writeFileSync, appendFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -340,4 +344,6 @@ writeFileSync(`${DIR}out-B2-summary.json`, JSON.stringify({
 log('');
 log(`汇总：${steps.filter((s) => String(s.verdict).startsWith('PASS')).length}/${steps.length} PASS；非 PASS：${fails.map((s) => `${s.n}:${s.verdict}`).join(', ') || '(none)'}`);
 log('限制：未经过真实 node:http / webServer.register / Cordis / 浏览器 → 记入未复核。');
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(fails.length ? 1 : (process.exitCode ?? 0));

@@ -1,0 +1,42 @@
+  [ts:isolate] arch-t1/probe-parity-t1.ts  +6 行
+  [ts:isolate] arch-t1/probe-runtime-smoke-t1.ts  +6 行
+  [ts:isolate] arch-t5/probe-t5.ts  +6 行
+  [ts:isolate] host-f38/probe-tool-line.ts  +6 行
+  [ts:isolate] host-prefix/probe-t22.ts  +6 行
+  [ts:isolate] probe-ground-truth.ts  +6 行
+  [ts:isolate] probe-wsl-path.ts  +6 行
+  [ts:isolate] reliability/inject-b-adapter.ts  +6 行
+  [ts:isolate] reliability/inject-delta.ts  +6 行
+  [ts:assert-only] arch-t55/probe-t55.ts  +6 行
+  [ts:assert-only] arch-t55/probe-t60.ts  +6 行
+  [ts:assert-only] arch-t55/probe-t66.ts  +6 行
+  [ts:assert-only] arch-t5/probe-openui.ts  +6 行
+  [ps1:host] boot-testhost.ps1  +14 行
+  [ps1:host] stability/boot-stabhost.ps1  +14 行
+  [ps1:host] reliability/inject-a-daemon-kill.ps1  +14 行
+  [ps1:host] usability/p04-boot.ps1  +14 行
+  [ps1:host] usability/usab-run.ps1  +14 行
+  [ps1:host] usability/ux-boot.ps1  +14 行
+  [ps1:assert-only] boot-iso-host.ps1  +9 行
+
+改动 20 个文件：
+  arch-t1/probe-parity-t1.ts  +6 行  ← 顶部第 8 行前 + 第 57 行前（最后一个 process.exit）
+  arch-t1/probe-runtime-smoke-t1.ts  +6 行  ← 顶部第 8 行前 + 第 38 行前（最后一个 process.exit）
+  arch-t5/probe-t5.ts  +6 行  ← 顶部第 9 行前 + 第 91 行前（最后一个 process.exit）
+  host-f38/probe-tool-line.ts  +6 行  ← 顶部第 1 行前 + 第 28 行前（最后一个 process.exit）
+  host-prefix/probe-t22.ts  +6 行  ← 顶部第 1 行前 + 第 52 行前（最后一个 process.exit）
+  probe-ground-truth.ts  +6 行  ← 顶部第 17 行前 + 第 172 行前（最后一个 process.exit）
+  probe-wsl-path.ts  +6 行  ← 顶部第 8 行前 + 第 78 行前（最后一个 process.exit）
+  reliability/inject-b-adapter.ts  +6 行  ← 顶部第 26 行前 + 第 343 行前（最后一个 process.exit）
+  reliability/inject-delta.ts  +6 行  ← 顶部第 19 行前 + 第 272 行前（最后一个 process.exit）
+  arch-t55/probe-t55.ts  +6 行  ← 顶部第 11 行前 + 第 123 行前（最后一个 process.exit）
+  arch-t55/probe-t60.ts  +6 行  ← 顶部第 13 行前 + 第 114 行前（最后一个 process.exit）
+  arch-t55/probe-t66.ts  +6 行  ← 顶部第 11 行前 + 第 175 行前（最后一个 process.exit）
+  arch-t5/probe-openui.ts  +6 行  ← 顶部第 12 行前 + 第 51 行前（最后一个 process.exit）
+  boot-testhost.ps1  +14 行  ← param 块后第 26 行前 + 第 135 行前（最后一个 exit）
+  stability/boot-stabhost.ps1  +14 行  ← param 块后第 30 行前 + 第 195 行前（最后一个 exit）
+  reliability/inject-a-daemon-kill.ps1  +14 行  ← param 块后第 42 行前 + 第 324 行前（最后一个 exit）
+  usability/p04-boot.ps1  +14 行  ← param 块后第 19 行前 + 第 127 行前（最后一个 exit）
+  usability/usab-run.ps1  +14 行  ← param 块后第 37 行前 + 第 269 行前（最后一个 exit）
+  usability/ux-boot.ps1  +14 行  ← param 块后第 29 行前 + 第 158 行前（最后一个 exit）
+  boot-iso-host.ps1  +9 行  ← param 块后第 17 行前 + 第 65 行前（最后一个 exit）
