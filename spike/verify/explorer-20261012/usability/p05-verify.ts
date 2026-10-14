@@ -1,6 +1,6 @@
 /**
  * p05-verify.ts —— task-50：UX 残余项复验（V3 八宽度 / V7+M17 两主题×三背景 / N3 展开态 / M6·M7·M10·M11·M12④）
- * 前置证明（integrity）另跑：tools/check-client-rev.mjs + 页面 chunk == 磁盘 chunk（9 chunk）
+ * 前置证明（integrity）另跑：tools/check-client-rev.ts + 页面 chunk == 磁盘 chunk（9 chunk）
  *
  * 用法：node p05-verify.ts --url <tokenUrl> --disk <%TEMP%副本> --out <p05-final> --phase <p>
  *   phase: integrity | probe | v3 | v7 | n3 | m6 | m7 | m10 | m11 | m12 | all

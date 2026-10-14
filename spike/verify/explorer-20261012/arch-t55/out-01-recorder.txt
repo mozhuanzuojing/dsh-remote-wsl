@@ -1,0 +1,17 @@
+COPY=C:\Users\l\AppData\Local\Temp\t55-recorder-w6mtlx
+DSH_HOME(孤立)=C:\Users\l\AppData\Local\Temp\t55-home  mode=recorder  port=8916
+PATCH recorder: "(args?.open ?? true) ? openAppWindow(url) : 'not-opened'"… ⇒ "(args?.open ?? true) ? (globalThis.__t55_url = url, 'record…（命中 1）
+remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
+(node:34724) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/l/AppData/Local/Temp/t55-recorder-w6mtlx/src/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[①open:true（记录器）] OK 4885ms :: http://127.0.0.1:8916/?token=ZVMYNonGm6Ddy5WKKB6FiyRprWJNUi7jd1vl9QuQAbI | (opened: recorded-t55)
+RECORDER url=http://127.0.0.1:8916/?token=ZVMYNonGm6Ddy5WKKB6FiyRprWJNUi7jd1vl9QuQAbI
+ASSERT recorder 被走到且 URL 形状正确 = true
+ASSERT open:false 那条不调记录器（本模式无法同时验，另有代码级证据）
+STATE[失败后（未清理）] wslProcs=2 wslListener=1 tmpScripts=2
+[收尾 stop:true] OK 306ms :: stopped web host on port 8916
+STATE[stop 之后] wslProcs=0 wslListener=0 tmpScripts=0
+ASSERT 失败后无孤儿（进程0/端口0/tmp0） = false
+ASSERT stop 后已清干净（进程0/端口0/tmp0） = true

@@ -1,0 +1,5 @@
+[mutated] sha=a9d46d624518 断言看到抛错=false ⇒ 符合预期 ✓  未抛错（拿到 runtime，alive=false，child=undefined）
+[restored] sha=e53ac2a889df 断言看到抛错=true ⇒ 符合预期 ✓  Error: remote-wsl: 无法写入发行版 "__t56_no_such_distro__" 的 /tmp（UNC \\wsl.localhost\__t56_no_such_distro__ 不可用）。用 `wsl -l -v` 确认发行版名
+
+还原后副本 sha == 真实现 sha : true（真实现 e53ac2a889df）
+结果：PASS —— 吞错版让断言失效（红），还原版断言恢复（绿）⇒ 断言确实在测这条分支

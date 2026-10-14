@@ -1,4 +1,4 @@
-// mut-setsid.mjs —— 把启动脚本的 exec 行在 `exec node` 与 `exec setsid --fork node` 之间切换（试 setsid 托管）。
+// mut-setsid.ts —— 把启动脚本的 exec 行在 `exec node` 与 `exec setsid --fork node` 之间切换（试 setsid 托管）。
 import { readFileSync, writeFileSync } from 'node:fs';
 const [file, mode] = process.argv.slice(2);
 const s = readFileSync(file, 'utf8');

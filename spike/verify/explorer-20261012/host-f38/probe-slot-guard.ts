@@ -1,4 +1,4 @@
-// probe-slot-guard.mjs —— 回归：非配置槽位的动作必须被 F33 守卫拒绝（400/E_ARG），且**不产生任何副作用**。
+// probe-slot-guard.ts —— 回归：非配置槽位的动作必须被 F33 守卫拒绝（400/E_ARG），且**不产生任何副作用**。
 import { spawnSync } from 'node:child_process';
 const ex = await import('file:///D:/project/dsh1/vendor/dsh-remote-wsl/src/explorer.ts');
 const PORT = 8911;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * check-client-rev.mjs —— 机器门禁：**任何 client chunk 变了而"入口 rev"未随之变化 ⇒ 非 0 退出**。
+ * check-client-rev.ts —— 机器门禁：**任何 client chunk 变了而"入口 rev"未随之变化 ⇒ 非 0 退出**。
  *
  * ── 它拦的是什么（机制来自平台源码，见 REPORT-chunk-rev.md §1） ──────────────────────
  * 平台给插件 client 半的资源版本号 `rev` 不是内容哈希，而是**入口文件 `client/index.js` 的元数据哈希**：
@@ -19,15 +19,15 @@
  *   （重启宿主、换 token、新开页面都无效；`touch`/改一下 `client/index.js` 才会换 rev）。
  *
  * ── 用法 ────────────────────────────────────────────────────────────────────────
- *   node check-client-rev.mjs                       # 自动选模式（git 可用则 git，否则 baseline，再否则 mtime）
- *   node check-client-rev.mjs --mode git            # 强制 git 模式
- *   node check-client-rev.mjs --mode baseline       # 便携基线模式（需先 --update 建基线）
- *   node check-client-rev.mjs --mode mtime          # 保守兜底（只看 mtime 先后）
- *   node check-client-rev.mjs --update              # 记录/刷新基线（**bump 入口之后**才该跑）
- *   node check-client-rev.mjs --json                # 机器可读输出
- *   node check-client-rev.mjs --print-rev           # 只算并打印当前入口 rev（与平台同算法）
- *   node check-client-rev.mjs --self-test           # 自测：副本里「改 chunk 不动入口 ⇒ FAIL」「改入口 ⇒ PASS」
- *   node check-client-rev.mjs --root <插件根>        # 默认 = 本脚本上溯到含 package.json 的目录
+ *   node check-client-rev.ts                       # 自动选模式（git 可用则 git，否则 baseline，再否则 mtime）
+ *   node check-client-rev.ts --mode git            # 强制 git 模式
+ *   node check-client-rev.ts --mode baseline       # 便携基线模式（需先 --update 建基线）
+ *   node check-client-rev.ts --mode mtime          # 保守兜底（只看 mtime 先后）
+ *   node check-client-rev.ts --update              # 记录/刷新基线（**bump 入口之后**才该跑）
+ *   node check-client-rev.ts --json                # 机器可读输出
+ *   node check-client-rev.ts --print-rev           # 只算并打印当前入口 rev（与平台同算法）
+ *   node check-client-rev.ts --self-test           # 自测：副本里「改 chunk 不动入口 ⇒ FAIL」「改入口 ⇒ PASS」
+ *   node check-client-rev.ts --root <插件根>        # 默认 = 本脚本上溯到含 package.json 的目录
  *
  * 退出码：0 = PASS；1 = FAIL（chunk 变了但入口未 bump）；2 = 用法/环境错误；3 = 判定不可得（需 git 或基线）
  *
@@ -345,7 +345,7 @@ function emit() {
     `       // client-rev: ${new Date().toISOString().slice(0, 10)} chunk=<改动的 chunk 名>`,
     `     （rev = sha1("plugin-artifact", mtimeMs, ctimeMs, size)，内容一变 size/mtime 就变 ⇒ rev 变 ⇒ chunk URL 变 ⇒ 缓存失效）`,
     '  B) 只动元数据也可（touch ' + entry.rel + '），但**不推荐**：clone/checkout 会重置 mtime，跨机器不可复现，别人拿到手的 rev 又可能撞回旧 URL。',
-    '  C) 基线模式维护者：bump 后跑 `node check-client-rev.mjs --mode baseline --update` 记录新基线。'
+    '  C) 基线模式维护者：bump 后跑 `node check-client-rev.ts --mode baseline --update` 记录新基线。'
   ].join('\n');
   if (asJson) {
     console.log(JSON.stringify(result, null, 2));

@@ -1,4 +1,4 @@
-// mut-t23.mjs —— 故意红：把"已登记则复用"改成"无条件 create"（跳过 resolveByPath 命中分支）。
+// mut-t23.ts —— 故意红：把"已登记则复用"改成"无条件 create"（跳过 resolveByPath 命中分支）。
 import { readFileSync, writeFileSync } from 'node:fs';
 const [file, mode] = process.argv.slice(2);
 let s = readFileSync(file, 'utf8');

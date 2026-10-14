@@ -1,0 +1,3 @@
+CLEANUP 残留 daemon.ts 进程 = 0
+CLEANUP /tmp launch 残留 = 3
+CLEANUP 孤立目录 = /home/g/t58-isoA /home/g/t58-isoB /home/g/t58-isoC

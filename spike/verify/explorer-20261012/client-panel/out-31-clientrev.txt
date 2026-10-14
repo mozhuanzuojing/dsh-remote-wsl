@@ -1,0 +1,6 @@
+client-rev 门禁：PASS（模式=git）
+  插件根   : D:\project\dsh1\vendor\dsh-remote-wsl
+  入口     : client/index.js（来自 exports["./client"]）
+  当前 rev : 59faf7156bc2   [mtime=2026-10-14T02:38:47.450Z ctime=2026-10-14T02:38:47.450Z size=29194]
+  chunks   : 9 个  client.api.js(5a192b93) client.i18n.js(47525217) client.icon.js(e9a824f5) client.panel.actions.js(d45d9f9a) client.panel.browser.js(a4bcafa8) client.panel.header.js(b5c1a2c0) client.panel.helpers.js(efa1e85c) client.panel.js(e018be93) client.panel.tail.js(f5cbcf7c)
+  依据     : 自入口最后一次内容变更（f595e840d6fa）以来没有任何 chunk 变化 ⇒ rev 与内容自洽

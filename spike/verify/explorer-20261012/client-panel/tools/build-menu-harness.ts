@@ -1,5 +1,5 @@
 /**
- * build-menu-harness.mjs —— 用插件**真实的 CSS 文本** + 最小 DOM 拼出两个自检 HTML。
+ * build-menu-harness.ts —— 用插件**真实的 CSS 文本** + 最小 DOM 拼出两个自检 HTML。
  *
  * 产出两份（同一份 CSS，只有 DOM 不同）：
  *   A) `harness-menu-<tag>.html`  —— 只测 `.dsh-rw-menu` 的**外框宽**（声明 240 是内容盒还是边框盒）
@@ -9,14 +9,14 @@
  * ⚠️ 两份测的都是**机制**（同一份 CSS 文本 + 最小 DOM，真实 Chromium），**不是** DSH 实例内的面板 DOM。
  *    报告须据此标注"机制实测 / 实例内未测"。
  *
- * 用法： node build-menu-harness.mjs <panel.css> <tag> <输出目录>
+ * 用法： node build-menu-harness.ts <panel.css> <tag> <输出目录>
  */
 import fs from "node:fs";
 import path from "node:path";
 
 const [, , cssFile, tag, outDir] = process.argv;
 if (!cssFile || !tag || !outDir) {
-  console.error("usage: node build-menu-harness.mjs <panel.css> <tag:before|after|red> <outDir>");
+  console.error("usage: node build-menu-harness.ts <panel.css> <tag:before|after|red> <outDir>");
   process.exit(2);
 }
 const css = fs.readFileSync(cssFile, "utf8");

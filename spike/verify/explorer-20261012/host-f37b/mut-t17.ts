@@ -1,4 +1,4 @@
-// mut-t17.mjs —— T17 故意红/回退实验的精确变异。
+// mut-t17.ts —— T17 故意红/回退实验的精确变异。
 //  red-a : 把主路径强制走"兼容 spawn（detached:true）"= 直接 detached spawn（旧弹窗形态）
 //  red-b : red-a 再**去掉** detached = T15 的"无 detached"回归形态（存活应红）
 //  reset : 还原

@@ -33,7 +33,7 @@ foreach ($v in $Variants) {
   $log = Join-Path $Root "out-ab-$v.log"
   $err = "$log.err"
   # ★ 观测本身不许弹窗：Hidden + 重定向
-  $pr = Start-Process -FilePath $node -ArgumentList @("`"$Root\variant-runner.mjs`"", $v, 'debian-u8-1') `
+  $pr = Start-Process -FilePath $node -ArgumentList @("`"$Root\variant-runner.ts`"", $v, 'debian-u8-1') `
     -WindowStyle Hidden -PassThru -RedirectStandardOutput $log -RedirectStandardError $err
   Start-Sleep -Milliseconds $ProbeMs
   $B = Snap 'B'

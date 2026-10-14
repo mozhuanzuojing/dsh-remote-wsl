@@ -1,0 +1,18 @@
+== stopall on isoA（两个活守护） ==
+BEFORE scan(T)=121412@8913,131534@8911,132074@8912 scan(B)=121412@8913,131534@8911,132074@8912
+BEFORE T 元数据 8911:有 8912:有；B pid=121412
+(node:8952) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/l/AppData/Local/Temp/t58-red-7bbda16f/src/daemon-client.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  # daemon shutdown on slot 8911 (port 8911): ok=true 
+  # daemon shutdown on slot 8912 (port 8912): ok=true 
+RESULT stopAllDaemons(stopall) => {"ok":true,"stoppedCount":2,"killed":[{"pid":121412,"port":8913,"metaPort":8913}],"remaining":[]}
+AFTER  scan(T)=(none) scan(B)=(none)
+AFTER  T 元数据 8911:无 8912:无
+ASSERT T 无残留进程（scan(T) 空）= true
+ASSERT T 元数据被处理 = true（期望：活守护的记录清掉；陈旧记录也清掉；空目录无事）
+ASSERT 结果 ok=true = true
+ASSERT 目标进程被停（stopped 条数）= 2（stopall 期望 2；其它模式允许 0）
+ASSERT 不误停第三方（isoB）: 握手 ok=false pid 不变=false (undefined vs 121412) 元数据仍在=false
+ASSERT T 目录 /tmp launch 残留 = 0（期望 0）

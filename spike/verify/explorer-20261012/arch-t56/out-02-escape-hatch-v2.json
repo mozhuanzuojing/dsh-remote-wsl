@@ -1,0 +1,102 @@
+{
+  "at": "2026-10-14T03:41:04.518Z",
+  "winpid": 36200,
+  "records": [
+    {
+      "branch": "A-启动脚本失败",
+      "threw": "Error: remote-wsl: 无法写入发行版 \"__t56_no_such_distro__\" 的 /tmp（UNC \\\\wsl.localhost\\__t56_no_such_distro__ 不可用）。用 `wsl -l -v` 确认发行版名、并确认它在运行。原始错误: UNKNOWN: unknown error, open '\\\\wsl.localhost\\__t56_no_such_distro__\\tmp\\dsh-rwsl-36200-mv7kamnf-2ded6333",
+      "poolHolds": 1,
+      "ms": 2266,
+      "leak": {
+        "tmpFilesBefore": 0,
+        "tmpFilesAfter": 0,
+        "strayWslExe": 0,
+        "wslRuntimes": "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000"
+      }
+    },
+    {
+      "branch": "B-起进程失败",
+      "threw": "Error: remote-wsl: initialize 超时",
+      "poolHolds": true,
+      "closed": true,
+      "alive": false,
+      "tmpFilesAtObservation": 1,
+      "ms": 5283,
+      "leak": {
+        "tmpFilesBefore": 0,
+        "tmpFilesAfter": 1,
+        "strayWslExe": 0,
+        "wslRuntimes": "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000"
+      }
+    },
+    {
+      "branch": "C-initialize超时",
+      "threw": "Error: remote-wsl: initialize 超时",
+      "poolHolds": true,
+      "closed": false,
+      "alive": true,
+      "runtimePid": 22212,
+      "secondGetRuntime": {
+        "sameInstance": true,
+        "closed": false,
+        "alive": true
+      },
+      "tmpFilesAtObservation": 2,
+      "wslRuntimesAtObservation": "115457(2s) \n[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000",
+      "afterClose": {
+        "closed": true,
+        "exitCode": null
+      },
+      "ms": 5488,
+      "leak": {
+        "tmpFilesBefore": 1,
+        "tmpFilesAfter": 1,
+        "strayWslExe": 0,
+        "wslRuntimes": "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000"
+      }
+    },
+    {
+      "branch": "D-非零退出",
+      "threw": "Error: remote-wsl: initialize 超时",
+      "closed": false,
+      "alive": false,
+      "exitCode": 2,
+      "stderrTail": "calhost �N\u0006tM�n\f�FO*g\\��P0R WSL\u00020NAT !j\u000f_\u000bN�v WSL \rN/e\u0001c localhost �N\u0006t\u00020\r\nremote-wsl: 已注入登录 shell 环境\n/tmp/dsh-rwsl-36200-mv7kazj5-d30d1005.sh: line 41: cd: /no/such/dir/t56: No such file or directory\nremote-wsl: cwd 不存在: /no/such/dir/t56\n",
+      "ms": 7189,
+      "leak": {
+        "tmpFilesBefore": 1,
+        "tmpFilesAfter": 1,
+        "strayWslExe": 0,
+        "wslRuntimes": "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000"
+      }
+    },
+    {
+      "branch": "E1-空正文",
+      "promptThrew": "Error: remote-wsl: 事件流与持久化日志都没有 assistant 正文；请重试（运行时已重启、id 会换新）",
+      "closed": true,
+      "alive": false,
+      "ms": 18536,
+      "leak": {
+        "tmpFilesBefore": 1,
+        "tmpFilesAfter": 1,
+        "strayWslExe": 0,
+        "wslRuntimes": "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000"
+      }
+    },
+    {
+      "branch": "E2-prompt形状异常",
+      "promptThrew": "Error: JSON-RPC -32603: stub boom",
+      "closed": false,
+      "alive": true,
+      "ms": 3580,
+      "leak": {
+        "tmpFilesBefore": 1,
+        "tmpFilesAfter": 1,
+        "strayWslExe": 0,
+        "wslRuntimes": "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000"
+      }
+    }
+  ],
+  "finalResidue": 1,
+  "finalStray": 0
+}

@@ -1,12 +1,12 @@
-/* gen-split.mjs —— T41 拆 chunk 生成器（我接手后重写；**不改被搬动的代码体**，只做整块切片 + 显式接线）。
+/* gen-split.ts —— T41 拆 chunk 生成器（我接手后重写；**不改被搬动的代码体**，只做整块切片 + 显式接线）。
  *
  * 与前 owner 脚本的差别（两轮失败的原因）：
  *   1) 不用"标识符正则猜自由变量"当**判据** —— 接线用**显式、可审阅的名字清单**，正确性由
- *      `panel-smoke-node.mjs`（真装载 + 真渲染）来判；
+ *      `panel-smoke-node.ts`（真装载 + 真渲染）来判；
  *   2) 边界一律取**整语句块**（含 `if (...) {` 与其配对 `}`），因此大括号天然平衡；
  *   3) 先写到 `arch-t6/staging/`，`node --check` + 冒烟全绿**才**拷进 `client/`（绝不半成品）。
  *
- * 用法：node gen-split.mjs --stage 1
+ * 用法：node gen-split.ts --stage 1
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,7 +21,7 @@ const cut = (a, b) => lines.slice(a - 1, b).join('\n');   // 1-based 闭区间
 const stage = Number((process.argv.find((a) => a.startsWith('--stage')) ? process.argv[process.argv.indexOf('--stage') + 1] : '1'));
 if (stage !== 1) { console.error('目前只实现了 --stage 1'); process.exit(2); }
 
-// ── 边界（1-based，含端点；均经 panel-map.mjs 实测） ──
+// ── 边界（1-based，含端点；均经 panel-map.ts 实测） ──
 const BOUND = {
   head: [1, 32],            // loader 头部 + `const React = require("react");` + 空行
   helpers: [33, 274],       // 常量 + 纯函数 + icon + StatusDot（到 StatusDot 的 `}`）
@@ -49,7 +49,7 @@ console.log('helpers 顶层声明（' + helperNames.length + '）:', helperNames
 const MOD_HEAD = (chunk, comment) => `/**
  * ${chunk} —— ${comment}
  *
- * T41 机械拆分：本文件由 \`arch-t6/tools/gen-split.mjs\` 从原 \`client/client.panel.js\` 的
+ * T41 机械拆分：本文件由 \`arch-t6/tools/gen-split.ts\` 从原 \`client/client.panel.js\` 的
  * **整块切片**生成（被搬动的代码体逐字不变），接线用显式名字清单。
  */
 

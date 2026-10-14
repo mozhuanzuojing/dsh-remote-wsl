@@ -1,4 +1,4 @@
-/* asar-read.mjs —— 零依赖的 asar 读取器（只为**取证**，不修改任何东西）。
+/* asar-read.ts —— 零依赖的 asar 读取器（只为**取证**，不修改任何东西）。
  *
  * 为什么自己写：`app.asar` 是 121MB 的单文件归档（Electron 虚拟目录），普通 Node 的 fs 读不进去；
  * 而 task-37 明令**不许 npm/pnpm install**（`npx asar` 会装包）。asar 格式本身很简单，够用：
@@ -8,15 +8,15 @@
  *   文件内容区起点 base = 8 + H；每个文件条目的 offset 相对 base
  *
  * 用法：
- *   node asar-read.mjs list   <asar> <子串过滤>          # 列出匹配的条目（含 size）
- *   node asar-read.mjs cat    <asar> <条目路径> [起始行] [行数]
- *   node asar-read.mjs grep   <asar> <正则> [路径过滤] [最多命中数] [上下文行数]
+ *   node asar-read.ts list   <asar> <子串过滤>          # 列出匹配的条目（含 size）
+ *   node asar-read.ts cat    <asar> <条目路径> [起始行] [行数]
+ *   node asar-read.ts grep   <asar> <正则> [路径过滤] [最多命中数] [上下文行数]
  */
 import fs from 'node:fs';
 
 const [, , cmd, asarPath, a1, a2, a3, a4] = process.argv;
 if (!cmd || !asarPath) {
-  console.error('用法: node asar-read.mjs <list|cat|grep> <asar> [...]');
+  console.error('用法: node asar-read.ts <list|cat|grep> <asar> [...]');
   process.exit(2);
 }
 

@@ -1,5 +1,5 @@
-// mut-detached.mjs —— 把 daemon-client 的 spawn 选项在两个形态间切换（故意红 / A-B 回归对照用）。
-// 用法：node mut-detached.mjs <file> on|off    on = 加回 detached:true（旧配置）, off = 去掉（新配置）
+// mut-detached.ts —— 把 daemon-client 的 spawn 选项在两个形态间切换（故意红 / A-B 回归对照用）。
+// 用法：node mut-detached.ts <file> on|off    on = 加回 detached:true（旧配置）, off = 去掉（新配置）
 import { readFileSync, writeFileSync } from 'node:fs';
 const [file, mode] = process.argv.slice(2);
 let s = readFileSync(file, 'utf8');

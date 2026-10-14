@@ -1,4 +1,4 @@
-// probe-survival.mjs —— 证"分离式启动"满足语义：Windows 包装层**立刻退出**，而 WSL 内进程**仍活着**。
+// probe-survival.ts —— 证"分离式启动"满足语义：Windows 包装层**立刻退出**，而 WSL 内进程**仍活着**。
 // 用 Node spawn + argv 数组（避免 PowerShell 引号把脚本拆碎 —— 我第一次用 Start-Process 就踩了这个坑）。
 import { spawn, spawnSync } from 'node:child_process';
 

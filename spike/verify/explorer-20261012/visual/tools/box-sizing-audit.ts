@@ -27,7 +27,7 @@
  *   本工具只声称一条可复算的判据："**同一选择器内、按源码顺序 + `!important` 的生效值**"。
  *
  * 用法：
- *   node box-sizing-audit.mjs <bundle.js|file.css> [classPrefix] [选项]
+ *   node box-sizing-audit.ts <bundle.js|file.css> [classPrefix] [选项]
  * 选项：
  *   --host=<asar>        附报宿主的 box-sizing 重置形态
  *   --tags=.cls=tag,…    指定选择器 → 元素标签（表单控件有 UA 兜底 ⇒ 记为"候选"而非"真陷阱"）
@@ -46,7 +46,7 @@ const pos = argv.filter((a) => !a.startsWith("--"));
 const file = pos[0];
 const prefix = pos[1] || "dsh-rw-";
 if (!file) {
-  console.error("usage: node box-sizing-audit.mjs <bundle.js|file.css> [classPrefix] [--host=<asar>] [--tags=…] [--judge=old] [--no-fail] [--strict]");
+  console.error("usage: node box-sizing-audit.ts <bundle.js|file.css> [classPrefix] [--host=<asar>] [--tags=…] [--judge=old] [--no-fail] [--strict]");
   process.exit(2);
 }
 const JUDGE = opt("judge") ? opt("judge").slice("--judge=".length) : "new";

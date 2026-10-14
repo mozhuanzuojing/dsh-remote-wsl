@@ -1,4 +1,4 @@
-// probe-copy-detect.mjs —— 回退"识别"分支测试：用**临时副本**把 systemd-run 变成不存在的命令，
+// probe-copy-detect.ts —— 回退"识别"分支测试：用**临时副本**把 systemd-run 变成不存在的命令，
 // 走 auto 模式 ⇒ 必须识别为 SYSTEMD_FAIL → 回退 compat → 守护真活 → notes 里带告警。
 // 不碰真机 PATH、不装任何东西；副本在 %TEMP%，测完删。
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

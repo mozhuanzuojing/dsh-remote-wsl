@@ -1,0 +1,74 @@
+{
+  "_note": "T53 改动**后**的真实例 DOM 读数（320px，profile rwsl-t53-dom，port 8921）。用于补 visual-designer 报告 §6.2 明确留的缺口：'改动前有、改动后没有'。采集方式与改动前同一脚本 client-panel/n4-readings.js（经 8925 只读服务器加载），未改脚本。",
+  "innerWidth": 320,
+  "readings": {
+    "width": 320,
+    "entered": { "cwdText": "proj", "clicked": true },
+    "moreFound": true,
+    "menuGroupCount": 3,
+    "scopedMenuGroups": [
+      {
+        "role": "group",
+        "ariaLabelledby": "dsh-rw-menu-workspace",
+        "ariaLabel": null,
+        "labelTargetExists": true,
+        "labelTargetText": "工作区",
+        "labelTargetRole": null,
+        "labelTargetTabIndexAttr": "-1",
+        "labelTargetTabIndexProp": -1,
+        "labelTargetVisible": true,
+        "groupText": "工作区 添加为 WSL 工作区",
+        "rect": { "x": 85, "y": 621, "w": 230, "h": 50 }
+      },
+      {
+        "role": "group",
+        "ariaLabelledby": "dsh-rw-menu-daemon",
+        "ariaLabel": null,
+        "labelTargetExists": true,
+        "labelTargetText": "守护",
+        "labelTargetRole": null,
+        "labelTargetTabIndexAttr": "-1",
+        "labelTargetTabIndexProp": -1,
+        "labelTargetVisible": true,
+        "groupText": "守护 重启远端守护… 停止远端守护…",
+        "rect": { "x": 85, "y": 680, "w": 230, "h": 78 }
+      },
+      {
+        "role": "group",
+        "ariaLabelledby": "dsh-rw-menu-diagnostics",
+        "ariaLabel": null,
+        "labelTargetExists": true,
+        "labelTargetText": "诊断",
+        "labelTargetRole": null,
+        "labelTargetTabIndexAttr": "-1",
+        "labelTargetTabIndexProp": -1,
+        "labelTargetVisible": true,
+        "groupText": "诊断 查看诊断信息 复制诊断摘要",
+        "rect": { "x": 85, "y": 767, "w": 230, "h": 78 }
+      }
+    ],
+    "titleFocus": [
+      { "id": "dsh-rw-menu-workspace", "tookFocus": false, "tabIndexProp": -1, "tabIndexAttr": "-1" },
+      { "id": "dsh-rw-menu-daemon", "tookFocus": false, "tabIndexProp": -1, "tabIndexAttr": "-1" },
+      { "id": "dsh-rw-menu-diagnostics", "tookFocus": false, "tabIndexProp": -1, "tabIndexAttr": "-1" }
+    ],
+    "otherRoleGroups": [
+      {
+        "cls": "dsh-rw-toolbar",
+        "role": "group",
+        "ariaLabel": "快捷目录",
+        "ariaLabelledby": null,
+        "text": "Home / /mnt",
+        "rect": { "x": 75, "y": 192, "w": 226, "h": 24 }
+      }
+    ],
+    "geom": {
+      "menu": { "x": 80, "y": 616, "w": 240, "h": 234 },
+      "statusWord": { "x": 84, "y": 867, "w": 91, "h": 20 },
+      "footer": { "x": 56, "y": 853, "w": 264, "h": 47 },
+      "menuOverlapsStatusWord": false,
+      "menuOverlapsFooter": false
+    },
+    "ts": "2026-10-14T03:31:15.690Z"
+  }
+}

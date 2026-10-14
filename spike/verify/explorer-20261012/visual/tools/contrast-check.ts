@@ -1,7 +1,7 @@
 /**
  * 对比度计算器（WCAG 2.x 相对亮度 / 对比度）。
  * 输入：app.asar（解析 DSH 真实 token 取值）+ 一份 pair 列表。
- * 用法： node contrast-check.mjs <asar>
+ * 用法： node contrast-check.ts <asar>
  * 输出：每组的 fg/bg 解析值、hex、对比度、4.5:1(正文) / 3:1(非文本) 判定。
  *
  * alpha 合成：DSH 多数颜色带 alpha（如 border-l1 = #0000000a）。要判"边框 vs 背景"必须
@@ -141,7 +141,7 @@ const GROUPS = [
   { id: "R12 layer-2 vs layer-1", fg: "--dsw-alias-bg-layer-2", bg: "--dsw-alias-bg-layer-1", kind: "nontext", note: "嵌套面差异（light 预计 1.00）" },
 ];
 
-console.log("# contrast-check.mjs — WCAG 2.x（相对亮度），DSH token 实测取值（app.asar 解析）");
+console.log("# contrast-check.ts — WCAG 2.x（相对亮度），DSH token 实测取值（app.asar 解析）");
 console.log("# 判据：正文 ≥4.5:1；大字(≥18.66px粗/24px) ≥3:1；非文本(UI 边界/图形) ≥3:1");
 console.log("");
 for (const theme of ["light", "dark"]) {

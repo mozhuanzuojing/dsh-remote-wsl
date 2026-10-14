@@ -1,0 +1,1 @@
+RED-PATCH: scanDaemonProcesses 的 state-dir 过滤已放宽到 /home/g/t58-iso*（仅自家实验目录）

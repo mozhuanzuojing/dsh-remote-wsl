@@ -1,5 +1,5 @@
 /**
- * menu-grouplabel-audit.mjs —— 「组标注一致性」的机械断言（T53/N4 的判据，可复跑、能红）。
+ * menu-grouplabel-audit.ts —— 「组标注一致性」的机械断言（T53/N4 的判据，可复跑、能红）。
  *
  * 为什么需要它：T50 的 N4 读数是 `document.querySelectorAll('[role="group"]')`（**全文档**扫描），
  * 于是把**浏览器卡片里的 chips 行**（`aria-label="快捷目录"`，innerText = "Home / /mnt"）当成了
@@ -15,7 +15,7 @@
  *   A4 **面板内 `role="group"` 台账**：每个出现点要么是 A1 的菜单组，要么在**显式例外清单**里
  *      （每条例外必须写理由）⇒ 新增/改动 `role="group"` 而不登记 ⇒ 红（防"悄悄换一种标注"）。
  *
- * 用法： node menu-grouplabel-audit.mjs <插件根> [--json]
+ * 用法： node menu-grouplabel-audit.ts <插件根> [--json]
  * 退出码：0 = 全过；1 = 有失败
  *
  * 范围边界（不声称）：这是**源码级**断言（读的是渲染调用与属性字面量），不是 DOM 级读数；

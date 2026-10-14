@@ -1,0 +1,60 @@
+{
+  "ts": "2026-10-14T03:30:42.562Z",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "needle": "dsh1",
+  "expect": 1,
+  "scope": "entries",
+  "readings": {
+    "panel": {
+      "root": "[data-dsh-remote-wsl=\"panel\"]",
+      "needle": "dsh1",
+      "count": 2,
+      "hits": [
+        {
+          "path": "section.dsh-rw-root > header.dsh-rw-header > div.dsh-rw-header-text > span.dsh-rw-subtitle",
+          "snippet": "目标 debian-u8-1 · /home/g/project/dsh1",
+          "occurrences": 1
+        },
+        {
+          "path": "section.dsh-rw-root > div.dsh-rw-body > section.dsh-rw-card > div.dsh-rw-entries > div.dsh-rw-row.dsh-rw-row--dir > span.dsh-rw-rowname",
+          "snippet": "dsh1",
+          "occurrences": 1
+        }
+      ],
+      "excluded": []
+    },
+    "entries": {
+      "root": ".dsh-rw-entries",
+      "needle": "dsh1",
+      "count": 1,
+      "hits": [
+        {
+          "path": "div.dsh-rw-entries > div.dsh-rw-row.dsh-rw-row--dir > span.dsh-rw-rowname",
+          "snippet": "dsh1",
+          "occurrences": 1
+        }
+      ],
+      "excluded": []
+    }
+  },
+  "controls": {
+    "attributeInjection": {
+      "count": 1,
+      "expected": 1,
+      "ok": true,
+      "note": "属性值（aria-label/title/data-*）不是文本节点 ⇒ 不计入"
+    },
+    "visibleInjection": {
+      "count": 1,
+      "expected": 2,
+      "ok": false,
+      "note": "注入第二处可见文本 ⇒ 计数必须 +1（在 panel scope 下）"
+    },
+    "afterCleanup": {
+      "count": 1,
+      "ok": true
+    }
+  },
+  "verdict": "PASS(可见 dsh1 恰 1 次，scope=entries)",
+  "selftestVerdict": "FAIL(控制不符预期)"
+}

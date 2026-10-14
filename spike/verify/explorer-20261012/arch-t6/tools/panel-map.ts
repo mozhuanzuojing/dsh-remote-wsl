@@ -1,12 +1,12 @@
-/* panel-map.mjs —— 为"拆 chunk"做**结构图 + 括号净差**分析（只读，不写任何东西）。
+/* panel-map.ts —— 为"拆 chunk"做**结构图 + 括号净差**分析（只读，不写任何东西）。
  *
  * 为什么要先做这个：前 owner 两轮失败都死在**切片边界**（带进未闭合的 `{`、漏掉一行导致 `{}` 净差 −1）。
  *   ⇒ 选边界前必须能算出"任意 [起,止] 区间的 {} () [] 净差是否为 0"。
  *
  * 用法：
- *   node panel-map.mjs map            # 结构图（锚点行号 + 每个区间的括号净差）
- *   node panel-map.mjs balance <a> <b># 只看 [a,b] 区间的净差（1-based，含端点）
- *   node panel-map.mjs balance-all    # 每个"顶层块"区间的净差
+ *   node panel-map.ts map            # 结构图（锚点行号 + 每个区间的括号净差）
+ *   node panel-map.ts balance <a> <b># 只看 [a,b] 区间的净差（1-based，含端点）
+ *   node panel-map.ts balance-all    # 每个"顶层块"区间的净差
  */
 import fs from 'node:fs';
 

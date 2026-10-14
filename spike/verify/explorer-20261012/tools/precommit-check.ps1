@@ -263,12 +263,12 @@ else {
 # ------------------------------------------- 07 client chunk rev 门禁（task-37）
 # 机制：chunk 的 URL rev 取自**入口** `client/index.js` 的元数据（mtimeMs/ctimeMs/size），
 #   且路由带 immutable ⇒ 只改 chunk 不改入口 ⇒ 平台不重扫、URL 也不变 ⇒ 连空缓存的新客户端也拿旧脚本。
-#   详见 docs/client-contract.md §11；脚本 spike/verify/explorer-20261012/tools/check-client-rev.mjs。
+#   详见 docs/client-contract.md §11；脚本 spike/verify/explorer-20261012/tools/check-client-rev.ts（2026-10-14 由 .mjs 更名，判据未改）。
 # 退出码映射：0=PASS；1=FAIL（chunk 变了而入口未 bump）；2=脚本用法/环境错 ⇒ FAIL；3=判定不可得 ⇒ **WARN**（绝不当 PASS）
 # 测试旁路（不改 client/** 即可演示红）：
 #   $env:DSRW_CHUNKREV_ROOT = '<插件根，默认 $PluginRepo>'
 #   $env:DSRW_CHUNKREV_ARGS = '--mode baseline --baseline <不存在的文件>'   # 用来演示 exit 3 ⇒ WARN
-$revScript = Join-Path $PSScriptRoot 'check-client-rev.mjs'
+$revScript = Join-Path $PSScriptRoot 'check-client-rev.ts'
 if (-not (Test-Path -LiteralPath $revScript)) {
   Add-Result '07' 'client chunk rev 门禁' 'WARN' "找不到 $revScript（跳过）"
 }
@@ -290,7 +290,7 @@ else {
     elseif ($revCode -eq 1) { Add-Result '07' 'client chunk rev 门禁' 'FAIL' "$revHead ⇒ 改任何 chunk 必须同时改 client/index.js（见 docs/client-contract.md §11）" }
     elseif ($revCode -eq 3) { Add-Result '07' 'client chunk rev 门禁' 'WARN' "判定不可得（无 git 且无基线）⇒ 需人判：$revHead" }
     else { Add-Result '07' 'client chunk rev 门禁' 'FAIL' "脚本自身出错 exit=$revCode：$revHead" }
-    Write-Raw '07 check-client-rev.mjs --root ' $revOut
+    Write-Raw '07 check-client-rev.ts --root ' $revOut
   }
 }
 

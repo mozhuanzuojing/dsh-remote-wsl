@@ -1,0 +1,15 @@
+remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
+== mode=alwaysfail port=8917 root=D:/project/dsh1/vendor/dsh-remote-wsl ==
+STATE[调用前] procs=1 listen=0 tmp=0
+[①第一次] OK 2268ms :: http://127.0.0.1:8917/?token=U6xvNK9jdcrZOWD2S-TGWzbZgT2HKH5S1G5rlukIJ1A
+STATE[第一次失败后（未 stop）] procs=3 listen=1 tmp=2
+DELTA[第一次失败后] procs=2 listen=1 tmp=2
+ASSERT 第一次必须失败且可读 = false
+ASSERT 第一次不是静默假成功 = true
+ASSERT 失败后无残留（进程/端口/tmp 增量都为 0） = false
+[②同端口第二次] OK 0ms :: http://127.0.0.1:8917/?token=U6xvNK9jdcrZOWD2S-TGWzbZgT2HKH5S1G5rlukIJ1A
+ASSERT 第二次**绝不** OK+null（静默假成功）= true
+ASSERT 第二次仍可读报错（不是假成功）= false
+[③收尾 stop:true] OK 791ms :: stopped web host on port 8917
+STATE[stop 后] procs=1 listen=0 tmp=0
+DELTA[stop 后] procs=0 listen=0 tmp=0

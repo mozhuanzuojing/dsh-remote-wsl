@@ -1,0 +1,17 @@
+COPY=C:\Users\l\AppData\Local\Temp\t55-red-swallow-iqduyb
+DSH_HOME(孤立)=C:\Users\l\AppData\Local\Temp\t55-home  mode=red-swallow  port=8917
+PATCH red-swallow(整行): "exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version} web --port ${this. ⇒ "exec sleep 30"
+PATCH red-swallow: "        60000,"… ⇒ "        1500,"…（命中 1）
+PATCH red-swallow: "() => reject(new Error(`remote-wsl: web 未在 60s 内给出 URL\\n${this.stder… ⇒ "() => resolve('http://127.0.0.1:0/'),"…（命中 1）
+remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
+(node:35648) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/l/AppData/Local/Temp/t55-red-swallow-iqduyb/src/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[②red-swallow] OK 1721ms :: http://127.0.0.1:0/ | (opened: not-opened)
+ASSERT 故意红：失败被吞 ⇒ 这里应为 false = false
+STATE[调用后（未清理）] wslProcs=1 wslListener=0 tmpScripts=8
+[收尾 stop:true] OK 325ms :: stopped web host on port 8917
+STATE[stop 之后] wslProcs=0 wslListener=0 tmpScripts=6
+ASSERT 失败后无孤儿（进程0/端口0/tmp0） = false
+ASSERT stop 后已清干净（进程0/端口0/tmp0） = false

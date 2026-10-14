@@ -1,0 +1,14 @@
+== stopall on isoA（两个活守护） ==
+BEFORE scan(T)=134399@8911,134856@8912 scan(B)=135530@8913
+BEFORE T 元数据 8911:有 8912:有；B pid=135530
+  # daemon shutdown on slot 8911 (port 8911): ok=true 
+  # daemon shutdown on slot 8912 (port 8912): ok=true 
+RESULT stopAllDaemons(stopall) => {"ok":true,"stoppedCount":2,"killed":[],"remaining":[]}
+AFTER  scan(T)=(none) scan(B)=135530@8913
+AFTER  T 元数据 8911:无 8912:无
+ASSERT T 无残留进程（scan(T) 空）= true
+ASSERT T 元数据被处理 = true（期望：活守护的记录清掉；陈旧记录也清掉；空目录无事）
+ASSERT 结果 ok=true = true
+ASSERT 目标进程被停（stopped 条数）= 2（stopall 期望 2；其它模式允许 0）
+ASSERT 不误停第三方（isoB）: 握手 ok=true pid 不变=true (135530 vs 135530) 元数据仍在=true
+ASSERT T 目录 /tmp launch 残留 = 0（期望 0）

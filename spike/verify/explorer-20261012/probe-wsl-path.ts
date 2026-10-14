@@ -1,5 +1,5 @@
 /**
- * probe-wsl-path.mjs —— T14 / A6：`wsl_path` 四条功能 + 注入负例 + 失败面 + 无副作用痕迹。
+ * probe-wsl-path.ts —— T14 / A6：`wsl_path` 四条功能 + 注入负例 + 失败面 + 无副作用痕迹。
  *
  * 实现（T12，src/index.ts:393-500）：路径经 `spawnSync('wsl.exe', ['-d',distro,'-e','bash','-c',SCRIPT,'_',path])`
  * **作为 argv 位置参数**进入（脚本里只有固定 `"$1"`），`windowsHide:true`；失败一律抛可读错误，绝不静默回原串。

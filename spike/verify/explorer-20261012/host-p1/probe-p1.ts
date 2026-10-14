@@ -1,5 +1,5 @@
 /**
- * probe-p1.mjs —— T25（P1）验收：stopDaemon 在"元数据已删、进程还在"时的隐形孤儿。
+ * probe-p1.ts —— T25（P1）验收：stopDaemon 在"元数据已删、进程还在"时的隐形孤儿。
  *
  * 模式：
  *   normal  —— ① 正常 stop（改前/改后逐字对照用）

@@ -2,7 +2,7 @@
  * 面板视觉规格的**机械门禁**（两条硬约束，可进收尾脚本，退出码可判）。
  *
  * 用法：
- *   node css-token-audit.mjs <bundle.js | file.css> [classPrefix] [选项]
+ *   node css-token-audit.ts <bundle.js | file.css> [classPrefix] [选项]
  * 选项：
  *   --no-allow              关闭"闭集断言"（只查硬编码色）
  *   --allow=<t1,t2,…>       用自定义 allow-list 覆盖默认的 17 个
@@ -53,7 +53,7 @@ const pos = argv.filter((a) => !a.startsWith("--"));
 const file = pos[0];
 const prefix = pos[1] || "dsh-rw-";
 if (!file) {
-  console.error("usage: node css-token-audit.mjs <bundle.js|file.css> [classPrefix] [--no-allow] [--allow=t1,t2]");
+  console.error("usage: node css-token-audit.ts <bundle.js|file.css> [classPrefix] [--no-allow] [--allow=t1,t2]");
   process.exit(2);
 }
 const allowFlag = flags.find((f) => f.startsWith("--allow="));

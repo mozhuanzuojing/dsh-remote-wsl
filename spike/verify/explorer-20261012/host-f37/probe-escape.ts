@@ -1,4 +1,4 @@
-// probe-escape.mjs —— 关键对照：
+// probe-escape.ts —— 关键对照：
 // E1 非 detached 的长驻 wsl.exe 是否会随 Node 父进程退出而死？（脱离插件，独立验证环境行为）
 // E2 detached:true + 全 'ignore' stdio 是否仍弹 WindowsTerminal？
 // E3 systemd-run 在 WSL 里是否真能托管一个长驻进程（决定它能不能当修法）。
@@ -53,5 +53,5 @@ if (MODE === 'parent-exit') {
   console.log(`之后仍活着: ${wslProbe(`sleep 1; systemctl --user is-active ${TAG}.service 2>&1; pgrep -f 'sleep 120' | wc -l | tr -d ' '`)}`);
   console.log(`清理: ${wslProbe(`systemctl --user stop ${TAG}.service 2>&1; systemctl --user reset-failed ${TAG}.service 2>&1; echo done`)}`);
 } else {
-  console.log('usage: probe-escape.mjs parent-exit <nodetach|detach> | check-pid <pid> | e2 | e3');
+  console.log('usage: probe-escape.ts parent-exit <nodetach|detach> | check-pid <pid> | e2 | e3');
 }

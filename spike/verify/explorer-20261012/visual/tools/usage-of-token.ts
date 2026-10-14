@@ -1,7 +1,7 @@
 /**
  * 只读扫描 3：列出某个 DSH token 在**出厂 CSS 里的用法**（选择器 + 声明），
  * 用来给"这个 token 在该场景是否被官方这样用"提供先例证据。
- * 用法： node usage-of-token.mjs <asar> <token> [maxHits]
+ * 用法： node usage-of-token.ts <asar> <token> [maxHits]
  */
 import { readFileSync } from "node:fs";
 

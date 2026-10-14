@@ -1,4 +1,4 @@
-// probe-kill-semantics2.mjs —— 用"脚本文件"形态（与真实现同构：写脚本 + bash <file>）测后台存活语义。
+// probe-kill-semantics2.ts —— 用"脚本文件"形态（与真实现同构：写脚本 + bash <file>）测后台存活语义。
 // 判据：tick 文件行数。0=没起来 / 1=起来即被杀 / 多=真存活。完全避开多层引号。
 import { spawn, spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';

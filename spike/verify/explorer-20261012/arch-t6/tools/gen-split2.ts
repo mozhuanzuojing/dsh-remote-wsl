@@ -1,12 +1,12 @@
-/* gen-split2.mjs —— T41 完整拆分生成器（从**拆分前备份**切片，一次生成全部 chunk + 薄入口）。
+/* gen-split2.ts —— T41 完整拆分生成器（从**拆分前备份**切片，一次生成全部 chunk + 薄入口）。
  *
  * 与原脚本的关键差别：
  *   · 边界全部是**整语句块**（含 `if (...) {` 与配对 `}`），括号天然平衡；
  *   · 接线用**显式名字清单**（= helpers 导出面 ∪ hooks 声明 ∪ 上游切片 return 面），**宁多勿缺**；
- *   · 正确性判据 = `panel-smoke-node.mjs`（真装载 + 真渲染）+ 与拆分前基线比对渲染树；
+ *   · 正确性判据 = `panel-smoke-node.ts`（真装载 + 真渲染）+ 与拆分前基线比对渲染树；
  *   · 全部先写 `arch-t6/staging/`，全绿才拷进 `client/`。
  *
- * 用法：node gen-split2.mjs
+ * 用法：node gen-split2.ts
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -57,7 +57,7 @@ const IN_TAIL = [...new Set([...IN_VIEW, ...headerNames])].sort();
 const MOD_HEAD = (chunk, comment) => `/**
  * ${chunk} —— ${comment}
  *
- * T41 机械拆分（生成器 \`arch-t6/tools/gen-split2.mjs\`，从拆分前备份整块切片）：
+ * T41 机械拆分（生成器 \`arch-t6/tools/gen-split2.ts\`，从拆分前备份整块切片）：
  * 被搬动的代码体**逐字不变**；只在本函数开头把上游名字解构回同名局部（显式清单，非正则猜）。
  */
 

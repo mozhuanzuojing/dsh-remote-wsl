@@ -1,6 +1,6 @@
 /**
  * 只读扫描：从 DSH 安装目录的 app.asar 里取出**主题 token 的定义**（名称 + light/dark 取值）。
- * 用法： node scan-asar.mjs < путь-к-asar > [tokenPrefix]
+ * 用法： node scan-asar-tokens.ts < путь-к-asar > [tokenPrefix]
  * 不做任何写入、不装包、不改 asar。
  */
 import { readFileSync } from "node:fs";

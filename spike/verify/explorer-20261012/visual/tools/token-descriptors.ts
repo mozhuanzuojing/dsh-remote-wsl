@@ -2,7 +2,7 @@
  * 只读扫描 4：从 app.asar 里的 **token 注册表**（每条形如
  *   { name: "--dsw-alias-…", description: "…", valueType: "CSS color", requiresLightAndDark: true, cssVariable: "…" }）
  * 抠出官方描述——用来给"这个 token 官方是干什么用的"提供权威依据（比我口头解释可靠）。
- * 用法： node token-descriptors.mjs <asar> [nameFilterRegex]
+ * 用法： node token-descriptors.ts <asar> [nameFilterRegex]
  */
 import { readFileSync } from "node:fs";
 

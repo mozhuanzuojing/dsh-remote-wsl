@@ -1,4 +1,4 @@
-// probe-a1-degrade.mjs —— ⑤ 服务缺失降级：workspaceRegistry 拿不到 ⇒ 可读 503 + **一行日志**（不静默）。
+// probe-a1-degrade.ts —— ⑤ 服务缺失降级：workspaceRegistry 拿不到 ⇒ 可读 503 + **一行日志**（不静默）。
 import { spawnSync } from 'node:child_process';
 const ex = await import('file:///D:/project/dsh1/vendor/dsh-remote-wsl/src/explorer.ts');
 

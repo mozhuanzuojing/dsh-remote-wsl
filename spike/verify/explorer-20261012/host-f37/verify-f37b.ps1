@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
 $node = 'C:\Users\l\AppData\Local\mise\shims\node.exe'
 $probe = Join-Path $Root 'probe-f37.ts'
-$ka = Join-Path $Root 'keepalive-launcher.mjs'
+$ka = Join-Path $Root 'keepalive-launcher.ts'
 $script:Fails = @(); $script:Rows = @()
 
 function Snap {

@@ -1,0 +1,126 @@
+
+===== 分支 A-启动脚本失败 =====
+{
+  "branch": "A-启动脚本失败",
+  "threw": "Error: remote-wsl: 无法写入发行版 \"__t56_no_such_distro__\" 的 /tmp（UNC \\\\wsl.localhost\\__t56_no_such_distro__ 不可用）。用 `wsl -l -v` 确认发行版名、并确认它在运行。原始错误: UNKNOWN: unknown error, open '\\\\wsl.localhost\\__t56_no_such_distro__\\tmp\\dsh-rwsl-21252-mv7jx5h4-7dbcdbb9.sh'",
+  "poolSize": 1,
+  "ms": 2214,
+  "tmpFilesBefore": "0",
+  "tmpFilesAfter": [
+    "0",
+    "",
+    "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+    "\u0000"
+  ],
+  "strayWslExe": "0"
+}
+
+===== 分支 B-起进程失败 =====
+(node:21252) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/l/AppData/Local/Temp/t56-src/in-host-runtime.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "branch": "B-起进程失败",
+  "verdict": "未抛错（意外）",
+  "alive": true,
+  "closed": false,
+  "ms": 1123,
+  "tmpFilesBefore": "0",
+  "tmpFilesAfter": [
+    "2",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+    "",
+    "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+    "\u0000"
+  ],
+  "strayWslExe": "1"
+}
+
+===== 分支 C-initialize超时 =====
+{
+  "branch": "C-initialize超时",
+  "verdict": "未超时（意外）",
+  "alive": true,
+  "ms": 920,
+  "tmpFilesBefore": "2",
+  "tmpFilesAfter": [
+    "4",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+    "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.sh",
+    "",
+    "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+    "\u0000"
+  ],
+  "strayWslExe": "2"
+}
+
+===== 分支 D-非零退出 =====
+{
+  "branch": "D-非零退出",
+  "threw": "Error: remote-wsl: initialize 超时",
+  "closed": false,
+  "alive": false,
+  "exitCode": 2,
+  "stderrTail": "w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000remote-wsl: 已注入登录 shell 环境\n/tmp/dsh-rwsl-21252-mv7jxagg-a2e151dc.sh: line 41: cd: /no/such/dir/t56: No such file or directory\nremote-wsl: cwd 不存在: /no/such/dir/t56\n",
+  "ms": 6931,
+  "tmpFilesBefore": "4",
+  "tmpFilesAfter": [
+    "4",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+    "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.sh",
+    "",
+    "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+    "\u0000"
+  ],
+  "strayWslExe": "2"
+}
+
+===== 分支 E1-空正文 =====
+{
+  "branch": "E1-空正文",
+  "promptThrew": "Error: remote-wsl: 事件流与持久化日志都没有 assistant 正文；请重试（运行时已重启、id 会换新）",
+  "closed": true,
+  "alive": false,
+  "ms": 12015,
+  "tmpFilesBefore": "4",
+  "tmpFilesAfter": [
+    "4",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+    "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.sh",
+    "",
+    "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+    "\u0000"
+  ],
+  "strayWslExe": "2"
+}
+
+===== 分支 E2-prompt形状异常(rpc error) =====
+{
+  "branch": "E2-prompt形状异常(rpc error)",
+  "promptThrew": "Error: remote-wsl: 事件流与持久化日志都没有 assistant 正文；请重试（运行时已重启、id 会换新）",
+  "closed": true,
+  "alive": false,
+  "ms": 12576,
+  "tmpFilesBefore": "4",
+  "tmpFilesAfter": [
+    "4",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+    "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.pid",
+    "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.sh",
+    "",
+    "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+    "\u0000"
+  ],
+  "strayWslExe": "2"
+}
+
+收尾：清理后本进程 /tmp 残留数 = 0；Windows 侧本进程 wsl.exe 残留 = 2

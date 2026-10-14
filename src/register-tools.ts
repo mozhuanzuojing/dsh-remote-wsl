@@ -38,7 +38,12 @@ export class WebHost {
   }
 
   async start() {
-    if (this.child) return this.url;
+    // ★ T60 根因修复：**只有"真的起来了"（url 有值）才算可用态、才允许早退**。
+    //   原来是 `if (this.child) return this.url;` —— 失败时 `child` 已置、`url` 仍空，而宿主把它留在
+    //   `webHosts` 里 ⇒ 同端口第二次调用 **0ms 返回 null 且报 OK**（静默假成功，T55 抓到）。
+    //   现在：可用 ⇒ 复用；上次失败留下的半死状态（child 有、url 无）⇒ 先收干净再**重新真起**。
+    if (this.url) return this.url;
+    if (this.child) await this.#discardFailedAttempt();
     // 同 SdkRuntime：常驻进程才注入登录 shell 环境
     const script = `${shellPreamble(this.cfg, { withShellEnv: true })}cd "${this.cfg.wslHome}" || exit 2
 echo $$ > "\${0%.sh}.pid"
@@ -53,7 +58,9 @@ exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version}
     this.child.stderr.on('data', (c) => {
       this.stderrTail = (this.stderrTail + c).slice(-4000);
     });
-    const url = await new Promise((resolve, reject) => {
+    let url;
+    try {
+      url = await new Promise((resolve, reject) => {
       let buf = '';
       const timer = setTimeout(
         () => reject(new Error(`remote-wsl: web 未在 60s 内给出 URL\n${this.stderrTail}`)),
@@ -72,11 +79,41 @@ exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version}
         clearTimeout(timer);
         reject(new Error(`remote-wsl: web 进程退出（exit ${code}）\n${this.stderrTail}`));
       });
-    });
+      });
+    } catch (e) {
+      // 失败**不**留半死对象/残留：清 child+script+WSL 侧进程+/tmp 脚本，再原样上抛可读错误
+      await this.#discardFailedAttempt();
+      throw e;
+    }
+    if (!url) {
+      await this.#discardFailedAttempt();
+      throw new Error('remote-wsl: web 启动未返回 URL（内部状态不一致）');
+    }
     this.url = url;
     this.child.stdout.removeAllListeners('data');
     this.child.stdout.resume(); // 起完就排空，避免管道回压
     return url;
+  }
+
+  /**
+   * 丢掉一次**失败尝试**留下的状态：半死的 `wsl.exe` 包装层、WSL 侧 `dsh web`、`/tmp` 一次性脚本。
+   *
+   * 为什么需要（T60 根因）：`start()` 原先把 `this.child` 当成"可用"的判据，失败时 `child` 已置、
+   * `url` 仍空 ⇒ 同端口重试直接返回空 URL。把状态清回初始，重试就会**真的重新启动**（或再次给出可读错误），
+   * 同时不留孤儿与 `/tmp` 残留（T55 曾测到"失败路径不自清"）。
+   */
+  async #discardFailedAttempt() {
+    const child = this.child;
+    this.child = null;
+    this.url = null;
+    try {
+      child?.kill();
+    } catch {
+      /* 已退出 */
+    }
+    await reapWsl(this.cfg, this.script); // 包装层被杀 ≠ Linux 侧退出（T55 实测：超时态会留孤儿）
+    removeScript(this.cfg.distro, this.script);
+    this.script = null;
   }
 
   async stop() {

@@ -1,5 +1,5 @@
 /**
- * split-panel.mjs —— T41：把 client/client.panel.js（1293 行）机械拆成 6 个 chunk。
+ * split-panel.ts —— T41：把 client/client.panel.js（1293 行）机械拆成 6 个 chunk。
  *
  * 原则：**被搬动的代码体逐字不变**（整块切片），只在函数开头把自由变量从 props 解构回同名局部，
  * 末尾按需 return。自由变量由脚本自动推导（标识符 − 本地声明 − JS 关键字/全局），
@@ -79,7 +79,7 @@ function freeVars(slice, indent) {
 const MOD_HEAD = (chunk, comment) => `/**
  * ${chunk} —— ${comment}
  *
- * T41 机械拆分：本文件由 \`spike/verify/explorer-20261012/arch-t6/tools/split-panel.mjs\` 从
+ * T41 机械拆分：本文件由 \`spike/verify/explorer-20261012/arch-t6/tools/split-panel.ts\` 从
  * 原 \`client/client.panel.js\` 的**整块切片**生成，被搬动的代码体**逐字不变**；
  * 函数开头把自由变量从 props 解构回同名局部变量（自动推导，非人工列举）。
  */

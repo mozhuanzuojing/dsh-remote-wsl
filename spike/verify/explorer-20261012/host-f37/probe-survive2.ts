@@ -1,4 +1,4 @@
-// probe-survive2.mjs —— 诊断：去掉 detached 之后，守护到底是怎么死的？
+// probe-survive2.ts —— 诊断：去掉 detached 之后，守护到底是怎么死的？
 // 三种父进程寿命 × 观察 daemon.log / 元数据 / 包装层是否存在。
 import { spawnSync } from 'node:child_process';
 const D = 'debian-u8-1';

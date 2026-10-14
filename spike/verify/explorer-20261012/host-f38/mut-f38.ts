@@ -1,4 +1,4 @@
-// mut-f38.mjs —— 故意红：去掉失败路径的启动脚本回收（F-38a）⇒ 残留断言必须红。
+// mut-f38.ts —— 故意红：去掉失败路径的启动脚本回收（F-38a）⇒ 残留断言必须红。
 import { readFileSync, writeFileSync } from 'node:fs';
 const [file, mode] = process.argv.slice(2);
 let s = readFileSync(file, 'utf8');

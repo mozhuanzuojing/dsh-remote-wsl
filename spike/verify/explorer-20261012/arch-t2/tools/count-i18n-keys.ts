@@ -1,7 +1,7 @@
 /**
- * count-i18n-keys.mjs —— 复核 `client/client.i18n.js` 的键数（T2 文档里出现的每个数字都要可复算）。
+ * count-i18n-keys.ts —— 复核 `client/client.i18n.js` 的键数（T2 文档里出现的每个数字都要可复算）。
  *
- * 用法：node count-i18n-keys.mjs [repoRoot]
+ * 用法：node count-i18n-keys.ts [repoRoot]
  * 输出：JSON（zh 键数 / en 键数 / 键集是否逐键配对 / 标注为「新增」的块内键数）
  */
 import { readFileSync } from 'node:fs';

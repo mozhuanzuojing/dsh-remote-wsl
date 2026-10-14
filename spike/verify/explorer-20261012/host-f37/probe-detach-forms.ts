@@ -1,4 +1,4 @@
-// probe-detach-forms.mjs —— 逐形态验证"分离式"到底哪种写法能 (a) 不留窗口 且 (b) 内层真跑起来并存活。
+// probe-detach-forms.ts —— 逐形态验证"分离式"到底哪种写法能 (a) 不留窗口 且 (b) 内层真跑起来并存活。
 import { spawnSync } from 'node:child_process';
 const D = 'debian-u8-1';
 const TAG = `t15f${process.pid}`;

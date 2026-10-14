@@ -3,7 +3,7 @@
  * - 静态调色板（--dsw-static-*）：全局收集（优先 #hex 压缩形态）。
  * - alias token：分别从 light 块（`body{--dsw-alias-bg-base:var(--dsw-static-neutral-bluish-00)`）
  *   与 dark 块（`body[data-ds-dark-theme]{--dsw-alias-bg-base:var(--dsw-static-neutral-bluish-950)`）取。
- * 用法： node resolve-theme-tokens.mjs <asar> <token...>
+ * 用法： node resolve-theme-tokens.ts <asar> <token...>
  */
 import { readFileSync } from "node:fs";
 
@@ -59,7 +59,7 @@ function resolve(map, name, depth = 0) {
   return raw;
 }
 
-console.log("# resolve-theme-tokens.mjs  asar=" + asar);
+console.log("# resolve-theme-tokens.ts  asar=" + asar);
 console.log("# light block found@" + (lightBlk ? lightBlk.at : "NONE") + " decls=" + light.size +
   " | dark block found@" + (darkBlk ? darkBlk.at : "NONE") + " decls=" + dark.size +
   " | static palette entries=" + statics.size);

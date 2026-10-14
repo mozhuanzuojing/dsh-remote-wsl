@@ -1,4 +1,4 @@
-/* instrument.selftest.mjs —— 在 **Node 里**给仪表层做单元自检（不需要浏览器、不需要宿主、不开端口）。
+/* instrument.selftest.ts —— 在 **Node 里**给仪表层做单元自检（不需要浏览器、不需要宿主、不开端口）。
  *
  * 为什么值得做：①②的所有结论都建立在 instrument.js 的记账上（监听器 add−remove 净额、定时器未决、
  * fetch 在飞/闸门/seq）。仪表错了 ⇒ 读数全错，而且是"看起来很专业"的错。所以在宿主就绪前先用
@@ -7,7 +7,7 @@
  * 覆盖：安装幂等 / 监听器净额 / 定时器未决 / fetch 记账+闸门（延迟与 never）/ 夹具集成（marker、行数、
  *       路径长度、prettyBytes）/ 数组上限 / 探针不自污染（rawDelay 用未包装定时器）。
  *
- * 用法：node instrument.selftest.mjs
+ * 用法：node instrument.selftest.ts
  * 退出码：0 = 全 PASS；1 = 有 FAIL（失败细节打印在 stdout）
  */
 import fs from 'node:fs';

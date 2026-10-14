@@ -1,5 +1,5 @@
 /**
- * probe-f38.mjs —— task-19（F-38）验收：启动脚本卫生 + mode/warning 字段。
+ * probe-f38.ts —— task-19（F-38）验收：启动脚本卫生 + mode/warning 字段。
  * 端口只用 8911–8920（本任务验证段）。全部走真源码；观测不弹窗（spawn 均 windowsHide）。
  *
  * 模式：scenario-on / normal / off / restart / residue

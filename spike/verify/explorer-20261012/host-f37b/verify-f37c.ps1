@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
 $node = 'C:\Users\l\AppData\Local\mise\shims\node.exe'
 $probe = 'D:\project\net1\_t15-f37\probe-f37.ts'
-$ka = 'D:\project\net1\_t15-f37\keepalive-launcher.mjs'
+$ka = Join-Path (Split-Path $PSScriptRoot -Parent) 'host-f37\keepalive-launcher.ts'   # T59：位置无关（原来硬编码到仓外 _t15-f37）
 $script:Fails = @(); $script:Rows = @()
 
 function Snap {

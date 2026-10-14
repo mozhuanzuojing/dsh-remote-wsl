@@ -1,4 +1,4 @@
-// probe-tool-line.mjs —— F-38c 工具面：wsl_daemon action=start 输出里必须出现机器可读的 `launch: mode=… warning=…`
+// probe-tool-line.ts —— F-38c 工具面：wsl_daemon action=start 输出里必须出现机器可读的 `launch: mode=… warning=…`
 import { spawnSync } from 'node:child_process';
 const mod = await import('file:///D:/project/dsh1/vendor/dsh-remote-wsl/src/index.ts');
 const tools = new Map();

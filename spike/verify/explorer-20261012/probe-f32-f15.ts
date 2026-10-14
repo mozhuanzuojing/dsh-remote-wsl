@@ -1,5 +1,5 @@
 /**
- * probe-f32-f15.mjs —— T10 桩级断言：
+ * probe-f32-f15.ts —— T10 桩级断言：
  *   F32：同一 registerExplorer 内 inject 触发**两次** ⇒ dispose 后**活跃路由计数必须为 0**
  *        （并附**旧缺陷形态对照**：catch 里无条件 `removeRoute=null` ⇒ dispose 后残留 1）
  *   F15：webServer 永不就绪 ⇒ 必须出现那一行降级日志（用 DSH_REMOTE_WSL_INJECT_WARN_MS 接缝，不等 30s）

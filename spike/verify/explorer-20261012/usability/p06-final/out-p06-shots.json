@@ -1,0 +1,86 @@
+[
+  {
+    "file": "p06-ready-light.png",
+    "bytes": 79244,
+    "scene": "ready",
+    "theme": "light",
+    "fixture": false
+  },
+  {
+    "file": "p06-menu-light.png",
+    "bytes": 86053,
+    "scene": "menu",
+    "theme": "light",
+    "fixture": false
+  },
+  {
+    "file": "p06-narrow320-light.png",
+    "bytes": 47278,
+    "scene": "narrow320",
+    "theme": "light",
+    "fixture": false
+  },
+  {
+    "file": "p06-loading-light.png",
+    "bytes": 62208,
+    "scene": "loading",
+    "theme": "light",
+    "fixture": true
+  },
+  {
+    "file": "p06-error-badpath-light.png",
+    "bytes": 81664,
+    "scene": "error-badpath",
+    "theme": "light",
+    "fixture": false
+  },
+  {
+    "file": "p06-running-light.png",
+    "bytes": 78251,
+    "scene": "running",
+    "theme": "light",
+    "fixture": true
+  },
+  {
+    "file": "p06-ready-dark.png",
+    "bytes": 76935,
+    "scene": "ready",
+    "theme": "dark",
+    "fixture": false
+  },
+  {
+    "file": "p06-menu-dark.png",
+    "bytes": 83387,
+    "scene": "menu",
+    "theme": "dark",
+    "fixture": false
+  },
+  {
+    "file": "p06-narrow320-dark.png",
+    "bytes": 45438,
+    "scene": "narrow320",
+    "theme": "dark",
+    "fixture": false
+  },
+  {
+    "file": "p06-loading-dark.png",
+    "bytes": 60061,
+    "scene": "loading",
+    "theme": "dark",
+    "fixture": true
+  },
+  {
+    "file": "p06-error-badpath-dark.png",
+    "bytes": 79215,
+    "scene": "error-badpath",
+    "theme": "dark",
+    "fixture": false
+  },
+  {
+    "file": "p06-running-dark.png",
+    "bytes": 76059,
+    "scene": "running",
+    "theme": "dark",
+    "fixture": true
+  }
+]

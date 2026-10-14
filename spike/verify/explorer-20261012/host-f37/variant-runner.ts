@@ -1,4 +1,4 @@
-// variant-runner.mjs —— F-37 A/B：逐个"起守护形态"跑一次，打印包装层 pid 与时间戳（JSON 一行）。
+// variant-runner.ts —— F-37 A/B：逐个"起守护形态"跑一次，打印包装层 pid 与时间戳（JSON 一行）。
 // 每个长驻形态都让 WSL 侧留一个 ~8s 的 sleep，便于在"存活期间"枚举窗口。
 // 这些是**替身命令**（不碰真守护）；真形态在最终验证里用真 launch 脚本跑。
 import { spawn } from 'node:child_process';

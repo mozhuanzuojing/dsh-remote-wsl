@@ -1,4 +1,4 @@
-// mut-t25.mjs —— 故意红 / "改前等价" 变异：去掉"移除元数据前的复核"（= 恢复成无条件 removeMetaFiles）。
+// mut-t25.ts —— 故意红 / "改前等价" 变异：去掉"移除元数据前的复核"（= 恢复成无条件 removeMetaFiles）。
 import { readFileSync, writeFileSync } from 'node:fs';
 const [file, mode] = process.argv.slice(2);
 let s = readFileSync(file, 'utf8');

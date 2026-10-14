@@ -1,4 +1,4 @@
-/* panel-smoke-node.mjs —— 拆 chunk 的**Node 级冒烟**（不起浏览器、不碰宿主）。
+/* panel-smoke-node.ts —— 拆 chunk 的**Node 级冒烟**（不起浏览器、不碰宿主）。
  *
  * 作用：用假的 `window.__ModuleLoader__` + 极简 React/DOM stub，**真的把 chunk 装载并执行一遍**：
  *   1) 每个 client.panel*.js 都必须能被 `__ModuleLoader__.load()` 注册（语法 + 装载面）
@@ -7,7 +7,7 @@
  *   4) **调用该组件一次**（hooks 用 stub）⇒ 真跑 hooks/处理器定义/body 组装/JSX 渲染
  *      ⇒ 任何"自由变量没接上"都会在这里以 ReferenceError 的形式暴露（这正是拆 chunk 的头号事故）
  *
- * 用法：node panel-smoke-node.mjs [插件根]
+ * 用法：node panel-smoke-node.ts [插件根]
  * 退出码：0 全过；1 有失败
  */
 import fs from 'node:fs';

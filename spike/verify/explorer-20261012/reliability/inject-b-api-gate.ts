@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * inject-b-api-gate.mjs —— INJ-B：`/remote-wsl/api` 的同源闸门 + 错误码矩阵（FMEA F9–F13）。
+ * inject-b-api-gate.ts —— INJ-B：`/remote-wsl/api` 的同源闸门 + 错误码矩阵（FMEA F9–F13）。
  *
  * 为什么用 Node 而不是 PowerShell：HttpClient 不允许自由设置/省略 `Host` 等受限头，
  * 而本实验的核心恰恰是"**伪造/缺失** Origin、Sec-Fetch-Site、Host"三类边界 + 一条
@@ -9,7 +9,7 @@
  * 零依赖、只打 127.0.0.1、绝不改被验对象。
  *
  * 用法（**必须带 --go**，否则只打印计划、不发一个包）：
- *   node inject-b-api-gate.mjs --go [--port 8971] [--daemon-slot 8972]
+ *   node inject-b-api-gate.ts --go [--port 8971] [--daemon-slot 8972]
  *
  * 产物（本目录）：
  *   out-B-<nn>-<name>.json     每步原始请求/响应

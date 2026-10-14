@@ -6,7 +6,7 @@
  * **合成出的终值不同** ⇒ "hover 与 active 可区分"（T27 §9.1-V7）必须逐背景各验一次，
  * 不能只验一次。
  *
- * 用法： node overlay-on-surfaces.mjs <asar>
+ * 用法： node overlay-on-surfaces.ts <asar>
  */
 import { readFileSync } from "node:fs";
 
@@ -70,7 +70,7 @@ const SURFACES = [
   { name: "bg-overlay（⋯ 菜单/浮层底）", token: "--dsw-alias-bg-overlay" },
 ];
 
-console.log("# overlay-on-surfaces.mjs —— alpha 覆盖层在三背景上的终值 + 可区分性（T27 第二轮约束 #2）");
+console.log("# overlay-on-surfaces.ts —— alpha 覆盖层在三背景上的终值 + 可区分性（T27 第二轮约束 #2）");
 console.log("# 判据：hover/active 相对**静息底**的可感知性（本文 §8.4-C4：不作对比度门禁，但要求「两态彼此可区分」）");
 console.log("");
 

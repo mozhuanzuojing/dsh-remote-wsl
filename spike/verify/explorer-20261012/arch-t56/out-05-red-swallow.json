@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-14T03:47:08.209Z",
+  "srcSha": "e53ac2a889dfaa16a9e45c0905989fa890f318ccefe881236861ec1e3a6cd68c",
+  "records": [
+    {
+      "mode": "mutated",
+      "shaBefore": "e53ac2a889dfaa16a9e45c0905989fa890f318ccefe881236861ec1e3a6cd68c",
+      "shaAfter": "a9d46d6245183ebe31c10ff9891d132024dd06ecead006d914be82cbcaea93cf",
+      "bytesIdenticalToOriginal": false,
+      "assertionSawThrow": false,
+      "detail": "未抛错（拿到 runtime，alive=false，child=undefined）",
+      "verdict": "符合预期"
+    },
+    {
+      "mode": "restored",
+      "shaBefore": "e53ac2a889dfaa16a9e45c0905989fa890f318ccefe881236861ec1e3a6cd68c",
+      "shaAfter": "e53ac2a889dfaa16a9e45c0905989fa890f318ccefe881236861ec1e3a6cd68c",
+      "bytesIdenticalToOriginal": true,
+      "assertionSawThrow": true,
+      "detail": "Error: remote-wsl: 无法写入发行版 \"__t56_no_such_distro__\" 的 /tmp（UNC \\\\wsl.localhost\\__t56_no_such_distro__ 不可用）。用 `wsl -l -v` 确认发行版名",
+      "verdict": "符合预期"
+    }
+  ],
+  "redVerdict": true
+}

@@ -1,0 +1,216 @@
+[
+  {
+    "theme": "light",
+    "ready": {
+      "theme": "light",
+      "footerH": 47,
+      "statusWord": {
+        "text": "远端守护未运行",
+        "scrollW": 91,
+        "clientW": 91,
+        "notElided": true
+      },
+      "menuBtnRect": {
+        "w": 24,
+        "h": 24,
+        "x": 1244,
+        "y": 865,
+        "bottom": 889
+      },
+      "hitCount": 25,
+      "under24Count": 0,
+      "under24": [],
+      "shadowCount": 0,
+      "shadows": [],
+      "rowCount": 11,
+      "panelText": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区 浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 _reports 进入 bin data dsh-handoff-20260820.md dsh-kit dsh-liangwengu dsh-shadow dsh-vscode open-design-daemon.service vendor windows-mcp-dsh-config.spec.md 最近目录 诊断信息（与 wsl_status 同源） 远端守护未运"
+    },
+    "menu": {
+      "theme": "light",
+      "menuRect": {
+        "w": 240,
+        "h": 175,
+        "x": 1040,
+        "y": 675,
+        "bottom": 850
+      },
+      "menuWidth": 240,
+      "menuBg": "rgb(233, 236, 242)",
+      "groupCount": 2,
+      "groups": [
+        {
+          "ariaLabel": null,
+          "ariaLabelledby": "dsh-rw-menu-daemon",
+          "targetExists": true,
+          "targetText": "守护",
+          "targetTabIndex": -1,
+          "targetRole": null,
+          "targetColor": "rgb(15, 17, 21)",
+          "fontSize": "11px"
+        },
+        {
+          "ariaLabel": null,
+          "ariaLabelledby": "dsh-rw-menu-diagnostics",
+          "targetExists": true,
+          "targetText": "诊断",
+          "targetTabIndex": -1,
+          "targetRole": null,
+          "targetColor": "rgb(15, 17, 21)",
+          "fontSize": "11px"
+        }
+      ],
+      "grouplabelContrastVsMenuBg": 15.97,
+      "itemCount": 4,
+      "items": [
+        {
+          "txt": "重启远端守护…",
+          "h": 28,
+          "color": "rgb(225, 229, 238)"
+        },
+        {
+          "txt": "停止远端守护…",
+          "h": 28,
+          "color": "rgb(225, 229, 238)"
+        },
+        {
+          "txt": "查看诊断信息",
+          "h": 28,
+          "color": "rgb(15, 17, 21)"
+        },
+        {
+          "txt": "复制诊断摘要",
+          "h": 28,
+          "color": "rgb(15, 17, 21)"
+        }
+      ],
+      "menuOverlapsStatusWord": false,
+      "footerH": 47
+    },
+    "narrow": {
+      "theme": "light",
+      "innerWidth": 320,
+      "footerH": 47,
+      "footerNoWrap": true,
+      "statusWord": {
+        "text": "远端守护未运行",
+        "scrollW": 91,
+        "clientW": 91,
+        "notElided": true
+      },
+      "menuBtnRect": {
+        "w": 24,
+        "h": 24,
+        "x": 284,
+        "y": 765,
+        "bottom": 789
+      }
+    }
+  },
+  {
+    "theme": "dark",
+    "ready": {
+      "theme": "dark",
+      "footerH": 47,
+      "statusWord": {
+        "text": "远端守护未运行",
+        "scrollW": 91,
+        "clientW": 91,
+        "notElided": true
+      },
+      "menuBtnRect": {
+        "w": 24,
+        "h": 24,
+        "x": 1244,
+        "y": 865,
+        "bottom": 889
+      },
+      "hitCount": 25,
+      "under24Count": 0,
+      "under24": [],
+      "shadowCount": 0,
+      "shadows": [],
+      "rowCount": 11,
+      "panelText": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区 浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 _reports 进入 bin data dsh-handoff-20260820.md dsh-kit dsh-liangwengu dsh-shadow dsh-vscode open-design-daemon.service vendor windows-mcp-dsh-config.spec.md 最近目录 诊断信息（与 wsl_status 同源） 远端守护未运"
+    },
+    "menu": {
+      "theme": "dark",
+      "menuRect": {
+        "w": 240,
+        "h": 175,
+        "x": 1040,
+        "y": 675,
+        "bottom": 850
+      },
+      "menuWidth": 240,
+      "menuBg": "rgb(97, 102, 107)",
+      "groupCount": 2,
+      "groups": [
+        {
+          "ariaLabel": null,
+          "ariaLabelledby": "dsh-rw-menu-daemon",
+          "targetExists": true,
+          "targetText": "守护",
+          "targetTabIndex": -1,
+          "targetRole": null,
+          "targetColor": "rgb(249, 250, 251)",
+          "fontSize": "11px"
+        },
+        {
+          "ariaLabel": null,
+          "ariaLabelledby": "dsh-rw-menu-diagnostics",
+          "targetExists": true,
+          "targetText": "诊断",
+          "targetTabIndex": -1,
+          "targetRole": null,
+          "targetColor": "rgb(249, 250, 251)",
+          "fontSize": "11px"
+        }
+      ],
+      "grouplabelContrastVsMenuBg": 5.55,
+      "itemCount": 4,
+      "items": [
+        {
+          "txt": "重启远端守护…",
+          "h": 28,
+          "color": "rgb(67, 69, 74)"
+        },
+        {
+          "txt": "停止远端守护…",
+          "h": 28,
+          "color": "rgb(67, 69, 74)"
+        },
+        {
+          "txt": "查看诊断信息",
+          "h": 28,
+          "color": "rgb(249, 250, 251)"
+        },
+        {
+          "txt": "复制诊断摘要",
+          "h": 28,
+          "color": "rgb(249, 250, 251)"
+        }
+      ],
+      "menuOverlapsStatusWord": false,
+      "footerH": 47
+    },
+    "narrow": {
+      "theme": "dark",
+      "innerWidth": 320,
+      "footerH": 47,
+      "footerNoWrap": true,
+      "statusWord": {
+        "text": "远端守护未运行",
+        "scrollW": 91,
+        "clientW": 91,
+        "notElided": true
+      },
+      "menuBtnRect": {
+        "w": 24,
+        "h": 24,
+        "x": 284,
+        "y": 765,
+        "bottom": 789
+      }
+    }
+  }
+]

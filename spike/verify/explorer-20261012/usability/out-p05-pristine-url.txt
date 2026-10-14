@@ -1,2 +1,2 @@
-http://127.0.0.1:8961/?token=N7EVxsgs04kvI9C0_4xS66KAEL14ihaUhn3quWvExfI
+http://127.0.0.1:8961/?token=KVlUk9MeG5fryIzTSm6PRe8jUntOwNMf8hcGJqhcB3k
 （来源：D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\usability\out-p05-pristine-8961.log；DSH_HOME=C:\Users\l\AppData\Local\Temp\usab-p05-home）

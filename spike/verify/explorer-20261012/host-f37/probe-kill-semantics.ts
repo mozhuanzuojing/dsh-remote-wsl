@@ -1,4 +1,4 @@
-// probe-kill-semantics.mjs —— 区分"后台进程从没起来" vs "起来了但包装层退出时被 WSL 杀掉"。
+// probe-kill-semantics.ts —— 区分"后台进程从没起来" vs "起来了但包装层退出时被 WSL 杀掉"。
 // 判据：后台进程每 0.5s 往文件追加一行时间戳；包装层退出后看行数：
 //   0 行 = 从没起来 / 1 行 = 起来后被立刻杀 / N 行 = 真存活。
 import { spawn, spawnSync } from 'node:child_process';

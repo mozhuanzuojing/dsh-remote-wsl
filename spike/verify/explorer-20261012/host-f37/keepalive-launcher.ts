@@ -1,4 +1,4 @@
-// keepalive-launcher.mjs —— 扮演"长驻宿主"：ensure 起守护，然后**一直活着** N 秒（不退出）。
+// keepalive-launcher.ts —— 扮演"长驻宿主"：ensure 起守护，然后**一直活着** N 秒（不退出）。
 // 用于分离两个变量：包装层死 vs 父进程死。守护日志/状态由外部脚本观察。
 import { spawnSync } from 'node:child_process';
 const PORT = Number(process.argv[2] || 8912);

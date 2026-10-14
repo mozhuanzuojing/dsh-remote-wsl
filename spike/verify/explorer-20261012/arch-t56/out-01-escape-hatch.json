@@ -1,0 +1,114 @@
+{
+  "at": "2026-10-14T03:30:25.969Z",
+  "winpid": 21252,
+  "records": [
+    {
+      "branch": "A-启动脚本失败",
+      "threw": "Error: remote-wsl: 无法写入发行版 \"__t56_no_such_distro__\" 的 /tmp（UNC \\\\wsl.localhost\\__t56_no_such_distro__ 不可用）。用 `wsl -l -v` 确认发行版名、并确认它在运行。原始错误: UNKNOWN: unknown error, open '\\\\wsl.localhost\\__t56_no_such_distro__\\tmp\\dsh-rwsl-21252-mv7jx5h4-7dbcdbb9.sh'",
+      "poolSize": 1,
+      "ms": 2214,
+      "tmpFilesBefore": "0",
+      "tmpFilesAfter": [
+        "0",
+        "",
+        "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+        "\u0000"
+      ],
+      "strayWslExe": "0"
+    },
+    {
+      "branch": "B-起进程失败",
+      "verdict": "未抛错（意外）",
+      "alive": true,
+      "closed": false,
+      "ms": 1123,
+      "tmpFilesBefore": "0",
+      "tmpFilesAfter": [
+        "2",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+        "",
+        "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+        "\u0000"
+      ],
+      "strayWslExe": "1"
+    },
+    {
+      "branch": "C-initialize超时",
+      "verdict": "未超时（意外）",
+      "alive": true,
+      "ms": 920,
+      "tmpFilesBefore": "2",
+      "tmpFilesAfter": [
+        "4",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+        "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.sh",
+        "",
+        "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+        "\u0000"
+      ],
+      "strayWslExe": "2"
+    },
+    {
+      "branch": "D-非零退出",
+      "threw": "Error: remote-wsl: initialize 超时",
+      "closed": false,
+      "alive": false,
+      "exitCode": 2,
+      "stderrTail": "w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000\n\u0000remote-wsl: 已注入登录 shell 环境\n/tmp/dsh-rwsl-21252-mv7jxagg-a2e151dc.sh: line 41: cd: /no/such/dir/t56: No such file or directory\nremote-wsl: cwd 不存在: /no/such/dir/t56\n",
+      "ms": 6931,
+      "tmpFilesBefore": "4",
+      "tmpFilesAfter": [
+        "4",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+        "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.sh",
+        "",
+        "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+        "\u0000"
+      ],
+      "strayWslExe": "2"
+    },
+    {
+      "branch": "E1-空正文",
+      "promptThrew": "Error: remote-wsl: 事件流与持久化日志都没有 assistant 正文；请重试（运行时已重启、id 会换新）",
+      "closed": true,
+      "alive": false,
+      "ms": 12015,
+      "tmpFilesBefore": "4",
+      "tmpFilesAfter": [
+        "4",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+        "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.sh",
+        "",
+        "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+        "\u0000"
+      ],
+      "strayWslExe": "2"
+    },
+    {
+      "branch": "E2-prompt形状异常(rpc error)",
+      "promptThrew": "Error: remote-wsl: 事件流与持久化日志都没有 assistant 正文；请重试（运行时已重启、id 会换新）",
+      "closed": true,
+      "alive": false,
+      "ms": 12576,
+      "tmpFilesBefore": "4",
+      "tmpFilesAfter": [
+        "4",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx7qu-34571466.sh",
+        "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.pid",
+        "/tmp/dsh-rwsl-21252-mv7jx95r-4781617d.sh",
+        "",
+        "[stderr] w\u0000s\u0000l\u0000:\u0000 \u0000�hKm0R \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006tM�n\f�FO*g\\��P0R \u0000W\u0000S\u0000L\u0000\u00020N\u0000A\u0000T\u0000 \u0000!j\u000f_\u000bN�v \u0000W\u0000S\u0000L\u0000 \u0000\rN/e\u0001c \u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000 \u0000�N\u0006t\u00020\r\u0000",
+        "\u0000"
+      ],
+      "strayWslExe": "2"
+    }
+  ]
+}

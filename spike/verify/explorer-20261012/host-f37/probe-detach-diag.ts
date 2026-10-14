@@ -1,4 +1,4 @@
-// probe-detach-diag.mjs —— 诊断：为什么分离式后台进程不存活（把 LOG 打出来），并试几种"真分离"配方。
+// probe-detach-diag.ts —— 诊断：为什么分离式后台进程不存活（把 LOG 打出来），并试几种"真分离"配方。
 import { spawnSync } from 'node:child_process';
 const D = 'debian-u8-1';
 const TAG = `t15d${process.pid}`;

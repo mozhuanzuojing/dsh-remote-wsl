@@ -1,4 +1,4 @@
-// probe-a1.mjs —— T23 验收：经**真 host**（孤立 DSH_HOME 实例，端口 3093）调 explorer.addWorkspace。
+// probe-a1.ts —— T23 验收：经**真 host**（孤立 DSH_HOME 实例，端口 3093）调 explorer.addWorkspace。
 // 用 node:http 显式设置 Origin/Host（同源门要求），打印每次的原始 HTTP 状态与 JSON。
 import http from 'node:http';
 

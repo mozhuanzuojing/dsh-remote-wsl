@@ -1,17 +1,17 @@
 /**
- * extract-css.mjs —— 从 client/index.js 里把**面板 CSS 数组**原样抠出来，落成 .css 文件。
+ * extract-css.ts —— 从 client/index.js 里把**面板 CSS 数组**原样抠出来，落成 .css 文件。
  *
  * 为什么需要：T52 要量 `.dsh-rw-menu` 的真实渲染宽度，而插件 CSS 是**手写在 JS 数组里的字符串**。
  * 抠出来之后：① 可以在真实 Chromium 里加载同一份 CSS 做机制实测；② 可以做"CJK 是否落在注释里"等静态检查。
  *
- * 用法： node extract-css.mjs <client/index.js> <输出.css>
+ * 用法： node extract-css.ts <client/index.js> <输出.css>
  * 退出码：0 成功；1 解析失败（会打印原因）
  */
 import fs from "node:fs";
 
 const [, , entry, outFile] = process.argv;
 if (!entry || !outFile) {
-  console.error("usage: node extract-css.mjs <client/index.js> <out.css>");
+  console.error("usage: node extract-css.ts <client/index.js> <out.css>");
   process.exit(2);
 }
 const src = fs.readFileSync(entry, "utf8");

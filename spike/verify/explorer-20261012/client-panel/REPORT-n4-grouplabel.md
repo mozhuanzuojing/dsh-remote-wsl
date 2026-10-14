@@ -231,3 +231,40 @@ $d='D:\project\dsh1\vendor\dsh-remote-wsl'; $c="$d\spike\verify\explorer-2026101
 | 我创建的 unit / 守护 / 包装层 | **0**（`reset-failed` 无对象；**且未执行全局 `reset-failed`**，避免抹掉他人 failed 态证据） |
 | 红测副本 | `%TEMP%\vd-t53-red` **已删**；`%TEMP%\vd-*` 残留复核 = **0** |
 | 写作用域 | `client/client.panel.tail.js` + `client/index.js`（bump）+ `spike/verify/explorer-20261012/client-panel/**`；**未碰** `src/**`、其它 chunk、上一位 owner 的 `n4-readings.*`（只读） |
+
+---
+
+## 9. 补：改动**后**的真实例 DOM 读数（由 `stability-engineer` 追加，填 §6.2 留的缺口）
+
+> 归因：本节的读数**不是** `visual-designer` 产出的 —— 他在 §6.2 明确写"**改动前有、改动后没有**"，
+> 并建议"需在 8921–8930 起一个实例重跑 `n4-readings.js`（上一位 owner 的脚本仍在本目录，可直接复用）"。
+> 我就是那个脚本的作者，因此按他的建议补齐。**采集脚本与改动前完全同一份**（未改），视口 320×900，
+> profile `rwsl-t53-dom` / port 8921，隐藏窗口。原始读数：`n4-readings-320-after.json`。
+
+### 9.1 与改动前逐字段对照（同一脚本、同一视口、同一状态：320px + 已进入子目录 ⇒ 三组齐全）
+
+| 字段 | 改动前（`n4-readings-320.json`, 02:32Z） | 改动后（`n4-readings-320-after.json`, 03:31Z） | 结论 |
+|---|---|---|---|
+| `scopedMenuGroups[*].labelTargetRole` | **`"presentation"`**（三组） | **`null`**（三组） | ✅ **改动生效**（§2.4 的修复点，DOM 级确认） |
+| `ariaLabelledby` | `dsh-rw-menu-workspace` / `-daemon` / `-diagnostics` | 同左 | 未回退 |
+| `ariaLabel`（菜单组） | 全 `null` | 全 `null` | 未引入 `aria-label` |
+| `labelTargetExists` / `Visible` / `Text` | true/true/工作区·守护·诊断 | 同左 | 未回退 |
+| `titleFocus[*]` | 全 `tookFocus=false`, `tabIndex=-1` | 同左 | **仍未进 Tab 序列、仍不可被聚焦** |
+| `otherRoleGroups` | 恰好 1 条 `dsh-rw-toolbar`（`aria-label="快捷目录"`, `Home / /mnt`） | 同左 | chips 例外不变，且仍在菜单作用域之外 |
+| `geom.menu.w` / `overlapsStatusWord` / `overlapsFooter` | 240 / false / false | 240 / false / false | 菜单不遮状态词未回退（T52 亦保持） |
+| `geom.footer.h` | 47 | 47 | T42/R1 未回退 |
+
+### 9.2 两个角度的独立复现（都我自己跑的）
+
+| 工具 | 作者 | 我的复现读数 |
+|---|---|---|
+| `tools/menu-grouplabel-audit.mjs`（**源码级** 12 条） | visual-designer | **PASS = 12 / FAIL = 0 / exit 0**（我独立复跑 ⇒ 他的结论可复现） |
+| `tools/check-n4-menugroups.ts`（**DOM 读数级** 8 条，我新增 A2b："组标题不得带 `role=presentation`"） | stability-engineer | **8/8 PASS / exit 0**（跑改动后读数）；同一条断言跑**改动前**读数 ⇒ **A2b FAIL** ⇒ 该断言确实咬得住这次修复 |
+
+⇒ T53 的验收现在**两个角度都闭环**：源码级（他的 12 条）+ 真实例 DOM 级（本节）。
+
+### 9.3 本节未复核
+
+1. **读屏器实际播报**：仍无环境（与 §6.2 同）。
+2. **1280 宽态**的 DOM 读数未取（结论"同一循环 ⇒ 与宽度无关"仍是结构推论 + 320 实测）。
+3. `titleFocus` 用的是"`el.focus()` 后看 `document.activeElement`"，**不是**真实 Tab 键遍历（`tabIndex=-1` 已排除 Tab 到达，但严格做法是用 `Tab`/`Shift+Tab` 逐次验证）。

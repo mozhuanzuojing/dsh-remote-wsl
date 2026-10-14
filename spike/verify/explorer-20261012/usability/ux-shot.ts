@@ -1,5 +1,5 @@
 /**
- * ux-shot.mjs —— task-27 的 UX 基线截图器（**headless**，不弹任何可见窗口）。
+ * ux-shot.ts —— task-27 的 UX 基线截图器（**headless**，不弹任何可见窗口）。
  *
  * 为什么自己写：chrome-devtools-mcp 写不进本目录（filePath 受 workspace root 限制），且对应用页截图会超时；
  * cua 的浏览器工具不允许注入脚本。这里用 **Chrome headless + CDP（Node 内置 WebSocket，零安装）**：
@@ -7,7 +7,7 @@
  *   · Runtime.evaluate → 点 rail 图标、读 DOM、切主题；
  *   · Page.captureScreenshot → 直接写到 ux-baseline/。
  *
- * 用法：node ux-shot.mjs <cdpPort> <scenariosJsonPath>
+ * 用法：node ux-shot.ts <cdpPort> <scenariosJsonPath>
  *   scenarios.json = { "url": "...", "outDir": "...", "scenarios": [ {name, init?, steps[], shot} ] }
  *   step 取值：{"eval":"<js>"} | {"wait":ms} | {"waitFor":"<js>","timeout":ms} | {"shot":"a.png"}
  */
@@ -16,7 +16,7 @@ import path from 'node:path';
 
 const cdpPort = process.argv[2] || '8965';
 const jobPath = process.argv[3];
-if (!jobPath) { console.error('usage: node ux-shot.mjs <cdpPort> <scenariosJson>'); process.exit(2); }
+if (!jobPath) { console.error('usage: node ux-shot.ts <cdpPort> <scenariosJson>'); process.exit(2); }
 const job = JSON.parse(fs.readFileSync(jobPath, 'utf8'));
 const outDir = job.outDir;
 fs.mkdirSync(outDir, { recursive: true });

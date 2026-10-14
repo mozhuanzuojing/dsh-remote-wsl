@@ -1,0 +1,16 @@
+隔离冷缓存 /tmp/t56-cold 现在存在？no
+共享 dlx 缓存（对照）：802M（热）
+(node:39376) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/l/AppData/Local/Temp/t56-cold-src-hot1/in-host-runtime.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+热态#1: 891ms ok=true
+热态#2: 870ms ok=true
+热态#3: 864ms ok=true
+冷态#1: 60552ms ok=true
+冷态#2: 848ms ok=true
+
+热态分布：{"n":3,"min":864,"max":891,"median":870}
+冷态分布：{"n":2,"min":848,"max":60552,"median":60552}
+隔离冷缓存体积：(不存在) → 543M（证明真的重新物化了）
+残留检查：/tmp dsh-rwsl-39376-* = 0
