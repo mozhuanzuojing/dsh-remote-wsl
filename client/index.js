@@ -23,6 +23,11 @@
  * （renderer/lib/client.js:1343-1402）。
  *
  * 挂载/卸载只读快照，**不杀守护**；唯一会动守护的是用户点状态条上的按钮。
+ *
+ * ── 入口 bump 记录（改 chunk 必须动入口，见 docs/client-contract.md §11）──────────────
+ * T52：`.dsh-rw-menu` 的 CSS 就在**本文件**的 CSS 数组里 ⇒ 那次改动本身就是入口变更。
+ * T53：`client.panel.tail.js` 的菜单组标题去掉误导性 `role="presentation"`（N4 对账，
+ *      见 spike/verify/explorer-20261012/client-panel/REPORT-n4-grouplabel.md）⇒ 由此处 bump 入口。
  */
 
 window.__ModuleLoader__.load({

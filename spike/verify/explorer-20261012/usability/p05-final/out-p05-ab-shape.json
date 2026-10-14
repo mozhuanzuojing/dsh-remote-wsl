@@ -1,0 +1,19 @@
+{
+  "ts": "2026-10-14T02:39:26.666Z",
+  "phase": "shape",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "shape": {
+    "found": true,
+    "cls": "dsh-rw-crumb dsh-rw-crumb--current dsh-rw-current",
+    "text": "dsh1",
+    "borderLeftWidth": "2px",
+    "borderLeftColor": "rgb(15, 17, 21)",
+    "fontWeight": "600",
+    "forcedRestingFill": {
+      "borderLeftWidth": "2px",
+      "fontWeight": "600",
+      "distinguishable": true
+    },
+    "verdict": "PASS(2px竖条+字重>=600)"
+  }
+}

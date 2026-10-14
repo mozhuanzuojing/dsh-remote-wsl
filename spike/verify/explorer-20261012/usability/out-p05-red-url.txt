@@ -1,0 +1,2 @@
+http://127.0.0.1:8963/?token=Vu0YibAuMSHzylN2hWHuq-3uoT6wgabGy_DlmiGRJ9c
+（来源：D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\usability\out-p05-red-8963.log；DSH_HOME=C:\Users\l\AppData\Local\Temp\usab-p05-home）

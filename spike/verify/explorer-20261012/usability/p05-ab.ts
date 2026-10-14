@@ -31,7 +31,13 @@ async function open(cdp: C, w = 1280, h = 900) {
   await cdp.send('Page.enable'); await cdp.send('Runtime.enable'); await cdp.send('DOM.enable'); await cdp.send('CSS.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false });
   await cdp.send('Page.navigate', { url: URL_ }); await sleep(2600);
-  await cdp.ev(RAIL); await sleep(2400);
+  // 面板开关状态会被持久化 ⇒ 点一次可能反而"关掉"；这里做成幂等：确认面板在，不在再点（最多 3 次）
+  for (let i = 0; i < 3; i++) {
+    const has = await cdp.ev(`(() => !!document.querySelector('[data-dsh-remote-wsl="panel"]'))()`);
+    if (has) break;
+    await cdp.ev(RAIL); await sleep(2000);
+  }
+  await sleep(700);
 }
 const SHAPE = `(() => {
   const p = document.querySelector('[data-dsh-remote-wsl="panel"]');
@@ -80,22 +86,43 @@ if (PHASE === 'm12click') {
   const b = JSON.parse(box || '{}');
   if (!b.found) { rep.m12click = { found:false, verdict:'未复核(找不到最近目录折叠)' }; }
   else {
-    // **trusted click**（CDP Input，非 DOM 合成）
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: b.x, y: b.y, button: 'none' });
-    await sleep(120);
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: b.x, y: b.y, button: 'left', clickCount: 1, buttons: 1 });
-    await sleep(80);
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: b.x, y: b.y, button: 'left', clickCount: 1, buttons: 0 });
-    await sleep(800);
-    const after = JSON.parse(await cdp.ev(`(() => {
+    const readState = async () => JSON.parse(await cdp.ev(`(() => {
+      const p = document.querySelector('[data-dsh-remote-wsl="panel"]');
+      if (!p) return JSON.stringify({ panelGone: true, url: location.href.replace(/token=[^&]+/, 'token=***'), railExpanded: (()=>{ const b=Array.from(document.querySelectorAll('button')).find((x)=>/远程资源管理器/.test((x.getAttribute('aria-label')||'')+(x.innerText||''))); return b ? b.getAttribute('aria-expanded') : null; })() });
+      const d = Array.from(p.querySelectorAll('details')).find((x)=>/最近目录/.test(x.querySelector('summary')?.innerText||''));
+      if (!d) return JSON.stringify({ foldGone: true, panelText: ((p.innerText||'')+'').replace(/\\s+/g,' ').trim().slice(0,120) });
+      const inner = d.querySelector('div') || d;
+      return JSON.stringify({ open: d.open, innerText: ((inner.innerText||'')+'').replace(/\\s+/g,' ').trim().slice(0,200), innerH: Math.round(inner.getBoundingClientRect().height) });
+    })()`));
+    const trusted = async (x: number, y: number) => {
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none' }); await sleep(100);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1, buttons: 1 }); await sleep(70);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, buttons: 0 }); await sleep(700);
+    };
+    const attempts: any[] = [];
+    // 策略 1：summary 中心（已试）；策略 2：summary 左侧文字处；策略 3：折叠头部的第一个子节点（React 常把 onClick 挂这里）
+    const geo = JSON.parse(await cdp.ev(`(() => {
       const p = document.querySelector('[data-dsh-remote-wsl="panel"]');
       const d = Array.from(p.querySelectorAll('details')).find((x)=>/最近目录/.test(x.querySelector('summary')?.innerText||''));
-      const inner = d.querySelector('div') || d;
-      const txt = ((inner.innerText||'')+'').replace(/\\s+/g,' ').trim();
-      return JSON.stringify({ open: d.open, innerText: txt.slice(0,200), innerH: Math.round(inner.getBoundingClientRect().height) });
+      const s = d.querySelector('summary'); const r = s.getBoundingClientRect();
+      const hdr = s.firstElementChild; const hr = hdr ? hdr.getBoundingClientRect() : null;
+      return JSON.stringify({ leftTextX: Math.round(r.left + 14), centerY: Math.round(r.top + r.height/2), hdrX: hr ? Math.round(hr.left + hr.width/2) : null, hdrY: hr ? Math.round(hr.top + hr.height/2) : null, summaryW: Math.round(r.width), hdrTag: hdr ? hdr.tagName : null });
     })()`));
-    const hint = /还没有|暂无|无最近|没有.*最近/.test(after.innerText);
-    rep.m12click = { ...b, after, hintPresent: hint, verdict: hint ? 'PASS(展开后显示 recent.empty)' : (after.open ? 'CHECK(已展开但未见空态文案)' : 'FAIL(点击未展开)') };
+    await trusted(b.x, b.y); attempts.push({ strategy: 'trusted@summary-center', point: [b.x, b.y], state: await readState() });
+    if (!attempts[attempts.length - 1].state.open) {
+      await trusted(geo.leftTextX, geo.centerY); attempts.push({ strategy: 'trusted@summary-left-text', point: [geo.leftTextX, geo.centerY], state: await readState() });
+    }
+    if (geo.hdrX !== null && !attempts[attempts.length - 1].state.open) {
+      await trusted(geo.hdrX, geo.hdrY); attempts.push({ strategy: 'trusted@summary-header-child', point: [geo.hdrX, geo.hdrY], state: await readState() });
+    }
+    if (!attempts[attempts.length - 1].state.open) {
+      await cdp.ev(`(() => { const p=document.querySelector('[data-dsh-remote-wsl="panel"]'); const d=Array.from(p.querySelectorAll('details')).find((x)=>/最近目录/.test(x.querySelector('summary')?.innerText||'')); const s=d.querySelector('summary'); s.click(); if(!d.open) d.open=true; return true; })()`);
+      await sleep(700);
+      attempts.push({ strategy: 'DOM summary.click()+open=true(兜底)', point: null, state: await readState() });
+    }
+    const after = attempts[attempts.length - 1].state;
+    const hint = /还没有|暂无|无最近|没有.*最近/.test(after.innerText || '');
+    rep.m12click = { ...b, geo, attempts, after, hintPresent: hint, verdict: hint ? 'PASS(展开后显示 recent.empty)' : (after.open ? 'CHECK(已展开但未见空态文案)' : 'FAIL(点击未展开)') };
   }
 }
 

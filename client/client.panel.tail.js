@@ -307,7 +307,12 @@ function renderTail(props) {
 											React.createElement(
 												"div",
 												{ role: "group", "aria-labelledby": labelId, className: "dsh-rw-group" },
-												React.createElement("div", { id: labelId, className: "dsh-rw-grouplabel", role: "presentation", tabIndex: -1 }, group.label),
+												// T53/N4：三组**统一** `aria-labelledby` + 可见组标题（同一个 map 循环，无分组特例）。
+												// 标题是普通 `<div id>`：**不加** `role="presentation"` —— 它带了 `tabIndex={-1}`（可聚焦），
+												// 按 WAI-ARIA 的 presentational-role 冲突解决规则该 role 会被**忽略**，属误导性 no-op；
+												// 且 `docs/panel-visual-spec.md` §7.2.4 明确要求它是普通 `<div id>`。
+												// `tabIndex={-1}` 保留：**不进 Tab 序列**（T53 要求"组标题不可聚焦/不进 Tab"）。
+												React.createElement("div", { id: labelId, className: "dsh-rw-grouplabel", tabIndex: -1 }, group.label),
 												group.items.map((item) =>
 													React.createElement(
 														"button",

@@ -1,0 +1,76 @@
+{
+  "ts": "2026-10-14T02:43:33.249Z",
+  "phase": "m12click",
+  "url": "http://127.0.0.1:8961/?token=***",
+  "lsBefore": "{\"key\":\"dsh-remote-wsl.recent\",\"value\":\"[\\\"/home/g/project/dsh1\\\"]\"}",
+  "m12click": {
+    "found": true,
+    "open": false,
+    "x": 780,
+    "y": 628,
+    "summary": "最近目录",
+    "textBefore": "最近目录",
+    "geo": {
+      "leftTextX": 306,
+      "centerY": 628,
+      "hdrX": 300,
+      "hdrY": 628,
+      "summaryW": 976,
+      "hdrTag": "svg"
+    },
+    "attempts": [
+      {
+        "strategy": "trusted@summary-center",
+        "point": [
+          780,
+          628
+        ],
+        "state": {
+          "open": false,
+          "innerText": "最近目录",
+          "innerH": 37
+        }
+      },
+      {
+        "strategy": "trusted@summary-left-text",
+        "point": [
+          306,
+          628
+        ],
+        "state": {
+          "open": false,
+          "innerText": "最近目录",
+          "innerH": 37
+        }
+      },
+      {
+        "strategy": "trusted@summary-header-child",
+        "point": [
+          300,
+          628
+        ],
+        "state": {
+          "open": false,
+          "innerText": "最近目录",
+          "innerH": 37
+        }
+      },
+      {
+        "strategy": "DOM summary.click()+open=true(兜底)",
+        "point": null,
+        "state": {
+          "panelGone": true,
+          "url": "http://127.0.0.1:8961/",
+          "railExpanded": null
+        }
+      }
+    ],
+    "after": {
+      "panelGone": true,
+      "url": "http://127.0.0.1:8961/",
+      "railExpanded": null
+    },
+    "hintPresent": false,
+    "verdict": "FAIL(点击未展开)"
+  }
+}
