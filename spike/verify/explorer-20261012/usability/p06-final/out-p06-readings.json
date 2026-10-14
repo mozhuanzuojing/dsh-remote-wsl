@@ -5,9 +5,9 @@
       "theme": "light",
       "footerH": 47,
       "statusWord": {
-        "text": "远端守护状态未知",
-        "scrollW": 104,
-        "clientW": 104,
+        "text": "远端守护未运行",
+        "scrollW": 91,
+        "clientW": 91,
         "notElided": true
       },
       "menuBtnRect": {
@@ -17,13 +17,215 @@
         "y": 865,
         "bottom": 889
       },
-      "hitCount": 1,
+      "hitCount": 25,
       "under24Count": 0,
       "under24": [],
+      "hit": [
+        {
+          "c": "dsh-rw-btn dsh-rw-btn--primary",
+          "t": "添加为 WSL 工作区",
+          "w": 132.3,
+          "h": 28,
+          "x": 1102,
+          "y": 10
+        },
+        {
+          "c": "dsh-rw-iconbtn",
+          "t": "",
+          "w": 24,
+          "h": 24,
+          "x": 1242,
+          "y": 12
+        },
+        {
+          "c": "dsh-rw-chip",
+          "t": "隐藏文件：不显示",
+          "w": 114,
+          "h": 24,
+          "x": 1147,
+          "y": 96
+        },
+        {
+          "c": "dsh-rw-chip",
+          "t": "Home",
+          "w": 50.2,
+          "h": 24,
+          "x": 299,
+          "y": 126
+        },
+        {
+          "c": "dsh-rw-chip",
+          "t": "/",
+          "w": 24,
+          "h": 24,
+          "x": 355,
+          "y": 126
+        },
+        {
+          "c": "dsh-rw-chip",
+          "t": "/mnt",
+          "w": 43.9,
+          "h": 24,
+          "x": 385,
+          "y": 126
+        },
+        {
+          "c": "dsh-rw-crumb",
+          "t": "/",
+          "w": 24,
+          "h": 24,
+          "x": 299,
+          "y": 156
+        },
+        {
+          "c": "dsh-rw-crumb",
+          "t": "home",
+          "w": 38.4,
+          "h": 24,
+          "x": 325,
+          "y": 156
+        },
+        {
+          "c": "dsh-rw-crumb",
+          "t": "g",
+          "w": 24,
+          "h": 24,
+          "x": 372,
+          "y": 156
+        },
+        {
+          "c": "dsh-rw-crumb",
+          "t": "project",
+          "w": 45.1,
+          "h": 24,
+          "x": 405,
+          "y": 156
+        },
+        {
+          "c": "dsh-rw-btn",
+          "t": "跳转",
+          "w": 48,
+          "h": 28,
+          "x": 1126,
+          "y": 186
+        },
+        {
+          "c": "dsh-rw-btn",
+          "t": "上一级",
+          "w": 81,
+          "h": 28,
+          "x": 1180,
+          "y": 186
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "进入",
+          "w": 32,
+          "h": 24,
+          "x": 381,
+          "y": 224
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 353,
+          "y": 258
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 360,
+          "y": 292
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 56,
+          "h": 24,
+          "x": 488,
+          "y": 326
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 375,
+          "y": 360
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 427,
+          "y": 394
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 405,
+          "y": 428
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 401,
+          "y": 462
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 56,
+          "h": 24,
+          "x": 502,
+          "y": 496
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 375,
+          "y": 530
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 56,
+          "h": 24,
+          "x": 532,
+          "y": 564
+        },
+        {
+          "c": "dsh-rw-btn",
+          "t": "启动守护",
+          "w": 74,
+          "h": 28,
+          "x": 1071,
+          "y": 863
+        },
+        {
+          "c": "dsh-rw-iconbtn",
+          "t": "",
+          "w": 24,
+          "h": 24,
+          "x": 1244,
+          "y": 865
+        }
+      ],
       "shadowCount": 0,
       "shadows": [],
-      "rowCount": 0,
-      "panelText": "远程资源管理器 尚未取得目标发行版 添加为 WSL 工作区 正在读取远端信息… 远端守护状态未知 · 状态读取中…"
+      "rowCount": 11,
+      "panelText": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区 浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 _reports 进入 bin data dsh-handoff-20260820.md dsh-kit dsh-liangwengu dsh-shadow dsh-vscode open-design-daemon.service vendor windows-mcp-dsh-config.spec.md 最近目录 诊断信息（与 wsl_status 同源） 远端守护未运"
     },
     "menu": {
       "theme": "light",
@@ -89,12 +291,117 @@
     "narrow": {
       "theme": "light",
       "innerWidth": 320,
+      "narrowMQ420": true,
+      "panelW": 264,
+      "panelButtons": [
+        {
+          "t": "添加为 WSL 工作区",
+          "w": 132
+        },
+        {
+          "t": "",
+          "w": 24
+        },
+        {
+          "t": "隐藏文件：不显示",
+          "w": 114
+        },
+        {
+          "t": "Home",
+          "w": 50
+        },
+        {
+          "t": "/",
+          "w": 24
+        },
+        {
+          "t": "/mnt",
+          "w": 44
+        },
+        {
+          "t": "/",
+          "w": 24
+        },
+        {
+          "t": "home",
+          "w": 38
+        },
+        {
+          "t": "g",
+          "w": 24
+        },
+        {
+          "t": "project",
+          "w": 45
+        },
+        {
+          "t": "跳转",
+          "w": 48
+        },
+        {
+          "t": "上一级",
+          "w": 81
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 56
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 56
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 56
+        },
+        {
+          "t": "启动守护",
+          "w": 49
+        },
+        {
+          "t": "",
+          "w": 24
+        }
+      ],
+      "menuOpen": "false",
       "footerH": 47,
       "footerNoWrap": true,
       "statusWord": {
-        "text": "远端守护状态未知",
-        "scrollW": 104,
-        "clientW": 104,
+        "text": "远端守护未运行",
+        "scrollW": 91,
+        "clientW": 91,
         "notElided": true
       },
       "menuBtnRect": {
@@ -103,7 +410,8 @@
         "x": 284,
         "y": 765,
         "bottom": 789
-      }
+      },
+      "headText": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区"
     }
   },
   {
@@ -112,9 +420,9 @@
       "theme": "dark",
       "footerH": 47,
       "statusWord": {
-        "text": "远端守护状态未知",
-        "scrollW": 104,
-        "clientW": 104,
+        "text": "远端守护未运行",
+        "scrollW": 91,
+        "clientW": 91,
         "notElided": true
       },
       "menuBtnRect": {
@@ -124,13 +432,215 @@
         "y": 865,
         "bottom": 889
       },
-      "hitCount": 1,
+      "hitCount": 25,
       "under24Count": 0,
       "under24": [],
+      "hit": [
+        {
+          "c": "dsh-rw-btn dsh-rw-btn--primary",
+          "t": "添加为 WSL 工作区",
+          "w": 132.3,
+          "h": 28,
+          "x": 1102,
+          "y": 10
+        },
+        {
+          "c": "dsh-rw-iconbtn",
+          "t": "",
+          "w": 24,
+          "h": 24,
+          "x": 1242,
+          "y": 12
+        },
+        {
+          "c": "dsh-rw-chip",
+          "t": "隐藏文件：不显示",
+          "w": 114,
+          "h": 24,
+          "x": 1147,
+          "y": 96
+        },
+        {
+          "c": "dsh-rw-chip",
+          "t": "Home",
+          "w": 50.2,
+          "h": 24,
+          "x": 299,
+          "y": 126
+        },
+        {
+          "c": "dsh-rw-chip",
+          "t": "/",
+          "w": 24,
+          "h": 24,
+          "x": 355,
+          "y": 126
+        },
+        {
+          "c": "dsh-rw-chip",
+          "t": "/mnt",
+          "w": 43.9,
+          "h": 24,
+          "x": 385,
+          "y": 126
+        },
+        {
+          "c": "dsh-rw-crumb",
+          "t": "/",
+          "w": 24,
+          "h": 24,
+          "x": 299,
+          "y": 156
+        },
+        {
+          "c": "dsh-rw-crumb",
+          "t": "home",
+          "w": 38.4,
+          "h": 24,
+          "x": 325,
+          "y": 156
+        },
+        {
+          "c": "dsh-rw-crumb",
+          "t": "g",
+          "w": 24,
+          "h": 24,
+          "x": 372,
+          "y": 156
+        },
+        {
+          "c": "dsh-rw-crumb",
+          "t": "project",
+          "w": 45.1,
+          "h": 24,
+          "x": 405,
+          "y": 156
+        },
+        {
+          "c": "dsh-rw-btn",
+          "t": "跳转",
+          "w": 48,
+          "h": 28,
+          "x": 1126,
+          "y": 186
+        },
+        {
+          "c": "dsh-rw-btn",
+          "t": "上一级",
+          "w": 81,
+          "h": 28,
+          "x": 1180,
+          "y": 186
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "进入",
+          "w": 32,
+          "h": 24,
+          "x": 381,
+          "y": 224
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 353,
+          "y": 258
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 360,
+          "y": 292
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 56,
+          "h": 24,
+          "x": 488,
+          "y": 326
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 375,
+          "y": 360
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 427,
+          "y": 394
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 405,
+          "y": 428
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 401,
+          "y": 462
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 56,
+          "h": 24,
+          "x": 502,
+          "y": 496
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 32,
+          "h": 24,
+          "x": 375,
+          "y": 530
+        },
+        {
+          "c": "dsh-rw-link",
+          "t": "",
+          "w": 56,
+          "h": 24,
+          "x": 532,
+          "y": 564
+        },
+        {
+          "c": "dsh-rw-btn",
+          "t": "启动守护",
+          "w": 74,
+          "h": 28,
+          "x": 1071,
+          "y": 863
+        },
+        {
+          "c": "dsh-rw-iconbtn",
+          "t": "",
+          "w": 24,
+          "h": 24,
+          "x": 1244,
+          "y": 865
+        }
+      ],
       "shadowCount": 0,
       "shadows": [],
-      "rowCount": 0,
-      "panelText": "远程资源管理器 尚未取得目标发行版 添加为 WSL 工作区 正在读取远端信息… 远端守护状态未知 · 状态读取中…"
+      "rowCount": 11,
+      "panelText": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区 浏览目录 隐藏文件：不显示 Home / /mnt / home / g / project / dsh1 跳转 上一级 _reports 进入 bin data dsh-handoff-20260820.md dsh-kit dsh-liangwengu dsh-shadow dsh-vscode open-design-daemon.service vendor windows-mcp-dsh-config.spec.md 最近目录 诊断信息（与 wsl_status 同源） 远端守护未运"
     },
     "menu": {
       "theme": "dark",
@@ -196,12 +706,117 @@
     "narrow": {
       "theme": "dark",
       "innerWidth": 320,
+      "narrowMQ420": true,
+      "panelW": 264,
+      "panelButtons": [
+        {
+          "t": "添加为 WSL 工作区",
+          "w": 132
+        },
+        {
+          "t": "",
+          "w": 24
+        },
+        {
+          "t": "隐藏文件：不显示",
+          "w": 114
+        },
+        {
+          "t": "Home",
+          "w": 50
+        },
+        {
+          "t": "/",
+          "w": 24
+        },
+        {
+          "t": "/mnt",
+          "w": 44
+        },
+        {
+          "t": "/",
+          "w": 24
+        },
+        {
+          "t": "home",
+          "w": 38
+        },
+        {
+          "t": "g",
+          "w": 24
+        },
+        {
+          "t": "project",
+          "w": 45
+        },
+        {
+          "t": "跳转",
+          "w": 48
+        },
+        {
+          "t": "上一级",
+          "w": 81
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 56
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 56
+        },
+        {
+          "t": "",
+          "w": 32
+        },
+        {
+          "t": "",
+          "w": 56
+        },
+        {
+          "t": "启动守护",
+          "w": 49
+        },
+        {
+          "t": "",
+          "w": 24
+        }
+      ],
+      "menuOpen": "false",
       "footerH": 47,
       "footerNoWrap": true,
       "statusWord": {
-        "text": "远端守护状态未知",
-        "scrollW": 104,
-        "clientW": 104,
+        "text": "远端守护未运行",
+        "scrollW": 91,
+        "clientW": 91,
         "notElided": true
       },
       "menuBtnRect": {
@@ -210,7 +825,8 @@
         "x": 284,
         "y": 765,
         "bottom": 789
-      }
+      },
+      "headText": "远程资源管理器 目标 debian-u8-1 · /home/g/project/dsh1 未物化 仅筛选，不改目标 添加为 WSL 工作区"
     }
   }
 ]

@@ -1,0 +1,43 @@
+### T54 收尾（2026-10-14T12:09:23.4360649+08:00）
+
+--- 1) 用户全局存储 after + diff（先取，再删孤立 home）---
+workspace.json	11560	A764A306D6112450120E0653014FB8DBD8CC7A77647E891A9F82881772F303A9
+storagesFileCount	190	-
+!! 用户存储发生变化：
+
+InputObject
+-----------                                                                                                            
+storagesTreeHash	-	C5D8065B342A12291D20B1D945837452642B0815470D98CF7A83F85962247A93DF1167352831C92E63AE1CA6FCAB082458F…
+storagesTreeHash	-	C5D8065B342A12291D20B1D945837452642B0815470D98CF7A83F85962247A93DF1167352831C92E63AE1CA6FCAB082458F…
+
+
+--- 2) 停我的实例（8966）---
+
+--- 9) 收尾结果（分步执行；第一次批量收尾命令被 runner 中断，故拆开重跑）---
+chrome(8968) 4 个进程已停；port 8968 空闲；temp 目录 usab-p06 / usab-p06-home / p06-chrome 已删；用户 ~/.dsh/profiles/p06 不存在（profile 在孤立 home 内）
+
+--- 10) 剩余监听（8931-8970）归属：均非我 ---
+port 8961 → pid 32156 DeepSeek Harness.exe start=10/14/2026 11:27:59
+    cmd: "C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\..\..\..\..\DeepSeek Harness.exe" --expose-internals "C:\Users\l\AppData\Local\Programs\Deep
+    parent(25820): C:\Windows\system32\cmd.exe /c ""C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd" --profile p05 --port 8961 --no-
+port 8965 → pid 26672 chrome.exe start=10/14/2026 11:27:56
+    cmd: "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --remote-debugging-port=8965 --user-data-dir=C:\Users\l\AppData\Local\Temp\usab-p05-chrome --no-fir
+    parent(21932): 
+
+--- 11) 我的实例已停（8966 空闲）；用户宿主 19387 = pid 33688（未变）---
+
+--- 12) Windows 侧 dsh-rwsl/remote-wsl 残留进程 ---
+匹配 dsh-rwsl 的进程数 = 2（0 = 无）
+
+--- 13) 可见窗口枚举（禁凭标题猜；只列存在者）---
+可见窗口数 = 10
+pid=2828 chrome start=10/14/2026 10:04:50 title='[ZWZCXM-129619] 【DSP支持问题】报销单附件预览，电脑端（内网）附件能预览word,pdf,xls格式文档，无法预览xlsx格式文档。手机端（外网域名）附件都能正常预览。 - zwkk Jira - Google Chrome'
+pid=15212 chrome start=10/14/2026 10:08:01 title='Authentication - zwkk Jira - Google Chrome'
+pid=30428 Code start=10/14/2026 11:00:31 title='kkfileView1 [WSL: debian-u8-1] - Visual Studio Code'
+pid=15380 Cursor start=10/14/2026 09:21:09 title='待办_receiver_转_wbdm_c6160357.plan.md - OpenAPI-Gateway [WSL: debian-u8-1] - Cursor'
+pid=33176 DeepSeek Harness start=10/14/2026 09:21:43 title='查询我的Jira单子 — DeepSeek Harness'
+pid=23704 explorer start=10/14/2026 10:40:55 title='下载 和 1 个其他选项卡 - 文件资源管理器'
+pid=32556 msedge start=10/14/2026 10:48:46 title='ZWZCXM-129619 验证报告 - 个人 - Microsoft​ Edge'
+pid=22380 QQ start=10/14/2026 09:20:44 title='QQ'
+pid=20380 TextInputHost start=10/14/2026 09:17:52 title='Windows 输入体验'
+pid=16432 Weixin start=10/14/2026 09:20:53 title='微信'

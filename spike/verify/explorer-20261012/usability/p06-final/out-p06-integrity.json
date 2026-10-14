@@ -17,14 +17,6 @@
       "diskSha256_16": "5a192b93a62900e0",
       "trailer": "//# sourceMappingURL=client.api.js.map?rev=59faf7156bc2"
     },
-    "client.icon.js": {
-      "servedBytes": 2268,
-      "diskBytes": 2209,
-      "appended": "\";\"",
-      "prefixMatch": "PASS",
-      "diskSha256_16": "e9a824f50e45e5d4",
-      "trailer": "//# sourceMappingURL=client.icon.js.map?rev=59faf7156bc2"
-    },
     "client.panel.js": {
       "servedBytes": 9836,
       "diskBytes": 9776,
@@ -32,6 +24,14 @@
       "prefixMatch": "PASS",
       "diskSha256_16": "e018be93236fbd57",
       "trailer": "//# sourceMappingURL=client.panel.js.map?rev=59faf7156bc2"
+    },
+    "client.icon.js": {
+      "servedBytes": 2268,
+      "diskBytes": 2209,
+      "appended": "\";\"",
+      "prefixMatch": "PASS",
+      "diskSha256_16": "e9a824f50e45e5d4",
+      "trailer": "//# sourceMappingURL=client.icon.js.map?rev=59faf7156bc2"
     },
     "client.panel.helpers.js": {
       "servedBytes": 12268,

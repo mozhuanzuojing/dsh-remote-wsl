@@ -52,16 +52,25 @@ async function load(cdp: C, w = 1280, h = 900, dark = false, init?: string, opts
   await cdp.send('Page.navigate', { url: URL_ }); await sleep(2600);
   if (sid) { try { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: sid }); } catch {} }
   try { await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: rLib.identifier }); } catch {}
-  // ⚠️ 全新孤立 profile 第一次打开会出现 DSH 的「预览版说明」模态，会盖住面板 ⇒ 必须点掉再拍
-  //    （T54 自查踩到：首版 12 张全被该模态遮住，作废重拍）
-  const dismissed = await cdp.ev(`(() => {
-    const cand = Array.from(document.querySelectorAll('button,[role="button"]')).find((x)=>/^(继续|我知道了|同意|Got it|Continue|OK)$/.test(((x.innerText||x.textContent||'')+'').trim()));
-    if (cand) { cand.click(); return 'dismissed'; }
-    return 'none';
-  })()`);
-  rep.dismissed = rep.dismissed || [];
-  rep.dismissed.push(dismissed);
-  if (dismissed === 'dismissed') await sleep(600);
+  // ⚠️ 全新孤立 profile 会**连续**弹 DSH 首启模态（先「预览版说明」、再「添加一个 API Key」），都会盖住面板
+  //    ⇒ 循环点掉；**优先"稍后/跳过"类**，绝不点「保存并继续」（那会写配置）
+  //    （T54 自查踩到：首版 12 张被模态遮住，两次作废重拍）
+  const dismissed: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const r = await cdp.ev(`(() => {
+      const txt = (x) => (((x.innerText || x.textContent || '') + '')).trim();
+      const cands = Array.from(document.querySelectorAll('button,[role="button"]'))
+        .filter((x) => /^(稍后配置|稍后再说|稍后|跳过|跳过配置|以后再说|Skip|Later|Not now|继续|我知道了|同意|Got it|Continue|OK|好的)$/.test(txt(x)));
+      const skip = cands.find((x) => /稍后|跳过|以后再说|Skip|Later|Not now/.test(txt(x)));
+      const pick = skip || cands[0];
+      if (!pick) return 'none';
+      pick.click(); return txt(pick);
+    })()`);
+    if (r === 'none' || r === null) break;
+    dismissed.push(String(r));
+    await sleep(700);
+  }
+  rep.dismissed = (rep.dismissed || []).concat(dismissed);
   if (opts.openPanel !== false) { await cdp.ev(RAIL); await sleep(opts.settle ?? 2400); }
 }
 async function shot(cdp: C, f: string) { const r = await cdp.send('Page.captureScreenshot', { format: 'png' }); const p = path.join(OUT, f); fs.writeFileSync(p, Buffer.from(r.data, 'base64')); return { file: f, bytes: fs.statSync(p).size }; }
@@ -121,9 +130,11 @@ if (PHASE === 'shots' || PHASE === 'all') {
     await cdp.ev(`(() => { const b=_panel().querySelector('[aria-haspopup="menu"]'); if(b) b.click(); return true; })()`);
     await sleep(500);
     SHOTS.push({ ...(await shot(cdp, `p06-menu-${th}.png`)), scene: 'menu', theme: th, fixture: false });
-    // 3) narrow 320
+    // 3) narrow 320 —— **先关掉菜单**（否则菜单会残留在窄态图里；T54 自查踩到，第一次重拍即因此作废）
+    await cdp.ev(`(() => { const b=_panel().querySelector('[aria-haspopup="menu"]'); if(b && b.getAttribute('aria-expanded')==='true') b.click(); return b ? b.getAttribute('aria-expanded') : null; })()`);
+    await sleep(350);
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 320, height: 800, deviceScaleFactor: 1, mobile: false });
-    await sleep(500);
+    await sleep(700);
     SHOTS.push({ ...(await shot(cdp, `p06-narrow320-${th}.png`)), scene: 'narrow320', theme: th, fixture: false });
     // 4) loading（夹具：snapshot 延迟 5s；只等 1.2s ⇒ 定格在加载态）
     await load(cdp, 1280, 900, dark, INITS.delay, { settle: 1200 });
@@ -167,6 +178,7 @@ if (PHASE === 'readings' || PHASE === 'all') {
         statusWord: st ? { text:(_txt(st)||''), scrollW: st.scrollWidth, clientW: st.clientWidth, notElided: st.scrollWidth <= st.clientWidth } : null,
         menuBtnRect: menuBtn ? _rect(menuBtn) : null,
         hitCount: hit.length, under24Count: under24.length, under24,
+        hit: hit.map((x)=>({ c:x.cls, t:x.txt, w:x.rect.w, h:x.rect.h, x:x.rect.x, y:x.rect.y })),
         shadowCount: shadows.length, shadows,
         rowCount: p.querySelectorAll('.dsh-rw-row').length,
         panelText: (_txt(p)||'').slice(0, 320)
@@ -212,10 +224,15 @@ if (PHASE === 'readings' || PHASE === 'all') {
       const st=Array.from(p.querySelectorAll('*')).find((el)=>/^远端守护(运行中|未运行|状态未知)$/.test((_txt(el)||'')) && el.children.length===0);
       const mb=p.querySelector('[aria-haspopup="menu"]');
       return JSON.stringify({ theme:getComputedStyle(document.documentElement).colorScheme, innerWidth: window.innerWidth,
+        narrowMQ420: window.matchMedia('(max-width: 420px)').matches,
+        panelW: Math.round(p.getBoundingClientRect().width),
+        panelButtons: Array.from(p.querySelectorAll('button')).map((b)=>({ t:(_txt(b)||'').slice(0,14), w:Math.round(b.getBoundingClientRect().width) })),
+        menuOpen: (()=>{ const b=p.querySelector('[aria-haspopup="menu"]'); return b? b.getAttribute('aria-expanded') : null; })(),
         footerH: foot?Math.round(foot.getBoundingClientRect().height*10)/10:null,
         footerNoWrap: foot? foot.scrollWidth <= foot.clientWidth : null,
         statusWord: st?{ text:_txt(st), scrollW:st.scrollWidth, clientW:st.clientWidth, notElided: st.scrollWidth<=st.clientWidth }:null,
-        menuBtnRect: mb?_rect(mb):null });
+        menuBtnRect: mb?_rect(mb):null,
+        headText: (()=>{ const h=p.querySelector('header') || p.firstElementChild; return h? (_txt(h)||'').slice(0,80) : null; })() });
     })()`));
     all.push({ theme: th, ready, menu, narrow });
   }

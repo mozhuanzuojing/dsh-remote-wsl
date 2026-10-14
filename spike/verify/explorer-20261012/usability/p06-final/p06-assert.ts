@@ -1,7 +1,7 @@
 /**
- * p06-assert.mjs —— T54 的**成品图/读数断言**（读 out-p06-*.json，可红可绿，exit 1 = 有失败）。
+ * p06-assert.ts —— T54 的**成品图/读数断言**（读 out-p06-*.json，可红可绿，exit 1 = 有失败）。
  *
- * 用法： node p06-assert.mjs <p06-final 目录>
+ * 用法： node p06-assert.ts <p06-final 目录>
  *
  * 断言（判据全部来自 docs/panel-visual-spec.md 的定稿值）：
  *   A1 底栏高 = 47（两主题，含 320 窄态）             §7.2.3 / §6.1
@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const DIR = process.argv[2];
-if (!DIR) { console.error('usage: node p06-assert.mjs <dir>'); process.exit(2); }
+if (!DIR) { console.error('usage: node p06-assert.ts <dir>'); process.exit(2); }
 const rd = JSON.parse(fs.readFileSync(path.join(DIR, 'out-p06-readings.json'), 'utf8'));
 const integ = JSON.parse(fs.readFileSync(path.join(DIR, 'out-p06-integrity.json'), 'utf8'));
 
