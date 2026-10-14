@@ -1,0 +1,6 @@
+client-rev 门禁：PASS（模式=mtime）
+  插件根   : C:\Users\l\AppData\Local\Temp\rwsl-t72-pre
+  入口     : client/index.js（来自 exports["./client"]）
+  当前 rev : 931c2b17f24b   [mtime=2026-10-14T04:15:20.000Z ctime=2026-10-14T07:24:22.583Z size=29194]
+  chunks   : 9 个  client.api.js(5a192b93) client.i18n.js(47525217) client.icon.js(e9a824f5) client.panel.actions.js(d45d9f9a) client.panel.browser.js(a4bcafa8) client.panel.header.js(b5c1a2c0) client.panel.helpers.js(efa1e85c) client.panel.js(e018be93) client.panel.tail.js(f5cbcf7c)
+  依据     : 入口 mtime 晚于所有 chunk（client.api.js）⇒ 入口在最后一次 chunk 改动之后被 bump 过
