@@ -8,6 +8,10 @@
  * 纪律：只写证据目录；变异只在 %TEMP% 副本；真调用孤立 `DSH_HOME`；端口 8911–8920。
  * 用法：node probe-t66.ts <mode> <port> [copyDir]
  */
+// ── T73：本工具自己设了孤立 DSH_HOME；这里补"用户全局 workspace.json 前后 sha"闭环 ──
+import { watchGlobalWorkspace } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = watchGlobalWorkspace();
+
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
@@ -172,4 +176,6 @@ if (MODE === 'timeout60') {
 }
 bystander('stop');
 writeFileSync(`${process.env.TEMP}\\t66-last-copy.txt`, COPY || '(repo)', 'utf8');
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

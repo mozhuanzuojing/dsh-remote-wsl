@@ -14,6 +14,10 @@
  *
  * 纪律：任何"没拿到"都必须打印 UNKNOWN/THROW —— 绝不允许静默当作通过。
  */
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from './arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('probe-ground-truth');
+
 import { existsSync, appendFileSync, writeFileSync } from 'node:fs';
 
 interface ToolDef {
@@ -169,4 +173,6 @@ for (const d of disposers) {
 }
 void sleep;
 console.log(`\n[probe pid=${process.pid}] cleanup disposers=${disposers.length}`);
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

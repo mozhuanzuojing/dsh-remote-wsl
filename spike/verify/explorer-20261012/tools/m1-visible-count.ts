@@ -157,14 +157,16 @@ rep.verdict = pass ? `PASS(可见 ${NEEDLE} 恰 ${EXPECT} 次，scope=${SCOPE})`
 
 if (SELFTEST) {
   const controls: any = {};
-  // 控制 1（正例）：往属性里塞 needle ⇒ 文本节点口径下**不应**计入 ⇒ 仍 PASS
-  await cdp.ev(`(() => { const p=document.querySelector(${JSON.stringify(PANEL_SEL)}); p.setAttribute('data-usab-attr', '${NEEDLE} ${NEEDLE}'); const inp=p.querySelector('input'); if(inp){ inp.setAttribute('title','${NEEDLE}'); inp.setAttribute('data-path','/home/g/project/${NEEDLE}'); } return true; })()`);
-  const afterAttr = await readScope(SCOPE === 'entries' ? ENTRIES_SEL : PANEL_SEL);
-  controls.attributeInjection = { count: afterAttr.count, expected: EXPECT, ok: afterAttr.count === EXPECT, note: '属性值（aria-label/title/data-*）不是文本节点 ⇒ 不计入' };
-  // 控制 2（负例）：注入第二处**可见**文本 ⇒ 必须被检出（count+1）
-  await cdp.ev(`(() => { const p=document.querySelector(${JSON.stringify(PANEL_SEL)}); const d=document.createElement('div'); d.setAttribute('data-usab-red','1'); d.textContent='${NEEDLE}'; p.appendChild(d); return true; })()`);
-  const afterVisible = await readScope(SCOPE === 'entries' ? ENTRIES_SEL : PANEL_SEL);
-  controls.visibleInjection = { count: afterVisible.count, expected: EXPECT + 1, ok: afterVisible.count === EXPECT + 1, note: '注入第二处可见文本 ⇒ 计数必须 +1（在 panel scope 下）' };
+  const scopeSel = SCOPE === 'entries' ? ENTRIES_SEL : PANEL_SEL;
+  // ⚠️ 控制的基线必须是**实测到的 primary count**，不能是 --expect（否则控制自己会假红/假绿）
+  // 控制 1（正例）：往**读数 scope 根**上塞 needle 属性 ⇒ 文本节点口径下**不应**计入
+  await cdp.ev(`(() => { const r=document.querySelector(${JSON.stringify(scopeSel)}); r.setAttribute('data-usab-attr', '${NEEDLE} ${NEEDLE}'); r.setAttribute('title','${NEEDLE}'); const inp=document.querySelector(${JSON.stringify(PANEL_SEL)}).querySelector('input'); if(inp){ inp.setAttribute('data-path','/home/g/project/${NEEDLE}'); } return true; })()`);
+  const afterAttr = await readScope(scopeSel);
+  controls.attributeInjection = { count: afterAttr.count, baseline: count, ok: afterAttr.count === count, note: '属性值（aria-label/title/data-*）不是文本节点 ⇒ 不计入' };
+  // 控制 2（负例）：往**读数 scope 根**里注入第二处**可见**文本 ⇒ 必须被检出（baseline+1）
+  await cdp.ev(`(() => { const r=document.querySelector(${JSON.stringify(scopeSel)}); const d=document.createElement('div'); d.setAttribute('data-usab-red','1'); d.textContent='${NEEDLE}'; d.style.cssText='display:block;height:20px;width:80px'; r.appendChild(d); return true; })()`);
+  const afterVisible = await readScope(scopeSel);
+  controls.visibleInjection = { count: afterVisible.count, baseline: count, ok: afterVisible.count === count + 1, note: '注入第二处可见文本（注入到读数 scope 根内）⇒ 计数必须 +1' };
   // 清理注入
   await cdp.ev(`(() => { const p=document.querySelector(${JSON.stringify(PANEL_SEL)}); p.removeAttribute('data-usab-attr'); const d=p.querySelector('[data-usab-red]'); if(d) d.remove(); const inp=p.querySelector('input'); if(inp){ inp.removeAttribute('title'); inp.removeAttribute('data-path'); } return true; })()`);
   const restored = await readScope(SCOPE === 'entries' ? ENTRIES_SEL : PANEL_SEL);

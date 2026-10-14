@@ -10,6 +10,10 @@
  * 纪律：真调用一律**孤立 `DSH_HOME`**；变异只在 `%TEMP%` 副本；端口 8911–8920。
  * 用法：node probe-t60.ts <mode> <port> [copyDir]
  */
+// ── T73：本工具自己设了孤立 DSH_HOME；这里补"用户全局 workspace.json 前后 sha"闭环 ──
+import { watchGlobalWorkspace } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = watchGlobalWorkspace();
+
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
@@ -111,4 +115,6 @@ if (MODE === 'success') {
   const d2 = { procs: afterStop.procs - before.procs, listen: afterStop.listen - before.listen, tmp: afterStop.tmp - before.tmp };
   console.log(`DELTA[stop 后] procs=${d2.procs} listen=${d2.listen} tmp=${d2.tmp}`);
 }
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

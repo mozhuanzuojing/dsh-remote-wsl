@@ -5,6 +5,10 @@
  * **作为 argv 位置参数**进入（脚本里只有固定 `"$1"`），`windowsHide:true`；失败一律抛可读错误，绝不静默回原串。
  * 本探针只 import 交付物本体；每个注入用例都配"执行痕迹"判据。
  */
+// ── T73：**必须在任何 import src/** 之前**隔离 DSH_HOME**，并在收尾比对用户全局 workspace.json 前后 sha ──
+import { isolateDshHome } from './arch-t58/tools/dsh-guard.ts';
+const dshGuard = isolateDshHome('probe-wsl-path');
+
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf(`--${n}`); return i >= 0 && i + 1 < argv.length ? argv[i + 1] : d; };
 const DISTRO = arg('distro', 'debian-u8-1');
@@ -75,4 +79,6 @@ if (DISTRO !== 'debian-u8-1') add(`发行版不存在(${DISTRO})`, { path: '/mnt
 
 console.log(JSON.stringify(out, null, 2));
 for (const d of disposers) { try { await d(); } catch {} }
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);

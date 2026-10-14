@@ -8,6 +8,10 @@
  *
  * 用法：node probe-t55.ts <recorder|exit|timeout|red-swallow> <port>
  */
+// ── T73：本工具自己设了孤立 DSH_HOME；这里补"用户全局 workspace.json 前后 sha"闭环 ──
+import { watchGlobalWorkspace } from '../../arch-t58/tools/dsh-guard.ts';
+const dshGuard = watchGlobalWorkspace();
+
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
@@ -120,4 +124,6 @@ console.log(`DELTA[stop 后] procs=${dStop.procs} listen=${dStop.listen} tmp=${d
 console.log(`ASSERT 本调用是否留下残留（procs/listen/tmp 任一 > 0）= ${dFail.procs > 0 || dFail.listen > 0 || dFail.tmp > 0}`);
 console.log(`ASSERT 本调用的残留被 stop 清干净 = ${dStop.procs <= 0 && dStop.listen <= 0 && dStop.tmp <= 0}`);
 writeFileSync(`${process.env.TEMP}\\t55-last-copy.txt`, COPY, 'utf8');
+// ── T73 断言：用户全局 workspace.json 前后 sha 必须相同（不同 ⇒ 抛错，调用方按非零退出处理）──
+dshGuard.assertUnchanged();
 process.exit(0);
