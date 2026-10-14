@@ -1,0 +1,32 @@
+NOTE: src/**/*.ts = 14（原冻结 7 + 额外 7）：src/daemon-launch.ts, src/daemon-lifecycle.ts, src/daemon-protocol.ts, src/explorer.ts, src/in-host-runtime.ts, src/register-tools.ts, src/wsl-io.ts
+      -> 已一并纳入锚点（lead 2026-10-12 Q1 裁决：P0 冻结集含新增文件）。
+--- 契约体检 ---
+  PREFLIGHT OK: exports["./client"] = ./client/index.js
+  PREFLIGHT OK: dsh.client.platform = web
+  PREFLIGHT OK: 入口文件在场 client/index.js（30422 bytes）
+  PREFLIGHT OK: package.json files 含 "client"
+锚点一致 = True ｜ advisory 一致 = False
+锚点文件数 = 14 src + 10 client + package.json
+
+===== advisory 漂移（cordis.patch.yml / README / docs）=====
+  - # --- 非锚点（advisory）：只告警，不判无效 ---
+66a6f9930ffc5416dd8f273525cb2a4a7db068ff028148f09f56e2c0ac6fae91        589  cordis.patch.yml
+e13897ea898ee315f210cf224894eb4a0e1bfbb5527a936b1d1bd93c55078d43     101233  README.md
+ac456fdeeff86427ef03aaa90d494e0509eba1f16dc0b65ff59fc6480f02e269      13641  docs/2026-10-10-wsl-dsh-sdk-bridge.md
+ce186ca81c5125b5e1959737d77aecb3e21af19f7f955f1c708e35bc060febc8      11032  docs/2026-10-13-arch-review-teammates.md
+9d6fb679ba74e97e71e80263be3e4e04fda86f11115f270a4a30e240de9e929c      38837  docs/client-contract.md
+1af46d2b6d365f9355eab765e5918f2af901e476aa1fe841b7e3042cd94ca4a5      79562  docs/panel-ux-redesign.md
+e273e13b03ac9b085c5a46f662484345c2198375c6e117cb31a822f045501307     140953  docs/panel-visual-spec.md
+0f2840ade53a6a5c6a644caf900b2abb8fe22b23378a64880d081ddb09da0d99      19290  docs/prior-art-dsh-wsl.md
+4dd7673ef0ba431fd7bca1c8e61aaf160dc09838dbc0203b47ae51774aec135f      20800  docs/remote-explorer-design.md
+  + 66a6f9930ffc5416dd8f273525cb2a4a7db068ff028148f09f56e2c0ac6fae91        589  cordis.patch.yml
+6df28d03e201ffdf80c7a1b7ecc012ba10f0674db08d69f4212cb8d5e9f9c0fa     102488  README.md
+ac456fdeeff86427ef03aaa90d494e0509eba1f16dc0b65ff59fc6480f02e269      13641  docs/2026-10-10-wsl-dsh-sdk-bridge.md
+ce186ca81c5125b5e1959737d77aecb3e21af19f7f955f1c708e35bc060febc8      11032  docs/2026-10-13-arch-review-teammates.md
+9d6fb679ba74e97e71e80263be3e4e04fda86f11115f270a4a30e240de9e929c      38837  docs/client-contract.md
+33ebd778ea24fe7e15c761ce155e38fe94f9cf004b2876294243916b877877ee      80945  docs/panel-ux-redesign.md
+6c43c784ea75253e5db638a471f0b14aa04ff30a0d0cba5b243efa4824f85c60     145576  docs/panel-visual-spec.md
+0f2840ade53a6a5c6a644caf900b2abb8fe22b23378a64880d081ddb09da0d99      19290  docs/prior-art-dsh-wsl.md
+4dd7673ef0ba431fd7bca1c8e61aaf160dc09838dbc0203b47ae51774aec135f      20800  docs/remote-explorer-design.md
+
+结论：锚点未变，但 advisory 输入变了 => 需解释（exit 3）

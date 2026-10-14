@@ -1,0 +1,6 @@
+== mode=f56-1 root=D:/project/dsh1/vendor/dsh-remote-wsl tag=repo ==
+F56-1 err="runtime spawn error key=t71-enoent: spawn __no_such_exe_t71__ ENOENT" ms=12
+F56-1 含 ENOENT = true
+F56-1 伪装成超时 = false
+F56-1 tmp before=8 after=9 增量=1
+F56-1 closeHook 调用次数=1 closed=true（hook 没被调 ⇒ 收尾路径没走到；被调而文件还在 ⇒ removeScript 没删掉）
