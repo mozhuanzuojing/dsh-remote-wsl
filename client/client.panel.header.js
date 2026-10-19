@@ -176,9 +176,28 @@ function renderHeader(props) {
 					);
 				}
 
-				// 首挂载/未取到：只能说"还在读"（F34）
+				// 首挂载/未取到：只能说"还在读"（F34）。2026-10-19：加载态给 3 条骨架行，
+				// 让"正在读"有可感知的结构与稳定高度（不是一行字忽然变成一整块内容）。
 				if (!factsVisible) {
-					body.push(React.createElement("div", { key: "loading", className: "dsh-rw-card" }, React.createElement("div", { className: "dsh-rw-hint" }, slow ? t("load.readingSlow") : t("load.reading"))));
+					body.push(
+						React.createElement(
+							"div",
+							{ key: "loading", className: "dsh-rw-card", role: "status", "aria-label": t("browser.loadingAria") },
+							React.createElement(
+								"div",
+								{ className: "dsh-rw-skeleton" },
+								[120, 90, 160, 110, 140].map((width, i) =>
+									React.createElement(
+										"div",
+										{ key: "sk:" + i, className: "dsh-rw-skeleton-row", "aria-hidden": "true" },
+										React.createElement("span", { className: "dsh-rw-skeleton-icon" }),
+										React.createElement("span", { className: "dsh-rw-skeleton-bar", style: { width } }),
+									),
+								),
+							),
+							React.createElement("div", { className: "dsh-rw-hint" }, slow ? t("load.readingSlow") : t("load.reading")),
+						),
+					);
 				}
 
 				// 读失败：事实全部撤下（M6）

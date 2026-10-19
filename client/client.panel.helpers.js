@@ -22,6 +22,13 @@ window.__ModuleLoader__.load({
 		const NARROW_PX = 420;
 		/** 更新时间在 <360 时整体隐藏（§7.2.3）。 */
 		const HIDE_UPDATED_PX = 360;
+		/** 大目录窗口化：条目数超过它才启用（小目录保持全量渲染，行为与几何都不变）。 */
+		const VIRTUAL_MIN_ROWS = 200;
+		/** 行占位 = 32 行高 + 2 gap（窗口化换算常量；改 .dsh-rw-row 高度必须同步这里）。 */
+		const ROW_BLOCK = 34;
+		/** 目录列表客户端缓存：TTL / 条数上限（为了"返回上一目录瞬时回显"）。 */
+		const DIR_CACHE_TTL_MS = 30000;
+		const DIR_CACHE_MAX = 80;
 
 		function asArray(value) {
 			return Array.isArray(value) ? value : [];
@@ -59,6 +66,74 @@ window.__ModuleLoader__.load({
 		function joinWslPath(parent, name) {
 			const base = normalizeWslPath(parent);
 			return base === "/" ? `/${name}` : `${base}/${name}`;
+		}
+
+		/**
+		 * 客户端目录缓存 + 单飞请求。
+		 *
+		 * 以**对象**（不是裸 Map）导出 ⇒ 各 chunk 拿到同一个引用，跨面板卸载/重挂仍复用；
+		 * 语义：TTL 内命中 ⇒ 0 等待直接回显（"返回上一目录"不再吃 100ms+ 的 host 往返）；
+		 * TTL 外命中 ⇒ 先回显旧内容再后台复核（stale-while-revalidate）；同路径并发 ⇒ 共享一个请求。
+		 * 失效：TTL 到期即丢；显式刷新用 listPath(path,{force:true}) 绕缓存重新拉。
+		 */
+		const dirCache = {
+			ttl: DIR_CACHE_TTL_MS,
+			max: DIR_CACHE_MAX,
+			entries: new Map(),
+			inflight: new Map(),
+			get(path) {
+				const hit = this.entries.get(path);
+				if (hit === undefined || hit === null) return null;
+				if (Date.now() - hit.at > this.ttl) {
+					this.entries.delete(path);
+					return null;
+				}
+				return hit;
+			},
+			fresh(path) {
+				const hit = this.entries.get(path);
+				return hit !== undefined && hit !== null && Date.now() - hit.at <= this.ttl;
+			},
+			set(path, entries) {
+				this.entries.delete(path);
+				this.entries.set(path, { entries, at: Date.now() });
+				while (this.entries.size > this.max) {
+					const oldest = this.entries.keys().next();
+					if (oldest.done === true) break;
+					this.entries.delete(oldest.value);
+				}
+			},
+			invalidate(path) {
+				this.entries.delete(path);
+			},
+		};
+
+		/**
+		 * 目录优先 + 名称升序（设计稿 §7：host 只保证 name 升序，**dir/file 分组由 client 做**）。
+		 * 用与 host 相同的二进制比较（`<`）而不是 localeCompare：跨语言/跨机器排序必须是确定性的。
+		 */
+		function sortEntries(entries) {
+			return entries.slice().sort((a, b) => {
+				const ak = a && a.kind === "dir" ? 0 : 1;
+				const bk = b && b.kind === "dir" ? 0 : 1;
+				if (ak !== bk) return ak - bk;
+				const an = String(a && a.name);
+				const bn = String(b && b.name);
+				return an < bn ? -1 : an > bn ? 1 : 0;
+			});
+		}
+
+		/**
+		 * 目录过滤：隐藏文件开关 + 名称子串（大小写不敏感）。
+		 * 过滤在**客户端**做（host 一次返回全部条目）⇒ 敲字即时、不重发请求。
+		 */
+		function filterEntries(entries, showHidden, query) {
+			const needle = typeof query === "string" ? query.trim().toLowerCase() : "";
+			return entries.filter((entry) => {
+				if (showHidden !== true && entry.hidden === true) return false;
+				if (needle.length === 0) return true;
+				return String(entry.name).toLowerCase().indexOf(needle) >= 0;
+			});
 		}
 
 		/** 从 `/` 起的完整面包屑（面包屑的作用是"哪一层都能点"，所以不折叠家目录）。 */
@@ -105,9 +180,6 @@ window.__ModuleLoader__.load({
 				return [];
 			}
 		}
-
-		/** `/mnt` 盘符探测缓存（模块作用域：切面板不重复探测）。 */
-		let mountsCache = null;
 
 		/** 首句人话 + 其余技术细节（T5 的瑕：结果条不再原样透传 host 文案）。 */
 		function splitHumanText(text) {
@@ -259,6 +331,13 @@ window.__ModuleLoader__.load({
 		}
 
 		exports.HIDE_UPDATED_PX = HIDE_UPDATED_PX;
+		exports.DIR_CACHE_MAX = DIR_CACHE_MAX;
+		exports.dirCache = dirCache;
+		exports.DIR_CACHE_TTL_MS = DIR_CACHE_TTL_MS;
+		exports.ROW_BLOCK = ROW_BLOCK;
+		exports.VIRTUAL_MIN_ROWS = VIRTUAL_MIN_ROWS;
+		exports.filterEntries = filterEntries;
+		exports.sortEntries = sortEntries;
 		exports.NARROW_PX = NARROW_PX;
 		exports.RECENT_KEY = RECENT_KEY;
 		exports.RECENT_MAX = RECENT_MAX;
@@ -276,7 +355,6 @@ window.__ModuleLoader__.load({
 		exports.icon = icon;
 		exports.isRecord = isRecord;
 		exports.joinWslPath = joinWslPath;
-		exports.mountsCache = mountsCache;
 		exports.newAbortController = newAbortController;
 		exports.normalizeWslPath = normalizeWslPath;
 		exports.openSessionNote = openSessionNote;

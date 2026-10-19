@@ -16,6 +16,22 @@ window.__ModuleLoader__.load({
 		const React = require("react");
 
 
+/**
+ * `/mnt` 盘符探测缓存：**chunk 模块作用域**（切面板不重复探测）。
+ *
+ * ★ 2026-10-19 修缺陷：原实现把缓存放在 helpers 的 `exports.mountsCache`（值拷贝，永远是 null），
+ * 又在 hook 里对它赋值 ⇒ `TypeError: Assignment to constant variable`（解构出来是 const）。
+ * 异常发生在 promise 的 then 里 ⇒ 被吞成 unhandled rejection，表现是 `/mnt` 下的盘符 chip 永远不出现
+ * （实测：`window.__harness.errors` 抓到 actions.js:222）。改为模块级 `let`，赋值合法且跨挂载仍缓存。
+ */
+let mountsCache = null;
+
+/**
+ * 自动刷新：**只**在窗口重新可见/获得焦点时做一次（不轮询、不后台常驻计时器）。
+ * 上次成功超过 60s 才刷 ⇒ 切回来看到的是新状态，又不会每次切窗口都打 host（snapshot 有 ~7 次 wsl.exe）。
+ */
+const AUTO_REFRESH_STALE_MS = 60000;
+
 /** 只在组件内调用（自定义 hook）。自由变量从 props 解构回同名局部 ⇒ 代码体逐字不变。 */
 function usePanelActions(props) {
 			const {
@@ -28,7 +44,7 @@ function usePanelActions(props) {
 	focusIndex, forceLocale, homePathOf, i18nSubscribe,
 	icon, isRecord, joinWslPath, lastRun,
 	menuOpen, menuRef, moreRef, mounts,
-	mountsCache, mountsProbed, newAbortController, normalizeWslPath,
+	mountsProbed, newAbortController, normalizeWslPath, dirCache, filterEntries, sortEntries, search, setSearch,
 	openSessionNote, pathError, pathInput, pending,
 	pendingFrom, pushRecent, readAbort, readRecent,
 	readSeq, recent, recentOk, rootRef,
@@ -38,6 +54,7 @@ function usePanelActions(props) {
 	setSlow, setState, setWidth, showHidden,
 	signalOf, slow, splitFirstSentence, splitHumanText,
 	state, t, width,
+	listPath, jumpTo, submitPath, clearSearch, prefetchDir, cancelPrefetch, navSeq,
 			} = props;
 
 				const load = React.useCallback(
@@ -50,6 +67,7 @@ function usePanelActions(props) {
 						}
 						const controller = newAbortController();
 						readAbort.current = controller;
+						const navAtStart = navSeq.current; // 本次刷新发起时的导航代次（见 F2：延迟到达的刷新不得覆盖更新的导航）
 						setState((prev) => ({ ...prev, status: "loading", error: null }));
 						setSlow(false);
 						const slowTimer = setTimeout(() => setSlow(true), 3000);
@@ -57,22 +75,39 @@ function usePanelActions(props) {
 						const wanted = options && typeof options.path === "string" ? normalizeWslPath(options.path) : null;
 						const alsoList =
 							options && options.alsoList === true && wanted !== null ? api.listDir({ path: wanted }, signalOf(controller)) : Promise.resolve(null);
-						Promise.all([api.snapshot(signalOf(controller)), alsoList]).then(
-							([snapshot, listed]) => {
+						// 快照与"目录复核"**分开结算**：远端快照成功、只是列目录失败时，
+						// 不该把整块事实撤成错误页（那会让用户丢掉正在看的目录）⇒ 保留列表并标 stale。
+						Promise.allSettled([api.snapshot(signalOf(controller)), alsoList]).then(
+							(results) => {
 								if (mySeq !== readSeq.current) return;
 								clearTimeout(slowTimer);
-								setState({ status: "ready", snapshot, error: null, lastSuccessAt: new Date(), lastFailureAt: null });
-								if (listed !== null && listed !== undefined) {
-									const entries = asArray(listed && listed.entries).filter((entry) => isRecord(entry) && typeof entry.name === "string");
-									setBrowse({ status: "ready", cwd: wanted, entries, error: null });
+								const [snapResult, listResult] = results;
+								if (snapResult.status === "rejected") {
+									const error = snapResult.reason;
+									if (error && error.kind === "aborted") return;
+									setAction((prev) => (prev.note === null ? prev : { ...prev, note: null, detail: null }));
+									setState((prev) => ({ ...prev, status: "error", error, lastFailureAt: new Date() }));
+									return;
 								}
-							},
-							(error) => {
-								if (mySeq !== readSeq.current) return;
-								clearTimeout(slowTimer);
-								if (error && error.kind === "aborted") return;
-								setAction((prev) => (prev.note === null ? prev : { ...prev, note: null, detail: null }));
-								setState((prev) => ({ ...prev, status: "error", error, lastFailureAt: new Date() }));
+								const snapshot = snapResult.value;
+								setState({ status: "ready", snapshot, error: null, lastSuccessAt: new Date(), lastFailureAt: null });
+								if (listResult.status === "fulfilled" && listResult.value !== null && listResult.value !== undefined) {
+									const entries = asArray(listResult.value && listResult.value.entries).filter((entry) => isRecord(entry) && typeof entry.name === "string");
+									// 刷新结果同样进缓存：刷新后"返回上一目录"仍是瞬时回显
+									if (wanted !== null) dirCache.set(wanted, entries);
+									// ★ F2：只在此后没有发生新导航时写列表。缓存命中路径是同步 setBrowse、不会再有 promise 纠正，
+									// 若这里无条件覆盖，会把用户刚点进去的目录换回旧目录（实测 3s 后仍不自愈）。
+									if (navSeq.current === navAtStart) setBrowse({ status: "ready", cwd: wanted, entries, error: null, stale: false });
+									return;
+								}
+								if (listResult.status === "rejected" && wanted !== null) {
+									const error = listResult.reason;
+									if (error && error.kind === "aborted") return;
+									if (navSeq.current === navAtStart) setBrowse((prev) => {
+										if (prev.cwd === wanted && prev.entries.length > 0) return { status: "ready", cwd: wanted, entries: prev.entries, error, stale: true };
+										return { status: "error", cwd: wanted, entries: [], error, stale: false };
+									});
+								}
 							},
 						);
 					},
@@ -125,53 +160,6 @@ function usePanelActions(props) {
 					},
 					[load, t],
 				);
-
-				const listPath = React.useCallback((path) => {
-					const want = normalizeWslPath(path);
-					const mySeq = browseSeq.current + 1;
-					browseSeq.current = mySeq;
-					if (browseAbort.current !== null) browseAbort.current.abort();
-					const controller = newAbortController();
-					browseAbort.current = controller;
-					setBrowse((prev) => ({ status: "loading", cwd: want, entries: prev.cwd === want ? prev.entries : [], error: null }));
-					api.listDir({ path: want }, signalOf(controller)).then(
-						(result) => {
-							if (mySeq !== browseSeq.current) return;
-							const entries = asArray(result && result.entries).filter((entry) => isRecord(entry) && typeof entry.name === "string");
-							setBrowse({ status: "ready", cwd: want, entries, error: null });
-						},
-						(error) => {
-							if (mySeq !== browseSeq.current) return;
-							if (error && error.kind === "aborted") return;
-							setBrowse({ status: "error", cwd: want, entries: [], error });
-						},
-					);
-				}, []);
-
-				const jumpTo = React.useCallback(
-					(path) => {
-						const want = normalizeWslPath(path);
-						setPathInput(want);
-						setPathError(null);
-						setFocusIndex(-1);
-						listPath(want);
-						setRecent(pushRecent(want));
-					},
-					[listPath],
-				);
-
-				const submitPath = React.useCallback(() => {
-					const raw = String(pathInput).trim();
-					if (raw.length === 0) {
-						setPathError(t("browser.pathRequired"));
-						return;
-					}
-					if (!raw.startsWith("/")) {
-						setPathError(t("browser.pathNotAbsolute", { raw }));
-						return;
-					}
-					jumpTo(raw);
-				}, [jumpTo, pathInput, t]);
 
 				const snapshot = state.snapshot;
 				const factsVisible = state.status === "ready" || (state.status === "loading" && snapshot !== null && state.lastFailureAt === null);
@@ -231,6 +219,29 @@ function usePanelActions(props) {
 					};
 				}, [state.status]);
 
+				// 自动刷新：窗口重新可见/获得焦点时，若上次成功已超过 60s 则刷一次（只读，不碰守护）。
+				// ★ F3：visibilitychange 与 focus 会在同一次切回时**连着**触发 ⇒ 用 ref 立刻写入节流时间戳，
+				// 否则两个事件都会通过判断、同一次切回打两遍 snapshot（每次 ~7 次 wsl.exe）。
+				const autoRefreshAt = React.useRef(0);
+				React.useEffect(() => {
+					if (typeof document === "undefined" || typeof window === "undefined") return undefined;
+					const maybeRefresh = () => {
+						if (document.visibilityState !== "visible") return;
+						if (state.status === "loading") return;
+						if (Date.now() - autoRefreshAt.current < AUTO_REFRESH_STALE_MS) return;
+						const last = state.lastSuccessAt;
+						if (last !== null && Date.now() - last.getTime() < AUTO_REFRESH_STALE_MS) return;
+						autoRefreshAt.current = Date.now();
+						load();
+					};
+					document.addEventListener("visibilitychange", maybeRefresh);
+					window.addEventListener("focus", maybeRefresh);
+					return () => {
+						document.removeEventListener("visibilitychange", maybeRefresh);
+						window.removeEventListener("focus", maybeRefresh);
+					};
+				}, [state.status, state.lastSuccessAt, load]);
+
 				// 确认层：焦点进"取消"（更安全的默认），Esc 取消并把焦点还原给触发元素
 				React.useEffect(() => {
 					if (pending === null) return undefined;
@@ -260,11 +271,39 @@ function usePanelActions(props) {
 						if (rootRef.current !== null && !rootRef.current.contains(event.target)) setMenuOpen(false);
 					};
 					document.addEventListener("click", onDoc, true);
-					return () => document.removeEventListener("click", onDoc, true);
+					// ★ F5：菜单打开后焦点必须进第一项，否则 Esc 的 keydown 落在触发按钮上、菜单关不掉
+					const raf = window.requestAnimationFrame(() => {
+						const node = menuRef.current === null ? null : menuRef.current.querySelector('[role="menuitem"]:not([disabled])');
+						if (node !== null) node.focus();
+					});
+					const onKey = (event) => {
+						if (event.key === "Escape") {
+							event.stopPropagation();
+							closeMenu(true);
+						}
+					};
+					document.addEventListener("keydown", onKey, true);
+					return () => {
+						window.cancelAnimationFrame(raf);
+						document.removeEventListener("click", onDoc, true);
+						document.removeEventListener("keydown", onKey, true);
+					};
 				}, [menuOpen]);
 
-				const visibleEntries = browse.entries.filter((entry) => showHidden || entry.hidden !== true);
-				const hiddenCount = browse.entries.filter((entry) => entry.hidden === true).length;
+				// 排序（目录优先 + 名称升序）与过滤都在客户端做：host 一次返回全部条目 ⇒ 敲字即时、不重发请求
+				const orderedEntries = sortEntries(browse.entries);
+				const visibleEntries = filterEntries(orderedEntries, showHidden, search);
+				const totalEntries = orderedEntries.length;
+				const hiddenCount = orderedEntries.filter((entry) => entry.hidden === true).length;
+				const searching = String(search).trim().length > 0;
+				/** 筛选变化：重置键盘游标（旧 index 在新列表里已无意义）。 */
+				const searchChange = React.useCallback(
+					(value) => {
+						setSearch(typeof value === "string" ? value : String(value));
+						setFocusIndex(-1);
+					},
+					[setSearch],
+				);
 
 				const onMenuKey = (event) => {
 					const items = [...(menuRef.current === null ? [] : menuRef.current.querySelectorAll('[role="menuitem"]:not([disabled])'))];
@@ -306,7 +345,8 @@ function usePanelActions(props) {
 	hideUpdated, jumpTo, keys, keysKnown,
 	listPath, load, narrow, onMenuKey,
 	others, run, runDaemon, snapshot,
-	submitPath, target, visibleEntries,
+	submitPath, target, totalEntries, visibleEntries, searching,
+	cancelPrefetch, prefetchDir, searchChange,
 			};
 }
 

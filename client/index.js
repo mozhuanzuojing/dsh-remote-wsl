@@ -90,7 +90,30 @@ window.__ModuleLoader__.load({
 			".dsh-rw-form{display:flex;align-items:center;gap:6px;min-width:0}",
 			".dsh-rw-path-input{flex:1;min-width:0;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px;padding:4px 6px;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-path-input::placeholder{color:var(--dsw-alias-label-dimmed)}",
-			".dsh-rw-entries{display:flex;flex-direction:column;gap:2px;min-width:0;padding:0;flex:1;outline-offset:2px}",
+			// 2026-10-19：目录筛选（客户端过滤；24×24 清除按钮复用 .dsh-rw-iconbtn）
+			".dsh-rw-search{display:flex;align-items:center;gap:6px;min-width:0;flex:none}",
+			".dsh-rw-search-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-search-input{flex:1;min-width:0;box-sizing:border-box;height:24px;padding:2px 6px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px;direction:ltr;unicode-bidi:isolate;text-align:left}",
+			".dsh-rw-search-input::placeholder{color:var(--dsw-alias-label-dimmed)}",
+			// 自带 × 与我们的「清除筛选」重复 ⇒ 去掉 UA 那个（不影响 type=search 语义/键盘行为）
+			".dsh-rw-search-input::-webkit-search-cancel-button{display:none}",
+			".dsh-rw-search-count{flex:none;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;white-space:nowrap}",
+			// SPEC §6.3 骨架：5 行 × 32px，行内 [16×16 圆角块] + 宽度阶梯 120/90/160/110/140、8px 高圆角条，gap 8
+			// 呼吸只动 opacity（0.6→1.0，1.2s）；token 填充；reduced-motion 下静止
+			".dsh-rw-skeleton{display:flex;flex-direction:column;gap:2px;padding:0;min-width:0}",
+			".dsh-rw-skeleton-row{box-sizing:border-box;display:flex;align-items:center;gap:8px;height:32px;padding:6px 8px;animation:dsh-rw-skeleton-pulse 1200ms ease-in-out infinite}",
+			".dsh-rw-skeleton-icon{flex:none;width:16px;height:16px;border-radius:3px;background:var(--dsw-alias-interactive-bg-active)}",
+			".dsh-rw-skeleton-bar{flex:none;height:8px;border-radius:4px;background:var(--dsw-alias-interactive-bg-active)}",
+			"@keyframes dsh-rw-skeleton-pulse{0%{opacity:0.6}50%{opacity:1}100%{opacity:0.6}}",
+			"@media (prefers-reduced-motion: reduce){.dsh-rw-skeleton-row{animation:none}}",
+			// 窗口化的上下占位（不是可交互元素；只负责撑住滚动高度）
+			".dsh-rw-vpad{flex:none;width:100%}",
+			// 行现在可获得真实焦点（roving tabindex）：只允许平台焦点环 + 允许的 offset，不覆盖 outline
+			".dsh-rw-row:focus-visible{outline-offset:-2px}",
+			// SPEC `7.2.2 / R1：列表区是面板里**唯一**允许生长的区域，且它自己就是滚动体
+			// (`flex:1;min-height:96px;overflow:auto`)。缺 min-height/overflow 时，卡片在固定高 body 里
+			// 被 flex-shrink 压到 672px 而列表内容 3398px ⇒ 行会画到"最近目录/诊断"上面（F4，A/B 都复现）。
+			".dsh-rw-entries{display:flex;flex-direction:column;gap:2px;min-width:0;padding:0;flex:1;min-height:96px;overflow:auto;outline-offset:2px}",
 			".dsh-rw-row{display:flex;align-items:center;gap:6px;height:32px;padding:6px 8px;border-radius:4px;width:100%;box-sizing:border-box;background:none;border:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left}",
 			".dsh-rw-row--dir{cursor:pointer}",
 			".dsh-rw-row:hover{background:var(--dsw-alias-interactive-bg-hover)}",
@@ -435,3 +458,12 @@ window.__ModuleLoader__.load({
 // 按 docs/client-contract.md §11：改了 client/** 就必须 bump 入口（rev 取自入口元数据）⇒ 本次同时改本行。
 
 // T42: V1 hit-box also for .dsh-rw-crumb + zero CJK in client.panel.js (bump entry rev, docs/client-contract.md §11).
+//
+// 2026-10-19 UI/UX/性能轮（chunks 全量改动，按 §11 由**本入口**刷新 rev）：
+//   · 新增 2 个 chunk：client.panel.data.js（目录数据层：缓存/单飞/预取/导航）、
+//     client.panel.list.js（窗口化列表：大目录只渲染视口 + 行点击/真实焦点键盘/滚动记忆）；
+//   · 修缺陷：/mnt 盘符 chips 因 const 赋值 TypeError 永不渲染；
+//   · 新增筛选框、目录优先排序、加载骨架、stale-while-revalidate、切换窗口自动刷新；
+//   · 本行是入口 rev 锚点：chunk 有改动就必须动这里（否则 immutable 缓存继续供旧字节）。
+//   · F1–F5 复核修复（2026-10-19 16:2x）：列表改为自身滚动体（SPEC §7.2.2）、刷新/导航竞态守卫、
+//     自动刷新单次节流、菜单打开即聚焦首项且 Esc 关闭、骨架按 §6.3（5 行 + 宽度阶梯）重做。

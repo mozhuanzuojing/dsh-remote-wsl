@@ -49,15 +49,17 @@ window.__ModuleLoader__.load({
 
 
 		/** 子 chunk 装载（各自是独立 ModuleLoader 模块）。 */
-		const CHUNKS = ["client.panel.helpers.js", "client.panel.actions.js", "client.panel.header.js", "client.panel.browser.js", "client.panel.tail.js"];
+		const CHUNKS = ["client.panel.helpers.js", "client.panel.data.js", "client.panel.actions.js", "client.panel.header.js", "client.panel.list.js", "client.panel.browser.js", "client.panel.tail.js"];
 		let parts = null;
 		const ready = Promise.all(CHUNKS.map((name) => require.async("./" + name))).then((mods) => {
 			parts = {
 				helpers: mods[0],
-				usePanelActions: mods[1].usePanelActions,
-				renderHeader: mods[2].renderHeader,
-				renderBrowser: mods[3].renderBrowser,
-				renderTail: mods[4].renderTail,
+				useDirectoryNavigation: mods[1].useDirectoryNavigation,
+				usePanelActions: mods[2].usePanelActions,
+				renderHeader: mods[3].renderHeader,
+				Entries: mods[4].Entries,
+				renderBrowser: mods[5].renderBrowser,
+				renderTail: mods[6].renderTail,
 			};
 			return parts;
 		});
@@ -92,7 +94,6 @@ window.__ModuleLoader__.load({
 				icon,
 				isRecord,
 				joinWslPath,
-				mountsCache,
 				newAbortController,
 				normalizeWslPath,
 				openSessionNote,
@@ -101,6 +102,10 @@ window.__ModuleLoader__.load({
 				signalOf,
 				splitFirstSentence,
 				splitHumanText,
+				dirCache,
+				filterEntries,
+				sortEntries,
+				VIRTUAL_MIN_ROWS,
 			} = parts.helpers;
 
 			return function RemoteWslPanel() {
@@ -119,6 +124,7 @@ window.__ModuleLoader__.load({
 				const [slow, setSlow] = React.useState(false);
 				const [width, setWidth] = React.useState(1280);
 				const [focusIndex, setFocusIndex] = React.useState(-1);
+				const [search, setSearch] = React.useState("");
 				const [, forceLocale] = React.useReducer((n) => n + 1, 0);
 
 				const readSeq = React.useRef(0);
@@ -133,6 +139,9 @@ window.__ModuleLoader__.load({
 				const menuRef = React.useRef(null);
 				const pendingFrom = React.useRef(null);
 				const cancelRef = React.useRef(null);
+				const searchRef = React.useRef(null);
+				/** 导航代次：listPath 自增；actions 的刷新结果据此判断"是否还能写当前列表"（F2 竞态）。 */
+				const navSeq = React.useRef(0);
 
 				React.useEffect(() => {
 					if (i18nSubscribe === null) return undefined;
@@ -169,7 +178,7 @@ window.__ModuleLoader__.load({
 	focusIndex, forceLocale, homePathOf, i18nSubscribe,
 	icon, isRecord, joinWslPath, lastRun,
 	menuOpen, menuRef, moreRef, mounts,
-	mountsCache, mountsProbed, newAbortController, normalizeWslPath,
+	mountsProbed, newAbortController, normalizeWslPath,
 	openSessionNote, pathError, pathInput, pending,
 	pendingFrom, pushRecent, readAbort, readRecent,
 	readSeq, recent, recentOk, rootRef,
@@ -179,8 +188,14 @@ window.__ModuleLoader__.load({
 	setSlow, setState, setWidth, showHidden,
 	signalOf, slow, splitFirstSentence, splitHumanText,
 	state, t, width, i18n,
+	search, setSearch, searchRef, navSeq,
+	dirCache, filterEntries, sortEntries, VIRTUAL_MIN_ROWS,
 					body,
 				};
+				// 目录数据层（缓存/单飞/预取/导航）先接上：actions 与 list 都依赖它
+				Object.assign(scope, parts.useDirectoryNavigation(scope));
+				// 列表组件（窗口化/行/键盘）注入 scope，供 browser 外壳以 React.createElement 挂载
+				scope.Entries = parts.Entries;
 				const actions = parts.usePanelActions(scope);
 				Object.assign(scope, actions);
 				const headerOut = parts.renderHeader(scope);
