@@ -102,6 +102,23 @@ export const EXPLORER_ROUTE = '/remote-wsl/api';
 /** HTTP 请求体上限（面板调用体极小；超了就是异常用法）。 */
 const MAX_BODY_BYTES = 1024 * 1024;
 
+/**
+ * 发行版事实（`wsl -l -q` 的名字列表 + `wsl -l -v` 的 STATE/默认标志）的**短 TTL**。
+ *
+ * 为什么可以缓存：这两条只是"这台机器上此刻有哪些发行版、哪个在跑"的**只读快照**；每次
+ * `wsl.exe` spawn 实测 ~45–60ms（见 `spike/verify/uiux-20261019/host-perf/`），而面板一次刷新会
+ * **连着**调 `snapshot` + `listDir`，两处都要同一份事实 ⇒ 不合并就是重复的 spawn 成本。
+ *
+ * 为什么是 2s：远长于一次面板刷新（百毫秒级），又短到"用户刚在 Windows 终端里 `wsl --terminate`
+ * 再看面板"最多滞后 2s。**这不是实时性承诺**：`reachable` 的语义仍是"上一次探测时 STATE=Running"，
+ * 只是在 TTL 窗口内复用了那次探测的结果。
+ *
+ * **失败不缓存**：名字列表为空（可能是 `wsl.exe` 不可用/输出异常）或 STATE 表读取失败时，
+ * 既不写入也不复用旧值，下一次调用立刻重试 —— 不把一次瞬时故障放大成 TTL 窗口内的假阴性
+ * （"发行版不存在 / 未运行"）。
+ */
+const DISTRO_FACTS_TTL_MS = 2000;
+
 /** 收藏路径清单在 WSL 侧的落点（与守护元数据同一个 state 目录，避免第二处状态）。 */
 const favoritesLinux = (cfg) => `${cfg.wslHome}/.dsh/remote-wsl/explorer.json`;
 
@@ -223,7 +240,7 @@ function kindOf(p) {
 }
 
 /**
- * `wsl -l -v` 的 NAME/STATE/VERSION 表 → `{ defaultName, running:Set<name> }`。
+ * `wsl -l -v` 的 NAME/STATE/VERSION 表 → `{ defaultName, running:Set<name>, ok }`。
  *
  * 为什么**不是**逐个 `wsl -d <name> -- true` 探活：那会把**关着的发行版启动起来**（WSL 对任何
  * `wsl -d` 都会拉起该发行版）—— 面板刷一次快照不该有这种副作用。所以 `reachable` 的定义是
@@ -233,17 +250,22 @@ function kindOf(p) {
  * `listDistros` 也是这么处理的）。名字列表仍以 index.ts 注入的 `listDistros()`（`wsl -l -q`）为准，
  * 这里**只**取 `*`（默认发行版）与 STATE 两个标志，按名字对齐；表里没有的名字两个标志都留 false
  * （不猜）。
+ *
+ * `ok` 是给短 TTL 缓存用的**可观测性标志**（不对外暴露）：只有"命令真的跑成功且有输出"才算
+ * `ok:true`；失败时调用方**不得**把这份结果写进缓存（见 `DISTRO_FACTS_TTL_MS` 注释）。
  */
-function distroFlags() {
-  const out = { defaultName: null, running: new Set() };
+function probeDistroState() {
+  const out = { defaultName: null, running: new Set(), ok: false };
   let text = '';
+  let res;
   try {
-    const res = spawnSync('wsl.exe', ['-l', '-v'], { encoding: 'utf8', windowsHide: true });
+    res = spawnSync('wsl.exe', ['-l', '-v'], { encoding: 'utf8', windowsHide: true });
     text = str(res.stdout);
   } catch {
     return out;
   }
   if (!text) return out;
+  out.ok = res.error === undefined && res.status === 0;
   for (const raw of text.replace(/\0/g, '').split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
@@ -300,19 +322,72 @@ function readWorkspaces(cfg) {
  * @param deps.resolveVersion  index.ts 的 `resolveVersion()` —— 版本/pin/drift 的同一个
  * @param deps.writePin        index.ts 的 `writePin()` —— `wsl_sync_version` 写 pin 的同一个
  * @param deps.webHosts        index.ts 的 `webHosts` Map（port → WebHost）—— `wsl_open_ui` 的同一个
+ * @param deps.distroStateProbe **可选测试缝**：注入 `() => {defaultName,running,ok}` 以在不起发行版、
+ *                             不改真实 STATE 的前提下验证"未运行/启停"分支。**index.ts 不传**，默认走真实
+ *                             `wsl.exe -l -v`（`probeDistroState()`）；生产路径不因它而变。
  */
 export function createExplorerHandlers(deps) {
   const cfg = deps.config;
   const log = (m) => process.stderr.write(`remote-wsl(explorer): ${m}\n`);
 
-  /** `explorer.snapshot` —— 只读聚合快照；**不启动、不停止、不写任何东西**。 */
-  async function snapshot() {
+  /**
+   * 发行版事实的**短 TTL 缓存**（每个 handler 实例一份；生产里 index.ts 只建一个实例）。
+   *
+   * 缓存对象：`{ names, flags }` —— `names` 来自注入的 `deps.listDistros()`（`wsl -l -q`），
+   * `flags` 来自 `probeDistroState()`（`wsl -l -v` 的 STATE/默认标志）。
+   * `snapshot` 与 `listDir` **共用**这一份：两者对"发行版列表/是否在跑"的判断必须同源，
+   * 否则同一次刷新里两处可能给出互相矛盾的结论。
+   *
+   * 语义边界（不许被当成"实时"）：
+   *  · 窗口内 `reachable` = **上一次探测时**的 STATE；发行版在这 2s 内被 terminate/start，
+   *    面板/工具看到的是旧值，直到 TTL 过期后的下一次调用。
+   *  · 只有"名字非空 且 STATE 表读取成功"才写入；失败/退化立即清空缓存并**重试**（失败不缓存）。
+   *  · 缓存**只**影响"读事实"这一步：不改变 `listDir` 的"不启动发行版"承诺，也不改变任何错误文案。
+   */
+  let distroFactsCache = null;
+  const probeState = () => (typeof deps.distroStateProbe === 'function' ? deps.distroStateProbe() : probeDistroState());
+
+  /** 读一份发行版事实（命中 TTL 就直接返回上一次的只读结果）。 */
+  function readDistroFacts() {
+    const at = Date.now();
+    if (distroFactsCache !== null && at - distroFactsCache.at < DISTRO_FACTS_TTL_MS) return distroFactsCache.facts;
     const names = deps.listDistros();
-    const flags = distroFlags();
+    const flags = probeState();
+    const facts = { names, flags };
+    if (Array.isArray(names) && names.length > 0 && flags && flags.ok === true) distroFactsCache = { at, facts };
+    else distroFactsCache = null; // 失败/退化：既不写入也不复用旧值
+    return facts;
+  }
+
+  /**
+   * `explorer.snapshot` —— 只读聚合快照；**不启动、不停止、不写任何东西**。
+   *
+   * **并发单飞（single-flight）**：`snapshot` 无参，同参并发共享**同一次执行** —— 面板重挂载、
+   * 多客户端同时刷新时，不会把同一份 `wsl.exe` 探测/守护扫描重复 N 遍。
+   * 它**不是缓存**：执行一结束 `snapshotInflight` 立刻清空，下一个调用（哪怕紧接着）**必然重新探测**，
+   * 不伪造实时性；并发调用者只共享"同一次执行的结果对象"（只读使用；adapter 只做 JSON 序列化）。
+   * 失败同样共享这一次的 rejection 并清空 in-flight，不留下"永远返回旧错误"的悬挂 Promise。
+   */
+  let snapshotInflight = null;
+  async function snapshot() {
+    if (snapshotInflight !== null) return snapshotInflight;
+    const p = runSnapshot();
+    snapshotInflight = p;
+    try {
+      return await p;
+    } finally {
+      if (snapshotInflight === p) snapshotInflight = null;
+    }
+  }
+
+  async function runSnapshot() {
+    const facts = readDistroFacts();
+    const names = facts.names;
+    const flags = facts.flags;
     const distros = names.map((name) => ({
       name,
       default: flags.defaultName === name,
-      reachable: flags.running.has(name), // 定义见 distroFlags()：此刻 STATE=Running（不探活、零副作用）
+      reachable: flags.running.has(name), // 定义见 probeDistroState()：探测时 STATE=Running（不探活、零副作用）
     }));
 
     const v = deps.resolveVersion(cfg);
@@ -608,8 +683,10 @@ export function createExplorerHandlers(deps) {
     const path = assertSafeWslPath(args?.path);
 
     // 发行版前置判定（只读：`wsl -l -q` + `wsl -l -v` 的 STATE，两者都零副作用）
-    const names = deps.listDistros();
-    const flags = distroFlags();
+    // 与 snapshot 共用同一份短 TTL 事实缓存（DISTRO_FACTS_TTL_MS）；判定分支与文案逐字不变。
+    const facts = readDistroFacts();
+    const names = facts.names;
+    const flags = facts.flags;
     if (!names.includes(cfg.distro)) {
       failUnavailable(
         `remote-wsl: 配置的发行版 "${cfg.distro}" 不在 wsl -l -q 的输出里 ⇒ 无法读取 ${path}。` +
