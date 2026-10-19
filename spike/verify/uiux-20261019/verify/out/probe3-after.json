@@ -1,0 +1,27 @@
+{
+  "menuKeyboard": {
+    "opened": {
+      "menu": true,
+      "expanded": "true",
+      "focusTag": "BUTTON",
+      "focusRole": null,
+      "focusText": "",
+      "focusCls": "dsh-rw-iconbtn"
+    },
+    "afterDown": {
+      "focusRole": null,
+      "text": ""
+    },
+    "afterEsc": {
+      "menu": true,
+      "expanded": "true",
+      "focusIsMore": true,
+      "focusCls": "dsh-rw-iconbtn"
+    },
+    "afterTab": {
+      "menu": false,
+      "expanded": "false",
+      "focusCls": ""
+    }
+  }
+}

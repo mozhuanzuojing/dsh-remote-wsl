@@ -1,0 +1,254 @@
+{
+  "label": "before-samewindow",
+  "generatedAt": "2026-10-19T07:27:16.453Z",
+  "node": "v24.21.0",
+  "distro": "debian-u8-1",
+  "n": 5,
+  "results": [
+    {
+      "scenario": "raw:wsl -l -q",
+      "ms": {
+        "medianMs": 79.5,
+        "minMs": 66.6,
+        "maxMs": 86.4,
+        "samples": [
+          85.7,
+          66.6,
+          86.4,
+          67.5,
+          79.5
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "note": "listDistros 的成本来源（函数体只做解析）"
+    },
+    {
+      "scenario": "raw:wsl -l -v",
+      "ms": {
+        "medianMs": 59.6,
+        "minMs": 50.9,
+        "maxMs": 66.2,
+        "samples": [
+          61.1,
+          50.9,
+          53.4,
+          59.6,
+          66.2
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "note": "distroFlags() 的成本来源（函数体只做解析）"
+    },
+    {
+      "scenario": "raw:wsl -d <distro> bash -c true",
+      "ms": {
+        "medianMs": 188,
+        "minMs": 117.5,
+        "maxMs": 234.8,
+        "samples": [
+          234.8,
+          188,
+          189.5,
+          154.6,
+          117.5
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "note": "daemonSnapshot 里 scanDaemonProcesses 的 spawn 形态（发行版已 Running，不会拉起）"
+    },
+    {
+      "scenario": "listDir cold",
+      "ms": {
+        "medianMs": 102.7,
+        "minMs": 100,
+        "maxMs": 118.1,
+        "samples": [
+          102.7,
+          117.5,
+          118.1,
+          100,
+          100.5
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "scenario": "listDir warm(同实例第二次)",
+      "ms": {
+        "medianMs": 104.3,
+        "minMs": 97,
+        "maxMs": 111.5,
+        "samples": [
+          111.5,
+          110.6,
+          101.4,
+          97,
+          104.3
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "scenario": "snapshot cold",
+      "ms": {
+        "medianMs": 341.1,
+        "minMs": 331.7,
+        "maxMs": 355.7,
+        "samples": [
+          355.7,
+          339.3,
+          341.1,
+          331.7,
+          351.8
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "scenario": "snapshot warm(同实例第二次)",
+      "ms": {
+        "medianMs": 306.2,
+        "minMs": 298.8,
+        "maxMs": 337.8,
+        "samples": [
+          337.8,
+          302.9,
+          306.2,
+          298.8,
+          316.4
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "scenario": "panel burst cold (snapshot->listDir)",
+      "ms": {
+        "medianMs": 400.4,
+        "minMs": 398.8,
+        "maxMs": 412.1,
+        "samples": [
+          405.4,
+          400.4,
+          412.1,
+          399.6,
+          398.8
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "scenario": "panel burst warm(同实例再来一轮)",
+      "ms": {
+        "medianMs": 398.3,
+        "minMs": 385.6,
+        "maxMs": 417.4,
+        "samples": [
+          398.3,
+          385.6,
+          394.6,
+          417.4,
+          412.5
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "scenario": "snapshot x3 concurrent",
+      "ms": {
+        "medianMs": 950.3,
+        "minMs": 899.4,
+        "maxMs": 985,
+        "samples": [
+          959.7,
+          950.3,
+          985,
+          905.7,
+          899.4
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "scenario": "snapshot x3 sequential(对照)",
+      "ms": {
+        "medianMs": 925.6,
+        "minMs": 901,
+        "maxMs": 1094.9,
+        "samples": [
+          901,
+          921.6,
+          925.6,
+          957.4,
+          1094.9
+        ]
+      },
+      "listDistrosCallsPerSample": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    }
+  ]
+}

@@ -717,7 +717,7 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 - **`stop` 失败被静默吞掉**：`src/explorer.ts` 的 `stop` 分支**硬编码 `ok: true`` ⇒ P1 保护生效（守护没死、元数据保留）时调用方却被告知"成功"**。改为 `ok: r.ok !== false` + 透传 `notes`。
 - **失败原因没到达用户**：client 没消费 `result.notes`，界面显示"host 回了 ok:false 但**没有给出原因**" ⇒ 改为**用户语言主句 + host 原文进折叠 `技术细节`**（含 `pid`；主视线正则仍 0 命中）。
 - **头部同名两按钮**（`cwd == 目标` 时）/ **「启动守护」底栏与菜单双入口** / **确认框 `{slot}` 未插值**（把 slot 裸露给用户）。
-- **i18n**：官方 `ctx.get('locale')` 优先、取不到/缺键/抛错全部回退且不崩；**zh/en 逐键配对**（现值以脚本为准：`spike/verify/explorer-20261012/arch-t2/tools/count-i18n-keys.mjs` 实测 **219/语言**、`paired:true`；历史值 181/215 的区别见该脚本与 `docs/panel-ux-redesign.md §3.2.1`）。
+- **i18n**：官方 `ctx.get('locale')` 优先、取不到/缺键/抛错全部回退且不崩；**zh/en 逐键配对**（现值以脚本为准：`spike/verify/explorer-20261012/arch-t2/tools/count-i18n-keys.ts` 实测 **218/语言**、`paired:true`（2026-10-19 增量轮 +11 键后；此前 207 —— 原写的 219 是过期数字）；历史值 181/215 的区别见该脚本与 `docs/panel-ux-redesign.md §3.2.1`）。
 - **最近目录**：client 侧 `localStorage`（键 `dsh-remote-wsl.recent`、只存路径、≤8 条），不可用/被清空 ⇒ **静默降级**。
 - **门禁**：`css-token-audit.mjs` 两条硬约束 **C1 硬编码色 0** + **C2 引用 token 集合 ⊆ 17**（+ 软检 S1）；该门禁**已被 5 个夹具证伪过**（4 FAIL + 1 PASS）。
 
@@ -779,7 +779,7 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 | `src/daemon-lifecycle.ts` | 23,436 | `4f8db0399af0f567bf6e6866bda318991161c842b2a6cc166b2f7b4c091efa96` |
 | `src/daemon-protocol.ts` | 15,236 | `2b83af00f3bcb74be7fc36b34de8f9e75e45c98aeaadb37b7347df81b580ba24` |
 | `src/daemon.ts` | 24,754 | `e471a5807054f00869b763a7b2f1383412104faabc4f562ae352bfdf04e5bffc` |
-| `src/explorer.ts` | 50,494 | `12e66a90eae54de22835349d2470841fabb5b10f102133d13660eb23490312d0` |
+| `src/explorer.ts` | 55,211 | `96490ab24f49c703331334df49770749b6efe964150d514ca46e2479456e88b1` |
 | `src/in-host-runtime.ts` | 5,456 | `e53ac2a889dfaa16a9e45c0905989fa890f318ccefe881236861ec1e3a6cd68c` |
 | `src/index.ts` | 15,040 | `2d2ae401067934bcbdfe6e89423b69a02e9c7c3bc660bef13b8f1552cedf41fb` |
 | `src/register-tools.ts` | 45,356 | `5f15ac8d7a9587324671dd22f2b7c235199d171352dd00f8da1159439d188b21` |
@@ -789,15 +789,17 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 | `src/version.ts` | 14,325 | `f2dacb90943cfae006e0161ec5737dd4bcff0c584dc291ba59ef5a074adbb7e3` |
 | `src/wsl-io.ts` | 19,458 | `09894de7aab401bda2bd820526fbc1297b593d6cbb932b3be96b15aae00427ab` |
 | `client/client.api.js` | 14,847 | `5a192b93a62900e088e3427712ae2f76ceb6241c579f5c04a6abf83c086fbe28` |
-| `client/client.i18n.js` | 31,440 | `8a1ac1e2e961454a2543ae7a65157c3a87044db7bf86c3679ba2dd853bb64da8` |
+| `client/client.i18n.js` | 32,841 | `ef68b32aa74e5b552d383c61f26dd214eac119db7b9cbac0e2812a7bddfd4944` |
 | `client/client.icon.js` | 2,209 | `e9a824f50e45e5d4840a8604d511dbc2b87cc4bb30a6512aefe505dc11b7d431` |
-| `client/client.panel.actions.js` | 13,292 | `d45d9f9acbc895a1a99b07ee1de32764e2e0ea9bce9bb31aba5c2038a0ce9446` |
-| `client/client.panel.browser.js` | 13,782 | `a4bcafa8e2141ea59e7b14ea2acad50d6ccfe3911112f16df439cd2554560607` |
-| `client/client.panel.header.js` | 8,385 | `7b4c67ef9ce44eb737d9fd79719c95d0809ed532471e7c075eab38417bd639d9` |
-| `client/client.panel.helpers.js` | 12,200 | `efa1e85cca69012b6d10ea6a1133150fa9795ca7dd1a958a86b127c704e016c7` |
-| `client/client.panel.js` | 9,776 | `e018be93236fbd578bfbc40611b5b49591a873414333be7b79fa7ed9a56ce081` |
+| `client/client.panel.actions.js` | 16,776 | `431a59997a77de42127ca22ad6505ea6553bf670b435b88d759128ad2427a3ad` |
+| `client/client.panel.browser.js` | 9,930 | `795c5f60c108c7c8ab7356c8e4ace3c8c4aae013e44acecce64e7d5e1e32cc20` |
+| `client/client.panel.data.js` | 6,918 | `e665043dd3053a79d5a06cafd2ef2efede91ce7a9388a97053be4261aa43ffbe` |
+| `client/client.panel.header.js` | 9,115 | `ea2b6e546506ad83d4af5e08a016ad9606e490aa910bd37d49a0b76f96d71cc2` |
+| `client/client.panel.helpers.js` | 15,298 | `704017d5123de91abac405f7fbf0912e4afb8e39871ba81ddefbe483478e6aaf` |
+| `client/client.panel.js` | 10,612 | `8517945b0221378d4e476e8242f3b8f0f59fcd44a44caf3a7cef1d5dfa41f1a3` |
+| `client/client.panel.list.js` | 17,037 | `be8f27766b79dafdc56bf7501436e721805bdce87baee8464828b33b22620550` |
 | `client/client.panel.tail.js` | 15,766 | `fefe4775dca2374276b69c2ade19c38d1c44ff4541969ead4c4157272918c366` |
-| `client/index.js` | 30,422 | `ee3c0642bf7a513b3fe6db597bf2da501e438167bdac2e2faf851c8a4823617d` |
+| `client/index.js` | 34,009 | `dd35c48cb219a409c5e85bbfc2e118269b01ddee013a064084d9656ffb1c8095` |
 | `package.json` | 1,548 | `ce486eced7bc36df696b51d2dd6646576ab3065efe46995c34a1ef4f4d20a087` |
 <!-- FREEZE-TABLE-END -->
 
@@ -836,3 +838,27 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 2. **`client/**` 同一时间只能有一个 owner**（T59 报的并发写域撞车：T42 被改派后 completed，而它更早的 6 处 CSS 修法已在 HEAD，内容等价无损伤）⇒ 后续 `client/**` 的改动一律串行（本轮已按此执行：T52→T53 串行、T60 只碰 `src/`）。
 
 **本轮未复核（不许当通过）**：真实开窗（按纪律不触发）｜`WebHost.start()` 真实 60 s 超时（未打补丁）下的清理｜连续 3+ 次失败/成功交替的状态机｜`stop()` 在状态被清过之后再调｜`stopAllDaemons` 的 `legacy` 单文件记录分支与 `remaining>0 ⇒ ok:false` 分支、真实 `~/.dsh` 下含他人守护的 `--all`｜真实 dsh 对 `shutdown` 的响应（用桩验证）｜冷启动未隔离 registry 缓存/代理（60.6 s 是下界）｜读屏器实机播报｜M1 判据重述后的重新基线。
+
+---
+
+## UI / UX / 性能轮（2026-10-19）：面板筛选、虚拟化、键盘与两级缓存
+
+**起因**：用户要求"分析能力后改进 UI UX 性能，不计代价"。本轮先做两份只读盘点（能力矩阵 `_reports/analysis/capability-matrix.md`、规格/门禁边界 `_reports/analysis/ui-constraints.md`），再用**真实 client chunk + 真 React + mock host** 的浏览器夹具测基线，逐项改完复测，并由独立成员做对抗性复核（报告 `spike/verify/uiux-20261019/verify/REPORT-independent-review.md`，3 条阻断项已修）。完整设计/取值/证据见 **[docs/panel-ux-performance-20261019.md](docs/panel-ux-performance-20261019.md)**。
+
+**客户端（7 个 panel chunk，全部 <400 行）**：
+- **整行点击进入目录**（原来只有 hover 才出现的「进入」小按钮；文件行不导航以免误触）；
+- **筛选框**：当前目录客户端过滤、即时、`/` 聚焦、Esc 清空、`共 N 项` / `{shown}/{total}`；换目录自动清空；
+- **目录优先排序**（设计稿要求由 client 分组）；
+- **键盘**：roving tabindex + **真实 DOM 焦点**、↑/↓/Home/End/PageUp/PageDown、Enter 进入/复制、Backspace 上一级、平台焦点环保留（`:focus-visible` 实测 ✓）；菜单打开即聚焦首项、Esc 关闭并还焦点；
+- **虚拟化**：>200 条只渲染视口 ±4 行；5000 条目录 **DOM ~30,078 → ~245**、长任务 **2 个 → 0**、路径输入每键 **~25–42ms → ~2–5ms**；
+- **列表回到滚动体**（SPEC `7.2.2）：`flex:1;min-height:96px;overflow:auto`；修掉"卡片被压到 672px、行画到最近目录/诊断上"的既存缺陷；
+- **目录缓存 + 单飞 + 预取**：TTL 30s；进入同一目录第二次 **~386ms → ~4ms**；悬停 140ms 预取；
+- **stale-while-revalidate**：刷新失败**保留列表**并提示"显示的是上次缓存" + 重试（原来整块撤成错误页）；
+- **首屏/列目录骨架**（SPEC `6.3：5 行 + 宽度阶梯 120/90/160/110/140）、**切回窗口 60s 节流自动刷新**、**按目录记忆滚动位置**；
+- **修缺陷**：`/mnt` 盘符 chips 因 `const` 赋值 `TypeError` 永不渲染；**刷新/导航竞态**（迟到刷新覆盖新目录，复核 F2）与**自动刷新双发**（复核 F3）已修。
+
+**宿主（`src/explorer.ts`）**：发行版事实 2s TTL（`wsl -l -q` + `wsl -l -v` 合成一份，snapshot/listDir 共用；失败不缓存）+ `snapshot` 并发单飞。实测 `listDir` 热 **104.3 → 1.2ms**、首屏 burst **398.3 → 238.4ms**、3 并发 snapshot **950.3 → 326.8ms**；错误 code/文案 + HTTP 9 项 + 字段形状 **16/16 逐字 0 差异**。**代价**：发行版在 2s 窗口内启停，面板最多滞后 2s（不是实时承诺）。
+
+**门禁**：`panel-smoke-node` **18/18**｜`check-client-rev` **PASS**（11 chunks）｜`css-token-audit` **逐文件** exit 0（index.js 107 rules / 17 tokens / C1=0）｜`box-sizing-audit` PASS（真陷阱 0）｜`count-i18n-keys` **218/218 paired**。
+
+**未验证（不许当通过）**：**未在真实 DSH 宿主里重启验证**（需用户重启 profile 才加载新 rev；真实 WSL/UNC/守护端到端本轮未重跑）｜极端目录高度（>10 万条）未测｜client 缓存 30s / host 事实 2s 的"最快可见"语义代价｜headless Chrome 读数不等于低端真机｜暗色非采样 token 为近似值。性能绝对值跨批次有 ±10–20% 漂移，复现请以同批次 A/B 为准。

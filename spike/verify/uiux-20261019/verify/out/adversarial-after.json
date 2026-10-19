@@ -1,0 +1,289 @@
+{
+  "label": "after",
+  "repo": "D:/project/dsh1/dsh-remote-wsl",
+  "at": "2026-10-19T07:52:34.067Z",
+  "layout1280": {
+    "width": 1280,
+    "entries": 400,
+    "main": {
+      "footerH": 47,
+      "footerChildCenters": [
+        877
+      ],
+      "footerSingleLine": true,
+      "statusWord": {
+        "text": "远端守护运行中",
+        "truncated": false,
+        "rect": {
+          "w": 91,
+          "h": 20
+        }
+      },
+      "moreButtons": [
+        {
+          "tag": "BUTTON",
+          "cls": "dsh-rw-iconbtn",
+          "label": "重新读取 explorer.snapshot",
+          "expanded": null,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "dsh-rw-iconbtn",
+          "label": "更多操作",
+          "expanded": "false",
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "moreCount": 2,
+      "rowH": 32,
+      "panelOverflow": 0,
+      "docOverflow": 1,
+      "entriesTabIndex": 0
+    },
+    "hit": {
+      "interactive": 64,
+      "small": []
+    },
+    "lines": {
+      "titleLines": 1,
+      "subtitleLines": 1,
+      "searchRect": {
+        "w": 1119,
+        "h": 24
+      },
+      "btnLines": [
+        {
+          "text": "添加为 WSL 工作",
+          "h": 28
+        },
+        {
+          "text": "跳转",
+          "h": 28
+        },
+        {
+          "text": "上一级",
+          "h": 28
+        }
+      ]
+    },
+    "errors": []
+  },
+  "layout320": {
+    "width": 320,
+    "entries": 40,
+    "main": {
+      "footerH": 47,
+      "footerChildCenters": [
+        877
+      ],
+      "footerSingleLine": true,
+      "statusWord": {
+        "text": "远端守护运行中",
+        "truncated": false,
+        "rect": {
+          "w": 91,
+          "h": 20
+        }
+      },
+      "moreButtons": [
+        {
+          "tag": "BUTTON",
+          "cls": "dsh-rw-iconbtn",
+          "label": "重新读取 explorer.snapshot",
+          "expanded": null,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "dsh-rw-iconbtn",
+          "label": "更多操作",
+          "expanded": "false",
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "moreCount": 2,
+      "rowH": 32,
+      "panelOverflow": 0,
+      "docOverflow": 1,
+      "entriesTabIndex": 0
+    },
+    "hit": {
+      "interactive": 68,
+      "small": []
+    },
+    "lines": {
+      "titleLines": 1,
+      "subtitleLines": 1,
+      "searchRect": {
+        "w": 165,
+        "h": 24
+      },
+      "btnLines": [
+        {
+          "text": "添加工作区",
+          "h": 28
+        },
+        {
+          "text": "跳转",
+          "h": 28
+        },
+        {
+          "text": "上一级",
+          "h": 28
+        }
+      ]
+    },
+    "errors": []
+  },
+  "interactions": {
+    "rowClick": {
+      "listDirDelta": 1,
+      "moved": true
+    },
+    "enterButton": {
+      "listDirDelta": 0,
+      "moved": true
+    },
+    "copyButton": {
+      "listDirDelta": 0,
+      "moved": false,
+      "copyCalls": 1
+    },
+    "fileRowClick": {
+      "clicked": true,
+      "crumbBefore": "dir-00000",
+      "listDirDelta": 0,
+      "moved": false
+    },
+    "errors": []
+  },
+  "keyboard": {
+    "steps": [
+      {
+        "after": {
+          "idx": "0",
+          "cls": "dsh-rw-row dsh-rw-row--dir dsh-rw-row--focus",
+          "path": "/home/g/proj/dir-00000",
+          "top": 79
+        }
+      },
+      {
+        "after": {
+          "idx": "1",
+          "cls": "dsh-rw-row dsh-rw-row--dir dsh-rw-row--focus",
+          "path": "/home/g/proj/dir-00005",
+          "top": 113
+        }
+      },
+      {
+        "after": {
+          "idx": "39",
+          "cls": "dsh-rw-row dsh-rw-row--focus",
+          "path": "/home/g/proj/file-00039.ts",
+          "top": 821
+        }
+      }
+    ],
+    "endIdx": "39",
+    "fileEnter": {
+      "copyCalls": 2,
+      "listDirDelta": 0
+    },
+    "dirEnter": {
+      "listDirDelta": 1
+    },
+    "errors": []
+  },
+  "filter": {
+    "typing": {
+      "rows": 8,
+      "count": "8/124 项",
+      "value": "file-0001"
+    },
+    "afterNavigate": {
+      "value": "file-0001",
+      "rows": 8,
+      "crumb": "proj"
+    },
+    "noMatch": {
+      "rows": 0,
+      "empty": "没有匹配「zzz-nope」的条目\n清除筛选",
+      "clearBtn": true
+    },
+    "afterEsc": {
+      "value": "",
+      "rows": 120,
+      "focusCls": "dsh-rw-search-input"
+    },
+    "errors": []
+  },
+  "cache": {
+    "firstEnter": 1,
+    "secondEnter": 0,
+    "forceRefreshListDelta": 1,
+    "refreshClicked": "重新读取 explorer.snapshot",
+    "errors": []
+  },
+  "race": {
+    "dirName": "/home/g/proj/dir-00000",
+    "crumbBefore": "proj",
+    "after": {
+      "crumb": "proj",
+      "pathInput": "/home/g/proj/dir-00000",
+      "firstRow": "dir-00000"
+    },
+    "settled": {
+      "crumb": "proj",
+      "pathInput": "/home/g/proj/dir-00000",
+      "firstRow": "dir-00000"
+    },
+    "consistent": false,
+    "settledConsistent": false,
+    "errors": []
+  },
+  "autoRefresh": {
+    "snapshotDeltaOnReturn": 2,
+    "snapshotDeltaSecondFocus": 0,
+    "fired": true,
+    "errors": []
+  },
+  "virtual": {
+    "initial": {
+      "rows": 22,
+      "dom": 245,
+      "scrollH": 170173
+    },
+    "bottom": {
+      "rows": 27,
+      "last": "/home/g/proj/file-04999.ts"
+    },
+    "filterAfterScroll": {
+      "rows": 8,
+      "count": "8/5004 项",
+      "first": "/home/g/proj/file-04991.ts",
+      "bodyScrollTop": 0
+    },
+    "afterEsc": {
+      "rows": 22,
+      "scrollTop": 0
+    },
+    "scrollMemory": {
+      "setTo": 3000,
+      "restored": 3000
+    },
+    "errors": []
+  },
+  "chunkFailure": {
+    "enabled": true,
+    "domText": "HARNESS BOOT FAILED: Error: harness: failed to load /client/client.panel.list.js at s.onerror (http://127.0.0.1:62688/boot.js:20:32)",
+    "bootError": "Error: harness: failed to load /client/client.panel.list.js\n    at s.onerror (http://127.0.0.1:62688/boot.js:20:32)",
+    "hasErrorCard": false,
+    "stage": "panel-loaded",
+    "errors": []
+  }
+}

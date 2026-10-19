@@ -1,0 +1,102 @@
+{
+  "filterClearOnNavigate": {
+    "before": {
+      "crumb": "proj",
+      "dirs": [
+        "/home/g/proj/dir-00000",
+        "/home/g/proj/dir-00005",
+        "/home/g/proj/dir-00010"
+      ]
+    },
+    "filtered": {
+      "rows": 2,
+      "dirs": [
+        "/home/g/proj/dir-00000",
+        "/home/g/proj/dir-00005"
+      ],
+      "count": "2/124 项"
+    },
+    "after": {
+      "value": "",
+      "crumb": "dir-00000",
+      "rows": 120,
+      "count": "共 124 项"
+    }
+  },
+  "menu": {
+    "pre": {
+      "count": 1,
+      "labels": [
+        "更多操作"
+      ],
+      "expanded": [
+        "false"
+      ]
+    },
+    "open": {
+      "menuW": 240,
+      "overlapsStatusWord": false,
+      "expanded": "true",
+      "items": [
+        {
+          "role": "menuitem",
+          "h": 28,
+          "w": 230,
+          "label": "重启远端守护…"
+        },
+        {
+          "role": "menuitem",
+          "h": 28,
+          "w": 230,
+          "label": "停止远端守护…"
+        },
+        {
+          "role": "menuitem",
+          "h": 28,
+          "w": 230,
+          "label": "查看诊断信息"
+        },
+        {
+          "role": "menuitem",
+          "h": 28,
+          "w": 230,
+          "label": "复制诊断摘要"
+        }
+      ],
+      "groups": [
+        {
+          "labelledby": null,
+          "label": "快捷目录"
+        },
+        {
+          "labelledby": "dsh-rw-menu-daemon",
+          "label": null
+        },
+        {
+          "labelledby": "dsh-rw-menu-diagnostics",
+          "label": null
+        }
+      ],
+      "menuitemMinH": 28
+    },
+    "closed": {
+      "menu": true,
+      "expanded": "true",
+      "focusIsMore": false,
+      "focusCls": ""
+    }
+  },
+  "rowActionPlaceholder": {
+    "before": {
+      "rowRect": 817,
+      "actW": 96,
+      "disp": "flex"
+    },
+    "after": {
+      "actW": 96,
+      "disp": "flex",
+      "vis": "hidden",
+      "opacity": "1"
+    }
+  }
+}
