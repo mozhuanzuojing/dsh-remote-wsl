@@ -163,29 +163,49 @@ window.__ModuleLoader__.load({
 		}
 
 		/** 最近目录读取（M12）：**任何**异常都静默降级成 []。 */
-		function readRecent() {
+		/** 全部最近目录：{ [distro]: string[] }；旧版是裸数组 ⇒ 读成 "*"（未分组），写入时再迁到具体发行版。 */
+		function readRecentAll() {
 			try {
 				const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(RECENT_KEY);
-				if (typeof raw !== "string" || raw.length === 0) return [];
+				if (typeof raw !== "string" || raw.length === 0) return {};
 				const parsed = JSON.parse(raw);
-				if (!Array.isArray(parsed)) return [];
-				return parsed.filter((item) => typeof item === "string" && item.startsWith("/")).slice(0, RECENT_MAX);
+				if (Array.isArray(parsed)) {
+					const legacy = parsed.filter((item) => typeof item === "string" && item.startsWith("/")).slice(0, RECENT_MAX);
+					return legacy.length ? { "*": legacy } : {};
+				}
+				if (parsed === null || typeof parsed !== "object") return {};
+				const out = {};
+				for (const key of Object.keys(parsed)) {
+					const list = Array.isArray(parsed[key]) ? parsed[key].filter((item) => typeof item === "string" && item.startsWith("/")).slice(0, RECENT_MAX) : [];
+					if (list.length) out[key] = list;
+				}
+				return out;
 			} catch {
-				return [];
+				return {};
 			}
 		}
 
-		function pushRecent(path) {
+		/** 某个发行版的最近目录（未分组的历史作为回退）。 */
+		function readRecent(distro) {
+			const all = readRecentAll();
+			const key = typeof distro === "string" && distro.length > 0 ? distro : "*";
+			return all[key] || all["*"] || [];
+		}
+
+		/** 记录一次目录访问，返回整张分组表（面板状态直接用）。 */
+		function pushRecent(distro, path) {
 			try {
 				const value = normalizeWslPath(path);
-				const next = [value].concat(readRecent().filter((item) => item !== value)).slice(0, RECENT_MAX);
-				if (typeof localStorage !== "undefined") localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-				return next;
+				const all = readRecentAll();
+				const key = typeof distro === "string" && distro.length > 0 ? distro : "*";
+				const next = [value].concat((all[key] || []).filter((item) => item !== value)).slice(0, RECENT_MAX);
+				all[key] = next;
+				if (typeof localStorage !== "undefined") localStorage.setItem(RECENT_KEY, JSON.stringify(all));
+				return all;
 			} catch {
-				return [];
+				return {};
 			}
 		}
-
 		/** 首句人话 + 其余技术细节（T5 的瑕：结果条不再原样透传 host 文案）。 */
 		function splitHumanText(text) {
 			const value = typeof text === "string" ? text.trim() : "";
@@ -365,6 +385,7 @@ window.__ModuleLoader__.load({
 		exports.openSessionNote = openSessionNote;
 		exports.pushRecent = pushRecent;
 		exports.readRecent = readRecent;
+		exports.readRecentAll = readRecentAll;
 		exports.signalOf = signalOf;
 		exports.splitFirstSentence = splitFirstSentence;
 		exports.splitHumanText = splitHumanText;

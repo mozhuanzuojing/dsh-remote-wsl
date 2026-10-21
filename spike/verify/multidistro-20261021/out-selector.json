@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-21T10:00:13.888Z",
-  "total": 9,
-  "pass": 9,
+  "generatedAt": "2026-10-21T10:05:01.004Z",
+  "total": 12,
+  "pass": 12,
   "fail": 0,
   "results": [
     {
@@ -43,6 +43,21 @@
       "name": "两发行版：停止动作回调带发行版名",
       "ok": true,
       "detail": "Ubuntu-24.04"
+    },
+    {
+      "name": "两发行版：最近文件夹按发行版分组显示",
+      "ok": true,
+      "detail": "count=2"
+    },
+    {
+      "name": "当前发行版的文件夹：点击跳转",
+      "ok": true,
+      "detail": "[\"jump:/home/g/project\"]"
+    },
+    {
+      "name": "其他发行版的文件夹：点击切换到该发行版",
+      "ok": true,
+      "detail": "[\"jump:/home/g/project\",\"Ubuntu-24.04\"]"
     },
     {
       "name": "单发行版：仍列出本机这 1 个发行版",

@@ -190,7 +190,7 @@ function usePanelActions(props) {
 					const initial = fromTarget === null ? homePathOf(target, null) : normalizeWslPath(fromTarget);
 					setPathInput(initial);
 					listPath(initial);
-					setRecent(pushRecent(initial));
+					setRecent(pushRecent(target.distro, initial));
 				}, [state.status, browse.cwd, target.cwd, target.distro, listPath]);
 
 				React.useEffect(() => {

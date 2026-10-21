@@ -110,6 +110,7 @@ window.__ModuleLoader__.load({
 				openSessionNote,
 				pushRecent,
 				readRecent,
+				readRecentAll,
 				signalOf,
 				splitFirstSentence,
 				splitHumanText,
@@ -131,7 +132,7 @@ window.__ModuleLoader__.load({
 				const [pathInput, setPathInput] = React.useState("");
 				const [pathError, setPathError] = React.useState(null);
 				const [mounts, setMounts] = React.useState([]);
-				const [recent, setRecent] = React.useState([]);
+				const [recent, setRecent] = React.useState({});
 				const [recentOk, setRecentOk] = React.useState(true);
 				const [slow, setSlow] = React.useState(false);
 				const [width, setWidth] = React.useState(1280);
@@ -161,7 +162,7 @@ window.__ModuleLoader__.load({
 				}, []);
 
 				React.useEffect(() => {
-					const items = readRecent();
+					const items = readRecentAll();
 					setRecent(items);
 					setRecentOk(typeof localStorage !== "undefined");
 				}, []);

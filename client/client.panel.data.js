@@ -128,7 +128,7 @@ window.__ModuleLoader__.load({
 					setSearch("");
 					setFocusIndex(-1);
 					listPath(want);
-					setRecent(pushRecent(want));
+					setRecent(pushRecent(typeof api.getDistro === "function" ? api.getDistro() : null, want));
 				},
 				[listPath, setSearch],
 			);

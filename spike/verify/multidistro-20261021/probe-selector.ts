@@ -41,13 +41,13 @@ const calls = [];
 let stopped = null;
 let defaulted = null;
 
-function render(distros, targetDistro) {
+function render(distros, targetDistro, recent) {
   const body = [];
   browser.renderBrowser({
     React, StatusDot: (props) => React.createElement('span', { className: 'dot ' + String(props.kind) }), body,
     breadcrumbOf: () => [], browse: { status: 'ready', entries: [], cwd: '/home/g', error: null, stale: false }, clearSearch: () => {},
     collapsed: {}, cwd: '/home/g', errorText: () => '', factsVisible: true, hiddenCount: 0, homePathOf: () => '/home/g', icon: () => null,
-    jumpTo: () => {}, listPath: () => {}, mounts: [], pathError: null, pathInput: '/home/g', recent: [], recentOk: false,
+    jumpTo: (p) => { calls.push('jump:' + p); }, listPath: () => {}, mounts: [], pathError: null, pathInput: '/home/g', recent: recent || {}, recentOk: false,
     search: '', searchChange: () => {}, searchRef: { current: null }, searching: false, Entries: () => null,
     setCollapsed: () => {}, setPathError: () => {}, setPathInput: () => {}, setShowHidden: () => {}, showHidden: false,
     snapshot: {}, submitPath: () => {}, t,
@@ -58,7 +58,7 @@ function render(distros, targetDistro) {
 }
 
 // 场景 1：两个发行版
-const body2 = render([{ name: 'debian-u8-1', default: true, reachable: true, version: 2 }, { name: 'Ubuntu-24.04', default: false, reachable: false, version: 2 }], 'debian-u8-1');
+const body2 = render([{ name: 'debian-u8-1', default: true, reachable: true, version: 2 }, { name: 'Ubuntu-24.04', default: false, reachable: false, version: 2 }], 'debian-u8-1', { 'debian-u8-1': ['/home/g/project'], 'Ubuntu-24.04': ['/home/u/work'] });
 const nodes2 = body2.map((n) => walk(n, [])).flat();
 const targets2 = nodes2.filter((n) => n.type === 'section' && String(n.props && n.props.className).split(' ').indexOf('dsh-rw-targets') >= 0);
 const rows2 = nodes2.filter((n) => n.type === 'div' && String(n.props && n.props.className).split(' ').indexOf('dsh-rw-target') >= 0);
@@ -80,6 +80,14 @@ check('两发行版：停止动作回调带发行版名', stopped === 'Ubuntu-24
 // 场景 2：单发行版
 const body1 = render([{ name: 'debian-u8-1', default: true, reachable: true }], 'debian-u8-1');
 const nodes1 = body1.map((n) => walk(n, [])).flat();
+const folders = nodes2.filter((n) => n.type === 'button' && String(n.props.className) === 'dsh-rw-folder');
+check('两发行版：最近文件夹按发行版分组显示', folders.length === 2, 'count=' + folders.length);
+const activeFolder = folders.find((n) => String(n.props.title).indexOf('/home/g/project') === 0);
+if (activeFolder) activeFolder.props.onClick({ stopPropagation: () => {} });
+check('当前发行版的文件夹：点击跳转', calls.indexOf('jump:/home/g/project') >= 0, JSON.stringify(calls));
+const otherFolder = folders.find((n) => String(n.props.title).indexOf('/home/u/work') === 0);
+if (otherFolder) otherFolder.props.onClick({ stopPropagation: () => {} });
+check('其他发行版的文件夹：点击切换到该发行版', calls.indexOf('Ubuntu-24.04') >= 0, JSON.stringify(calls));
 const rows1 = nodes1.filter((n) => n.type === 'div' && String(n.props && n.props.className).split(' ').indexOf('dsh-rw-target') >= 0);
 check('单发行版：仍列出本机这 1 个发行版', rows1.length === 1, 'count=' + rows1.length);
 

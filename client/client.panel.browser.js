@@ -57,7 +57,8 @@ window.__ModuleLoader__.load({
 							{ role: "list" },
 							targetRows.map((row) => {
 								const active = row.name === currentDistro;
-								return React.createElement(
+								const recents = (recent && (recent[row.name] || recent["*"])) || [];
+								const rowNode = React.createElement(
 									"div",
 									{
 										key: "target:" + row.name,
@@ -80,6 +81,31 @@ window.__ModuleLoader__.load({
 										React.createElement("button", { type: "button", className: "dsh-rw-link dsh-rw-link--danger", onClick: (event) => { event.stopPropagation(); if (typeof onStopTarget === "function") onStopTarget(row.name); } }, t("targets.stop")),
 									),
 								);
+								const children = [rowNode];
+								if (recents.length) {
+									children.push(
+										React.createElement(
+											"div",
+											{ key: "rec:" + row.name, className: "dsh-rw-folders" },
+											recents.slice(0, 3).map((path) =>
+												React.createElement(
+													"button",
+													{
+														key: "f:" + path,
+														type: "button",
+														className: "dsh-rw-folder",
+														title: path,
+														"aria-label": t("browser.crumbJump", { path }),
+														onClick: (event) => { event.stopPropagation(); if (active) jumpTo(path); else if (typeof onDistroChange === "function") onDistroChange(row.name); },
+													},
+													icon("folder"),
+													React.createElement("span", { className: "dsh-rw-folder-name", dir: "ltr" }, String(path).split("/").filter(Boolean).pop() || path),
+												),
+											),
+										),
+									);
+								}
+								return React.createElement(React.Fragment, { key: "targetwrap:" + row.name }, children);
 							}),
 						),
 					),
@@ -287,6 +313,7 @@ window.__ModuleLoader__.load({
 			// —— 折叠区：最近目录（M12；localStorage 不可用 ⇒ 整块不渲染） ——
 			if (factsVisible && snapshot !== null && recentOk) {
 				const open = collapsed.recent === true;
+				const recentList = recent && typeof recent === "object" && !Array.isArray(recent) ? (recent[target.distro] || recent["*"] || []) : (Array.isArray(recent) ? recent : []);
 				body.push(
 					React.createElement(
 						"details",
@@ -296,9 +323,9 @@ window.__ModuleLoader__.load({
 							? React.createElement(
 									"div",
 									{ className: "dsh-rw-foldbody" },
-									recent.length === 0
+									recentList.length === 0
 										? React.createElement("div", { className: "dsh-rw-hint" }, t("recent.empty"))
-										: recent.map((path) =>
+										: recentList.map((path) =>
 												React.createElement(
 													"button",
 													{ key: "recent:" + path, type: "button", className: "dsh-rw-recent-row", "aria-label": t("browser.crumbJump", { path }), title: path, onClick: () => jumpTo(path) },
