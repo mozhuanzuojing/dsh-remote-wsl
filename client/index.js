@@ -78,9 +78,26 @@ window.__ModuleLoader__.load({
 			".dsh-rw-header-actions{display:flex;align-items:center;gap:8px;flex:none}",
 			// 2026-10-21「多发行版」：目标发行版选择器（只有多个发行版时才渲染；单发行版是静态徽标）
 			".dsh-rw-select{flex:none;max-width:180px;min-width:0;height:22px;box-sizing:border-box;padding:0 4px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px}",
+			".dsh-rw-places{display:flex;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:8px 10px 0;flex:none;min-width:0}",
+			".dsh-rw-places::-webkit-scrollbar{height:0}",
+			".dsh-rw-navrow{display:flex;align-items:center;gap:4px;padding:2px 10px 0;min-width:0}",
+			".dsh-rw-formrow{display:flex;align-items:center;gap:8px;padding:6px 10px 8px;min-width:0;border-bottom:1px solid var(--dsw-alias-border-l1)}",
+			".dsh-rw-pathform{display:flex;align-items:center;gap:6px;flex:1;min-width:0}",
+			".dsh-rw-up{flex:none}",
+			".dsh-rw-toggle{display:inline-flex;align-items:center;gap:4px;flex:none;height:24px;padding:0 8px;border-radius:999px;border:1px solid transparent;background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;white-space:nowrap}",
+			".dsh-rw-toggle:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-toggle--on{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}",
+			".dsh-rw-toggle-label{min-width:0;overflow:hidden;text-overflow:ellipsis}",
+			".dsh-rw-count{flex:none;min-width:16px;height:16px;box-sizing:border-box;padding:0 4px;border-radius:999px;background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;text-align:center;font-variant-numeric:tabular-nums}",
+			".dsh-rw-btn--quiet{border-color:transparent;background:none;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-btn--quiet:hover:enabled{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-daemon{display:inline-flex;align-items:center;gap:5px;flex:none;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;white-space:nowrap}",
+			".dsh-rw-daemon:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-daemon--on{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
+			".dsh-rw-daemon--off{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}",
-			".dsh-rw-body{flex:1;min-height:0;overflow:auto;padding:8px 8px 4px;display:flex;flex-direction:column;gap:8px}",
-			".dsh-rw-card{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px 10px;box-shadow:none;display:flex;flex-direction:column;gap:6px;min-height:0}",
+			".dsh-rw-body{flex:1;min-height:0;overflow:hidden;padding:10px 10px 6px;display:flex;flex-direction:column;gap:8px}",
+			".dsh-rw-card{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:0;box-shadow:none;display:flex;flex-direction:column;min-height:0;flex:1;overflow:hidden}",
 			".dsh-rw-cardhead{display:flex;align-items:center;gap:8px;min-width:0}",
 			".dsh-rw-grouptitle{font-size:12px;line-height:16px;font-weight:600;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px}",
@@ -94,7 +111,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-path-input{flex:1;min-width:0;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px;padding:4px 6px;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-path-input::placeholder{color:var(--dsw-alias-label-dimmed)}",
 			// 2026-10-19：目录筛选（客户端过滤；24×24 清除按钮复用 .dsh-rw-iconbtn）
-			".dsh-rw-search{display:flex;align-items:center;gap:6px;min-width:0;flex:none}",
+			".dsh-rw-search{display:flex;align-items:center;gap:6px;min-width:120px;flex:0 1 280px}",
 			".dsh-rw-search-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-search-input{flex:1;min-width:0;box-sizing:border-box;height:24px;padding:2px 6px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-search-input::placeholder{color:var(--dsw-alias-label-dimmed)}",
@@ -116,7 +133,7 @@ window.__ModuleLoader__.load({
 			// SPEC `7.2.2 / R1：列表区是面板里**唯一**允许生长的区域，且它自己就是滚动体
 			// (`flex:1;min-height:96px;overflow:auto`)。缺 min-height/overflow 时，卡片在固定高 body 里
 			// 被 flex-shrink 压到 672px 而列表内容 3398px ⇒ 行会画到"最近目录/诊断"上面（F4，A/B 都复现）。
-			".dsh-rw-entries{display:flex;flex-direction:column;gap:2px;min-width:0;padding:0;flex:1;min-height:96px;overflow:auto;outline-offset:2px}",
+			".dsh-rw-entries{display:flex;flex-direction:column;gap:2px;min-width:0;padding:2px 6px 8px;flex:1;min-height:0;overflow:auto;outline-offset:2px;scrollbar-gutter:stable}",
 			".dsh-rw-row{display:flex;align-items:center;gap:6px;height:32px;padding:6px 8px;border-radius:4px;width:100%;box-sizing:border-box;background:none;border:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left}",
 			".dsh-rw-row--dir{cursor:pointer}",
 			".dsh-rw-row:hover{background:var(--dsw-alias-interactive-bg-hover)}",
@@ -475,4 +492,7 @@ window.__ModuleLoader__.load({
 // `dsh-app://app` 转发 ⇒ 放行），按 docs/client-contract.md §11 触碰本入口刷新 chunk rev。
 
 // 2026-10-21「多发行版」：client/** 全量改动（api.setDistro、panel 目标选择器、i18n、CSS），
+// 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
+
+// 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。

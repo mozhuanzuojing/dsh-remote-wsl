@@ -1,12 +1,13 @@
 /**
- * client.panel.browser.js —— 唯一目录概念的外壳：chips + 面包屑 + 路径输入 + 筛选 + 条目列表容器。
+ * client.panel.browser.js —— 唯一目录概念的外壳：常去位置 + 面包屑 + 路径输入 + 筛选 + 条目列表容器。
  *
- * 2026-10-19 UI/UX/性能轮（在原地增量，不回退冻结规格）：
- * · 新增筛选框（客户端过滤、即时；"/" 聚焦、Esc 清空）与结果计数；
- * · 条目列表整块拆到 client.panel.list.js（窗口化 >200 条、行点击即进入、真实焦点键盘、滚动记忆）；
- * · 缓存复核失败时保留列表并明确标 stale（可重试），不再把好好的列表撤成错误页。
+ * 2026-10-21 UI 重做（交互目标：一屏内完成"看清在哪 → 换地方 → 找东西 → 打开"）：
+ * · 三行结构压成两层：**常去位置条**（单行横向滚动，不再换行占三行）+ **导航行**（上一级 + 面包屑）
+ *   + **输入行**（路径框 + 筛选框同排）。卡片不再有"浏览目录"标题占位。
+ * · 列表**吃满剩余高度**（body 不再整页滚动，滚动体是列表自己）——修掉"72 项只显示 6 行、下面一大片空白"。
+ * · 隐藏文件开关从卡片头挪到位置条右端，和"位置"同类（视图开关），不再单占一行。
  *
- * 本文件只负责"卡片外壳与工具栏"，列表行为见 list.js（拆分原因：400 行纪律线，见 panel-smoke-node）。
+ * 行为由 list.js 承担（窗口化 / 行内动作 / 键盘 / 滚动记忆）；本文件只搭外壳。
  */
 
 window.__ModuleLoader__.load({
@@ -23,7 +24,7 @@ window.__ModuleLoader__.load({
 			const {
 				React, body, breadcrumbOf, browse, clearSearch, collapsed, cwd,
 				errorText, factsVisible, hiddenCount, homePathOf, icon, jumpTo, listPath,
-				mounts, normalizeWslPath, pathError, pathInput, recent, recentOk,
+				mounts, pathError, pathInput, recent, recentOk,
 				Entries, search, searchChange, searchRef, searching,
 				setCollapsed, setPathError, setPathInput, setShowHidden, showHidden,
 				snapshot, submitPath, t, target, totalEntries, visibleEntries,
@@ -33,11 +34,13 @@ window.__ModuleLoader__.load({
 				const crumbs = cwd === null ? [] : breadcrumbOf(cwd);
 				const homePath = homePathOf(target, cwd);
 				const distroLabel = typeof target.distro === "string" && target.distro.length ? target.distro : "?";
+
+				/** 常去位置：胶囊按钮（单行横向滚动；当前目录高亮）。 */
 				const chip = (labelText, path, ariaKey, current) =>
 					React.createElement(
 						"button",
 						{
-							key: 'chip:' + path,
+							key: "chip:" + path,
 							type: "button",
 							className: "dsh-rw-chip" + (current ? " dsh-rw-chip--on dsh-rw-current" : ""),
 							"aria-label": t(ariaKey, { path }),
@@ -47,6 +50,104 @@ window.__ModuleLoader__.load({
 						},
 						labelText,
 					);
+
+				const places = React.createElement(
+					"div",
+					{ className: "dsh-rw-places", role: "group", "aria-label": t("browser.chipsAria") },
+					[
+						chip(t("browser.chipHome"), homePath, "browser.chipHomeAria", cwd === homePath),
+						chip("/", "/", "browser.chipRootAria", cwd === "/"),
+						chip("/mnt", "/mnt", "browser.chipMntAria", cwd === "/mnt"),
+					]
+						.concat(mounts.map((mount) => chip(mount, mount, "browser.chipDriveAria", cwd === mount)))
+						.concat([
+							React.createElement("span", { key: "spacer", className: "dsh-rw-spacer" }),
+							React.createElement(
+								"button",
+								{
+									key: "hidden",
+									type: "button",
+									className: "dsh-rw-toggle" + (showHidden ? " dsh-rw-toggle--on" : ""),
+									"aria-pressed": String(showHidden),
+									"aria-label": showHidden ? t("browser.hiddenHideAria") : t("browser.hiddenShowAria"),
+									title: showHidden ? t("browser.hiddenHideTitle") : t("browser.hiddenShowTitle"),
+									onClick: () => setShowHidden((prev) => !prev),
+								},
+								icon(showHidden ? "eye" : "eyeOff"),
+								React.createElement("span", { className: "dsh-rw-toggle-label" }, t("browser.hiddenShort")),
+								hiddenCount > 0 ? React.createElement("span", { className: "dsh-rw-count" }, String(hiddenCount)) : null,
+							),
+						]),
+				);
+
+				const upButton = React.createElement(
+					"button",
+					{
+						type: "button",
+						className: "dsh-rw-iconbtn dsh-rw-up",
+						disabled: cwd === null || cwd === "/",
+						"aria-label": t("browser.up"),
+						title: t("browser.upTitle"),
+						onClick: function () {
+							if (cwd === null || cwd === "/") return;
+							jumpTo(cwd.replace(/\/[^/]+$/, "") || "/");
+						},
+					},
+					icon("arrowLeft"),
+				);
+
+				const crumbNav = React.createElement(
+					"nav",
+					{ className: "dsh-rw-crumbs", "aria-label": t("browser.crumbsAria") },
+					cwd === null
+						? React.createElement("span", { className: "dsh-rw-hint" }, t("browser.notBrowsing"))
+						: crumbs.map((crumb, index) =>
+								React.createElement(
+									React.Fragment,
+									{ key: "crumb:" + crumb.path },
+									index > 1 ? React.createElement("span", { className: "dsh-rw-crumb-sep", "aria-hidden": "true" }, "/") : null,
+									index === crumbs.length - 1
+										? React.createElement("span", { className: "dsh-rw-crumb dsh-rw-crumb--current dsh-rw-current" }, crumb.label)
+										: React.createElement(
+												"button",
+												{
+													type: "button",
+													className: "dsh-rw-crumb",
+													"aria-label": t("browser.crumbJump", { path: crumb.path }),
+													title: t("browser.crumbJump", { path: crumb.path }),
+													onClick: () => jumpTo(crumb.path),
+												},
+												crumb.label,
+											),
+								),
+							),
+				);
+
+				const pathForm = React.createElement(
+					"form",
+					{
+						className: "dsh-rw-pathform",
+						onSubmit: (event) => {
+							event.preventDefault();
+							submitPath();
+						},
+					},
+					React.createElement("input", {
+						type: "text",
+						className: "dsh-rw-path-input",
+						value: pathInput,
+						placeholder: t("browser.pathPlaceholder"),
+						"aria-label": t("browser.pathAria"),
+						title: t("browser.pathTitle"),
+						spellCheck: false,
+						autoComplete: "off",
+						onChange: (event) => {
+							setPathInput(event.target.value);
+							setPathError(null);
+						},
+					}),
+					React.createElement("button", { type: "submit", className: "dsh-rw-btn dsh-rw-btn--quiet", "aria-label": t("browser.jumpAria"), title: t("browser.jumpAria") }, t("browser.jump")),
+				);
 
 				const searchBar = React.createElement(
 					"div",
@@ -73,8 +174,8 @@ window.__ModuleLoader__.load({
 							}
 							if (event.key === "ArrowDown") {
 								event.preventDefault();
-								const target0 = document.querySelector('.dsh-rw-entries [data-index="0"]');
-								if (target0 !== null) target0.focus();
+								const first = document.querySelector('.dsh-rw-entries [data-index="0"]');
+								if (first !== null) first.focus();
 							}
 						},
 					}),
@@ -105,101 +206,9 @@ window.__ModuleLoader__.load({
 					React.createElement(
 						"section",
 						{ key: "browser", className: "dsh-rw-card", "aria-label": t("browser.aria", { distro: distroLabel }) },
-						React.createElement(
-							"div",
-							{ className: "dsh-rw-cardhead" },
-							React.createElement("span", { className: "dsh-rw-grouptitle" }, t("browser.groupTitle")),
-							React.createElement("span", { className: "dsh-rw-spacer" }),
-							React.createElement(
-								"button",
-								{
-									type: "button",
-									className: "dsh-rw-chip" + (showHidden ? " dsh-rw-chip--on" : ""),
-									"aria-pressed": String(showHidden),
-									"aria-label": showHidden ? t("browser.hiddenHideAria") : t("browser.hiddenShowAria"),
-									title: showHidden ? t("browser.hiddenHideTitle") : t("browser.hiddenShowTitle"),
-									onClick: () => setShowHidden((prev) => !prev),
-								},
-								showHidden ? t("browser.hiddenOn", { count: hiddenCount }) : t("browser.hiddenOff"),
-							),
-						),
-						React.createElement(
-							"div",
-							{ className: "dsh-rw-toolbar", role: "group", "aria-label": t("browser.chipsAria") },
-							[
-								chip(t("browser.chipHome"), homePath, "browser.chipHomeAria", cwd === homePath),
-								chip("/", "/", "browser.chipRootAria", cwd === "/"),
-								chip("/mnt", "/mnt", "browser.chipMntAria", cwd === "/mnt"),
-							].concat(mounts.map((mount) => chip(mount, mount, "browser.chipDriveAria", cwd === mount))),
-						),
-						React.createElement(
-							"nav",
-							{ className: "dsh-rw-crumbs", "aria-label": t("browser.crumbsAria") },
-							cwd === null
-								? React.createElement("span", { className: "dsh-rw-hint" }, t("browser.notBrowsing"))
-								: crumbs.map((crumb, index) =>
-										React.createElement(
-											React.Fragment,
-											{ key: 'crumb:' + crumb.path },
-											index > 1 ? React.createElement("span", { className: "dsh-rw-crumb-sep", "aria-hidden": "true" }, "/") : null,
-											index === crumbs.length - 1
-												? React.createElement("span", { className: "dsh-rw-crumb dsh-rw-crumb--current dsh-rw-current", "aria-current": "true" }, crumb.label)
-												: React.createElement(
-														"button",
-														{
-															type: "button",
-															className: "dsh-rw-crumb",
-															"aria-label": t("browser.crumbJump", { path: crumb.path }),
-															title: t("browser.crumbJump", { path: crumb.path }),
-															onClick: () => jumpTo(crumb.path),
-														},
-														crumb.label,
-													),
-										),
-									),
-						),
-						React.createElement(
-							"form",
-							{
-								className: "dsh-rw-form",
-								onSubmit: (event) => {
-									event.preventDefault();
-									submitPath();
-								},
-							},
-							React.createElement("input", {
-								type: "text",
-								className: "dsh-rw-path-input",
-								value: pathInput,
-								placeholder: t("browser.pathPlaceholder"),
-								"aria-label": t("browser.pathAria"),
-								title: t("browser.pathTitle"),
-								spellCheck: false,
-								autoComplete: "off",
-								onChange: (event) => {
-									setPathInput(event.target.value);
-									setPathError(null);
-								},
-							}),
-							React.createElement("button", { type: "submit", className: "dsh-rw-btn", "aria-label": t("browser.jumpAria"), title: t("browser.jumpAria") }, t("browser.jump")),
-							React.createElement(
-								"button",
-								{
-									type: "button",
-									className: "dsh-rw-btn",
-									disabled: cwd === null || cwd === "/",
-									"aria-label": t("browser.up"),
-									title: t("browser.up"),
-									onClick: () => {
-										if (cwd === null) return;
-										jumpTo(cwd.replace(/\/[^/]+$/, "") || "/");
-									},
-								},
-								icon("arrowLeft"),
-								t("browser.up"),
-							),
-						),
-						searchBar,
+						places,
+						React.createElement("div", { className: "dsh-rw-navrow" }, upButton, crumbNav),
+						React.createElement("div", { className: "dsh-rw-formrow" }, pathForm, searchBar),
 						pathError === null ? null : React.createElement("div", { className: "dsh-rw-note dsh-rw-note--error", role: "alert" }, pathError),
 						browse.stale === true
 							? React.createElement(
@@ -237,7 +246,7 @@ window.__ModuleLoader__.load({
 										: recent.map((path) =>
 												React.createElement(
 													"button",
-													{ key: 'recent:' + path, type: "button", className: "dsh-rw-recent-row", "aria-label": t("browser.crumbJump", { path }), title: path, onClick: () => jumpTo(path) },
+													{ key: "recent:" + path, type: "button", className: "dsh-rw-recent-row", "aria-label": t("browser.crumbJump", { path }), title: path, onClick: () => jumpTo(path) },
 													icon("clock"),
 													React.createElement("span", { className: "dsh-rw-rowname", dir: "ltr" }, path),
 												),

@@ -25,7 +25,7 @@ function renderTail(props) {
 	breadcrumbOf, browse, browseAbort, browseSeq,
 	cancelRef, clock, closeMenu, collapsed,
 	ctx, cwd, cwdDiffersFromTarget, daemon,
-	chosenDistro, daemonKnown, daemonNote, daemonSlot, distros,
+	chosenDistro, daemonKnown, daemonNote, daemonPill, daemonSlot, distros,
 	drift, driftKnown, errorText, factsVisible, onDistroChange,
 	focusIndex, forceLocale, headerButtons, hiddenCount,
 	hideUpdated, homePathOf, icon, isRecord,
@@ -52,6 +52,7 @@ function renderTail(props) {
 			const multiDistro = distroRows.length > 1;
 			const activeDistroValue =
 				typeof target.distro === "string" && target.distro.length > 0 ? target.distro : chosenDistro;
+
 			const distroControl = multiDistro
 				? React.createElement(
 					"select",
@@ -283,8 +284,8 @@ function renderTail(props) {
 								? React.createElement(
 										"span",
 										{ className: "dsh-rw-header-meta" },
-										React.createElement("span", { className: "dsh-rw-badge" }, t("row.notMaterialized")),
-										distroControl,
+											distroControl,
+									daemonPill,
 									)
 								: null,
 						),
@@ -304,14 +305,6 @@ function renderTail(props) {
 						drifted ? React.createElement(React.Fragment, null, icon("warn", "dsh-rw-drift"), React.createElement("span", { className: "dsh-rw-statusword" }, t("status.drifted"))) : null,
 						extra.length > 0 ? React.createElement("span", { className: "dsh-rw-extra" + (narrow ? " dsh-rw-extra--hidden" : "") }, " · ", extra) : null,
 						React.createElement("span", { className: "dsh-rw-spacer" }),
-						factsVisible && daemonKnown && daemon.running !== true
-							? React.createElement(
-									"button",
-									{ type: "button", className: "dsh-rw-btn", disabled: action.busy !== null, onClick: () => runDaemon("ensure"), "aria-label": t("status.startAria"), title: t("status.startAria") },
-									// T63：窄态换短文案「启动」（4 个 CJK 需 ~52px > 底栏能给的 49px ⇒ 会折成两行）
-									action.busy === "daemon:ensure" ? t("status.startBusy") : narrow ? t("status.startShort") : t("status.start"),
-								)
-							: null,
 						updated !== null && !hideUpdated ? React.createElement("span", { className: "dsh-rw-updated" }, updated) : null,
 						React.createElement(
 							"button",

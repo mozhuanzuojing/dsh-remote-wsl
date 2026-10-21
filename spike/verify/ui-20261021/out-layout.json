@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-10-21T09:18:08.483Z",
+  "total": 10,
+  "pass": 10,
+  "fail": 0,
+  "results": [
+    {
+      "name": "头部：未运行时渲染药丸",
+      "ok": true,
+      "detail": "dsh-rw-daemon dsh-rw-daemon--off"
+    },
+    {
+      "name": "头部：未运行药丸是 --off",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "头部：点未运行药丸触发一次启动",
+      "ok": true,
+      "detail": "calls=1"
+    },
+    {
+      "name": "头部：运行中药丸是 --on",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "头部：运行中点击不会重启",
+      "ok": true,
+      "detail": "calls=1"
+    },
+    {
+      "name": "目录卡：有位置条",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "目录卡：有导航行（上一级 + 面包屑）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "目录卡：有输入行（路径 + 筛选）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "目录卡：没有 cardhead 占位",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "目录卡：列表容器在卡片内",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

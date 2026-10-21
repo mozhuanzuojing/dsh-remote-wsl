@@ -313,6 +313,8 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 
 > **桌面端（DSH Desktop / Electron 壳）也用同一面板**：壳把页面 `dsh-app://app` 的 fetch 经 Node fetch 重放到宿主，并删掉 `origin`/`host`/`cookie`/`sec-fetch-site`，所以到达 `/remote-wsl/api` 的请求**没有 `Origin`**。闸门从 2026-10-21 起按"无 `Origin` + 无 `Sec-Fetch-Site` = 非浏览器客户端"放行（与官方 `dsh-client-connection` 的 `admit()` 同策略）；此前"`Origin` 必须存在"的实现会让桌面端面板**全部** 403（「跨站请求被拒（Origin/Host 不同源）」）。回归矩阵：`spike/verify/desktop-shell-20261021/`。
 
+> **2026-10-21 UI 重做**：头部改为「标题 + 目标 + 守护状态药丸」，卡片内三层（常去位置条 / 上一级+面包屑 / 路径框+筛选框同排），列表吃满剩余高度（原先 72 项只显示 6 行、下方大片空白）；隐藏文件开关并入位置条；未运行守护可在头部药丸一键启动。证据与限制见 `spike/verify/ui-20261021/REPORT-ui-redesign.md`。
+
 > **多发行版**：头部「目标发行版」选择器只在 `distros.length > 1` 时出现（单发行版是一行静态说明，避免只有一个选项的死控件）。切换只影响**本面板的请求**（`api.setDistro` → 每个方法带 `distro`），不写插件配置；host 用 `wsl -l -q` 校验名字，未知 ⇒ 400。选择记在 `localStorage['dsh-remote-wsl.distro']`。
 
 > `wsl_open_ui` 开的是**另一件事**：WSL 里那份 dsh 的 Web UI（浏览器应用窗口）；本节的实例是**宿主自己的 Web 前端**，面板属于宿主 UI。

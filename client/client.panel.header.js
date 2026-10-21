@@ -217,8 +217,28 @@ function renderHeader(props) {
 					);
 				}
 
+			/** 守护状态药丸：未运行时可一键启动；运行中只报状态（破坏性动作仍只在 ⋯ 菜单里）。 */
+			const daemonPill = factsVisible && daemonKnown
+				? React.createElement(
+					"button",
+					{
+						type: "button",
+						className: "dsh-rw-daemon " + (daemon.running === true ? "dsh-rw-daemon--on" : "dsh-rw-daemon--off"),
+						"aria-label": daemon.running === true ? t("status.daemonRunning") : t("status.daemonOff"),
+						title:
+							daemon.running === true
+								? t("status.daemonPillOn", { slot: daemonSlot === null ? "?" : daemonSlot, pid: typeof daemon.pid === "number" ? daemon.pid : "?" })
+								: t("status.daemonPillOff"),
+						onClick: () => {
+							if (daemon.running !== true && action.busy === null) runDaemon("ensure");
+						},
+					},
+					React.createElement(StatusDot, { kind: daemon.running === true ? "running" : "stopped" }),
+					t(daemon.running === true ? "status.daemonRunning" : "status.daemonOff"),
+				)
+				: null;
 			return {
-	headerButtons, primaryBusyKey, primaryIsSession,
+	headerButtons, primaryBusyKey, primaryIsSession, daemonPill,
 			};
 }
 
