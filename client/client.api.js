@@ -114,11 +114,13 @@ window.__ModuleLoader__.load({
 		/**
 		 * 发一次请求并归一化结果。
 		 *
-		 * 只用 POST：webServer 的浏览器信任闸门**要求请求带 `Origin` 头**，而浏览器对
-		 * **同源 GET 不发 Origin**（只对 POST 发）。所以 `GET /remote-wsl/api` 这条路
-		 * 只有 CLI/调试能用（要手工加 `Origin: http://127.0.0.1:<port>`），面板一律走 POST。
-		 * 实测（2026-10-12，3091 实例）：
-		 *   GET  无 Origin → 403；GET 带 Origin → 200 {"ok":true,"methods":[…]}
+		 * 只用 POST：面板与 host 的契约是"POST 调用 + GET 只做方法发现"，换通道要同时改方法表、
+		 * 参数体与两侧门禁，收益为零。2026-10-21 更正旧理由（原文断言"webServer 闸门要求请求带
+		 * Origin，同源 GET 不带 Origin ⇒ 403"）：host 闸门现在与官方 `dsh-client-connection` 的
+		 * `admit()` 同策略 —— `Origin` 缺失时放行（DSH Desktop 的 `dsh-app://app` 转发会剥掉
+		 * Origin），只拒绝 `cross-site` 与非同源 Origin；GET 因此也可用了，但面板仍走 POST。
+		 * 实测（2026-10-12，3091 实例；闸门修正见 docs/remote-explorer-design.md §4(a)）：
+		 *   GET  无 Origin → 旧实现 403；2026-10-21 起放行（只回方法清单，零副作用）
 		 *   POST 带 Origin → 200 {"ok":true,"result":{…}}
 		 * @param method - 契约方法名。
 		 * @param args - 命名参数对象（host 侧按名字取）。

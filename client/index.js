@@ -467,3 +467,6 @@ window.__ModuleLoader__.load({
 //   · 本行是入口 rev 锚点：chunk 有改动就必须动这里（否则 immutable 缓存继续供旧字节）。
 //   · F1–F5 复核修复（2026-10-19 16:2x）：列表改为自身滚动体（SPEC §7.2.2）、刷新/导航竞态守卫、
 //     自动刷新单次节流、菜单打开即聚焦首项且 Esc 关闭、骨架按 §6.3（5 行 + 宽度阶梯）重做。
+
+// 2026-10-21 桌面壳来源闸门修正：client.api.js 注释随 host 判据更新（Origin 缺失 = 桌面壳
+// `dsh-app://app` 转发 ⇒ 放行），按 docs/client-contract.md §11 触碰本入口刷新 chunk rev。

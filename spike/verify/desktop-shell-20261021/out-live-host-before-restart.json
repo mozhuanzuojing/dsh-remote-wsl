@@ -1,0 +1,23 @@
+{
+  "label": "before-restart",
+  "generatedAt": "2026-10-21T08:55:13.659Z",
+  "target": "http://127.0.0.1:59014/remote-wsl/api",
+  "shots": [
+    {
+      "name": "browser-get",
+      "status": 200,
+      "body": "{\"ok\":true,\"methods\":[\"explorer.snapshot\",\"explorer.openSession\",\"explorer.daemon\",\"explorer.fixPin\",\"explorer.listDir\",\"explorer.addWorkspace\"]}"
+    },
+    {
+      "name": "desktop-shell-get",
+      "status": 403,
+      "body": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+    },
+    {
+      "name": "desktop-shell-probe-post",
+      "status": 403,
+      "body": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+    }
+  ],
+  "verdict": "BLOCKED(desktop-shell-get,desktop-shell-probe-post)"
+}

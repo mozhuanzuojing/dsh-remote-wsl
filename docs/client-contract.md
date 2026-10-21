@@ -340,7 +340,7 @@ ctx.connection.rpc.handle("/remote-wsl", async (endpoint, payload, signal, peer)
 | `ctx.slots.register` 是否可在**异步**上下文中调用（例如 `await fetch` 之后再注册） | **未核实** | 官方一律在 `slots.inject` 回调里同步调用（回调用 `ctx.effect` 包住）。本任务遵循该形态。 |
 | **Inspect client 探针（`Slots.listSubTree`）在本会话不可用** | **环境限制 + 替代判据（不等价）** | 本会话内 `client` 平台四个 provider（Slots/Service/Builtin/Theme）**全部 10s 超时**（用户 GUI 页未接入本会话的 client inspect 传输）。且新起实例是**另一个 Host 进程**，本来也不在该探针视野内。替代取证见 §8.3：在**被测实例自己**的页面里读 `ctx.slots.snapshot()/entries()/spec()`（`SlotRegistry` 与 Inspect provider 的 `SlotCore` 是同一底层）。⚠ 这是**替代判据，不是等价判据**：未经 Inspect provider 自身的投影/裁剪路径，字段集合可能与该 provider 的输出略有差异。 |
 | `dsh.client.external` 的精确语义 | **未实测** | 代码证据：`:408-428`（图序/自请求/环检测）、`stripClientSuffix` `:89-100`；本任务未使用该字段。 |
-| client 半在 **desktop（Electron）** 宿主下的同源 fetch 行为 | **未核实** | Electron 壳用 `file://` 载 dist、fetch 走 IPC bridge（`dsh-host-webserver/README.md:12`）。本任务只在 `dsh web`（HTTP）下验证。 |
+| client 半在 **desktop（Electron）** 宿主下的同源 fetch 行为 | **已核实（2026-10-21，实测 + 平台源码）** | 壳用 `dsh-app://app` 载页面（`app.asar/lib/main.js` `applicationUrl`）；**非静态资源**请求经 `forwardWebRequest` 用 **Node fetch** 重放到 `http://127.0.0.1:<port>`，并**主动删掉** `origin`/`host`/`cookie`/`sec-fetch-site`（`lib/main.js:8268-8298`）⇒ 桌面端到达插件路由的请求**没有 Origin**。据此修正了 `/remote-wsl/api` 的闸门：无 `Origin` + 无 `Sec-Fetch-Site` ⇒ 放行（与官方 `admit()` 同策略），异源 `Origin` / `cross-site` 仍 403。回归矩阵与证据：`spike/verify/desktop-shell-20261021/`。 |
 
 ---
 

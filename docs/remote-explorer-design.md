@@ -96,7 +96,15 @@ interface ExplorerSnapshot {
   （**6 个**。权威：`src/explorer.ts` 的 `EXPLORER_METHODS`；client 侧副本 `client/client.api.js`。后两个 `listDir`/`addWorkspace` 是 A3/A1 落地时新增）
   ```
   **安全硬要求（T4 会实测"同源 200 / 伪造 Origin 403"）**：
-  a) **只接受同源请求**：校验 `Origin`（与请求 Host 同源）与/或 `Sec-Fetch-Site: same-origin`；不满足 → **403，且不得执行任何方法**；
+  a) **只接受可信来源**：`Sec-Fetch-Site` 若存在必须 `same-origin`；`Origin` 若存在必须与请求 `Host` 同源；
+     **两者都缺失 ⇒ 放行**（2026-10-21 修正桌面壳误杀）：DSH Desktop（Electron 壳）把页面 `dsh-app://app`
+     的 fetch 交给 **Node fetch** 重放，并**主动删掉** `origin`/`host`/`cookie`/`sec-fetch-site`
+     （`app.asar/lib/main.js` 的 `forwardWebRequest`，2026-10-21 平台版本实测）⇒ 到达路由时**没有 Origin**；
+     旧实现要求"Origin 必须存在"，会让桌面端面板的全部数据与动作 403（错误文案「跨站请求被拒（Origin/Host 不同源）」）。
+     浏览器对**每一个 POST** 都带 `Origin`、对每个非导航请求都带 `Sec-Fetch-Site`，两个头都缺失只可能来自非浏览器
+     客户端（桌面壳 / curl）；本机进程本来就能伪造 `Origin` ⇒ 放行不扩大 CSRF 面。官方 `dsh-client-connection` 的
+     `admit()` 是同策略（`sec-fetch-site === 'cross-site'` 拒、`origin === undefined` 放行）。
+     Host 缺失 / 非 `same-origin` / 异源 `Origin` → **403，且不得执行任何方法**；
   b) `method` 走**硬编码白名单**，未知 → 400（不许把字符串反射成任意函数）；
   c) 只接受 `POST` + `content-type: application/json`；其它动词 → 405；
   d) **不得**暴露 `all=true` 式会波及其他人的能力；`explorer.daemon` 只作用于本插件自己的槽位；

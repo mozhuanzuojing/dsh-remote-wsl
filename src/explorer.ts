@@ -34,8 +34,10 @@
  *
  * ## 安全边界（lead 新增硬要求，逐条对应）
  *
- * · (a) **同源**：POST 必须带 `Origin` 且与请求 `Host` 同源；再校验 `Sec-Fetch-Site`（若存在）
- *   必须为 `same-origin`；Host 缺失或非同源 ⇒ **403，且一个方法都不执行**。
+ * · (a) **来源可信**（2026-10-21 修正桌面壳误杀）：`Sec-Fetch-Site` 若存在必须是 `same-origin`；
+ *   `Origin` 若存在必须与请求 `Host` 同源；**两者都缺失 = 非浏览器客户端（桌面壳转发 / curl），放行**
+ *   —— 与官方 `dsh-client-connection` 的 `admit()` 同策略（`origin === undefined ⇒ true`）。
+ *   Host 缺失、`Sec-Fetch-Site` 非 same-origin、`Origin` 异源 ⇒ **403，且一个方法都不执行**。
  * · (b) **硬编码白名单**：`method` 只能命中方法表里那几个**字面量**字符串，未知 ⇒ **400**（绝不把输入
  *   反射成任意函数，也不用 `handlers[method]` 之外的属性查找）。
  * · (c) **动词与类型**：POST 无 `content-type: application/json` ⇒ 415；其它动词 ⇒ 405。
@@ -836,14 +838,27 @@ export function createExplorerHandlers(deps) {
 /**
  * ── 传输层（第 2 层）────────────────────────────────────────────────────────────
  *
- * 同源判据（安全要求 (a)）：
- *   · `Origin` **必须存在**，且其 `host[:port]` 与请求的 `Host` 头逐字相同；
- *   · 若带 `Sec-Fetch-Site`，必须是 `same-origin`（浏览器同源 fetch 会带）。
- * 任一不满足 ⇒ `false`（调用方回 403，且**一个方法都不执行**、不解析请求体）。
+ * 来源可信判据（安全要求 (a)；2026-10-21 修正桌面壳误杀）：
+ *   · `Host` 必须存在（HTTP/1.1 必备）；
+ *   · `Sec-Fetch-Site` 若存在必须是 `same-origin`（浏览器同源 fetch 会带；跨站带 cross-site）；
+ *   · `Origin` 若存在，其 `host[:port]` 必须与请求的 `Host` 头逐字相同；
+ *   · **`Origin` 缺失 ⇒ 放行**：浏览器对**每一个 POST** 都带 `Origin`（同源也带），并对每个
+ *     非导航请求都带 `Sec-Fetch-Site`；两个头都没有只可能来自非浏览器客户端。DSH Desktop
+ *     （Electron 壳）就是这种形状：壳把页面 `dsh-app://app` 发起的 fetch 交给 Node fetch
+ *     重放，并**主动删掉** `origin`/`host`/`cookie`/`sec-fetch-site`
+ *     （`app.asar/lib/main.js` 的 `forwardWebRequest`，2026-10-21 平台版本实测），
+ *     于是到达本路由的请求只剩 Node 重新生成的 `Host`。
+ *
+ * 这不是新开的口子，而是与官方同策略：`@deepseek-ai/dsh-client-connection` 的 `admit()`
+ * （`lib/index.js:238-249`）判据是「`sec-fetch-site === 'cross-site'` ⇒ 拒；`origin ===
+ * undefined` ⇒ **放行**；否则 `Origin` 必须与 Host 同 authority」。本机进程本来就能直接
+ * 伪造 `Origin`（2026-10-21 实测 200），所以放行"无 Origin"不扩大 CSRF 面：闸门挡的是
+ * **第三方网页借用户浏览器发请求**，那种请求必带 `Origin` 或 `Sec-Fetch-Site`。
  *
  * 为什么按 `Host` 比而不是比配置里的端口：GUI 可能是 `dsh web --port N` 起的（N 可变），
- * `Origin`/`Host` 是**同一次请求自证**的一对，比较它们不依赖任何配置。这是 CSRF 防线
- * （挡跨站发起的请求），不是身份认证 —— 身份仍由 DSH 自己的 browser-session 负责。
+ * 也可能是桌面壳的 `dsh-app://app`（无端口）；`Origin`/`Host` 是**同一次请求自证**的一对，
+ * 比较它们不依赖任何配置。这是 CSRF 防线，不是身份认证 —— 身份仍由 DSH 自己的
+ * browser-session / 桌面壳 cookie 负责。
  */
 function isSameOrigin(req) {
   const headers = req?.headers ?? {};
@@ -852,7 +867,7 @@ function isSameOrigin(req) {
   const site = str(headers['sec-fetch-site']).trim().toLowerCase();
   if (site && site !== 'same-origin') return false;
   const origin = str(headers.origin).trim();
-  if (!origin) return false;
+  if (!origin) return true; // 桌面壳转发（forwardWebRequest 删头）/ 本机客户端：没有浏览器标记可校验
   let originHost;
   try {
     originHost = new URL(origin).host;

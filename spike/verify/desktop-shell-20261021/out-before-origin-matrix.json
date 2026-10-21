@@ -1,0 +1,184 @@
+{
+  "label": "before",
+  "generatedAt": "2026-10-21T08:48:40.778Z",
+  "port": 55505,
+  "total": 12,
+  "pass": 8,
+  "fail": 4,
+  "records": [
+    {
+      "id": "C1-browser-same-origin-post",
+      "why": "普通 Web UI（浏览器）同源 POST —— 既有行为，不得回归",
+      "expected": {
+        "status": 200,
+        "executed": [
+          "explorer.snapshot"
+        ]
+      },
+      "actual": {
+        "status": 200,
+        "executed": [
+          "explorer.snapshot"
+        ],
+        "bodyText": "{\"ok\":true,\"result\":{\"stub\":\"snapshot\"}}"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "id": "C2-desktop-shell-forward-post",
+      "why": "★ 桌面壳 dsh-app://app 转发：壳删掉 origin/sec-fetch-site 后用 Node fetch 重放 ⇒ 无 Origin、无 Sec-Fetch-Site",
+      "expected": {
+        "status": 200,
+        "executed": [
+          "explorer.snapshot"
+        ]
+      },
+      "actual": {
+        "status": 403,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "id": "C3-desktop-shell-forward-get",
+      "why": "桌面壳里 GET 方法发现（面板/CLI 探活）",
+      "expected": {
+        "status": 200,
+        "executed": []
+      },
+      "actual": {
+        "status": 403,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "id": "C4-desktop-shell-forward-unknown-method",
+      "why": "无 Origin 也必须进入白名单判定（未知方法 400），不许被闸门误杀",
+      "expected": {
+        "status": 400,
+        "executed": []
+      },
+      "actual": {
+        "status": 403,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "id": "C5-foreign-origin-post",
+      "why": "第三方网页 POST（CSRF）必须仍被拒，且一个方法都不执行",
+      "expected": {
+        "status": 403,
+        "executed": []
+      },
+      "actual": {
+        "status": 403,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "id": "C6-wrong-port-origin-post",
+      "why": "同 host 异端口（另一个本机服务冒充）必须被拒",
+      "expected": {
+        "status": 403,
+        "executed": []
+      },
+      "actual": {
+        "status": 403,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "id": "C7-cross-site-marker-post",
+      "why": "浏览器明确标记 cross-site（即使 Origin 被改掉）必须被拒",
+      "expected": {
+        "status": 403,
+        "executed": []
+      },
+      "actual": {
+        "status": 403,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "id": "C8-browser-same-origin-get",
+      "why": "浏览器同源 GET 不带 Origin、只带 Sec-Fetch-Site: same-origin ⇒ 放行（只回方法清单）",
+      "expected": {
+        "status": 200,
+        "executed": []
+      },
+      "actual": {
+        "status": 403,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+      },
+      "verdict": "FAIL"
+    },
+    {
+      "id": "C9-same-origin-put",
+      "why": "同源但动词不对 ⇒ 405（闸门已过，动词被拒）",
+      "expected": {
+        "status": 405,
+        "executed": []
+      },
+      "actual": {
+        "status": 405,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"只接受 GET（方法清单）与 POST（调用）；收到 PUT\"}"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "id": "C10-same-origin-non-json",
+      "why": "同源但类型不对 ⇒ 415",
+      "expected": {
+        "status": 415,
+        "executed": []
+      },
+      "actual": {
+        "status": 415,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"POST 需要 content-type: application/json（收到 \\\"text/plain\\\"）\"}"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "id": "C11-same-origin-unknown-method",
+      "why": "同源 + 未知方法 ⇒ 400（硬白名单）",
+      "expected": {
+        "status": 400,
+        "executed": []
+      },
+      "actual": {
+        "status": 400,
+        "executed": [],
+        "bodyText": "{\"ok\":false,\"error\":\"未知方法 explorer.__probe__\",\"methods\":[\"explorer.snapshot\",\"explorer.openSession\",\"explorer.daemon\",\"explorer.fixPin\",\"explorer.listDir\",\"explorer.addWorkspace\"]}"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "id": "C12-no-host",
+      "why": "没有 Host 头 ⇒ 403（闸门第一个条件）",
+      "expected": {
+        "status": 403,
+        "executed": []
+      },
+      "actual": {
+        "status": 403,
+        "executed": [],
+        "bodyText": "HTTP/1.1 403 Forbidden\r\nContent-Type: application/json; charset=utf-8\r\nCache-Control: no-store\r\nDate: Wed, 21 Oct 2026 08:48:40 GMT\r\nConnection: close\r\n\r\n{\"ok\":false,\"error\":\"跨站请求被拒（Origin/Host 不同源）\"}"
+      },
+      "verdict": "PASS"
+    }
+  ]
+}
