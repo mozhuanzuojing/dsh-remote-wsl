@@ -100,7 +100,11 @@ function renderTail(props) {
 							"div",
 							{ key: "confirm", className: "dsh-rw-confirm", role: "alertdialog", "aria-modal": "true", "aria-label": isStop ? t("confirm.stopTitle") : t("confirm.restartTitle") },
 							React.createElement("div", { className: "dsh-rw-confirm-title" }, icon("error"), isStop ? t("confirm.stopTitle") : t("confirm.restartTitle")),
-							React.createElement("div", { className: "dsh-rw-confirm-body" }, t("confirm.body", { distro: activeDistro === null ? "?" : activeDistro, count: pending.sessions, consequence: isStop ? t("confirm.stopConsequence") : t("confirm.restartConsequence") })),
+							React.createElement("div", { className: "dsh-rw-confirm-body" }, t("confirm.body", {
+								distro: typeof pending.distro === "string" && pending.distro.length > 0 ? pending.distro : activeDistro === null ? "?" : activeDistro,
+								count: typeof pending.distro === "string" && pending.distro.length > 0 && pending.distro !== activeDistro ? "?" : pending.sessions,
+								consequence: isStop ? t("confirm.stopConsequence") : t("confirm.restartConsequence"),
+							})),
 							React.createElement(
 								"div",
 								{ className: "dsh-rw-confirm-actions" },
@@ -128,7 +132,7 @@ function renderTail(props) {
 											setPending(null);
 											run(
 												`daemon:${asked.action}`,
-												(signal) => api.daemon({ action: asked.action, slot: asked.slot }, signal),
+												(signal) => api.daemon(Object.assign({ action: asked.action, slot: asked.slot }, typeof asked.distro === "string" && asked.distro.length > 0 ? { distro: asked.distro } : {}), signal),
 												{ describe: (result) => daemonNote(t, isStop ? t("daemon.stopped") : t("daemon.restarted"), result), refresh: true, failKey: isStop ? "note.failStop" : "note.failRestart" },
 											);
 										},

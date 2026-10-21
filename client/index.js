@@ -510,6 +510,8 @@ window.__ModuleLoader__.load({
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
 
+// 2026-10-21 确认框按目标发行版走：tail 改动，刷新入口 rev。
+
 // 2026-10-21 目标动作：行内打开/默认/停止 + 底栏 WSL chip；刷新入口 rev。
 
 // 2026-10-21 目标列表对齐 VS Code WSL TARGETS：browser/tail/i18n/CSS 改动，刷新入口 rev。
