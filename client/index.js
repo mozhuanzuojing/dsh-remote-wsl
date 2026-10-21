@@ -76,6 +76,9 @@ window.__ModuleLoader__.load({
 			".dsh-rw-title{font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
 			".dsh-rw-subtitle{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-header-actions{display:flex;align-items:center;gap:8px;flex:none}",
+			// 2026-10-21「多发行版」：目标发行版选择器（只有多个发行版时才渲染；单发行版是静态徽标）
+			".dsh-rw-select{flex:none;max-width:180px;min-width:0;height:22px;box-sizing:border-box;padding:0 4px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px}",
+			".dsh-rw-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}",
 			".dsh-rw-body{flex:1;min-height:0;overflow:auto;padding:8px 8px 4px;display:flex;flex-direction:column;gap:8px}",
 			".dsh-rw-card{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px 10px;box-shadow:none;display:flex;flex-direction:column;gap:6px;min-height:0}",
 			".dsh-rw-cardhead{display:flex;align-items:center;gap:8px;min-width:0}",
@@ -470,3 +473,6 @@ window.__ModuleLoader__.load({
 
 // 2026-10-21 桌面壳来源闸门修正：client.api.js 注释随 host 判据更新（Origin 缺失 = 桌面壳
 // `dsh-app://app` 转发 ⇒ 放行），按 docs/client-contract.md §11 触碰本入口刷新 chunk rev。
+
+// 2026-10-21「多发行版」：client/** 全量改动（api.setDistro、panel 目标选择器、i18n、CSS），
+// 按 docs/client-contract.md §11 由本入口刷新 chunk rev。

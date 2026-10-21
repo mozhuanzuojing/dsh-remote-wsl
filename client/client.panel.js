@@ -71,6 +71,17 @@ window.__ModuleLoader__.load({
 
 		function createPanel(ctx, api, i18n) {
 			const t = i18n && typeof i18n.t === "function" ? i18n.t : (key) => key;
+			/** 目标发行版（多发行版切换）的本地记忆；只影响本面板的请求，不写插件配置。 */
+			const DISTRO_KEY = "dsh-remote-wsl.distro";
+			const readStoredDistro = () => {
+				try {
+					const v = typeof localStorage === "undefined" ? null : localStorage.getItem(DISTRO_KEY);
+					return typeof v === "string" && v.length > 0 ? v : null;
+				} catch {
+					return null;
+				}
+			};
+			api.setDistro(readStoredDistro());
 			const i18nSubscribe = i18n && typeof i18n.subscribe === "function" ? i18n.subscribe : null;
 
 			// T41：全部子 chunk 已由 whenReady() 保证就绪，这里把它们的导出面解构回**同名局部**。
@@ -116,6 +127,7 @@ window.__ModuleLoader__.load({
 				const [menuOpen, setMenuOpen] = React.useState(false);
 				const [browse, setBrowse] = React.useState({ cwd: null, status: "idle", entries: [], error: null });
 				const [showHidden, setShowHidden] = React.useState(false);
+				const [chosenDistro, setChosenDistro] = React.useState(() => readStoredDistro());
 				const [pathInput, setPathInput] = React.useState("");
 				const [pathError, setPathError] = React.useState(null);
 				const [mounts, setMounts] = React.useState([]);
@@ -198,6 +210,35 @@ window.__ModuleLoader__.load({
 				scope.Entries = parts.Entries;
 				const actions = parts.usePanelActions(scope);
 				Object.assign(scope, actions);
+				/** 切换目标发行版：只改后续请求带的 distro（api.setDistro）+ 清缓存 + 重新拉快照。 */
+				const changeDistro = (name) => {
+					const next = typeof name === "string" && name.length > 0 ? name : null;
+					try {
+						if (typeof localStorage !== "undefined") {
+							if (next === null) localStorage.removeItem(DISTRO_KEY);
+							else localStorage.setItem(DISTRO_KEY, next);
+						}
+					} catch {}
+					api.setDistro(next);
+					dirCache.clear();
+					setChosenDistro(next);
+					setBrowse({ cwd: null, status: "idle", entries: [], error: null });
+					setPathError(null);
+					setPathInput("");
+					setSearch("");
+					actions.load();
+				};
+				scope.chosenDistro = chosenDistro;
+				scope.onDistroChange = changeDistro;
+				/** 记住的发行版被删/改名时：host 回"未知发行版" ⇒ 退回缺省目标重试一次（不循环）。 */
+				const distroResetRef = React.useRef(false);
+				React.useEffect(() => {
+					if (state.status !== "error" || chosenDistro === null || distroResetRef.current) return;
+					const message = state.error && typeof state.error.message === "string" ? state.error.message : "";
+					if (message.indexOf("未知发行版") < 0) return;
+					distroResetRef.current = true;
+					changeDistro(null);
+				}, [state.status, state.error, chosenDistro]);
 				const headerOut = parts.renderHeader(scope);
 				Object.assign(scope, headerOut);
 				parts.renderBrowser(scope);

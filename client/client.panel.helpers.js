@@ -106,6 +106,11 @@ window.__ModuleLoader__.load({
 			invalidate(path) {
 				this.entries.delete(path);
 			},
+			/** 切换目标发行版：缓存键只有路径，不清就会把 A 的目录显示成 B 的。 */
+			clear() {
+				this.entries.clear();
+				this.inflight.clear();
+			},
 		};
 
 		/**

@@ -92,6 +92,7 @@ interface ExplorerSnapshot {
   ```
   POST /remote-wsl/api   body: { "method": "explorer.snapshot", "args": {...} }
   GET  /remote-wsl/api   → 方法清单（调试用）
+  body.args 可选 `distro`（缺省 = 配置里的发行版；多发行版机器上面板切换目标就靠它）
   method ∈ explorer.snapshot | explorer.openSession | explorer.daemon | explorer.fixPin | explorer.listDir | explorer.addWorkspace
   （**6 个**。权威：`src/explorer.ts` 的 `EXPLORER_METHODS`；client 侧副本 `client/client.api.js`。后两个 `listDir`/`addWorkspace` 是 A3/A1 落地时新增）
   ```
@@ -118,7 +119,7 @@ interface ExplorerSnapshot {
 
 | 用户动作 | 走什么 | 说明 |
 |---|---|---|
-| 切 distro | `POST …/api {method:'explorer.selectDistro'}`（或经 snapshot 参数） | 写入插件配置（WSL 侧 `~/.dsh/remote-wsl/`） |
+| 切 distro | **所有方法都可带可选的 `{distro}`**（snapshot / listDir / openSession / daemon / fixPin / addWorkspace） | **2026-10-21 落地**：按请求生效、**不写插件配置**（因此不需要 `explorer.selectDistro`）；host 用 `wsl -l -q` 校验名字，未知 ⇒ 400 `E_ARG`；面板在头部渲染选择器（多发行版才出下拉） |
 | 点文件夹「在新会话中打开」 | `{method:'explorer.openSession'}` → **附到已物化的会话** | **P0 语义是"附到/提示"而不是"真起一轮"**（见 §4 末条）。不是把 WSL 目录当本地工作区（见 §7） |
 | 点「在终端中打开」 | host 半起 `wsl.exe -d <distro> --cd <path> -- bash`，并让会话认领它 | 或复用 `terminalController` 的宿主终端 + `wsl.exe` 包装 |
 | 「＋」添加收藏路径 | host 半在 WSL 里列目录（复用 `wsl_exec` 同一套落文件+`bash <file>` 纪律）→ 存 `explorer.json` | **不要**用 DSH 的 `uiWorkspace.pickDirectory`（那是 **Windows 本机**目录，不是 WSL） |

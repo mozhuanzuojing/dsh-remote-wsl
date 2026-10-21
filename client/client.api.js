@@ -211,13 +211,31 @@ window.__ModuleLoader__.load({
 		 */
 		function createExplorerApi(i18n) {
 			const t = i18n && typeof i18n.t === "function" ? i18n.t : fallbackTranslate;
-			/** 统一入口：把本包的 t 透给 request（request 在模块作用域，拿不到上面的闭包）。 */
-			const call = (method, args, options) => request(method, args, options, t);
+			/**
+			 * 面板当前选中的目标发行版（null = 用 host 配置里的缺省）。
+			 * 面板切换时调 setDistro() 写入；每次调用自动带上，五个方法都不必各自拼参数。
+			 * 语义：只影响本面板的请求，不写 host 配置（host 侧对每个请求各自校验名字）。
+			 */
+			let distro = null;
+			/** 统一入口：把本包的 t 与当前目标发行版透给 request。 */
+			const call = (method, args, options) => {
+				const base = args && typeof args === "object" ? args : {};
+				const merged = distro === null ? base : Object.assign({}, base, { distro });
+				return request(method, merged, options, t);
+			};
 			const api = {
 				route: EXPLORER_ROUTE,
 				methods: METHODS,
 				daemonActions: DAEMON_ACTIONS,
 				timeoutMs: REQUEST_TIMEOUT_MS,
+
+				/** 设置/清除目标发行版（null/空串 = 回到 host 配置缺省）。 */
+				setDistro(name) {
+					distro = typeof name === "string" && name.length > 0 ? name : null;
+				},
+				getDistro() {
+					return distro;
+				},
 
 				/** POST 探测：host 注册了路由就会以 `{ok:false, methods:[…]}` 回 400，读回方法清单。 */
 				methodCatalogue(options) {

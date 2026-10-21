@@ -25,8 +25,8 @@ function renderTail(props) {
 	breadcrumbOf, browse, browseAbort, browseSeq,
 	cancelRef, clock, closeMenu, collapsed,
 	ctx, cwd, cwdDiffersFromTarget, daemon,
-	daemonKnown, daemonNote, daemonSlot, distros,
-	drift, driftKnown, errorText, factsVisible,
+	chosenDistro, daemonKnown, daemonNote, daemonSlot, distros,
+	drift, driftKnown, errorText, factsVisible, onDistroChange,
 	focusIndex, forceLocale, headerButtons, hiddenCount,
 	hideUpdated, homePathOf, icon, isRecord,
 	joinWslPath, jumpTo, keys, keysKnown,
@@ -46,6 +46,38 @@ function renderTail(props) {
 	submitPath, t, target, visibleEntries,
 	width,
 			} = props;
+
+			/** 目标发行版选择器：多发行版才出下拉；单发行版给静态徽标（不摆一个只有一项的死控件）。 */
+			const distroRows = distros.filter((row) => isRecord(row) && typeof row.name === "string");
+			const multiDistro = distroRows.length > 1;
+			const activeDistroValue =
+				typeof target.distro === "string" && target.distro.length > 0 ? target.distro : chosenDistro;
+			const distroControl = multiDistro
+				? React.createElement(
+					"select",
+					{
+						className: "dsh-rw-select",
+						value: activeDistroValue === null ? "" : activeDistroValue,
+						"aria-label": t("header.distroField"),
+						title: t("header.distroSwitchTitle"),
+						onChange: (event) => onDistroChange(event.target.value),
+					},
+					distroRows.map((row) =>
+						React.createElement(
+							"option",
+							{ key: row.name, value: row.name },
+							t("header.distroOption", {
+								distro: row.name,
+								state: row.reachable === true ? t("header.distroRunning") : t("header.distroStopped"),
+							}),
+						),
+					),
+				)
+				: React.createElement(
+					"span",
+					{ className: "dsh-rw-hint", title: t("header.distroOnlyTitle") },
+					t("header.distroOnly", { distro: activeDistroValue === null ? "?" : activeDistroValue }),
+				);
 
 				// —— 折叠区：高级 / 诊断（默认收起；收起时内部完全不渲染 ⇒ 不可 Tab 到达） ——
 				if (factsVisible && snapshot !== null) {
@@ -252,8 +284,7 @@ function renderTail(props) {
 										"span",
 										{ className: "dsh-rw-header-meta" },
 										React.createElement("span", { className: "dsh-rw-badge" }, t("row.notMaterialized")),
-										// T63：窄态换更短文案（「不改目标」），完整句永远在 `title` 里 ⇒ 不丢信息
-										React.createElement("span", { className: "dsh-rw-hint", title: t("header.distroScope") }, narrow ? t("header.distroScopeShort") : t("header.distroScope")),
+										distroControl,
 									)
 								: null,
 						),

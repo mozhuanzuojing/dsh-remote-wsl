@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-10-21T09:10:07.129Z",
+  "real": "debian-u8-1",
+  "fake": "probe-no-such-distro",
+  "total": 8,
+  "pass": 8,
+  "fail": 0,
+  "results": [
+    {
+      "name": "未知发行版：拒绝且 E_ARG",
+      "ok": true,
+      "detail": "E_ARG"
+    },
+    {
+      "name": "未知发行版：文案点名请求名",
+      "ok": true,
+      "detail": "remote-wsl: 未知发行版 \"definitely-not-a-distro\"（本机 wsl -l -q：debian-u8-1、probe-no-such-distro）"
+    },
+    {
+      "name": "未运行发行版：listDir 503",
+      "ok": true,
+      "detail": "E_UNAVAILABLE"
+    },
+    {
+      "name": "未运行发行版：文案点名那个发行版",
+      "ok": true,
+      "detail": "remote-wsl: 发行版 \"probe-no-such-distro\" 此刻未运行（wsl -l -v 的 STATE ≠ Running）⇒ 无法读取 /。面板是只读的，不会为了浏览而启动发行版；请先在终端执行 wsl -d probe-no-such-distro 启动它。"
+    },
+    {
+      "name": "真实发行版：listDir 回显 distro",
+      "ok": true,
+      "detail": "debian-u8-1"
+    },
+    {
+      "name": "真实发行版：target.distro 一致",
+      "ok": true,
+      "detail": "debian-u8-1"
+    },
+    {
+      "name": "真实发行版：distros 含运行态字段",
+      "ok": true,
+      "detail": "[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true},{\"name\":\"probe-no-such-distro\",\"default\":false,\"reachable\":false}]"
+    },
+    {
+      "name": "未运行发行版：snapshot 不抛、target 仍是它",
+      "ok": true,
+      "detail": "probe-no-such-distro"
+    }
+  ]
+}

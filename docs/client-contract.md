@@ -247,6 +247,8 @@ if (typeof context.inject === "function") {
 }
 ```
 
+**多发行版（2026-10-21）**：`/remote-wsl/api` 的 `args` 可带可选 `distro`；host 用 `listDistros()`（`wsl -l -q`）校验，未知 ⇒ `E_ARG`(400)。非配置发行版的 `wslHome` 由 host 解析一次（`wsl -d <distro> -- sh -c 'printf %s "$HOME"'`，进程内缓存，失败回落配置值）——因为守护 state 目录是 `${wslHome}/.dsh/remote-wsl`，猜错会找不到/写错位置。`snapshot` 的单飞按发行版分键。
+
 浏览器侧同源取数（同包 `dist/client.js:100-105`）：
 
 ```js

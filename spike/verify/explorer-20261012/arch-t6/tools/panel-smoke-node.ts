@@ -140,6 +140,8 @@ try {
     methods: { snapshot: 'explorer.snapshot' },
     daemonActions: ['ensure', 'stop', 'restart'],
     timeoutMs: 9000,
+    setDistro() {},
+    getDistro() { return null; },
     snapshot: async () => ({ distros: [{ name: 'debian-u8-1', default: true, reachable: true }], target: { distro: 'debian-u8-1', cwd: '/home/g' }, daemon: { running: false, keys: [] }, drift: { drifted: false }, workspaces: [{ distro: 'debian-u8-1', path: '/home/g/p', label: 'p', kind: 'folder' }], webHosts: [] }),
     probe: async () => [],
   };

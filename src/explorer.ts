@@ -362,6 +362,66 @@ export function createExplorerHandlers(deps) {
   }
 
   /**
+   * 本次调用要驱动的发行版：缺省 = 配置里的 `distro`；显式给了就必须出现在
+   * `listDistros()`（`wsl -l -q`）里 —— **不猜、不回落**（写错名字要响，不要静默换成默认发行版）。
+   *
+   * 为什么允许显式指定（2026-10-21「多发行版」）：面板在多发行版机器上要能切换目标；
+   * 切换是**按请求**生效的（不写插件配置），所以每个方法都从 `args.distro` 取一次。
+   */
+  function resolveDistro(args) {
+    const raw = str(args?.distro).trim();
+    if (!raw) return cfg.distro;
+    const names = readDistroFacts().names;
+    if (!Array.isArray(names) || names.indexOf(raw) < 0) {
+      failArg(
+        `remote-wsl: 未知发行版 "${raw}"（本机 wsl -l -q：${(Array.isArray(names) && names.length ? names.join('、') : '(读不到)')}）`,
+      );
+    }
+    return raw;
+  }
+
+  /**
+   * 非配置发行版的**家目录**：进程内缓存，成功只解析一次。
+   *
+   * 为什么必须解析而不是猜：守护的 state 目录是 `${wslHome}/.dsh/remote-wsl`（`stateDirLinux`），
+   * 家目录错了 ⇒ 既找不到那台发行版已有的守护，也会把新守护的元数据写到别处。
+   * 代价（**如实写在这里**）：`wsl -d <distro>` 会把**未运行**的发行版拉起来 —— 这只发生在
+   * 用户显式切到该发行版时（配置里的那台短路，不探测），且结果按进程缓存；
+   * 失败缓存 60s，避免每次刷新都去敲一次坏掉的发行版。
+   */
+  const distroHomeCache = new Map();
+  function distroHome(distro) {
+    if (distro === cfg.distro) return cfg.wslHome;
+    const hit = distroHomeCache.get(distro);
+    if (hit !== undefined && (hit.home !== null || Date.now() - hit.at < 60000)) return hit.home ?? cfg.wslHome;
+    let home = null;
+    try {
+      const res = spawnSync('wsl.exe', ['-d', distro, '--', 'sh', '-c', 'printf %s "$HOME"'], {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 8000,
+      });
+      const out = str(res.stdout).trim();
+      if (res.status === 0 && out.startsWith('/')) home = out;
+    } catch {
+      home = null;
+    }
+    distroHomeCache.set(distro, { home, at: Date.now() });
+    return home ?? cfg.wslHome;
+  }
+
+  /**
+   * 换一个发行版跑同一套逻辑：只换 `distro` / `wslHome` / 默认 `cwd`。
+   * 非配置发行版的默认 cwd 用它的家目录（解析失败时回落配置值 —— 不伪造"存在"，
+   * 后续 listDir 会用真实 ENOENT/未运行错误说清楚）。
+   */
+  function cfgFor(distro) {
+    if (distro === cfg.distro) return cfg;
+    const home = distroHome(distro);
+    return { ...cfg, distro, wslHome: home, cwd: home };
+  }
+
+  /**
    * `explorer.snapshot` —— 只读聚合快照；**不启动、不停止、不写任何东西**。
    *
    * **并发单飞（single-flight）**：`snapshot` 无参，同参并发共享**同一次执行** —— 面板重挂载、
@@ -370,19 +430,23 @@ export function createExplorerHandlers(deps) {
    * 不伪造实时性；并发调用者只共享"同一次执行的结果对象"（只读使用；adapter 只做 JSON 序列化）。
    * 失败同样共享这一次的 rejection 并清空 in-flight，不留下"永远返回旧错误"的悬挂 Promise。
    */
-  let snapshotInflight = null;
-  async function snapshot() {
-    if (snapshotInflight !== null) return snapshotInflight;
-    const p = runSnapshot();
-    snapshotInflight = p;
+  /** 单飞：**按发行版分键**（多发行版面板里，A 与 B 的快照互不阻塞、不串味）。 */
+  const snapshotInflight = new Map();
+  async function snapshot(args) {
+    const distro = resolveDistro(args);
+    const existing = snapshotInflight.get(distro);
+    if (existing !== undefined) return existing;
+    const p = runSnapshot(distro);
+    snapshotInflight.set(distro, p);
     try {
       return await p;
     } finally {
-      if (snapshotInflight === p) snapshotInflight = null;
+      if (snapshotInflight.get(distro) === p) snapshotInflight.delete(distro);
     }
   }
 
-  async function runSnapshot() {
+  async function runSnapshot(distro) {
+    const eff = cfgFor(distro);
     const facts = readDistroFacts();
     const names = facts.names;
     const flags = facts.flags;
@@ -392,7 +456,7 @@ export function createExplorerHandlers(deps) {
       reachable: flags.running.has(name), // 定义见 probeDistroState()：探测时 STATE=Running（不探活、零副作用）
     }));
 
-    const v = deps.resolveVersion(cfg);
+    const v = deps.resolveVersion(eff);
 
     // ★ 单一真相源：daemon 段只能来自 daemonSnapshot()（= wsl_status / wsl_daemon status 的同一函数）。
     //
@@ -412,7 +476,7 @@ export function createExplorerHandlers(deps) {
     //     哪些守护"，与"我们拥有哪一个"无关。线上字段正式改名 `discoveredDaemon` 属 **P2**
     //     （README「仍余」② 已记录：要动 6 个工具 + selftest），本轮只落地**具名选择器**，
     //     不改字段名 —— 这样两个语义此后各有名字，不会再被"顺手回落"糊在一起。
-    const ds = await daemonSnapshot(cfg);
+    const ds = await daemonSnapshot(eff);
     const live = discoverDaemons(Array.isArray(ds.live) ? ds.live : []);
     const configuredSlot = Number(cfg.daemonPort) || null;
     const mine = selectOwnedDaemon(live, configuredSlot);
@@ -460,10 +524,10 @@ export function createExplorerHandlers(deps) {
 
     return {
       distros,
-      target: { distro: cfg.distro, wslHome: cfg.wslHome, cwd: cfg.cwd },
+      target: { distro, wslHome: eff.wslHome, cwd: eff.cwd },
       daemon,
       drift,
-      workspaces: readWorkspaces(cfg),
+      workspaces: readWorkspaces(eff),
       webHosts,
     };
   }
@@ -482,23 +546,18 @@ export function createExplorerHandlers(deps) {
    *     P0 UI **不暴露**这个参数（lead：留给 P1 的显式动作）；这里保留分支并标注。
    */
   async function openSession(args) {
-    const distro = str(args?.distro) || cfg.distro;
+    const distro = resolveDistro(args);
+    const eff = cfgFor(distro);
     const path = str(args?.path).trim();
     if (!path) failArg('remote-wsl: explorer.openSession 需要 path（WSL 绝对路径）');
     if (!path.startsWith('/')) {
       failArg(`remote-wsl: explorer.openSession 的 path 必须是 WSL 绝对路径（以 / 开头），收到 "${path}"`);
     }
-    if (distro !== cfg.distro) {
-      failArg(
-        `remote-wsl: explorer.openSession 收到 distro=${distro}，但本插件当前只驱动配置里的 "${cfg.distro}"` +
-          `（一次一个发行版；要换请改 config.distro）`,
-      );
-    }
-    const v = deps.resolveVersion(cfg);
+    const v = deps.resolveVersion(eff);
     if (!v.version) failUnavailable('remote-wsl: 无法确定 dsh 版本（桌面 runtime.json 不可读且未配 dshVersion）');
 
-    const found = (readDaemonMeta(cfg)?.keys ?? []).find(
-      (k) => str(k?.key) === EXPLORER_RUNTIME_KEY && str(k?.cwd ?? cfg.cwd) === path,
+    const found = (readDaemonMeta(eff)?.keys ?? []).find(
+      (k) => str(k?.key) === EXPLORER_RUNTIME_KEY && str(k?.cwd ?? eff.cwd) === path,
     );
     if (found?.sessionId) {
       return {
@@ -512,7 +571,7 @@ export function createExplorerHandlers(deps) {
       };
     }
 
-    const ensured = await ensureDaemon(cfg, { version: v.version, log });
+    const ensured = await ensureDaemon(eff, { version: v.version, log });
     // F14b（task-8）：与 `daemon` 分支**同一失败语义** —— 都走 E_UNAVAILABLE(503)。
     // 改前这里是裸 Error ⇒ HTTP 500，而同类的 daemon ensure 失败是 503（调用方无法按 code 分流）。
     if (!ensured.ok) failUnavailable(withModulePrefix(ensured.error));
@@ -569,6 +628,8 @@ export function createExplorerHandlers(deps) {
    */
   async function daemonAction(args) {
     const action = str(args?.action) || 'ensure';
+    const distro = resolveDistro(args);
+    const base = cfgFor(distro);
     const slot = args?.slot == null ? undefined : Number(args.slot);
     if (slot !== undefined && (!Number.isFinite(slot) || slot <= 0)) {
       failArg(`remote-wsl: explorer.daemon 的 slot 非法: ${String(args?.slot)}`);
@@ -583,7 +644,7 @@ export function createExplorerHandlers(deps) {
       );
     }
     // slot 只在**本次调用**里覆盖 daemonPort（与 wsl_daemon 的 "配置端口即槽位" 语义一致）
-    const eff = slot === undefined ? cfg : { ...cfg, daemonPort: slot };
+    const eff = slot === undefined ? base : { ...base, daemonPort: slot };
 
     if (action === 'ensure' || action === 'restart') {
       const v = deps.resolveVersion(eff);
@@ -638,8 +699,9 @@ export function createExplorerHandlers(deps) {
    * 只修 pin，**绝不重启/停止守护**（§5：默认只告警，显式点击才动手；语义 #5）。不 warm（warm 是
    * `wsl_sync_version --warm` 的显式选项，面板的"修 pin"不该顺带下载）。
    */
-  async function fixPin() {
-    const v = deps.resolveVersion(cfg);
+  async function fixPin(args) {
+    const eff = cfgFor(resolveDistro(args));
+    const v = deps.resolveVersion(eff);
     const pinBefore = v.pin ?? null;
     if (!v.version) {
       return {
@@ -650,8 +712,8 @@ export function createExplorerHandlers(deps) {
         error: '无法确定要 pin 的版本（桌面 runtime.json 不可读且未配 dshVersion）',
       };
     }
-    const wrote = deps.writePin(cfg, v.version) === true;
-    const after = deps.resolveVersion(cfg);
+    const wrote = deps.writePin(eff, v.version) === true;
+    const after = deps.resolveVersion(eff);
     return {
       ok: wrote,
       pinBefore,
@@ -678,31 +740,32 @@ export function createExplorerHandlers(deps) {
    * · 顺序**确定性**：`name` 升序（dir/file 分组由 client 做）。
    * · 失败给可读错误并**带上那个 path**：路径不存在/不是目录 ⇒ `E_NOTFOUND`(404)；
    *   发行版不在列表/未运行/无权限/其它 ⇒ `E_UNAVAILABLE`(503)。
-   * @param args `{ path }`
+   * @param args `{ path, distro? }`（`distro` 缺省 = 配置里的发行版）
    * @returns `{ path, distro, entries: [{ name, kind: 'dir'|'file'|'other', hidden }] }`
    */
   async function listDir(args) {
     const path = assertSafeWslPath(args?.path);
+    const distro = resolveDistro(args);
 
     // 发行版前置判定（只读：`wsl -l -q` + `wsl -l -v` 的 STATE，两者都零副作用）
     // 与 snapshot 共用同一份短 TTL 事实缓存（DISTRO_FACTS_TTL_MS）；判定分支与文案逐字不变。
     const facts = readDistroFacts();
     const names = facts.names;
     const flags = facts.flags;
-    if (!names.includes(cfg.distro)) {
+    if (!names.includes(distro)) {
       failUnavailable(
-        `remote-wsl: 配置的发行版 "${cfg.distro}" 不在 wsl -l -q 的输出里 ⇒ 无法读取 ${path}。` +
-          `面板是只读的，不会为了浏览而启动发行版；请检查 config.distro 或先手动启动它。`,
+        `remote-wsl: 发行版 "${distro}" 不在 wsl -l -q 的输出里 ⇒ 无法读取 ${path}。` +
+          `面板是只读的，不会为了浏览而启动发行版；请检查发行版名称或先手动启动它。`,
       );
     }
-    if (!flags.running.has(cfg.distro)) {
+    if (!flags.running.has(distro)) {
       failUnavailable(
-        `remote-wsl: 发行版 "${cfg.distro}" 此刻未运行（wsl -l -v 的 STATE ≠ Running）⇒ 无法读取 ${path}。` +
-          `面板是只读的，不会为了浏览而启动发行版；请先手动启动它。`,
+        `remote-wsl: 发行版 "${distro}" 此刻未运行（wsl -l -v 的 STATE ≠ Running）⇒ 无法读取 ${path}。` +
+          `面板是只读的，不会为了浏览而启动发行版；请先在终端执行 wsl -d ${distro} 启动它。`,
       );
     }
 
-    const winPath = windowsDriveForMount(path) ?? unc(cfg.distro, path);
+    const winPath = windowsDriveForMount(path) ?? unc(distro, path);
     let dirents;
     try {
       dirents = readdirSync(winPath, { withFileTypes: true });
@@ -723,7 +786,7 @@ export function createExplorerHandlers(deps) {
       }))
       .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
-    return { path, distro: cfg.distro, entries };
+    return { path, distro, entries };
   }
 
   /**
@@ -744,11 +807,12 @@ export function createExplorerHandlers(deps) {
    * 副作用边界：**会写 host 侧的工作区存储**（这是本方法的用途），但**不碰守护/端口/发行版**；
    * 失败（含参数错、路径不存在、服务缺失）都在**写之前**返回 ⇒ 零副作用。
    *
-   * @param args `{ path, title? }`
+   * @param args `{ path, title?, distro? }`（`distro` 缺省 = 配置里的发行版）
    * @returns `{ ok:true, id, title, uncPath, alreadyExisted }`
    */
   async function addWorkspace(args) {
     const path = assertSafeWslPath(args?.path, 'explorer.addWorkspace');
+    const distro = resolveDistro(args);
     const mount = windowsDriveForMount(path);
     if (mount !== null) {
       failArg(
@@ -767,7 +831,7 @@ export function createExplorerHandlers(deps) {
       );
     }
 
-    const uncPath = unc(cfg.distro, path);
+    const uncPath = unc(distro, path);
     // 存在性前置判定：Windows 侧经 9p stat（与上游 realpath 的要求一致），但把 ENOENT 变成**可读 404**
     try {
       const st = statSync(uncPath);
