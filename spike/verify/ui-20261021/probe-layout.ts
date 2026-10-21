@@ -96,7 +96,7 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
 {
   const mod = loadChunk('client.panel.browser.js');
   const body = [];
-  mod.renderBrowser({
+  const browserProps = {
     distros: [], onDistroChange: () => {},
     React, body, breadcrumbOf: () => [{ label: '/', path: '/' }, { label: 'home', path: '/home' }],
     browse: { status: 'ready', entries: [], cwd: '/home', error: null, stale: false }, clearSearch: () => {},
@@ -107,7 +107,9 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
     setCollapsed: () => {}, setPathError: () => {}, setPathInput: () => {}, setShowHidden: () => {},
     showHidden: false, snapshot: {}, submitPath: () => {}, t,
     target: { distro: 'debian-u8-1', cwd: '/home/g', wslHome: '/home/g' }, totalEntries: 0, visibleEntries: [],
-  });
+    sessions: [], api: {}, run: () => {}, openSessionNote: () => '',
+  };
+  mod.renderBrowser(browserProps);
   const nodes = body.map((n) => walk(n, [])).flat();
   const classes = nodes.map((n) => String(n.props && n.props.className || ''));
   check('目录卡：有位置条', classes.some((c) => c.indexOf('dsh-rw-places') >= 0));
@@ -117,6 +119,21 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
   const cardNodes = browserCard ? walk(browserCard, []) : [];
   check('目录卡：没有 cardhead 占位', !!browserCard && cardNodes.every((n) => String(n.props && n.props.className).indexOf('dsh-rw-cardhead') < 0));
   check('目录卡：列表容器在卡片内', classes.some((c) => c.indexOf('dsh-rw-card') >= 0) && nodes.some((n) => typeof n.type === 'function'));
+  let opened = null;
+  const body3 = [];
+  mod.renderBrowser(Object.assign({}, browserProps, {
+    body: body3,
+    sessions: [{ cwd: '/home/g/proj', sessionId: 'abc12345' }],
+    api: { openSession: async (input) => { opened = input; return { sessionId: 'abc12345' }; } },
+    run: (key, op) => { op({}); },
+    openSessionNote: () => 'ok',
+  }));
+  const nodes3 = body3.map((n) => walk(n, [])).flat();
+  const sessionRows = nodes3.filter((n) => n.type === 'div' && String(n.props && n.props.className).indexOf('dsh-rw-session') >= 0);
+  check('会话卡：渲染会话行', sessionRows.length === 1, 'count=' + sessionRows.length);
+  const openBtn = nodes3.find((n) => n.type === 'button' && (n.children || []).join('').indexOf('sessions.open') >= 0);
+  if (openBtn) openBtn.props.onClick();
+  check('会话卡：打开回调带 distro+cwd', !!opened && opened.distro === 'debian-u8-1' && opened.path === '/home/g/proj', JSON.stringify(opened));
 }
 
 // ── 3) 折叠区交互：onToggle 的 currentTarget 在 updater 执行前会被 React 置空 ─────────

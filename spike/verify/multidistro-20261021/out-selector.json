@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T10:05:01.004Z",
+  "generatedAt": "2026-10-21T10:12:46.774Z",
   "total": 12,
   "pass": 12,
   "fail": 0,
@@ -25,9 +25,9 @@
       "detail": ""
     },
     {
-      "name": "两发行版：行内有 设为默认/停止 两个动作",
+      "name": "两发行版：行内有 切换/设为默认/停止 三个动作",
       "ok": true,
-      "detail": "count=2"
+      "detail": "count=3"
     },
     {
       "name": "两发行版：行显示 WSL 版本",
@@ -37,7 +37,7 @@
     {
       "name": "两发行版：动作文案齐全",
       "ok": true,
-      "detail": "targets.setDefault|targets.stop"
+      "detail": "targets.switch|targets.setDefault|targets.stop"
     },
     {
       "name": "两发行版：停止动作回调带发行版名",

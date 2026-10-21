@@ -220,7 +220,7 @@ export function apply(ctx, rawConfig = {}) {
   const runtimes = inHost.runtimes; // 宿主逃生舱持有的运行时（dispose 时回收；**不含守护**）
 
   const listDistros = () => {
-    const res = spawnSync('wsl.exe', ['-l', '-q'], { encoding: 'utf8', windowsHide: true });
+    const res = spawnSync('wsl.exe', ['-l', '-q'], { encoding: 'utf8', windowsHide: true, timeout: 8000 });
     return (res.stdout || '')
       .split('\n')
       .map((s) => s.replace(/\0/g, '').trim())

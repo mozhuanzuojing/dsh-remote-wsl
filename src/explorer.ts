@@ -261,7 +261,7 @@ function probeDistroState() {
   let text = '';
   let res;
   try {
-    res = spawnSync('wsl.exe', ['-l', '-v'], { encoding: 'utf8', windowsHide: true });
+    res = spawnSync('wsl.exe', ['-l', '-v'], { encoding: 'utf8', windowsHide: true, timeout: 8000 });
     text = str(res.stdout);
   } catch {
     return out;
@@ -508,12 +508,21 @@ export function createExplorerHandlers(deps) {
           port: mine.info?.port ?? null,
           version: mine.info?.version ?? null,
           keys: mineKeys.map((k) => str(k?.key)),
+          // 会话明细（对齐 VS Code 树里 distro 下的 folder 行）：cwd + sessionId + 最近活跃。
+          sessions: mineKeys.map((k) => ({
+            key: str(k?.key),
+            cwd: str(k?.cwd) || null,
+            sessionId: k?.sessionId === undefined || k?.sessionId === null ? null : str(k.sessionId),
+            turns: Number(k?.turns) || 0,
+            idleForMs: k?.idleForMs === undefined || k?.idleForMs === null ? null : Number(k.idleForMs),
+          })),
           orphans: Array.isArray(ds.orphans) ? ds.orphans.length : 0,
           others,
         }
       : {
           running: false,
           keys: [],
+          sessions: [],
           orphans: Array.isArray(ds.orphans) ? ds.orphans.length : 0,
           others,
         };

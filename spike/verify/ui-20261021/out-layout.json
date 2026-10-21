@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-21T10:05:00.928Z",
-  "total": 17,
-  "pass": 17,
+  "generatedAt": "2026-10-21T10:12:46.682Z",
+  "total": 19,
+  "pass": 19,
   "fail": 0,
   "results": [
     {
@@ -53,6 +53,16 @@
       "name": "目录卡：列表容器在卡片内",
       "ok": true,
       "detail": ""
+    },
+    {
+      "name": "会话卡：渲染会话行",
+      "ok": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "会话卡：打开回调带 distro+cwd",
+      "ok": true,
+      "detail": "{\"distro\":\"debian-u8-1\",\"path\":\"/home/g/proj\"}"
     },
     {
       "name": "折叠区：诊断 details 存在",

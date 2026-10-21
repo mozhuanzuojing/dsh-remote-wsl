@@ -88,6 +88,9 @@ window.__ModuleLoader__.load({
 			".dsh-rw-tchip>summary::-webkit-details-marker{display:none}",
 			".dsh-rw-tchip[open]>summary{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-tchip .dsh-rw-menu{width:200px}",
+			".dsh-rw-sessions{padding-bottom:8px}",
+			".dsh-rw-session{display:flex;align-items:center;gap:8px;min-height:28px;padding:4px 10px}",
+			".dsh-rw-sessionpath{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:isolate}",
 			".dsh-rw-folders{display:flex;flex-direction:column;gap:1px;padding:0 8px 6px 26px}",
 			".dsh-rw-folder{display:flex;align-items:center;gap:6px;height:24px;padding:0 6px;border:none;background:none;border-radius:4px;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;text-align:left;cursor:pointer;min-width:0}",
 			".dsh-rw-folder:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
@@ -513,6 +516,8 @@ window.__ModuleLoader__.load({
 
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
+
+// 2026-10-21 目标切换入口 + 远端会话卡（browser/actions/i18n/CSS）；刷新入口 rev。
 
 // 2026-10-21 最近文件夹按发行版分组（helpers/panel/actions/data/browser/CSS）；刷新入口 rev。
 

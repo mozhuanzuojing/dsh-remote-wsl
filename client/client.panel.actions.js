@@ -171,6 +171,7 @@ function usePanelActions(props) {
 				const keys = keysKnown ? daemon.keys : [];
 				const daemonSlot = daemonKnown && typeof daemon.slot === "number" ? daemon.slot : null;
 				const others = daemonKnown && Array.isArray(daemon.others) ? daemon.others.filter((row) => isRecord(row)) : [];
+				const sessions = daemonKnown && Array.isArray(daemon.sessions) ? daemon.sessions.filter((row) => isRecord(row)) : [];
 				const driftKnown = isRecord(snapshot && snapshot.drift);
 				const drift = driftKnown ? snapshot.drift : null;
 				const activeDistro =
@@ -346,7 +347,7 @@ function usePanelActions(props) {
 	drift, driftKnown, factsVisible, hiddenCount,
 	hideUpdated, jumpTo, keys, keysKnown,
 	listPath, load, narrow, onMenuKey,
-	others, run, runDaemon, snapshot,
+	others, run, runDaemon, snapshot, sessions,
 	submitPath, target, totalEntries, visibleEntries, searching,
 	cancelPrefetch, prefetchDir, searchChange,
 			};

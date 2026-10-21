@@ -69,10 +69,10 @@ check('两发行版：当前行高亮', !!active && String(active.props['aria-cu
 const other = rows2.find((n) => n !== active);
 check('两发行版：行不再绑定切换点击', !!other && typeof other.props.onClick !== 'function');
 const acts = other ? walk(other, []).filter((n) => n.type === 'button' && String(n.props.className).indexOf('dsh-rw-link') >= 0) : [];
-check('两发行版：行内有 设为默认/停止 两个动作', acts.length === 2, 'count=' + acts.length);
+check('两发行版：行内有 切换/设为默认/停止 三个动作', acts.length === 3, 'count=' + acts.length);
 check('两发行版：行显示 WSL 版本', nodes2.some((n) => (n.children || []).join('').indexOf('targets.wslVersion') >= 0 || (typeof n.props.children === 'string' && n.props.children.indexOf('targets.wslVersion') >= 0)), 'n/a');
 const labels = acts.map((n) => n.props['aria-label'] || (n.children || []).join(''));
-check('两发行版：动作文案齐全', labels.join('|').indexOf('targets.setDefault') >= 0 && labels.join('|').indexOf('targets.stop') >= 0, labels.join('|'));
+check('两发行版：动作文案齐全', labels.join('|').indexOf('targets.switch') >= 0 && labels.join('|').indexOf('targets.setDefault') >= 0 && labels.join('|').indexOf('targets.stop') >= 0, labels.join('|'));
 const stopBtn = acts.find((n) => (n.children || []).join('').indexOf('targets.stop') >= 0);
 if (stopBtn) stopBtn.props.onClick({ stopPropagation: () => {} });
 check('两发行版：停止动作回调带发行版名', stopped === 'Ubuntu-24.04', String(stopped));

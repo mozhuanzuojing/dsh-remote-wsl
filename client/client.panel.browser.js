@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
 
 		function renderBrowser(props) {
 			const {
-				React, StatusDot, body, breadcrumbOf, browse, clearSearch, collapsed, cwd, distros, isRecord, onSetDefault, onStopTarget, onRescan,
+				React, StatusDot, api, body, breadcrumbOf, browse, clearSearch, collapsed, cwd, distros, isRecord, onSetDefault, onStopTarget, onRescan, openSessionNote, run, sessions,
 				errorText, factsVisible, hiddenCount, homePathOf, icon, jumpTo, listPath,
 				mounts, pathError, pathInput, recent, recentOk,
 				Entries, search, searchChange, searchRef, searching,
@@ -77,7 +77,8 @@ window.__ModuleLoader__.load({
 									React.createElement(
 										"span",
 										{ className: "dsh-rw-targetacts" },
-										row.default === true ? null : React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onSetDefault === "function") onSetDefault(row.name); } }, t("targets.setDefault")),
+										!active ? React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onDistroChange === "function") onDistroChange(row.name); } }, t("targets.switch")) : null,
+						row.default === true ? null : React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onSetDefault === "function") onSetDefault(row.name); } }, t("targets.setDefault")),
 										React.createElement("button", { type: "button", className: "dsh-rw-link dsh-rw-link--danger", onClick: (event) => { event.stopPropagation(); if (typeof onStopTarget === "function") onStopTarget(row.name); } }, t("targets.stop")),
 									),
 								);
@@ -107,6 +108,40 @@ window.__ModuleLoader__.load({
 								}
 								return React.createElement(React.Fragment, { key: "targetwrap:" + row.name }, children);
 							}),
+						),
+					),
+				);
+			}
+
+			if (factsVisible && snapshot !== null && Array.isArray(sessions) && sessions.length > 0) {
+				body.push(
+					React.createElement(
+						"section",
+						{ key: "sessions", className: "dsh-rw-card dsh-rw-sessions", "aria-label": t("sessions.title") },
+						React.createElement(
+							"div",
+							{ className: "dsh-rw-cardhead" },
+							React.createElement("span", { className: "dsh-rw-grouptitle" }, t("sessions.title")),
+							React.createElement("span", { className: "dsh-rw-hint" }, t("sessions.count", { count: sessions.length })),
+						),
+						sessions.map((row, index) =>
+							React.createElement(
+								"div",
+								{ key: "session:" + (row.sessionId || index), className: "dsh-rw-session" },
+								icon("clock"),
+								React.createElement("span", { className: "dsh-rw-sessionpath", dir: "ltr", title: row.cwd || "" }, row.cwd || "?"),
+								row.sessionId ? React.createElement("span", { className: "dsh-rw-badge", title: String(row.sessionId) }, t("sessions.id", { id: String(row.sessionId).slice(0, 8) })) : null,
+								React.createElement("span", { className: "dsh-rw-spacer" }),
+								React.createElement(
+									"button",
+									{
+										type: "button",
+										className: "dsh-rw-link",
+										onClick: () => run("session:" + (row.cwd || ""), (signal) => api.openSession({ distro: typeof target.distro === "string" ? target.distro : "", path: row.cwd }, signal), { describe: (result) => openSessionNote(t, result) }),
+									},
+									t("sessions.open"),
+								),
+							),
 						),
 					),
 				);
