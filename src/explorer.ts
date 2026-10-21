@@ -450,12 +450,18 @@ export function createExplorerHandlers(deps) {
     const facts = readDistroFacts();
     const names = facts.names;
     const flags = facts.flags;
-    const distros = names.map((name) => ({
-      name,
-      default: flags.defaultName === name,
-      reachable: flags.running.has(name), // 定义见 probeDistroState()：探测时 STATE=Running（不探活、零副作用）
-      version: flags.versions && typeof flags.versions.get === 'function' ? (flags.versions.get(name) ?? null) : null,
-    }));
+    // 与 VS Code Remote-WSL 的 targetsWsl 对齐：过滤 Docker Desktop 自带发行版（除非它是默认），
+    // 默认发行版排最前、其余按名字排（二进制比较，保持确定性）。
+    const DOCKER_DISTRO = /^docker-desktop(-data)?$/;
+    const distros = names
+      .map((name) => ({
+        name,
+        default: flags.defaultName === name,
+        reachable: flags.running.has(name), // 定义见 probeDistroState()：探测时 STATE=Running（不探活、零副作用）
+        version: flags.versions && typeof flags.versions.get === 'function' ? (flags.versions.get(name) ?? null) : null,
+      }))
+      .filter((row) => row.default || !DOCKER_DISTRO.test(row.name))
+      .sort((a, b) => (a.default ? -1 : b.default ? 1 : a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
     const v = deps.resolveVersion(eff);
 
