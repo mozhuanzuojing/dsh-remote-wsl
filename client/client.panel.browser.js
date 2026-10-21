@@ -22,14 +22,53 @@ window.__ModuleLoader__.load({
 
 		function renderBrowser(props) {
 			const {
-				React, body, breadcrumbOf, browse, clearSearch, collapsed, cwd,
+				React, StatusDot, body, breadcrumbOf, browse, clearSearch, collapsed, cwd, distros, isRecord,
 				errorText, factsVisible, hiddenCount, homePathOf, icon, jumpTo, listPath,
 				mounts, pathError, pathInput, recent, recentOk,
 				Entries, search, searchChange, searchRef, searching,
 				setCollapsed, setPathError, setPathInput, setShowHidden, showHidden,
-				snapshot, submitPath, t, target, totalEntries, visibleEntries,
+				snapshot, submitPath, t, target, totalEntries, visibleEntries, onDistroChange,
 			} = props;
 
+
+			/** 多发行版时先给「WSL 目标」列表（对位 VS Code Remote Explorer 的 WSL TARGETS）：
+			 *  每行 = 状态点 + 名字 + 默认/当前徽标；点行即切换目标。单发行版不渲染这一块。 */
+			const targetRows = distros.filter((row) => isRecord(row) && typeof row.name === "string");
+			if (factsVisible && snapshot !== null && targetRows.length > 1) {
+				const currentDistro = typeof target.distro === "string" ? target.distro : null;
+				body.push(
+					React.createElement(
+						"section",
+						{ key: "targets", className: "dsh-rw-targets", "aria-label": t("targets.title") },
+						React.createElement("div", { className: "dsh-rw-cardhead" }, React.createElement("span", { className: "dsh-rw-grouptitle" }, t("targets.title"))),
+						React.createElement(
+							"div",
+							{ role: "list" },
+							targetRows.map((row) => {
+								const active = row.name === currentDistro;
+								return React.createElement(
+									"button",
+									{
+										key: "target:" + row.name,
+										type: "button",
+										role: "listitem",
+										className: "dsh-rw-target" + (active ? " dsh-rw-target--on" : ""),
+										"aria-current": active ? "true" : undefined,
+										"aria-label": t(active ? "targets.currentAria" : "targets.switchAria", { distro: row.name }),
+										title: active ? t("targets.currentTitle") : t("targets.switchTitle", { distro: row.name }),
+										onClick: () => { if (!active && typeof onDistroChange === "function") onDistroChange(row.name); },
+									},
+									React.createElement(StatusDot, { kind: row.reachable === true ? "running" : "stopped" }),
+									React.createElement("span", { className: "dsh-rw-targetname", dir: "ltr" }, row.name),
+									row.default === true ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.default")) : null,
+									active ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--on" }, t("targets.current")) : null,
+									React.createElement("span", { className: "dsh-rw-targetstate" }, row.reachable === true ? t("targets.running") : t("targets.stopped")),
+								);
+							}),
+						),
+					),
+				);
+			}
 			if (factsVisible && snapshot !== null) {
 				const crumbs = cwd === null ? [] : breadcrumbOf(cwd);
 				const homePath = homePathOf(target, cwd);

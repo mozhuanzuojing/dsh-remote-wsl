@@ -1,53 +1,33 @@
 {
-  "generatedAt": "2026-10-21T09:23:50.197Z",
-  "total": 9,
-  "pass": 9,
+  "generatedAt": "2026-10-21T09:29:01.895Z",
+  "total": 5,
+  "pass": 5,
   "fail": 0,
   "results": [
     {
-      "name": "renderTail 是函数",
-      "ok": true,
-      "detail": "function"
-    },
-    {
-      "name": "两发行版：出现 select",
+      "name": "两发行版：渲染目标区块",
       "ok": true,
       "detail": "count=1"
     },
     {
-      "name": "两发行版：选项数 = 2",
+      "name": "两发行版：两行目标",
       "ok": true,
       "detail": "count=2"
     },
     {
-      "name": "两发行版：当前值 = 目标发行版",
+      "name": "两发行版：当前行高亮",
       "ok": true,
-      "detail": "debian-u8-1"
+      "detail": "targets.currentAria:{\"distro\":\"debian-u8-1\"}"
     },
     {
-      "name": "两发行版：可访问标签存在",
-      "ok": true,
-      "detail": ""
-    },
-    {
-      "name": "两发行版：选项带运行态",
-      "ok": true,
-      "detail": "header.distroOption:{\"distro\":\"debian-u8-1\",\"state\":\"header.distroRunning\"} | header.distroOption:{\"distro\":\"Ubuntu-24.04\",\"state\":\"header.distroStopped\"}"
-    },
-    {
-      "name": "切换回调带新发行版",
+      "name": "两发行版：点非当前行切换",
       "ok": true,
       "detail": "[\"Ubuntu-24.04\"]"
     },
     {
-      "name": "单发行版：不出现 select",
+      "name": "单发行版：不渲染目标区块",
       "ok": true,
       "detail": ""
-    },
-    {
-      "name": "单发行版：给出静态说明（含发行版名）",
-      "ok": true,
-      "detail": "header.distroOnly:{\"distro\":\"debian-u8-1\"}"
     }
   ]
 }

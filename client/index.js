@@ -77,7 +77,13 @@ window.__ModuleLoader__.load({
 			".dsh-rw-subtitle{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-header-actions{display:flex;align-items:center;gap:8px;flex:none}",
 			// 2026-10-21「多发行版」：目标发行版选择器（只有多个发行版时才渲染；单发行版是静态徽标）
-			".dsh-rw-select{flex:none;max-width:180px;min-width:0;height:22px;box-sizing:border-box;padding:0 4px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px}",
+			".dsh-rw-targets{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;flex:none}",
+			".dsh-rw-target{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:28px;padding:4px 8px;border-radius:6px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer}",
+			".dsh-rw-target:hover{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-target--on{background:var(--dsw-alias-interactive-bg-active)}",
+			".dsh-rw-targetname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;direction:ltr;unicode-bidi:isolate}",
+			".dsh-rw-targetstate{flex:none;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-badge--on{color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}",
 			".dsh-rw-places{display:flex;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:8px 10px 0;flex:none;min-width:0}",
 			".dsh-rw-places::-webkit-scrollbar{height:0}",
 			".dsh-rw-navrow{display:flex;align-items:center;gap:4px;padding:2px 10px 0;min-width:0}",
@@ -95,7 +101,6 @@ window.__ModuleLoader__.load({
 			".dsh-rw-daemon:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-daemon--on{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
 			".dsh-rw-daemon--off{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
-			".dsh-rw-select:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}",
 			".dsh-rw-body{flex:1;min-height:0;overflow:hidden;padding:10px 10px 6px;display:flex;flex-direction:column;gap:8px}",
 			".dsh-rw-card{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:0;box-shadow:none;display:flex;flex-direction:column;min-height:0;flex:1;overflow:hidden}",
 			".dsh-rw-cardhead{display:flex;align-items:center;gap:8px;min-width:0}",
@@ -496,5 +501,7 @@ window.__ModuleLoader__.load({
 
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
+
+// 2026-10-21 目标列表对齐 VS Code WSL TARGETS：browser/tail/i18n/CSS 改动，刷新入口 rev。
 
 // 2026-10-21 修折叠区崩溃：onToggle 先取 open 再进 updater（currentTarget 会被 React 置空）。

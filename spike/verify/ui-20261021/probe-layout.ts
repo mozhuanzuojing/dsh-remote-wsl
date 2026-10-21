@@ -97,6 +97,7 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
   const mod = loadChunk('client.panel.browser.js');
   const body = [];
   mod.renderBrowser({
+    distros: [], onDistroChange: () => {},
     React, body, breadcrumbOf: () => [{ label: '/', path: '/' }, { label: 'home', path: '/home' }],
     browse: { status: 'ready', entries: [], cwd: '/home', error: null, stale: false }, clearSearch: () => {},
     collapsed: {}, cwd: '/home', errorText: () => '', factsVisible: true, hiddenCount: 2,
@@ -158,7 +159,7 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
   const browserMod = loadChunk('client.panel.browser.js');
   let updater2 = null;
   const body2 = [];
-  browserMod.renderBrowser(Object.assign({}, baseProps, { body: body2, collapsed: { recent: false }, recent: ['/home/g'], recentOk: true, setCollapsed: (fn) => { updater2 = fn; },
+  browserMod.renderBrowser(Object.assign({}, baseProps, { body: body2, distros: [], onDistroChange: () => {}, collapsed: { recent: false }, recent: ['/home/g'], recentOk: true, setCollapsed: (fn) => { updater2 = fn; },
     browse: { status: 'ready', entries: [], cwd: '/home/g', error: null, stale: false }, search: '', searching: false, totalEntries: 0, visibleEntries: [],
     Entries: () => null, searchChange: () => {}, searchRef: { current: null }, homePathOf: () => '/home/g' }));
   const rec = body2.map((node) => walk(node, [])).flat().find((n) => n.type === 'details' && String(n.props.className).indexOf('dsh-rw-fold') >= 0);

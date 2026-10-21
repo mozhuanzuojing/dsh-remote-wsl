@@ -119,7 +119,7 @@ interface ExplorerSnapshot {
 
 | 用户动作 | 走什么 | 说明 |
 |---|---|---|
-| 切 distro | **所有方法都可带可选的 `{distro}`**（snapshot / listDir / openSession / daemon / fixPin / addWorkspace） | **2026-10-21 落地**：按请求生效、**不写插件配置**（因此不需要 `explorer.selectDistro`）；host 用 `wsl -l -q` 校验名字，未知 ⇒ 400 `E_ARG`；面板在头部渲染选择器（多发行版才出下拉） |
+| 切 distro | **所有方法都可带可选的 `{distro}`**（snapshot / listDir / openSession / daemon / fixPin / addWorkspace） | **2026-10-21 落地**：按请求生效、**不写插件配置**（因此不需要 `explorer.selectDistro`）；host 用 `wsl -l -q` 校验名字，未知 ⇒ 400 `E_ARG`；面板按 VS Code Remote Explorer 的 **WSL TARGETS** 形态渲染「WSL 目标」列表（多发行版才出现，点行切换） |
 | 点文件夹「在新会话中打开」 | `{method:'explorer.openSession'}` → **附到已物化的会话** | **P0 语义是"附到/提示"而不是"真起一轮"**（见 §4 末条）。不是把 WSL 目录当本地工作区（见 §7） |
 | 点「在终端中打开」 | host 半起 `wsl.exe -d <distro> --cd <path> -- bash`，并让会话认领它 | 或复用 `terminalController` 的宿主终端 + `wsl.exe` 包装 |
 | 「＋」添加收藏路径 | host 半在 WSL 里列目录（复用 `wsl_exec` 同一套落文件+`bash <file>` 纪律）→ 存 `explorer.json` | **不要**用 DSH 的 `uiWorkspace.pickDirectory`（那是 **Windows 本机**目录，不是 WSL） |
