@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T09:16:50.415Z",
+  "generatedAt": "2026-10-21T10:00:16.585Z",
   "real": "debian-u8-1",
   "fake": "probe-no-such-distro",
   "total": 8,
@@ -39,7 +39,7 @@
     {
       "name": "真实发行版：distros 含运行态字段",
       "ok": true,
-      "detail": "[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true},{\"name\":\"probe-no-such-distro\",\"default\":false,\"reachable\":false}]"
+      "detail": "[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true,\"version\":null},{\"name\":\"probe-no-such-distro\",\"default\":false,\"reachable\":false,\"version\":null}]"
     },
     {
       "name": "未运行发行版：snapshot 不抛、target 仍是它",

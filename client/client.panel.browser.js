@@ -69,6 +69,7 @@ window.__ModuleLoader__.load({
 									},
 									React.createElement(StatusDot, { kind: row.reachable === true ? "running" : "stopped" }),
 									React.createElement("span", { className: "dsh-rw-targetname", dir: "ltr" }, row.name),
+									row.version === 1 || row.version === 2 ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.wslVersion", { version: row.version })) : null,
 									row.default === true ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.default")) : null,
 									active ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--on" }, t("targets.current")) : null,
 									React.createElement("span", { className: "dsh-rw-targetstate" }, row.reachable === true ? t("targets.running") : t("targets.stopped")),

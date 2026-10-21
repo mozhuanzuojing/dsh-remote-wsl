@@ -257,7 +257,7 @@ function kindOf(p) {
  * `ok:true`；失败时调用方**不得**把这份结果写进缓存（见 `DISTRO_FACTS_TTL_MS` 注释）。
  */
 function probeDistroState() {
-  const out = { defaultName: null, running: new Set(), ok: false };
+  const out = { defaultName: null, running: new Set(), versions: new Map(), ok: false };
   let text = '';
   let res;
   try {
@@ -454,6 +454,7 @@ export function createExplorerHandlers(deps) {
       name,
       default: flags.defaultName === name,
       reachable: flags.running.has(name), // 定义见 probeDistroState()：探测时 STATE=Running（不探活、零副作用）
+      version: flags.versions && typeof flags.versions.get === 'function' ? (flags.versions.get(name) ?? null) : null,
     }));
 
     const v = deps.resolveVersion(eff);

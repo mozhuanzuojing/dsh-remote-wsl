@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-21T09:56:30.025Z",
-  "total": 8,
-  "pass": 8,
+  "generatedAt": "2026-10-21T10:00:13.888Z",
+  "total": 9,
+  "pass": 9,
   "fail": 0,
   "results": [
     {
@@ -28,6 +28,11 @@
       "name": "两发行版：行内有 设为默认/停止 两个动作",
       "ok": true,
       "detail": "count=2"
+    },
+    {
+      "name": "两发行版：行显示 WSL 版本",
+      "ok": true,
+      "detail": "n/a"
     },
     {
       "name": "两发行版：动作文案齐全",
