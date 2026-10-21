@@ -229,6 +229,18 @@ window.__ModuleLoader__.load({
 					actions.load();
 				};
 				scope.chosenDistro = chosenDistro;
+				/** 把某个目标记为默认（只写本面板的 localStorage，不动插件配置）。 */
+				const setDefaultDistro = (name) => {
+					changeDistro(name);
+					setAction({ busy: null, note: t("targets.defaultSaved", { distro: name }), detail: null, error: null });
+				};
+				/** 停掉某个目标的守护（destructive ⇒ 走 runDaemon 的二次确认）。 */
+				const stopTarget = (name) => {
+					actions.runDaemon("stop", undefined, { distro: name });
+				};
+				scope.onSetDefault = setDefaultDistro;
+				scope.onStopTarget = stopTarget;
+
 				scope.onDistroChange = changeDistro;
 				/** 记住的发行版被删/改名时：host 回"未知发行版" ⇒ 退回缺省目标重试一次（不循环）。 */
 				const distroResetRef = React.useRef(false);

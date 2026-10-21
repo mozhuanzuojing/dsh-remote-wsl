@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-21T09:29:01.895Z",
-  "total": 5,
-  "pass": 5,
+  "generatedAt": "2026-10-21T09:44:46.764Z",
+  "total": 8,
+  "pass": 8,
   "fail": 0,
   "results": [
     {
@@ -23,6 +23,21 @@
       "name": "两发行版：点非当前行切换",
       "ok": true,
       "detail": "[\"Ubuntu-24.04\"]"
+    },
+    {
+      "name": "两发行版：行内有 打开/设为默认/停止 三个动作",
+      "ok": true,
+      "detail": "count=3"
+    },
+    {
+      "name": "两发行版：动作文案齐全",
+      "ok": true,
+      "detail": "targets.open|targets.setDefault|targets.stop"
+    },
+    {
+      "name": "两发行版：停止动作回调带发行版名",
+      "ok": true,
+      "detail": "Ubuntu-24.04"
     },
     {
       "name": "单发行版：不渲染目标区块",

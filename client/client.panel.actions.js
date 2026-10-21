@@ -328,14 +328,16 @@ function usePanelActions(props) {
 					}
 				};
 
-				const runDaemon = (kind, fromElement) => {
+				const runDaemon = (kind, fromElement, options) => {
 					setMenuOpen(false);
+					const wants = options && typeof options.distro === "string" && options.distro.length > 0 ? options.distro : null;
 					if (kind === "stop" || kind === "restart") {
 						pendingFrom.current = fromElement === undefined ? null : fromElement;
-						setPending({ action: kind, slot: daemonSlot, sessions: keysKnown ? keys.length : "?" });
+						setPending({ action: kind, slot: daemonSlot, sessions: keysKnown ? keys.length : "?", distro: wants });
 						return;
 					}
-					run("daemon:ensure", (signal) => api.daemon({ action: "ensure" }, signal), { describe: (result) => daemonNote(t, t("daemon.started"), result), refresh: true, failKey: "note.failStart" });
+					const args = wants === null ? { action: "ensure" } : { action: "ensure", distro: wants };
+					run("daemon:ensure", (signal) => api.daemon(args, signal), { describe: (result) => daemonNote(t, t("daemon.started"), result), refresh: true, failKey: "note.failStart" });
 				};
 
 			return {

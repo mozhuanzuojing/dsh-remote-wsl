@@ -38,6 +38,8 @@ const results = [];
 const check = (name, ok, detail = '') => results.push({ name, ok: !!ok, detail });
 const walk = (n, out) => { if (!n || typeof n !== 'object') return out; if (n.$$typeof === 'el') { out.push(n); (n.children || []).forEach((c) => walk(c, out)); } return out; };
 const calls = [];
+let stopped = null;
+let defaulted = null;
 
 function render(distros, targetDistro) {
   const body = [];
@@ -50,7 +52,7 @@ function render(distros, targetDistro) {
     setCollapsed: () => {}, setPathError: () => {}, setPathInput: () => {}, setShowHidden: () => {}, showHidden: false,
     snapshot: {}, submitPath: () => {}, t,
     target: { distro: targetDistro, cwd: '/home/g', wslHome: '/home/g' }, totalEntries: 0, visibleEntries: [],
-    distros, onDistroChange: (name) => { calls.push(name); }, isRecord: (v) => !!v && typeof v === 'object',
+    distros, onDistroChange: (name) => { calls.push(name); }, onSetDefault: (name) => { defaulted = name; }, onStopTarget: (name) => { stopped = name; }, isRecord: (v) => !!v && typeof v === 'object',
   });
   return body;
 }
@@ -59,7 +61,7 @@ function render(distros, targetDistro) {
 const body2 = render([{ name: 'debian-u8-1', default: true, reachable: true }, { name: 'Ubuntu-24.04', default: false, reachable: false }], 'debian-u8-1');
 const nodes2 = body2.map((n) => walk(n, [])).flat();
 const targets2 = nodes2.filter((n) => n.type === 'section' && String(n.props && n.props.className).split(' ').indexOf('dsh-rw-targets') >= 0);
-const rows2 = nodes2.filter((n) => String(n.props && n.props.className).indexOf('dsh-rw-target') >= 0 && n.type === 'button');
+const rows2 = nodes2.filter((n) => n.type === 'div' && String(n.props && n.props.className).split(' ').indexOf('dsh-rw-target') >= 0);
 check('两发行版：渲染目标区块', targets2.length === 1, 'count=' + targets2.length);
 check('两发行版：两行目标', rows2.length === 2, 'count=' + rows2.length);
 const active = rows2.find((n) => String(n.props.className).indexOf('--on') >= 0);
@@ -67,6 +69,13 @@ check('两发行版：当前行高亮', !!active && String(active.props['aria-cu
 const other = rows2.find((n) => n !== active);
 if (other && typeof other.props.onClick === 'function') other.props.onClick();
 check('两发行版：点非当前行切换', calls[0] === 'Ubuntu-24.04', JSON.stringify(calls));
+const acts = other ? walk(other, []).filter((n) => n.type === 'button' && String(n.props.className).indexOf('dsh-rw-link') >= 0) : [];
+check('两发行版：行内有 打开/设为默认/停止 三个动作', acts.length === 3, 'count=' + acts.length);
+const labels = acts.map((n) => n.props['aria-label'] || (n.children || []).join(''));
+check('两发行版：动作文案齐全', labels.join('|').indexOf('targets.open') >= 0 && labels.join('|').indexOf('targets.setDefault') >= 0 && labels.join('|').indexOf('targets.stop') >= 0, labels.join('|'));
+const stopBtn = acts.find((n) => (n.children || []).join('').indexOf('targets.stop') >= 0);
+if (stopBtn) stopBtn.props.onClick({ stopPropagation: () => {} });
+check('两发行版：停止动作回调带发行版名', stopped === 'Ubuntu-24.04', String(stopped));
 
 // 场景 2：单发行版
 const body1 = render([{ name: 'debian-u8-1', default: true, reachable: true }], 'debian-u8-1');

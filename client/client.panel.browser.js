@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
 
 		function renderBrowser(props) {
 			const {
-				React, StatusDot, body, breadcrumbOf, browse, clearSearch, collapsed, cwd, distros, isRecord,
+				React, StatusDot, body, breadcrumbOf, browse, clearSearch, collapsed, cwd, distros, isRecord, onSetDefault, onStopTarget,
 				errorText, factsVisible, hiddenCount, homePathOf, icon, jumpTo, listPath,
 				mounts, pathError, pathInput, recent, recentOk,
 				Entries, search, searchChange, searchRef, searching,
@@ -47,22 +47,32 @@ window.__ModuleLoader__.load({
 							targetRows.map((row) => {
 								const active = row.name === currentDistro;
 								return React.createElement(
-									"button",
+									"div",
 									{
 										key: "target:" + row.name,
-										type: "button",
 										role: "listitem",
+										tabIndex: 0,
 										className: "dsh-rw-target" + (active ? " dsh-rw-target--on" : ""),
 										"aria-current": active ? "true" : undefined,
 										"aria-label": t(active ? "targets.currentAria" : "targets.switchAria", { distro: row.name }),
 										title: active ? t("targets.currentTitle") : t("targets.switchTitle", { distro: row.name }),
 										onClick: () => { if (!active && typeof onDistroChange === "function") onDistroChange(row.name); },
+										onKeyDown: (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (!active && typeof onDistroChange === "function") onDistroChange(row.name); } },
 									},
 									React.createElement(StatusDot, { kind: row.reachable === true ? "running" : "stopped" }),
 									React.createElement("span", { className: "dsh-rw-targetname", dir: "ltr" }, row.name),
 									row.default === true ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.default")) : null,
 									active ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--on" }, t("targets.current")) : null,
 									React.createElement("span", { className: "dsh-rw-targetstate" }, row.reachable === true ? t("targets.running") : t("targets.stopped")),
+									React.createElement(
+										"span",
+										{ className: "dsh-rw-targetacts" },
+										!active
+											? React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onDistroChange === "function") onDistroChange(row.name); } }, t("targets.open"))
+											: null,
+										row.default === true ? null : React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onSetDefault === "function") onSetDefault(row.name); } }, t("targets.setDefault")),
+										React.createElement("button", { type: "button", className: "dsh-rw-link dsh-rw-link--danger", onClick: (event) => { event.stopPropagation(); if (typeof onStopTarget === "function") onStopTarget(row.name); } }, t("targets.stop")),
+									),
 								);
 							}),
 						),

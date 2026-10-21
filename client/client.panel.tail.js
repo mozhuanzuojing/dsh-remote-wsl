@@ -267,7 +267,25 @@ function renderTail(props) {
 					React.createElement(
 						"footer",
 						{ className: "dsh-rw-status", role: "status", "aria-live": "polite" },
-						React.createElement(StatusDot, { kind: stateKind }),
+						/** 底栏「WSL: 发行版」chip：对位 VS Code 的状态栏远程指示器（点开 = 同一组目标动作）。 */
+					React.createElement(
+						"details",
+						{ className: "dsh-rw-tchip" },
+						React.createElement(
+							"summary",
+							{ className: "dsh-rw-tchip-summary", title: t("targets.chipTitle") },
+							React.createElement(StatusDot, { kind: stateKind }),
+							t("targets.chip", { distro: activeDistro === null ? "?" : activeDistro }),
+						),
+						React.createElement(
+							"div",
+							{ className: "dsh-rw-menu dsh-rw-menu--up", role: "menu", "aria-label": t("targets.title") },
+							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: () => runDaemon("ensure", undefined, { distro: activeDistro }) }, t("status.start")),
+							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: () => runDaemon("stop", undefined, { distro: activeDistro }) }, t("targets.stop")),
+							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: () => onSetDefault(activeDistro) }, t("targets.setDefault")),
+						),
+					),
+					React.createElement(StatusDot, { kind: stateKind }),
 						React.createElement("span", { className: "dsh-rw-statusword" }, statusWord),
 						drifted ? React.createElement(React.Fragment, null, icon("warn", "dsh-rw-drift"), React.createElement("span", { className: "dsh-rw-statusword" }, t("status.drifted"))) : null,
 						extra.length > 0 ? React.createElement("span", { className: "dsh-rw-extra" + (narrow ? " dsh-rw-extra--hidden" : "") }, " · ", extra) : null,

@@ -83,6 +83,14 @@ window.__ModuleLoader__.load({
 			".dsh-rw-target--on{background:var(--dsw-alias-interactive-bg-active)}",
 			".dsh-rw-targetname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;direction:ltr;unicode-bidi:isolate}",
 			".dsh-rw-targetstate{flex:none;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-tchip{position:relative;flex:none}",
+			".dsh-rw-tchip>summary{list-style:none;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);cursor:pointer;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-tchip>summary::-webkit-details-marker{display:none}",
+			".dsh-rw-tchip[open]>summary{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
+			".dsh-rw-tchip .dsh-rw-menu{width:200px}",
+			".dsh-rw-targetacts{display:flex;align-items:center;gap:2px;flex:none;visibility:hidden}",
+			".dsh-rw-target:hover .dsh-rw-targetacts,.dsh-rw-target:focus-within .dsh-rw-targetacts{visibility:visible}",
+			".dsh-rw-link--danger{color:var(--dsw-alias-state-error-primary)}",
 			".dsh-rw-badge--on{color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}",
 			".dsh-rw-places{display:flex;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:8px 10px 0;flex:none;min-width:0}",
 			".dsh-rw-places::-webkit-scrollbar{height:0}",
@@ -501,6 +509,8 @@ window.__ModuleLoader__.load({
 
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
+
+// 2026-10-21 目标动作：行内打开/默认/停止 + 底栏 WSL chip；刷新入口 rev。
 
 // 2026-10-21 目标列表对齐 VS Code WSL TARGETS：browser/tail/i18n/CSS 改动，刷新入口 rev。
 
