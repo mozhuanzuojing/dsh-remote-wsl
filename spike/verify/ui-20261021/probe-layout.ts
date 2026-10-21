@@ -108,12 +108,14 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
     showHidden: false, snapshot: {}, submitPath: () => {}, t,
     target: { distro: 'debian-u8-1', cwd: '/home/g', wslHome: '/home/g' }, totalEntries: 0, visibleEntries: [],
   });
-  const nodes = walk(body[0], []);
+  const nodes = body.map((n) => walk(n, [])).flat();
   const classes = nodes.map((n) => String(n.props && n.props.className || ''));
   check('目录卡：有位置条', classes.some((c) => c.indexOf('dsh-rw-places') >= 0));
   check('目录卡：有导航行（上一级 + 面包屑）', classes.some((c) => c.indexOf('dsh-rw-navrow') >= 0));
   check('目录卡：有输入行（路径 + 筛选）', classes.some((c) => c.indexOf('dsh-rw-formrow') >= 0));
-  check('目录卡：没有 cardhead 占位', classes.every((c) => c.indexOf('dsh-rw-cardhead') < 0));
+  const browserCard = nodes.find((n) => n.type === 'section' && String(n.props.className).indexOf('dsh-rw-card') >= 0 && String(n.props['aria-label']).indexOf('browser.aria') >= 0);
+  const cardNodes = browserCard ? walk(browserCard, []) : [];
+  check('目录卡：没有 cardhead 占位', !!browserCard && cardNodes.every((n) => String(n.props && n.props.className).indexOf('dsh-rw-cardhead') < 0));
   check('目录卡：列表容器在卡片内', classes.some((c) => c.indexOf('dsh-rw-card') >= 0) && nodes.some((n) => typeof n.type === 'function'));
 }
 

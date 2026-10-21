@@ -79,7 +79,8 @@ check('两发行版：停止动作回调带发行版名', stopped === 'Ubuntu-24
 // 场景 2：单发行版
 const body1 = render([{ name: 'debian-u8-1', default: true, reachable: true }], 'debian-u8-1');
 const nodes1 = body1.map((n) => walk(n, [])).flat();
-check('单发行版：不渲染目标区块', nodes1.every((n) => !(n.type === 'section' && String(n.props && n.props.className).split(' ').indexOf('dsh-rw-targets') >= 0)));
+const rows1 = nodes1.filter((n) => n.type === 'div' && String(n.props && n.props.className).split(' ').indexOf('dsh-rw-target') >= 0);
+check('单发行版：仍列出本机这 1 个发行版', rows1.length === 1, 'count=' + rows1.length);
 
 const summary = { generatedAt: new Date().toISOString(), total: results.length, pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok).length, results };
 fs.writeFileSync(path.join(DIR, 'out-selector.json'), JSON.stringify(summary, null, 2) + '\n', 'utf8');

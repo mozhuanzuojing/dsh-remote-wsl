@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T09:53:44.376Z",
+  "generatedAt": "2026-10-21T09:56:30.025Z",
   "total": 8,
   "pass": 8,
   "fail": 0,
@@ -40,9 +40,9 @@
       "detail": "Ubuntu-24.04"
     },
     {
-      "name": "单发行版：不渲染目标区块",
+      "name": "单发行版：仍列出本机这 1 个发行版",
       "ok": true,
-      "detail": ""
+      "detail": "count=1"
     }
   ]
 }

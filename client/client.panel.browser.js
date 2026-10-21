@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
 
 		function renderBrowser(props) {
 			const {
-				React, StatusDot, body, breadcrumbOf, browse, clearSearch, collapsed, cwd, distros, isRecord, onSetDefault, onStopTarget,
+				React, StatusDot, body, breadcrumbOf, browse, clearSearch, collapsed, cwd, distros, isRecord, onSetDefault, onStopTarget, onRescan,
 				errorText, factsVisible, hiddenCount, homePathOf, icon, jumpTo, listPath,
 				mounts, pathError, pathInput, recent, recentOk,
 				Entries, search, searchChange, searchRef, searching,
@@ -34,13 +34,24 @@ window.__ModuleLoader__.load({
 			/** 多发行版时先给「WSL 目标」列表（对位 VS Code Remote Explorer 的 WSL TARGETS）：
 			 *  每行 = 状态点 + 名字 + 默认/当前徽标；点行即切换目标。单发行版不渲染这一块。 */
 			const targetRows = distros.filter((row) => isRecord(row) && typeof row.name === "string");
-			if (factsVisible && snapshot !== null && targetRows.length > 1) {
+			if (factsVisible && snapshot !== null) {
 				const currentDistro = typeof target.distro === "string" ? target.distro : null;
 				body.push(
 					React.createElement(
 						"section",
 						{ key: "targets", className: "dsh-rw-targets", "aria-label": t("targets.title") },
-						React.createElement("div", { className: "dsh-rw-cardhead" }, React.createElement("span", { className: "dsh-rw-grouptitle" }, t("targets.title"))),
+						React.createElement(
+							"div",
+							{ className: "dsh-rw-cardhead" },
+							React.createElement("span", { className: "dsh-rw-grouptitle" }, t("targets.title")),
+							React.createElement("span", { className: "dsh-rw-hint" }, t("targets.count", { count: targetRows.length })),
+							React.createElement("span", { className: "dsh-rw-spacer" }),
+							React.createElement(
+								"button",
+								{ type: "button", className: "dsh-rw-link", onClick: () => { if (typeof onRescan === "function") onRescan(); }, title: t("targets.rescanTitle") },
+								t("targets.rescan"),
+							),
+						),
 						React.createElement(
 							"div",
 							{ role: "list" },

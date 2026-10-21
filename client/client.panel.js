@@ -243,6 +243,8 @@ window.__ModuleLoader__.load({
 				};
 				scope.onSetDefault = setDefaultDistro;
 				scope.onStopTarget = stopTarget;
+				/** 「重新扫描本机发行版」= 只重拉快照，不切换目标。 */
+				scope.onRescan = () => actions.load();
 
 				scope.onDistroChange = changeDistro;
 				/** 记住的发行版被删/改名时：host 回"未知发行版" ⇒ 退回缺省目标重试一次（不循环）。 */
