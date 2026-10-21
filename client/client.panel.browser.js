@@ -235,7 +235,7 @@ window.__ModuleLoader__.load({
 				body.push(
 					React.createElement(
 						"details",
-						{ key: "recent", className: "dsh-rw-fold", open, onToggle: (event) => setCollapsed((prev) => ({ ...prev, recent: event.currentTarget.open === true })) },
+						{ key: "recent", className: "dsh-rw-fold", open, onToggle: (event) => { const open = event.currentTarget.open === true; setCollapsed((prev) => ({ ...prev, recent: open })); } },
 						React.createElement("summary", null, icon(open ? "chevronUp" : "chevronRight"), t("recent.title")),
 						open
 							? React.createElement(

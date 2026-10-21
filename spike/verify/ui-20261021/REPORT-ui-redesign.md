@@ -52,6 +52,16 @@
 | probe-host-distro.ts | **8/8** |
 | 门禁 | check-client-rev PASS；check-explorer-methods 8/8；check-docs-methods 13/13；i18n paired |
 
+## 3.1 修复：点击「诊断信息」崩溃（2026-10-21 用户报）
+
+**根因**：折叠区的 `onToggle` 写成 `setCollapsed((prev) => ({ ...prev, advanced: event.currentTarget.open === true }))`。
+状态更新函数是**稍后**执行的，而 React 在事件派发结束后把 `currentTarget` 置空 ⇒ updater 里读到 `null.open`，
+抛 `TypeError: Cannot read properties of null (reading 'open')`，面板整块崩。修复：先 `const open = event.currentTarget.open === true`，
+再把 `open` 放进 updater；「最近目录」折叠同一处坑一并修。顺带给诊断块的 `daemon.pid` 加了未知保护。
+
+**回归**：probe-layout 新增 7 条断言（诊断/最近目录在"currentTarget 被置空后"执行 updater 不崩且写入 open；
+`daemon: null` 时诊断块不崩），现 **17/17 PASS**。
+
 ## 4. 未验证 / 限制（如实写）
 
 - **没有真实浏览器的像素/键盘验收**：本机无法在会话内起隔离浏览器跑面板；探针只证明结构、类名、可访问属性与回调接线。

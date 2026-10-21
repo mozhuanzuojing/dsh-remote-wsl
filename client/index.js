@@ -496,3 +496,5 @@ window.__ModuleLoader__.load({
 
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
+
+// 2026-10-21 修折叠区崩溃：onToggle 先取 open 再进 updater（currentTarget 会被 React 置空）。

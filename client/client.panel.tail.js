@@ -108,7 +108,7 @@ function renderTail(props) {
 								{ key: "facts", className: "dsh-rw-readonly" },
 								React.createElement("div", { className: "dsh-rw-readonly-head" }, t("advanced.title")),
 								React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.distro", { distro: activeDistro === null ? "?" : activeDistro })),
-								React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.daemon", { slot: daemonSlot === null ? "?" : daemonSlot, pid: typeof daemon.pid === "number" ? daemon.pid : "?" })),
+								React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.daemon", { slot: daemonSlot === null ? "?" : daemonSlot, pid: daemon !== null && typeof daemon.pid === "number" ? daemon.pid : "?" })),
 								driftKnown && drift.drifted === true ? React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.drift")) : null,
 							),
 						);
@@ -117,7 +117,7 @@ function renderTail(props) {
 					body.push(
 						React.createElement(
 							"details",
-							{ key: "advanced", className: "dsh-rw-fold", open, onToggle: (event) => setCollapsed((prev) => ({ ...prev, advanced: event.currentTarget.open === true })) },
+							{ key: "advanced", className: "dsh-rw-fold", open, onToggle: (event) => { const open = event.currentTarget.open === true; setCollapsed((prev) => ({ ...prev, advanced: open })); } },
 							React.createElement("summary", null, icon(open ? "chevronUp" : "chevronRight"), t("raw.summary")),
 							open ? React.createElement("div", { className: "dsh-rw-foldbody" }, children) : null,
 						),

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-21T09:18:08.483Z",
-  "total": 10,
-  "pass": 10,
+  "generatedAt": "2026-10-21T09:23:50.031Z",
+  "total": 17,
+  "pass": 17,
   "fail": 0,
   "results": [
     {
@@ -53,6 +53,41 @@
       "name": "目录卡：列表容器在卡片内",
       "ok": true,
       "detail": ""
+    },
+    {
+      "name": "折叠区：诊断 details 存在",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "折叠区：诊断 updater 不因 currentTarget 置空而崩",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "折叠区：诊断写入 open=true",
+      "ok": true,
+      "detail": "{\"advanced\":true}"
+    },
+    {
+      "name": "折叠区：daemon 未知时诊断块不崩",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "折叠区：最近目录 details 存在",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "折叠区：最近目录 updater 不崩",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "折叠区：最近目录写入 open=true",
+      "ok": true,
+      "detail": "{\"recent\":true}"
     }
   ]
 }
