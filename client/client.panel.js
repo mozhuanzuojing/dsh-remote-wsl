@@ -231,7 +231,10 @@ window.__ModuleLoader__.load({
 				scope.chosenDistro = chosenDistro;
 				/** 把某个目标记为默认（只写本面板的 localStorage，不动插件配置）。 */
 				const setDefaultDistro = (name) => {
-					changeDistro(name);
+					try {
+						if (typeof localStorage !== "undefined") localStorage.setItem(DISTRO_KEY, name);
+					} catch {}
+					setAction({ busy: null, note: t("targets.defaultSaved", { distro: name }), detail: null, error: null });
 					setAction({ busy: null, note: t("targets.defaultSaved", { distro: name }), detail: null, error: null });
 				};
 				/** 停掉某个目标的守护（destructive ⇒ 走 runDaemon 的二次确认）。 */

@@ -75,7 +75,7 @@
 **Open Folder in WSL / Reopen in WSL / New Window / Terminate / Set Default Distro** 这组命令、以及「按目标分组的最近文件夹」。
 我们目前只有「切换目标 + 浏览 + 添加为工作区 / 开会话 / 守护动作」。
 
-**2026-10-21 补充（用户批准的两件）**：目标行内加入「打开 / 设为默认 / 停止」三个动作（停止走二次确认，`runDaemon` 支持带 `distro`）；底栏加入 `WSL: 发行版` chip（原生 details，点开 = 启动守护 / 停止守护 / 设为默认）。
+**2026-10-21 补充（用户批准的两件）**：目标行内加入「设为默认 / 停止」两个动作（停止走二次确认，`runDaemon` 支持带 `distro`）；底栏加入 `WSL: 发行版` chip（原生 details，点开 = 启动守护 / 停止守护 / 设为默认）。
 仍未对齐：状态栏之外的命令面板入口、Open Folder/Reopen/New Window/Set Default Distro 的完整命令集、按目标分组的最近文件夹。
 
 ## 4. 未验证 / 限制（如实写）

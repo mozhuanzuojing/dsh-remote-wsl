@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T09:45:34.377Z",
+  "generatedAt": "2026-10-21T09:53:44.376Z",
   "total": 8,
   "pass": 8,
   "fail": 0,
@@ -20,19 +20,19 @@
       "detail": "targets.currentAria:{\"distro\":\"debian-u8-1\"}"
     },
     {
-      "name": "两发行版：点非当前行切换",
+      "name": "两发行版：行不再绑定切换点击",
       "ok": true,
-      "detail": "[\"Ubuntu-24.04\"]"
+      "detail": ""
     },
     {
-      "name": "两发行版：行内有 打开/设为默认/停止 三个动作",
+      "name": "两发行版：行内有 设为默认/停止 两个动作",
       "ok": true,
-      "detail": "count=3"
+      "detail": "count=2"
     },
     {
       "name": "两发行版：动作文案齐全",
       "ok": true,
-      "detail": "targets.open|targets.setDefault|targets.stop"
+      "detail": "targets.setDefault|targets.stop"
     },
     {
       "name": "两发行版：停止动作回调带发行版名",

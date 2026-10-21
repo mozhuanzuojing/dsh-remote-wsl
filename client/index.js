@@ -78,7 +78,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-header-actions{display:flex;align-items:center;gap:8px;flex:none}",
 			// 2026-10-21「多发行版」：目标发行版选择器（只有多个发行版时才渲染；单发行版是静态徽标）
 			".dsh-rw-targets{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;flex:none}",
-			".dsh-rw-target{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:28px;padding:4px 8px;border-radius:6px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer}",
+			".dsh-rw-target{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:28px;padding:4px 8px;border-radius:6px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left;}",
 			".dsh-rw-target:hover{background:var(--dsw-alias-interactive-bg-hover)}",
 			".dsh-rw-target--on{background:var(--dsw-alias-interactive-bg-active)}",
 			".dsh-rw-targetname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;direction:ltr;unicode-bidi:isolate}",
@@ -509,6 +509,8 @@ window.__ModuleLoader__.load({
 
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
+
+// 2026-10-21 目标行去掉「打开」（不再点击即切目标+拉快照）；设为默认不切换。
 
 // 2026-10-21 确认框按目标发行版走：tail 改动，刷新入口 rev。
 

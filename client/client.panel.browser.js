@@ -51,13 +51,10 @@ window.__ModuleLoader__.load({
 									{
 										key: "target:" + row.name,
 										role: "listitem",
-										tabIndex: 0,
 										className: "dsh-rw-target" + (active ? " dsh-rw-target--on" : ""),
 										"aria-current": active ? "true" : undefined,
 										"aria-label": t(active ? "targets.currentAria" : "targets.switchAria", { distro: row.name }),
 										title: active ? t("targets.currentTitle") : t("targets.switchTitle", { distro: row.name }),
-										onClick: () => { if (!active && typeof onDistroChange === "function") onDistroChange(row.name); },
-										onKeyDown: (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (!active && typeof onDistroChange === "function") onDistroChange(row.name); } },
 									},
 									React.createElement(StatusDot, { kind: row.reachable === true ? "running" : "stopped" }),
 									React.createElement("span", { className: "dsh-rw-targetname", dir: "ltr" }, row.name),
@@ -67,9 +64,6 @@ window.__ModuleLoader__.load({
 									React.createElement(
 										"span",
 										{ className: "dsh-rw-targetacts" },
-										!active
-											? React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onDistroChange === "function") onDistroChange(row.name); } }, t("targets.open"))
-											: null,
 										row.default === true ? null : React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onSetDefault === "function") onSetDefault(row.name); } }, t("targets.setDefault")),
 										React.createElement("button", { type: "button", className: "dsh-rw-link dsh-rw-link--danger", onClick: (event) => { event.stopPropagation(); if (typeof onStopTarget === "function") onStopTarget(row.name); } }, t("targets.stop")),
 									),
