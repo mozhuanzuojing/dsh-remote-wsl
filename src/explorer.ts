@@ -465,6 +465,8 @@ export function createExplorerHandlers(deps) {
     if (versionOf === 1) {
       failArg('remote-wsl: 发行版 "' + raw + '" 是 WSL1；本插件只支持 WSL2（可先执行 wsl --set-version ' + raw + ' 2 升级）');
     }
+    // 家目录预热（异步）：后续 cfgFor/distroHome 直接命中缓存，不再同步 spawn 一次
+    await ensureDistroHome(raw);
     return raw;
   }
 
@@ -498,6 +500,27 @@ export function createExplorerHandlers(deps) {
    * 失败缓存 60s，避免每次刷新都去敲一次坏掉的发行版。
    */
   const distroHomeCache = new Map();
+
+  /**
+   * 异步预热非默认发行版的家目录（在 resolveDistro 的 await 点调用）。
+   * 目的：把 `wsl -d X printf $HOME` 从 cfgFor → distroHome 的**同步**路径挪到请求的 await 点，
+   * 避免在同步段里阻塞最多 8 秒；失败仍按 60 秒缓存（与同步版共用同一份缓存）。
+   */
+  async function ensureDistroHome(distro) {
+    if (distro === cfg.distro) return cfg.wslHome;
+    const hit = distroHomeCache.get(distro);
+    if (hit !== undefined && (hit.home !== null || Date.now() - hit.at < 60000)) return hit.home ?? cfg.wslHome;
+    let home = null;
+    try {
+      const out = (await execWslText(distro, 'printf %s "$HOME"', 8000)).trim();
+      if (out.startsWith('/')) home = out;
+    } catch {
+      home = null;
+    }
+    distroHomeCache.set(distro, { home, at: Date.now() });
+    return home ?? cfg.wslHome;
+  }
+
   function distroHome(distro) {
     if (distro === cfg.distro) return cfg.wslHome;
     const hit = distroHomeCache.get(distro);

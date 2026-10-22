@@ -250,7 +250,7 @@ export function apply(ctx, rawConfig = {}) {
   registerTools({
     ctx, config, version, resolveVersion, daemonState, logDaemon, machineLine, ensureDaemonReady,
     isTransportFailure, priorSessionFor, listDistros, getRuntime: inHost.getRuntime, runtimes, webHosts,
-    ensureSwept, warmInBackground,
+    ensureSwept, warmInBackground, lifecycle,
   });
 
   // ── 人面（面板）host 数据面 ─────────────────────────────────────────────────

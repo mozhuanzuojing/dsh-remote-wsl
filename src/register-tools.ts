@@ -30,9 +30,12 @@ import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble
 // ── 远端 UI：WSL 跑 `dsh web`，Windows 开应用窗口 ─────────────────────────────
 
 export class WebHost {
-  constructor(cfg, version) {
+  constructor(cfg, version, lifecycle = null, internals = {}) {
     this.cfg = cfg;
     this.version = version;
+    // 关停屏障（参考 ZCode 的 dispose 纪律）：dispose 开始后不再起新 host；起了的登记给 settle 等退出。
+    this.lifecycle = lifecycle;
+    this.spawnImpl = typeof internals.spawn === 'function' ? internals.spawn : spawn;
     this.url = null;
     this.stderrTail = '';
   }
@@ -44,16 +47,18 @@ export class WebHost {
     //   现在：可用 ⇒ 复用；上次失败留下的半死状态（child 有、url 无）⇒ 先收干净再**重新真起**。
     if (this.url) return this.url;
     if (this.child) await this.#discardFailedAttempt();
+    if (this.lifecycle) this.lifecycle.assertAlive(); // 关停开始后拒绝起新 web host
     // 同 SdkRuntime：常驻进程才注入登录 shell 环境
     const script = `${shellPreamble(this.cfg, { withShellEnv: true })}cd "${this.cfg.wslHome}" || exit 2
 echo $$ > "\${0%.sh}.pid"
 exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version} web --port ${this.cfg.webPort} --no-open
 `;
     this.script = writeScript(this.cfg.distro, script);
-    this.child = spawn('wsl.exe', ['-d', this.cfg.distro, '--exec', 'bash', this.script], {
+    this.child = this.spawnImpl('wsl.exe', ['-d', this.cfg.distro, '--exec', 'bash', this.script], {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
+    if (this.lifecycle) this.lifecycle.track(this.child);
     this.child.stderr.setEncoding('utf8');
     this.child.stderr.on('data', (c) => {
       this.stderrTail = (this.stderrTail + c).slice(-4000);
@@ -687,7 +692,7 @@ ${command}
         warmInBackground(version); // 漂移时后台预热，不阻塞 web host 启动
         let host = webHosts.get(port);
         if (!host) {
-          host = new WebHost({ ...config, webPort: port }, version.version);
+          host = new WebHost({ ...config, webPort: port }, version.version, deps.lifecycle ?? null);
           webHosts.set(port, host);
         }
         const url = await host.start();

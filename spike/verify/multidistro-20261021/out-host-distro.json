@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T06:06:36.965Z",
+  "generatedAt": "2026-10-22T06:14:11.913Z",
   "real": "debian-u8-1",
   "fake": "probe-no-such-distro",
   "total": 21,
@@ -79,7 +79,7 @@
     {
       "name": "异步发行版清单被实际调用",
       "ok": true,
-      "detail": "1"
+      "detail": "2"
     },
     {
       "name": "listDir 接受 UNC 路径",
@@ -109,7 +109,7 @@
     {
       "name": "snapshot refresh 绕过事实缓存",
       "ok": true,
-      "detail": "1 -> 2"
+      "detail": "2 -> 3"
     }
   ]
 }

@@ -50,6 +50,11 @@
    清该 distro 的代理缓存、跳过 snapshot 单飞；面板「重新扫描」改为 load({refresh:true})。
    验证：probe-host-distro 21/21（refresh 后异步清单确实重新探测）、probe-wsl-proxy 18/18（invalidate 后重探）。
 
+10. **web host 也纳入关停屏障**（2026-10-22 晚些补做）：WebHost 接受 lifecycle，spawn 前 assertAlive、
+    spawn 后 track；index 把它一路传给 registerTools。验证：probe-webhost-lifecycle 5/5。
+11. **家目录探测异步预热**：resolveDistro 在显式发行版分支 await ensureDistroHome（execFile），
+    后续 cfgFor → distroHome 直接命中缓存，不再在同步段 spawn。
+
 ## 值得下一步抄的（未做）
 
 1. **异步探测 + 5s TTL + promise 缓存**（**已部分完成**：探测已异步，显式失效接口未做）（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，
