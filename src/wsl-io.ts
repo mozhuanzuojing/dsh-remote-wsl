@@ -197,7 +197,7 @@ export function runWsl(cfg, script, opts = {}) {
     return Promise.resolve({ exitCode: 127, stdout: '', stderr: e.message });
   }
   return new Promise((resolve) => {
-    const child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', file], {
+    const child = spawn('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', file], {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });

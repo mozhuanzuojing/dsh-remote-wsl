@@ -220,7 +220,7 @@ export function scanDaemonProcesses(cfg) {
 export function wslRunScript(cfg, script, timeoutMs = 20000) {
   const b64 = Buffer.from(script, 'utf8').toString('base64');
   try {
-    const res = spawnSync('wsl.exe', ['-d', cfg.distro, '--', 'bash', '-c', `echo ${b64} | base64 -d | bash`], {
+    const res = spawnSync('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', '-c', `echo ${b64} | base64 -d | bash`], {
       encoding: 'utf8',
       windowsHide: true,
       timeout: timeoutMs,

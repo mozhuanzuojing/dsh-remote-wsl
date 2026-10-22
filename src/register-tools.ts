@@ -50,7 +50,7 @@ echo $$ > "\${0%.sh}.pid"
 exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version} web --port ${this.cfg.webPort} --no-open
 `;
     this.script = writeScript(this.cfg.distro, script);
-    this.child = spawn('wsl.exe', ['-d', this.cfg.distro, '--', 'bash', this.script], {
+    this.child = spawn('wsl.exe', ['-d', this.cfg.distro, '--exec', 'bash', this.script], {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });

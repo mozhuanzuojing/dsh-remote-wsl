@@ -257,6 +257,40 @@ function kindOf(p) {
  * `ok` 是给短 TTL 缓存用的**可观测性标志**（不对外暴露）：只有"命令真的跑成功且有输出"才算
  * `ok:true`；失败时调用方**不得**把这份结果写进缓存（见 `DISTRO_FACTS_TTL_MS` 注释）。
  */
+/**
+ * wsl.exe 输出解码：wsl -l -v 在 Windows 上常是 UTF-16LE；按 UTF-8 读会夹满 NUL。
+ * 参考 ZCode 的 wsl-detect：含 NUL 字节即按 UTF-16LE 解码，同时兼容 UTF-8。
+ */
+export function decodeWslOutput(input) {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(String(input ?? ''), 'utf8');
+  if (buf.length === 0) return '';
+  const text = buf.includes(0) ? buf.toString('utf16le') : buf.toString('utf8');
+  return text.replace(/\u0000/g, '').replace(/^\uFEFF/, '').replace(/\r/g, '');
+}
+
+/**
+ * 解析 wsl.exe -l -v 的表：列之间是两个以上空格，发行版名可以含单个空格
+ * （例如 Ubuntu 22.04 LTS）；行尾是 VERSION，倒数第二列是 STATE，首个 * 表示默认。
+ * 表头行（没有数字 VERSION）会被跳过。
+ */
+export function parseWslDistroTable(raw) {
+  const rows = [];
+  for (const line of String(raw ?? '').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split(/\s{2,}/).map((part) => part.trim()).filter(Boolean);
+    if (parts.length < 3) continue;
+    const version = Number.parseInt(parts[parts.length - 1], 10);
+    if (!Number.isFinite(version)) continue;
+    const state = parts[parts.length - 2];
+    const rawName = parts.slice(0, -2).join(' ').trim();
+    const isDefault = rawName.startsWith('*');
+    const name = rawName.replace(/^\*\s*/, '').trim();
+    if (!name) continue;
+    rows.push({ name, isDefault, state, version: version === 1 || version === 2 ? version : null });
+  }
+  return rows;
+}
 function probeDistroState() {
   const out = { defaultName: null, running: new Set(), versions: new Map(), ok: false };
   let text = '';
@@ -269,16 +303,10 @@ function probeDistroState() {
   }
   if (!text) return out;
   out.ok = res.error === undefined && res.status === 0;
-  for (const raw of text.replace(/\0/g, '').split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    const m = /^(\*)?\s*(\S+)\s+(Running|Stopped|Installing|Uninstalling|Converting|Exporting)\b/i.exec(line);
-    if (!m) continue;
-    const name = m[2];
-    if (m[1] === '*') out.defaultName = name;
-    if (m[3].toLowerCase() === 'running') out.running.add(name);
-    const versionMatch = /\s(\d+)\s*$/.exec(line);
-    if (versionMatch) out.versions.set(name, Number(versionMatch[1]));
+  for (const row of parseWslDistroTable(decodeWslOutput(text))) {
+    if (row.isDefault) out.defaultName = row.name;
+    if (row.state.toLowerCase() === 'running') out.running.add(row.name);
+    if (row.version !== null) out.versions.set(row.name, row.version);
   }
   return out;
 }
@@ -409,7 +437,7 @@ export function createExplorerHandlers(deps) {
     if (hit !== undefined && (hit.home !== null || Date.now() - hit.at < 60000)) return hit.home ?? cfg.wslHome;
     let home = null;
     try {
-      const res = spawnSync('wsl.exe', ['-d', distro, '--', 'sh', '-c', 'printf %s "$HOME"'], {
+      const res = spawnSync('wsl.exe', ['-d', distro, '--exec', 'sh', '-c', 'printf %s "$HOME"'], {
         encoding: 'utf8',
         windowsHide: true,
         timeout: 8000,

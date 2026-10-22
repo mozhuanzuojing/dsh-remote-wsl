@@ -50,7 +50,7 @@ exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${version} --pr
 `,
     spawnRuntime: ({ script }) => {
       state.script = writeScript(cfg.distro, script);
-      return spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', state.script], {
+      return spawn('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', state.script], {
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
       });

@@ -233,14 +233,14 @@ export function launchDaemon(cfg, port, version, log = () => {}) {
     //   拿已关闭的 fd 号去 spawn 会抛 `EBADF` ⇒ 回退路径自己先崩，比不动手更糟。失败就退回 'ignore'。
     let child;
     try {
-      child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', launcherLinux], {
+      child = spawn('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', launcherLinux], {
         stdio: ['ignore', 'ignore', stderrFd ?? 'ignore'],
         windowsHide: true,
         detached: true, // ★ 这一条是 (b) 的代价来源：job breakaway 必须的，但它同时带来 DETACHED_PROCESS
       });
     } catch (e) {
       log(`兼容启动的 spawn 失败（stdio 里可能含已关闭的 fd）: ${e?.message ?? String(e)}；改用 ignore 重试`);
-      child = spawn('wsl.exe', ['-d', cfg.distro, '--', 'bash', launcherLinux], {
+      child = spawn('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', launcherLinux], {
         stdio: ['ignore', 'ignore', 'ignore'],
         windowsHide: true,
         detached: true,
