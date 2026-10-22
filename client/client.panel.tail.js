@@ -35,7 +35,7 @@ function renderTail(props) {
 	mountsProbed, narrow, newAbortController, normalizeWslPath,
 	onMenuKey, openSessionNote, others, pathError,
 	pathInput, pending, pendingFrom, primaryBusyKey,
-	primaryIsSession, pushRecent, readAbort, readRecent,
+	primaryIsSession, proxyBadge, pushRecent, readAbort, readRecent,
 	readSeq, recent, recentOk, rootRef,
 	run, runDaemon, setAction, setBrowse,
 	setCollapsed, setFocusIndex, setMenuOpen, setMounts,
@@ -248,7 +248,11 @@ function renderTail(props) {
 
 				return React.createElement(
 					"section",
-					{ className: "dsh-rw-root", "data-dsh-remote-wsl": "panel", ref: rootRef },
+					// 2026-10-22 B2：窄态语义类（面板实宽 <420）。CSS 只在窄态做三处**分档**：
+					// 路径行折成两行（否则「显示隐藏」开关被推出卡片、被 overflow:hidden 裁掉）、
+					// 目标行允许换行（多发行版徽标把行挤爆）、头部元信息行折行（守护药丸 + 代理徽标）。
+					// 为什么不纯靠 @media：面板宽度 ≠ 视口宽度（rail 占 56px），媒体查询量不到面板实宽。
+					{ className: "dsh-rw-root" + (narrow ? " dsh-rw-root--narrow" : ""), "data-dsh-remote-wsl": "panel", ref: rootRef },
 					React.createElement(
 						"header",
 						{ className: "dsh-rw-header" },
@@ -270,6 +274,7 @@ function renderTail(props) {
 										"span",
 										{ className: "dsh-rw-header-meta" },
 									daemonPill,
+									proxyBadge,
 									)
 								: null,
 						),
@@ -290,9 +295,15 @@ function renderTail(props) {
 						{ className: "dsh-rw-tchip" },
 						React.createElement(
 							"summary",
-							{ className: "dsh-rw-tchip-summary", title: t("targets.chipTitle") },
+							{
+								className: "dsh-rw-tchip-summary",
+								title: t("targets.chipTitle"),
+								// 2026-10-22 B2：窄态可见文案缩成「WSL」（3 字母），完整「WSL: 发行版」仍挂在
+								// aria-label/title 上 —— 264px 面板里底栏实测差 127px（见 out-render-before.json）。
+								"aria-label": t("targets.chip", { distro: activeDistro === null ? "?" : activeDistro }),
+							},
 							React.createElement(StatusDot, { kind: stateKind }),
-							t("targets.chip", { distro: activeDistro === null ? "?" : activeDistro }),
+							narrow ? t("targets.chipShort") : t("targets.chip", { distro: activeDistro === null ? "?" : activeDistro }),
 						),
 						React.createElement(
 							"div",
@@ -304,7 +315,13 @@ function renderTail(props) {
 					),
 					React.createElement(StatusDot, { kind: stateKind }),
 						React.createElement("span", { className: "dsh-rw-statusword" }, statusWord),
-						drifted ? React.createElement(React.Fragment, null, icon("warn", "dsh-rw-drift"), React.createElement("span", { className: "dsh-rw-statusword" }, t("status.drifted"))) : null,
+						// 2026-10-22 B2：漂移提示在窄态只留 ⚠ 图标（16px，title/aria-label 带「配置已漂移」）——
+						// 「配置已漂移」65px + 图标 16px 在 264px 面板里放不进底栏；文字版在宽态保持原样。
+						drifted
+							? narrow
+								? React.createElement("span", { className: "dsh-rw-driftmark", title: t("status.drifted"), "aria-label": t("status.drifted"), role: "img" }, icon("warn", "dsh-rw-drift"))
+								: React.createElement(React.Fragment, null, icon("warn", "dsh-rw-drift"), React.createElement("span", { className: "dsh-rw-statusword" }, t("status.drifted")))
+							: null,
 						extra.length > 0 ? React.createElement("span", { className: "dsh-rw-extra" + (narrow ? " dsh-rw-extra--hidden" : "") }, " · ", extra) : null,
 						React.createElement("span", { className: "dsh-rw-spacer" }),
 						updated !== null && !hideUpdated ? React.createElement("span", { className: "dsh-rw-updated" }, updated) : null,

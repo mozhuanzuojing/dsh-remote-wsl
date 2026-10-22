@@ -250,11 +250,64 @@ return api.newSession({ path: cwd }, signal);
 						},
 					},
 					React.createElement(StatusDot, { kind: daemon.running === true ? "running" : "stopped" }),
-					t(daemon.running === true ? "status.daemonRunning" : "status.daemonOff"),
+					// 2026-10-22 B2：窄态（面板 <420，最窄 264）换成 5 字短文案「守护未运行」——
+					// 完整文案「远端守护未运行」实测 115px，而 264px 面板的头部文字列只有 109px
+					// ⇒ 元信息行横向溢出 6px（实测见 spike/verify/ui-20261022/out-render-before.json）。
+					// 短文案 89px 放得下；完整名与「点击启动」说明仍在 aria-label / title 里。
+					t(daemon.running === true ? (narrow ? "status.daemonPillShortOn" : "status.daemonRunning") : narrow ? "status.daemonPillShortOff" : "status.daemonOff"),
 				)
 				: null;
+			/**
+			 * 代理状态徽标（2026-10-22 B1）：`snapshot.proxy = { host, port, reachable, cached }`，
+			 * 只对**运行中**的发行版探测 ⇒ `reachable` 是三态：true / false / null（未探测）。
+			 * 约束（任务书原文）：
+			 *   · 三态各有**文字**（颜色只是第三冗余，不许"只画红点"），配色取宿主
+			 *     `--dsw-alias-state-*`，与 StatusDot 同族；
+			 *   · 带 `title` 与 `aria-label`；**不可达时给出代理地址 + 一句可操作提示**；
+			 *   · 窄态换极短词，靠 CSS `white-space:nowrap` 保证徽标自身不折行，靠元信息行
+			 *     `flex-wrap` 保证它不挤压标题（标题列宽由 CSS 决定，与徽标无关）。
+			 */
+			const proxy = isRecord(snapshot) && isRecord(snapshot.proxy) ? snapshot.proxy : null;
+			const proxyState = proxy === null ? null : proxy.reachable === true ? "up" : proxy.reachable === false ? "down" : "unknown";
+			const proxyEndpoint =
+				proxy === null || proxy.host === null || proxy.host === undefined
+					? "?"
+					: String(proxy.host) + ":" + (proxy.port === null || proxy.port === undefined ? "?" : String(proxy.port));
+			const proxyAria =
+				proxyState === "up"
+					? t("proxy.ariaUp", { endpoint: proxyEndpoint })
+					: proxyState === "down"
+						? t("proxy.ariaDown", { endpoint: proxyEndpoint })
+						: proxyState === "unknown"
+							? t("proxy.ariaUnknown", { endpoint: proxyEndpoint })
+							: null;
+			const proxyLabel =
+				proxyState === "up"
+					? t(narrow ? "proxy.upShort" : "proxy.up")
+					: proxyState === "down"
+						? narrow
+							? t("proxy.downShort")
+							: t("proxy.downAt", { endpoint: proxyEndpoint })
+						: proxyState === "unknown"
+							? t(narrow ? "proxy.unknownShort" : "proxy.unknown")
+							: null;
+			const proxyBadge =
+				factsVisible && proxyState !== null
+					? React.createElement(
+							"span",
+							{
+								className: "dsh-rw-proxy dsh-rw-proxy--" + proxyState,
+								role: "img",
+								"data-proxy-state": proxyState,
+								"aria-label": proxyAria,
+								title: proxyAria,
+							},
+							React.createElement(StatusDot, { kind: proxyState === "up" ? "running" : proxyState === "down" ? "error" : "unknown" }),
+							React.createElement("span", { className: "dsh-rw-proxy-text" }, proxyLabel),
+						)
+					: null;
 			return {
-	headerButtons, primaryBusyKey, primaryIsSession, daemonPill,
+	headerButtons, primaryBusyKey, primaryIsSession, daemonPill, proxyBadge,
 			};
 }
 

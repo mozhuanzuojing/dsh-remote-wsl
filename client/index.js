@@ -68,7 +68,9 @@ window.__ModuleLoader__.load({
 			".dsh-rw-root{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;box-shadow:none}",
 			".dsh-rw-header{display:flex;align-items:flex-start;gap:8px;padding:10px 14px;background:var(--dsw-alias-bg-layer-1);border-bottom:1px solid var(--dsw-alias-border-l1);box-shadow:none}",
 			".dsh-rw-header-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}",
-			".dsh-rw-header-meta{display:flex;align-items:center;gap:6px;min-width:0}",
+			// 2026-10-22 B2：元信息行允许折行（`row-gap:4px`）——264px 面板的头部文字列只有 109px，
+			// 守护药丸 + 代理徽标两枚放不下一行；折行只发生在放不下时，宽态仍是一行（几何不变）。
+			".dsh-rw-header-meta{display:flex;flex-wrap:wrap;align-items:center;column-gap:6px;row-gap:4px;min-width:0}",
 			// T63：窄态（面板实宽 <420 时最窄只有 264px）下不许出现"文字折行"⇒ 头部三块各**固定 1 行**
 			// （title/hint 超宽走 `…`，subtitle 本来就有）；按钮**永不折行**（`white-space:nowrap` + `flex:none`：
 			// 默认 `flex-shrink:1` 会把按钮压到比内容还窄，「启动守护」被压到 48.8px 就折成两行）。
@@ -120,6 +122,17 @@ window.__ModuleLoader__.load({
 			".dsh-rw-daemon:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-daemon--on{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
 			".dsh-rw-daemon--off{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
+			// 2026-10-22 B1：头部「代理状态」徽标（三态）。与守护药丸同形（h22 / 12px / 圆角 999），
+			// 配色只用宿主 `--dsw-alias-state-*`（与 StatusDot 同族）：可达=success、不可达=error、
+			// 未探测=次级文字色 + border-l2。**文字始终存在**（颜色只是第三冗余，不许"只画红点"）；
+			// `white-space:nowrap` 钉死"徽标自身不折行"，元信息行的 `flex-wrap` 负责不让它挤压标题。
+			".dsh-rw-proxy{display:inline-flex;align-items:center;gap:5px;flex:none;box-sizing:border-box;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;white-space:nowrap}",
+			".dsh-rw-proxy--up{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
+			".dsh-rw-proxy--down{color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}",
+			".dsh-rw-proxy--unknown{color:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-border-l2)}",
+			".dsh-rw-proxy-text{white-space:nowrap}",
+			// 2026-10-22 B2：窄态漂移提示只留 ⚠（title/aria-label 承载文字）。
+			".dsh-rw-driftmark{display:inline-flex;align-items:center;flex:none;color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-body{flex:1;min-height:0;overflow:hidden;padding:10px 10px 6px;display:flex;flex-direction:column;gap:8px}",
 			".dsh-rw-card{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:0;box-shadow:none;display:flex;flex-direction:column;min-height:0;flex:1;overflow:hidden}",
 			".dsh-rw-cardhead{display:flex;align-items:center;gap:8px;min-width:0}",
@@ -221,7 +234,12 @@ window.__ModuleLoader__.load({
 			// 旧写法 `height:36 + padding 9×2 + border-top 1` 实际量到 **55**（内容盒语义）。
 			// 定稿：`box-sizing:border-box;height:47px`（= 28 内容 + 9×2 padding + 1 border）。
 			// **不用 `min-height`**：那会让守护起停（多一行 extra）时 47↔43 抖 4px。
-			".dsh-rw-status{display:flex;align-items:center;gap:8px;box-sizing:border-box;height:47px;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}",
+			// 2026-10-22 B2：底栏改成**允许折行**（`flex-wrap` + `row-gap:6px` + `height:auto`）。
+			// 原因（实测，见 spike/verify/ui-20261022/out-render-before.json）：服务卡加进「WSL: 发行版」
+			// chip / 漂移提示 / 更新时间后，底栏内容在面板 264–500 区间比面板还宽 —— 264px 时 391>264、
+			// 304px 时 391>304、424px 时 490>424（溢出被面板裁掉 ⇒ 状态词/⋯ 按钮看不见）。
+			// 宽态（≥~560）内容一行放得下 ⇒ 几何与原来一致（min-height 仍 47）。
+			".dsh-rw-status{display:flex;flex-wrap:wrap;row-gap:6px;align-items:center;gap:8px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}",
 			// 同一个 `box-sizing` 根因第 2 处：`--stopped/--unknown` 带 1.5px 边框，
 			// 内容盒语义下外径 11 ≠ 实心态 8 ⇒ 加 `box-sizing:border-box` 后两态恒 8×8。
 			".dsh-rw-dot{box-sizing:border-box;width:8px;height:8px;border-radius:50%;flex:none}",
@@ -253,6 +271,20 @@ window.__ModuleLoader__.load({
 			".dsh-rw-confirm-title{display:flex;align-items:center;gap:6px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-confirm-body{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-confirm-actions{display:flex;justify-content:flex-end;gap:8px}",
+			// ── 2026-10-22 B2：窄态（面板实宽 <420，tail 在根节点挂 `.dsh-rw-root--narrow`）三处**分档** ──
+			// 为什么用 JS 语义类而不是 `@media`：面板宽度 ≠ 视口宽度（侧栏 rail 占 56px），媒体查询量的是
+			// 视口，量不到面板实宽；`narrow` 来自 ResizeObserver 的 contentRect。
+			// ① 目录路径行：`.dsh-rw-formrow` 放不下「上一级 + 路径输入 + 显示隐藏开关 + 筛选框」⇒ 实测
+			//    在 320/360 档把「显示隐藏」推出卡片右边界（right=432 vs 面板右 320）并被卡片 overflow:hidden
+			//    裁掉 ⇒ 折成两行：第一行路径（占满），第二行筛选（占满）。
+			".dsh-rw-root--narrow .dsh-rw-formrow{flex-wrap:wrap;row-gap:6px}",
+			".dsh-rw-root--narrow .dsh-rw-pathform{flex:1 1 100%}",
+			".dsh-rw-root--narrow .dsh-rw-search{flex:1 1 100%;min-width:0}",
+			// ② 目标行：多发行版徽标（WSL 2 / 默认 / 当前）+ 状态词 + 行内动作在 264px 档把行挤到 323px
+			//    （超出面板 320）⇒ 允许换行（宽态内容本来就放得下，不会换）。
+			".dsh-rw-root--narrow .dsh-rw-target{flex-wrap:wrap;row-gap:2px}",
+			// ③ 窄态底栏：折行后各段自己成行，不再靠压缩命中盒/裁字来"塞进一行"。
+			".dsh-rw-root--narrow .dsh-rw-updated{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}",
 		].join("\n");
 
 		// 静态 bundle 的样式注入：手写 <style data-plugin-css>，卸载时由 module system 的
@@ -568,3 +600,7 @@ window.__ModuleLoader__.load({
 
 // 2026-10-22 uiWorkspace 端到端验证（web 实例 + CDP）：header chunk 里 startSession 改为按 thenable
 // 兜底（当前实现同步返回 undefined）；刷新入口 rev。
+// 2026-10-22 B1/B2（spike/verify/ui-20261022）：头部加三态「代理可达/不可达/未探测」徽标（header 返回
+// proxyBadge，tail 放进 header-meta；aria/title 带端点与不可达提示；i18n 新增 13 键 zh/en 配对）；
+// 窄态 320/360 修布局（底栏允许折行 + 窄态 chip/漂移/守护短文案 + 根节点 .dsh-rw-root--narrow
+// 让路径行/目标行折行）；CSS 全部在本文件 ⇒ 本轮由本入口刷新 chunk rev。

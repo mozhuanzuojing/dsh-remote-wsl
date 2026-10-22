@@ -1,0 +1,3 @@
+client-rev 门禁：PASS（模式=git）
+  插件根   : D:\project\dsh1\dsh-remote-wsl
+  入口     : client/index.js（来自 exports["./client"]）

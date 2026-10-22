@@ -42,6 +42,23 @@ window.__ModuleLoader__.load({
 			"advanced.drift": "配置漂移：desktop 与 pin 不一致",
 			"confirm.body": "{consequence}（影响：「{distro}」上正在运行的 {count} 个会话）",
 
+			// —— 2026-10-22 B1/B2：头部代理状态徽标（三态）+ 窄态短文案（zh/en 逐键配对）——
+			// 徽标可见文字：宽态给完整词（不可达时还带地址），窄态（面板 <420）换极短词；
+			// aria-label/title 始终是整句（含端点，不可达时带一句可操作提示）。
+			"proxy.up": "代理可达",
+			"proxy.upShort": "可达",
+			"proxy.down": "代理不可达",
+			"proxy.downShort": "不可达",
+			"proxy.downAt": "不可达 {endpoint}",
+			"proxy.unknown": "代理未探测",
+			"proxy.unknownShort": "未探测",
+			"proxy.ariaUp": "代理可达：{endpoint}（WSL 侧流量可以走它）",
+			"proxy.ariaDown": "代理不可达：{endpoint} —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
+			"proxy.ariaUnknown": "代理未探测：{endpoint} —— 目标发行版未运行或本次探测失败，启动发行版后点刷新即可",
+			"status.daemonPillShortOn": "守护运行中",
+			"status.daemonPillShortOff": "守护未运行",
+			"targets.chipShort": "WSL",
+
 			// —— T30 重设计新增（UX 规格 §3.2；zh/en 逐键配对）——
 			"status.sessions": "会话 {count} 个",
 			"status.stateUnknown": "远端守护状态未知",
@@ -317,6 +334,21 @@ window.__ModuleLoader__.load({
 			"advanced.proxyUnknown": "not probed (distro stopped or probe failed)",
 			"advanced.drift": "Drift: desktop and pin disagree",
 			"confirm.body": "{consequence} (Affects: {count} running sessions on “{distro}”)",
+
+			// —— 2026-10-22 B1/B2: header proxy badge (3 states) + narrow short labels (paired with ZH) ——
+			"proxy.up": "Proxy reachable",
+			"proxy.upShort": "Up",
+			"proxy.down": "Proxy unreachable",
+			"proxy.downShort": "Down",
+			"proxy.downAt": "Unreachable {endpoint}",
+			"proxy.unknown": "Proxy not probed",
+			"proxy.unknownShort": "N/A",
+			"proxy.ariaUp": "Proxy reachable: {endpoint} (WSL-side traffic can use it)",
+			"proxy.ariaDown": "Proxy unreachable: {endpoint} — make sure the host proxy is running; ignore this if you do not use a proxy",
+			"proxy.ariaUnknown": "Proxy not probed: {endpoint} — the target distro is not running or the probe failed; start it and hit refresh",
+			"status.daemonPillShortOn": "Daemon on",
+			"status.daemonPillShortOff": "Daemon off",
+			"targets.chipShort": "WSL",
 
 			// —— T30 redesign additions (UX spec §3.2) ——
 			"status.sessions": "{count} sessions",

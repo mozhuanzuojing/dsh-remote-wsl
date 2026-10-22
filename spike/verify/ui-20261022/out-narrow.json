@@ -1,0 +1,169 @@
+{
+  "generatedAt": "2026-10-22T08:54:41.887Z",
+  "total": 32,
+  "pass": 32,
+  "fail": 0,
+  "cssChars": 20786,
+  "results": [
+    {
+      "ok": true,
+      "name": "断点 NARROW_PX 仍是 420（本轮不改既有分档语义）",
+      "detail": "420"
+    },
+    {
+      "ok": true,
+      "name": "断点 HIDE_UPDATED_PX 仍是 360",
+      "detail": "360"
+    },
+    {
+      "ok": true,
+      "name": "actions 里 narrow 仍由面板实宽算出（width < NARROW_PX）",
+      "detail": "静态断言：ResizeObserver contentRect 驱动的 width"
+    },
+    {
+      "ok": true,
+      "name": "actions 里 hideUpdated 仍由 width < HIDE_UPDATED_PX 算出",
+      "detail": "静态断言"
+    },
+    {
+      "ok": true,
+      "name": "窄态修复没用 @media 冒充面板宽度（prefers-reduced-motion 除外）",
+      "detail": "无布局 @media"
+    },
+    {
+      "ok": true,
+      "name": "入口 chunk 真的注入了 <style data-plugin-css>",
+      "detail": "20786 字符 / 1 个 style"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 元信息行允许折行（压缩标题的根因修法）",
+      "detail": ".dsh-rw-header-meta{display:flex;flex-wrap:wrap;align-items:center;column-gap:6px;row-gap:4px;min-width:0}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 元信息行折行间距 4px",
+      "detail": ".dsh-rw-header-meta{display:flex;flex-wrap:wrap;align-items:center;column-gap:6px;row-gap:4px;min-width:0}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 底栏允许折行（0 横向溢出的根因修法）",
+      "detail": ".dsh-rw-status{display:flex;flex-wrap:wrap;row-gap:6px;align-items:center;gap:8px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 底栏高从固定 47 改为 min-height:47（折行时能长高）",
+      "detail": ".dsh-rw-status{display:flex;flex-wrap:wrap;row-gap:6px;align-items:center;gap:8px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 徽标 flex:none（不被压扁）",
+      "detail": ".dsh-rw-proxy{display:inline-flex;align-items:center;gap:5px;flex:none;box-sizing:border-box;height:22px;padding:0 8px;b"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 徽标 white-space:nowrap（徽标自身不折行）",
+      "detail": ".dsh-rw-proxy{display:inline-flex;align-items:center;gap:5px;flex:none;box-sizing:border-box;height:22px;padding:0 8px;border-radius:999px;border:1px solid var("
+    },
+    {
+      "ok": true,
+      "name": "CSS: 徽标文字同样 nowrap",
+      "detail": ".dsh-rw-proxy-text{white-space:nowrap}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 可达态用宿主 success token",
+      "detail": ".dsh-rw-proxy--up{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 不可达态用宿主 error token",
+      "detail": ".dsh-rw-proxy--down{color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 未探测态用次级文字色 + border-l2（不是成功/失败色）",
+      "detail": ".dsh-rw-proxy--unknown{color:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-border-l2)}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 漂移图标壳存在（窄态只留 ⚠）",
+      "detail": ".dsh-rw-driftmark{display:inline-flex;align-items:center;flex:none;color:var(--dsw-alias-s"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 窄态路径行折行",
+      "detail": ".dsh-rw-root--narrow .dsh-rw-formrow{flex-wrap:wrap;row-gap:6px}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 窄态路径容器占满一行",
+      "detail": ".dsh-rw-root--narrow .dsh-rw-pathform{flex:1 1 100%}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 窄态筛选框占满一行且可收缩（不再被推出卡片）",
+      "detail": ".dsh-rw-root--narrow .dsh-rw-search{flex:1 1 100%;min-width:0}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 窄态目标行允许换行（徽标不再把行挤爆）",
+      "detail": ".dsh-rw-root--narrow .dsh-rw-target{flex-wrap:wrap;row-gap:2px}"
+    },
+    {
+      "ok": true,
+      "name": "底栏 chip 宽态保持「WSL: 发行版」",
+      "detail": "T:targets.chip|{\"distro\":\"debian-u8-1\"}"
+    },
+    {
+      "ok": true,
+      "name": "底栏 chip 窄态换成短键 targets.chipShort",
+      "detail": "T:targets.chipShort"
+    },
+    {
+      "ok": true,
+      "name": "底栏 chip 窄态 aria-label 仍是完整「WSL: 发行版」",
+      "detail": "T:targets.chip|{\"distro\":\"debian-u8-1\"}"
+    },
+    {
+      "ok": true,
+      "name": "底栏 chip 宽态也带 aria-label（不被 title 顶掉可访问名）",
+      "detail": "T:targets.chip|{\"distro\":\"debian-u8-1\"}"
+    },
+    {
+      "ok": true,
+      "name": "漂移提示宽态保留文字版（不是窄态图标）",
+      "detail": "ok"
+    },
+    {
+      "ok": true,
+      "name": "漂移提示窄态变成 icon-only 壳",
+      "detail": "dsh-rw-driftmark"
+    },
+    {
+      "ok": true,
+      "name": "漂移 icon-only 壳带 title/aria-label（文字不丢）",
+      "detail": "T:status.drifted / T:status.drifted"
+    },
+    {
+      "ok": true,
+      "name": "底栏窄态只剩 1 个状态词（漂移词让位给图标）",
+      "detail": "T:status.daemonOff"
+    },
+    {
+      "ok": true,
+      "name": "底栏宽态有 2 个状态词（守护 + 漂移）",
+      "detail": "T:status.daemonOff / T:status.drifted"
+    },
+    {
+      "ok": true,
+      "name": "底栏状态词本身不被改短（daemon 状态是主信息）",
+      "detail": "T:status.daemonOff vs T:status.daemonOff"
+    },
+    {
+      "ok": true,
+      "name": "底栏窄态仍隐藏「会话 N 个」（T63 既有行为不动）",
+      "detail": "dsh-rw-extra dsh-rw-extra--hidden"
+    }
+  ]
+}
