@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-22T06:02:39.167Z",
-  "total": 22,
-  "pass": 22,
+  "generatedAt": "2026-10-22T06:04:43.204Z",
+  "total": 23,
+  "pass": 23,
   "fail": 0,
   "results": [
     {
@@ -98,6 +98,11 @@
       "name": "折叠区：daemon 未知时诊断块不崩",
       "ok": true,
       "detail": ""
+    },
+    {
+      "name": "折叠区：代理行显示可达",
+      "ok": true,
+      "detail": "panel.title|header.target:{\"distro\":\"d\",\"cwd\":\" · /home/g\"}|raw.summary|advanced.title|advanced.distro:{\"distro\":\"d\"}|advanced.daemon:{\"slot\":8972,\"pid\":\"?\",\"ve"
     },
     {
       "name": "折叠区：最近目录 details 存在",

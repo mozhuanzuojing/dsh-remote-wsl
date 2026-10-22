@@ -51,6 +51,7 @@ function renderTail(props) {
 				// —— 折叠区：高级 / 诊断（默认收起；收起时内部完全不渲染 ⇒ 不可 Tab 到达） ——
 				if (factsVisible && snapshot !== null) {
 					const open = collapsed.advanced === true;
+					const proxy = snapshot !== null && snapshot.proxy !== null && typeof snapshot.proxy === "object" ? snapshot.proxy : null;
 					const children = [];
 					if (open) {
 						if (others.length > 0) {
@@ -77,6 +78,18 @@ function renderTail(props) {
 								React.createElement("div", { className: "dsh-rw-readonly-head" }, t("advanced.title")),
 								React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.distro", { distro: activeDistro === null ? "?" : activeDistro })),
 								React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.daemon", { slot: daemonSlot === null ? "?" : daemonSlot, pid: daemon !== null && typeof daemon.pid === "number" ? daemon.pid : "?", version: daemon !== null && typeof daemon.version === "string" && daemon.version.length ? daemon.version : "?" })),
+								proxy === null
+									? null
+									: React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.proxy", {
+											host: proxy.host === null || proxy.host === undefined ? "?" : proxy.host,
+											port: proxy.port === null || proxy.port === undefined ? "?" : proxy.port,
+											state:
+												proxy.reachable === true
+													? t("advanced.proxyUp")
+													: proxy.reachable === false
+														? t("advanced.proxyDown")
+														: t("advanced.proxyUnknown"),
+										})),
 								driftKnown && drift.drifted === true ? React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.drift")) : null,
 							),
 						);

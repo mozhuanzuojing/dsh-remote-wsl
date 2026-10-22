@@ -41,6 +41,11 @@
    settle(5000) 等它们退出，超时只 kill 自己记录的那些（绝不 wsl --terminate/--shutdown）。
    验证：probe-lifecycle 9/9。未做：窗口级池化（同 distro 共享 host）、web host 子进程的跟踪。
 
+8. **host 侧代理解析 + 快照**（2026-10-22 晚些补做）：wsl-proxy 增加 resolveWslProxy（TTL 5 分钟、
+   不可达 30 秒、并发去重）；explorer.snapshot 增加 proxy 段（**只对运行中的发行版探**，不拉起停着的）；
+   面板「诊断信息」显示 代理：host:port 可达/不可达/未探测。验证：probe-host-distro 20/20
+   （实测 proxy=172.30.176.1:9910 reachable，cached）、probe-layout 23/23。
+
 ## 值得下一步抄的（未做）
 
 1. **异步探测 + 5s TTL + promise 缓存**（**已部分完成**：探测已异步，显式失效接口未做）（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，

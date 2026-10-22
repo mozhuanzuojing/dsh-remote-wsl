@@ -62,6 +62,60 @@ export function buildProxyEnvBlock(port, hostVar = '$GATEWAY', timeoutSec = PROX
   ].join('\n');
 }
 
+
+/** 拼一次性探测脚本：发现网关 + 探活，输出 `reachable <host>` / `unreachable <host>`。 */
+export function buildProxyProbeScript(port, timeoutSec = PROXY_PROBE_TIMEOUT_SEC) {
+  return [
+    buildGatewayShellLines(),
+    'if [ -n "\${GATEWAY:-}" ] && ' + buildProxyProbeCommand('$GATEWAY', port, timeoutSec) + ' 2>/dev/null; then',
+    '  printf "reachable %s" "$GATEWAY"',
+    'else',
+    '  printf "unreachable %s" "\${GATEWAY:-}"',
+    'fi',
+  ].join('\n');
+}
+
+/** 解析探测脚本的输出。 */
+export function parseProxyProbeOutput(output) {
+  const match = /^(reachable|unreachable)\s+(\S*)$/.exec(String(output ?? '').trim());
+  if (!match) return { reachable: null, host: null };
+  return { reachable: match[1] === 'reachable', host: match[2] || null };
+}
+
+/** 进程内缓存：同一发行版+端口在 TTL 内不重复探测；不可达用更短 TTL（代理可能刚起来）。 */
+const proxyCache = new Map();
+
+/**
+ * 解析某发行版看到的宿主代理（异步，带缓存与并发去重）。
+ * @param options.distro - 发行版名
+ * @param options.port - 代理端口；0/空 ⇒ 不探测
+ * @param options.run - 在 WSL 里执行脚本并返回 stdout 的函数
+ * @param options.ttlMs - 可达时的缓存时长（默认 5 分钟）
+ * @param options.negativeTtlMs - 不可达时的缓存时长（默认 30 秒）
+ */
+export async function resolveWslProxy({ distro, port, run, ttlMs = 300000, negativeTtlMs = 30000 }) {
+  if (!port) return { host: null, port: 0, reachable: null, cached: false };
+  const key = distro + ':' + port;
+  const now = Date.now();
+  const entry = proxyCache.get(key);
+  if (entry && entry.value !== undefined && entry.expiresAt > now) return { ...entry.value, cached: true };
+  if (entry && entry.promise) return entry.promise;
+  const promise = (async () => {
+    let output = '';
+    try {
+      output = await run(buildProxyProbeScript(port));
+    } catch {
+      output = '';
+    }
+    const parsed = parseProxyProbeOutput(output);
+    const value = { host: parsed.host, port, reachable: parsed.reachable };
+    proxyCache.set(key, { value, expiresAt: Date.now() + (parsed.reachable === true ? ttlMs : negativeTtlMs) });
+    return value;
+  })();
+  proxyCache.set(key, { promise, expiresAt: 0 });
+  return promise;
+}
+
 function isLoopback(address) {
   return address === '::1' || address === 'localhost' || (isIP(address) === 4 && address.startsWith('127.'));
 }

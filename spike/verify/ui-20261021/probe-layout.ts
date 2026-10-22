@@ -185,6 +185,9 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
   let crash2 = null;
   try { tail.renderTail(Object.assign({}, baseProps, { daemon: null, daemonKnown: false })); } catch (e) { crash2 = e; }
   check('折叠区：daemon 未知时诊断块不崩', crash2 === null, crash2 ? String(crash2.message) : '');
+  const proxyTree = tail.renderTail(Object.assign({}, baseProps, { snapshot: Object.assign({}, baseProps.snapshot, { proxy: { host: '10.0.0.1', port: 9910, reachable: true } }) }));
+  const proxyTexts = walk(proxyTree, []).map((n) => n.children).flat().filter((c) => typeof c === 'string');
+  check('折叠区：代理行显示可达', proxyTexts.some((s) => s.indexOf('advanced.proxyUp') >= 0), proxyTexts.join('|').slice(0, 160));
 
   const browserMod = loadChunk('client.panel.browser.js');
   let updater2 = null;

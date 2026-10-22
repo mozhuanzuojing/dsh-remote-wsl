@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-22T06:02:41.806Z",
+  "generatedAt": "2026-10-22T06:04:44.029Z",
   "real": "debian-u8-1",
   "fake": "probe-no-such-distro",
-  "total": 19,
-  "pass": 19,
+  "total": 20,
+  "pass": 20,
   "fail": 0,
   "results": [
     {
@@ -79,7 +79,7 @@
     {
       "name": "异步发行版清单被实际调用",
       "ok": true,
-      "detail": "2"
+      "detail": "1"
     },
     {
       "name": "listDir 接受 UNC 路径",
@@ -100,6 +100,11 @@
       "name": "UNC 里的未知发行版 ⇒ E_ARG",
       "ok": true,
       "detail": "E_ARG"
+    },
+    {
+      "name": "snapshot 带 proxy 段",
+      "ok": true,
+      "detail": "{\"host\":\"172.30.176.1\",\"port\":9910,\"reachable\":true,\"cached\":true}"
     }
   ]
 }

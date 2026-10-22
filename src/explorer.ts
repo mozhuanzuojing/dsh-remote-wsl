@@ -58,6 +58,7 @@ import { execFile, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 import { parseWslUncPath } from './unc-path.ts';
+import { resolveWslProxy } from './wsl-proxy.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -307,6 +308,21 @@ function execWslBuffer(args, timeoutMs) {
   });
 }
 
+/** 异步执行 WSL 里的脚本文本（一次性只读检查，例如代理探测）。 */
+function execWslText(distro, script, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'wsl.exe',
+      ['-d', distro, '--exec', 'bash', '-c', script],
+      { encoding: 'buffer', maxBuffer: 1024 * 1024, windowsHide: true, timeout: timeoutMs },
+      (error, stdout) => {
+        if (error) reject(error);
+        else resolve(decodeWslOutput(stdout));
+      },
+    );
+  });
+}
+
 async function probeDistroState() {
   const out = { defaultName: null, running: new Set(), versions: new Map(), ok: false };
   let buffer;
@@ -551,6 +567,13 @@ export function createExplorerHandlers(deps) {
 
     const v = deps.resolveVersion(eff);
 
+    // 宿主代理：host 侧一次性解析 + 5 分钟缓存（参考 ZCode 的 wslProxy）。**只对运行中的发行版探**
+    // —— `wsl -d X` 会把停着的发行版拉起来，而面板的承诺是「只读、不启动发行版」。
+    const proxyPort = Number(eff.proxyPort ?? 0) || 0;
+    const proxy = flags.running.has(distro)
+      ? await resolveWslProxy({ distro, port: proxyPort, run: (script) => execWslText(distro, script) })
+      : { host: null, port: proxyPort, reachable: null, cached: false };
+
     // ★ 单一真相源：daemon 段只能来自 daemonSnapshot()（= wsl_status / wsl_daemon status 的同一函数）。
     //
     // ★★ F33（task-8，安全级）：**只认配置槽位**，绝不回落到 `live[0]`。
@@ -630,6 +653,7 @@ export function createExplorerHandlers(deps) {
       daemon,
       drift,
       workspaces: readWorkspaces(eff),
+      proxy,
       webHosts,
     };
   }

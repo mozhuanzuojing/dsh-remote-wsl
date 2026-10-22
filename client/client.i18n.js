@@ -35,6 +35,10 @@ window.__ModuleLoader__.load({
 			"menu.copied": "已复制诊断摘要",
 			"advanced.distro": "发行版：{distro}",
 			"advanced.daemon": "守护：槽位 {slot} · 进程 {pid} · 版本 {version}",
+			"advanced.proxy": "代理：{host}:{port} {state}",
+			"advanced.proxyUp": "可达",
+			"advanced.proxyDown": "不可达（直连）",
+			"advanced.proxyUnknown": "未探测（发行版未运行或探测失败）",
 			"advanced.drift": "配置漂移：desktop 与 pin 不一致",
 			"confirm.body": "{consequence}（影响：「{distro}」上正在运行的 {count} 个会话）",
 
@@ -303,6 +307,10 @@ window.__ModuleLoader__.load({
 			"menu.copied": "Diagnostics copied",
 			"advanced.distro": "Distro: {distro}",
 			"advanced.daemon": "Daemon: slot {slot} · process {pid} · version {version}",
+			"advanced.proxy": "Proxy: {host}:{port} {state}",
+			"advanced.proxyUp": "reachable",
+			"advanced.proxyDown": "unreachable (direct)",
+			"advanced.proxyUnknown": "not probed (distro stopped or probe failed)",
 			"advanced.drift": "Drift: desktop and pin disagree",
 			"confirm.body": "{consequence} (Affects: {count} running sessions on “{distro}”)",
 

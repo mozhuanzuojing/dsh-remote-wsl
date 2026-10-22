@@ -520,6 +520,8 @@ window.__ModuleLoader__.load({
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
 
+// 2026-10-22 诊断区显示宿主代理（proxy 段来自 snapshot）；刷新入口 rev。
+
 // 2026-10-22 路径框接受 UNC（data chunk + i18n）；刷新入口 rev。
 
 // 2026-10-22 新会话改走 uiWorkspace.startSession（先登记 UNC 工作区）；刷新入口 rev。
