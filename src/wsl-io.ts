@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { zstdDecompressSync } from 'node:zlib';
 import { shellEnvSnippet } from './shell-env.ts';
+import { buildGatewayShellLines, buildProxyEnvBlock } from './wsl-proxy.ts';
 import { desktopRuntimeCandidates, pickDesktopVersion } from './version.ts';
 import { stateDirLinux, unc } from './daemon-client.ts';
 
@@ -84,14 +85,8 @@ export function shellPreamble(cfg, { withShellEnv = false } = {}) {
 ${shellEnv}# 非登录 shell 的默认 PATH 不含 ~/.local/bin，而 mise 装在那里 ⇒ 必须显式补
 export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
 # 代理先探测再使用：主机代理会停/重启，硬 export 会让模型调用全 TRANSPORT 失败
-GATEWAY=$(ip route show default 2>/dev/null | awk '{print $3; exit}')
-if [ -n "\${GATEWAY:-}" ] && timeout 3 bash -c "exec 3<>/dev/tcp/\${GATEWAY}/${cfg.proxyPort}" 2>/dev/null; then
-  export NODE_USE_ENV_PROXY=1
-  export HTTPS_PROXY="http://\${GATEWAY}:${cfg.proxyPort}"
-  export HTTP_PROXY="http://\${GATEWAY}:${cfg.proxyPort}"
-else
-  echo "remote-wsl: 主机代理 \${GATEWAY:-?}:${cfg.proxyPort} 不可用 ⇒ 本次直连" >&2
-fi
+${buildGatewayShellLines()}
+${buildProxyEnvBlock(cfg.proxyPort)}
 export NO_PROXY=127.0.0.1,localhost,::1
 `;
 }

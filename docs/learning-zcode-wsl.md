@@ -26,6 +26,11 @@
    失败不写缓存；发行版清单走新增的 deps.listDistrosAsync（index.ts 用 execFile wsl -l -q），
    面板的 snapshot/listDir 不再阻塞 host 事件循环。验证：probe-host-distro 15/15（含「异步清单被调用」）。
 
+5. **代理网关探测**（2026-10-22 晚些补做，参考 wslProxy）：新增 src/wsl-proxy.ts —— 网关候选先
+   ip route 的 default via、再退回 /etc/resolv.conf 的 nameserver（只接受私有/链路本地）；
+   探活超时从 3s 降到 1s；wsl-io.shellPreamble 改为拼装这些片段。验证：probe-wsl-proxy 16/16
+   （含真实 WSL 里跑片段，GATEWAY 取到 172.30.176.1）。未做：host 侧一次性解析 + 缓存、把结果写进快照。
+
 ## 值得下一步抄的（未做）
 
 1. **异步探测 + 5s TTL + promise 缓存**（**已部分完成**：探测已异步，显式失效接口未做）（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，

@@ -1,0 +1,88 @@
+{
+  "generatedAt": "2026-10-22T05:46:34.124Z",
+  "total": 16,
+  "pass": 16,
+  "fail": 0,
+  "results": [
+    {
+      "name": "网关：route 优先",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "网关：无 route 时用私有 resolv",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "网关：拒绝公网 resolv",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "网关：拒绝 loopback",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "网关：空输出",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "片段：含 ip route",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "片段：含 resolv.conf 回落",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "片段：探活超时 1 秒",
+      "ok": true,
+      "detail": "if [ -n \"${GATEWAY:-}\" ] && timeout 1 bash -c \"exec 3<>/dev/tcp/$GATEWAY/9910\" 2>/dev/null; then"
+    },
+    {
+      "name": "片段：导出 HTTPS_PROXY",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "片段：代理不可达走直连",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "探活命令：双引号让 GATEWAY 在外层展开",
+      "ok": true,
+      "detail": "timeout 1 bash -c \"exec 3<>/dev/tcp/$GATEWAY/9910\""
+    },
+    {
+      "name": "preamble：1 秒探活",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "preamble：不再有 3 秒探活",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "preamble：含 resolv 回落",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "真实 WSL：片段执行成功",
+      "ok": true,
+      "detail": "GATEWAY=172.30.176.1"
+    },
+    {
+      "name": "真实 WSL：GATEWAY 非空",
+      "ok": true,
+      "detail": "GATEWAY=172.30.176.1"
+    }
+  ]
+}
