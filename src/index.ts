@@ -22,6 +22,7 @@ import {
   ensureDaemon, stopDaemon, daemonPrompt, daemonStatus, daemonSnapshot, readDaemonMeta, stateDirLinux,
 } from './daemon-client.ts';
 import { decodeWslOutput, registerExplorer, withModulePrefix } from './explorer.ts';
+import { createLifecycle } from './lifecycle.ts';
 import { resolveVersion, writePin, runWsl, sweepOwnTempFiles, shellPreamble, sleep } from './wsl-io.ts';
 import { createInHostPool } from './in-host-runtime.ts';
 import { registerTools, sweepStaleRuntimes } from './register-tools.ts';
@@ -216,7 +217,9 @@ export function apply(ctx, rawConfig = {}) {
 
   // ── 拆分接线（架构债 T5/task-44）────────────────────────────────────────────
   // 状态与判定**只在这里**创建（单一来源）；register-tools.ts 只拿注册面。
-  const inHost = createInHostPool({ config, version, warmInBackground });
+  // 关停屏障（参考 ZCode 的 Remote Host dispose 纪律）：dispose 开始后拒绝新建运行时，并等自己 spawn 的包装层退出。
+  const lifecycle = createLifecycle();
+  const inHost = createInHostPool({ config, version, warmInBackground, lifecycle });
   const runtimes = inHost.runtimes; // 宿主逃生舱持有的运行时（dispose 时回收；**不含守护**）
 
   const listDistros = () => {
@@ -275,8 +278,20 @@ export function apply(ctx, rawConfig = {}) {
       // 语义 #4：**不杀守护** —— 守护持有的就是"远端会话"，杀掉它等于把跨宿主复用一起杀掉。
       // 这里只回收**本宿主进程**持有的东西：in-host 逃生舱的运行时 + web host。
       // 要显式结束远端会话，请用 wsl_daemon action=stop（唯一有意的停止入口）。
+      lifecycle.beginShutdown();
       await Promise.allSettled([...runtimes.values()].map((rt) => rt.close()));
       await Promise.allSettled([...webHosts.values()].map((h) => h.stop()));
+      // 等本插件 spawn 的 wsl.exe 包装层退出；超时只 kill 自己记录的（绝不动发行版）
+      const settled = await lifecycle.settle(5000);
+      if (settled.timedOut) {
+        process.stderr.write(
+          'remote-wsl: 关停超时；已 kill 自己 spawn 的包装层 ' +
+            settled.killed +
+            ' 个（发行版与守护不动，剩余 ' +
+            settled.remaining +
+            '）\n',
+        );
+      }
       await sweepOwnTempFiles(config); // 自有 /tmp 一次性文件（按 winpid）——不碰别人的
       if (config.backend !== 'in-host') {
         process.stderr.write('remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）\n');

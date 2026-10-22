@@ -1,0 +1,53 @@
+{
+  "generatedAt": "2026-10-22T06:02:38.311Z",
+  "total": 9,
+  "pass": 9,
+  "fail": 0,
+  "results": [
+    {
+      "name": "track 后计数 1",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "子进程退出后自动摘除",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "settle 等到子进程自然退出",
+      "ok": true,
+      "detail": "{\"waitedMs\":48,\"killed\":0,\"remaining\":0,\"timedOut\":false}"
+    },
+    {
+      "name": "settle 记录等待时长",
+      "ok": true,
+      "detail": "48"
+    },
+    {
+      "name": "超时：只 kill 自己记录的子进程",
+      "ok": true,
+      "detail": "{\"waitedMs\":93,\"killed\":1,\"remaining\":0,\"timedOut\":true}"
+    },
+    {
+      "name": "未关停时 assertAlive 放行",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "beginShutdown 幂等且代次递增",
+      "ok": true,
+      "detail": "1 -> 2"
+    },
+    {
+      "name": "关停后拒绝新建（E_SHUTDOWN）",
+      "ok": true,
+      "detail": "E_SHUTDOWN"
+    },
+    {
+      "name": "track(null) 安全返回",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

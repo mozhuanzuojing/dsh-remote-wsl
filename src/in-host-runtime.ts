@@ -26,7 +26,7 @@ import { readLogViaWsl, reapWsl, removeScript, shellPreamble, writeScript } from
  *
  * `state.script` 必须由 `spawnRuntime` 写、由 `closeHook` 读 —— 同一份引用，别各留一份。
  */
-function inHostAdapter(cfg) {
+function inHostAdapter(cfg, lifecycle) {
   const state = { script: null };
   return runtimeAdapter({
     label: 'host',
@@ -50,10 +50,13 @@ exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${version} --pr
 `,
     spawnRuntime: ({ script }) => {
       state.script = writeScript(cfg.distro, script);
-      return spawn('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', state.script], {
+      const child = spawn('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', state.script], {
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
       });
+      // 关停屏障：登记包装层，dispose 时等它退出（超时只 kill 自己记录的这个）
+      if (lifecycle) lifecycle.track(child);
+      return child;
     },
     closeHook: async () => {
       await reapWsl(cfg, state.script);
@@ -72,11 +75,12 @@ exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${version} --pr
  * 建宿主侧运行时池：同一 `key` 复用同一个常驻运行时（多轮才有上下文 —— 上游拒绝跨进程复用 sessionId）。
  * 只在本宿主进程内有效；dispose 时由 index.ts 统一 `close()`（**不碰守护** —— 语义 #4）。
  */
-export function createInHostPool({ config, version, warmInBackground }) {
+export function createInHostPool({ config, version, warmInBackground, lifecycle }) {
   const runtimes = new Map(); // key -> SdkRuntime
   const getRuntime = async (key, cwdOverride) => {
     const existing = runtimes.get(key);
     if (existing && !existing.closed) return existing;
+    if (lifecycle) lifecycle.assertAlive(); // 关停开始后不再新建（否则新进程落在快照外）
     if (!version.version) {
       throw new Error('remote-wsl: 无法确定 dsh 版本（桌面 runtime.json 不可读且未配 dshVersion）');
     }
@@ -96,7 +100,7 @@ export function createInHostPool({ config, version, warmInBackground }) {
       graceMs: 20000,
       // 逃生舱的兜底：事件流没有正文时停稳运行时、读持久化日志（守护形态**不**走这条 —— 语义 #6）
       fallbackText: ({ sessionId }) => readLogViaWsl(effCfg, sessionId, effCfg.cwd),
-      adapter: inHostAdapter(effCfg),
+      adapter: inHostAdapter(effCfg, lifecycle),
     });
     runtimes.set(key, rt);
     await rt.start();

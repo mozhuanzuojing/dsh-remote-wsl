@@ -36,6 +36,11 @@
    resolveTarget（UNC 反解出 distro + Linux 路径，显式 distro 不一致则报错）；客户端路径框粘贴 UNC 会自动归一。
    验证：probe-unc 10/10、probe-host-distro 19/19（含真实 UNC 的 listDir/addWorkspace）。
 
+7. **关停屏障**（2026-10-22 晚些补做，参考 design doc 的 dispose 纪律）：新增 src/lifecycle.ts ——
+   dispose 开始后 beginShutdown() 拒绝新建运行时（E_SHUTDOWN），track 本插件 spawn 的 wsl.exe 包装层，
+   settle(5000) 等它们退出，超时只 kill 自己记录的那些（绝不 wsl --terminate/--shutdown）。
+   验证：probe-lifecycle 9/9。未做：窗口级池化（同 distro 共享 host）、web host 子进程的跟踪。
+
 ## 值得下一步抄的（未做）
 
 1. **异步探测 + 5s TTL + promise 缓存**（**已部分完成**：探测已异步，显式失效接口未做）（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，
