@@ -518,6 +518,10 @@ window.__ModuleLoader__.load({
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
 
+// 2026-10-22 i18n 修正后再次刷新入口 rev。
+
+// 2026-10-22 「在此目录新建会话」改走 sessionController（真 DSH 会话）；API 方法表 7 个。
+
 // 2026-10-22 守护版本进药丸 title 与诊断行；未运行提示补生命周期说明。
 
 // 2026-10-22 结果条收敛、开会话后刷新、最近文件夹显示全路径；刷新入口 rev。

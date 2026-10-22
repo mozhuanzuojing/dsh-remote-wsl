@@ -78,6 +78,12 @@
 **2026-10-21 补充（用户批准的两件）**：目标行内加入「设为默认 / 停止」两个动作（停止走二次确认，`runDaemon` 支持带 `distro`）；底栏加入 `WSL: 发行版` chip（原生 details，点开 = 启动守护 / 停止守护 / 设为默认）。
 按目标分组的最近文件夹已补：最近目录从「全局数组」改为 `{ [distro]: string[] }`（旧数据自动迁到 `*` 并在读取时回退），每个发行版行下最多列 3 条最近文件夹；点击当前目标的文件夹直接跳转，点其他发行版的会切到该发行版。**2026-10-21 第二批（按评审建议）**：目标行补「切换」（之前删掉「打开」后没有切换入口）；新增「远端会话」卡，列出 `daemon.sessions`（cwd + sessionId 前 8 位）并支持「打开」附到会话；host 的 `wsl -l -v` / `wsl -l -q` 探测加了 8s 超时（异步化留待下一轮）。仍未对齐：命令面板入口、Open Folder/Reopen/New Window/Set Default Distro 的完整命令集。
 
+## 3.3 「在此目录新建会话」改接 DSH 的 sessionController（2026-10-22）
+
+原实现只调 explorer.openSession（WSL 侧守护），不产生 DSH 会话；宿主本来就有 sessionController.create({ cwd })。
+现新增 explorer.newSession（方法表第 7 个）：把浏览路径转成 UNC，调 create({ cwd })，返回 sessionId。
+顺带修了 WSL 版本解析：probeDistroState 之前从未写入 versions，所以列表里的 WSL1/WSL2 一直是 null。
+
 ## 4. 未验证 / 限制（如实写）
 
 - **没有真实浏览器的像素/键盘验收**：本机无法在会话内起隔离浏览器跑面板；探针只证明结构、类名、可访问属性与回调接线。

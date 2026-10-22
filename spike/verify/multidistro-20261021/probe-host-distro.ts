@@ -45,6 +45,7 @@ const handlers = createExplorerHandlers({
   resolveVersion: () => ({ version: '0.0.0-probe', pin: null, desktopVersion: null, drift: null }),
   writePin: () => true,
   webHosts: new Map(),
+  sessionController: () => ({ create: async (req) => ({ sessionId: 'session-probe', cwd: req.cwd }) }),
 });
 
 const results = [];
@@ -80,6 +81,14 @@ results.push({ name: '真实发行版：distros 含运行态字段', ok: snapRea
 
 const snapFake = await call(() => handlers.handlers['explorer.snapshot']({ distro: FAKE }));
 results.push({ name: '未运行发行版：snapshot 不抛、target 仍是它', ok: snapFake.ok === true && !!snapFake.value && !!snapFake.value.target && snapFake.value.target.distro === FAKE, detail: snapFake.ok ? String(snapFake.value && snapFake.value.target && snapFake.value.target.distro) : String(snapFake.message).slice(0, 160) });
+const newOk = await call(() => handlers.handlers['explorer.newSession']({ path: '/home', distro: REAL }));
+results.push({ name: 'newSession：返回 DSH sessionId', ok: newOk.ok === true && newOk.value && newOk.value.sessionId === 'session-probe', detail: newOk.ok ? String(newOk.value.sessionId) : String(newOk.message).slice(0, 120) });
+results.push({ name: 'newSession：cwd 是该发行版的 UNC', ok: newOk.ok === true && newOk.value && String(newOk.value.cwd).indexOf('wsl.localhost') >= 0 && String(newOk.value.cwd).indexOf(REAL) >= 0, detail: newOk.ok ? String(newOk.value.cwd) : '' });
+const newBad = await call(() => handlers.handlers['explorer.newSession']({ path: '/home', distro: 'definitely-not-a-distro' }));
+results.push({ name: 'newSession：未知发行版 E_ARG', ok: newBad.ok === false && newBad.code === 'E_ARG', detail: String(newBad.code) });
+const newEvil = await call(() => handlers.handlers['explorer.newSession']({ path: '/home/../etc', distro: REAL }));
+results.push({ name: 'newSession：拒绝 .. 路径', ok: newEvil.ok === false && newEvil.code === 'E_ARG', detail: String(newEvil.code) });
+
 const summary = { generatedAt: new Date().toISOString(), real: REAL, fake: FAKE, total: results.length, pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok).length, results };
 fs.writeFileSync(path.join(DIR, 'out-host-distro.json'), JSON.stringify(summary, null, 2) + '\n', 'utf8');
 for (const r of results) console.log((r.ok ? 'PASS ' : 'FAIL ') + r.name + (r.detail ? '  —— ' + r.detail : ''));

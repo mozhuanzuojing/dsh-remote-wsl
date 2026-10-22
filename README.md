@@ -308,10 +308,12 @@ $dsh = 'C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\cli
 
 打开后：**左侧栏 rail 会多出一个「远程资源管理器」图标**（与「插件」「定时」并排），点它切到中央面板 ——
 distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/keys/drift），行内动作「在新会话中打开」等。
-面板数据面是 `POST /remote-wsl/api`（**方法表 6 个**：`explorer.snapshot` · `explorer.openSession` · `explorer.daemon` · `explorer.fixPin` · `explorer.listDir` · `explorer.addWorkspace`；同源 + 硬白名单）。
+面板数据面是 `POST /remote-wsl/api`（**方法表 7 个**：`explorer.snapshot` · `explorer.openSession` · `explorer.daemon` · `explorer.fixPin` · `explorer.listDir` · `explorer.addWorkspace` · `explorer.newSession`；同源 + 硬白名单）。
 方法表的**权威**是 `src/explorer.ts` 的 `EXPLORER_METHODS`（client 侧副本 `client/client.api.js`），契约细节见 `docs/client-contract.md`；面板的视觉/交互现状见 `docs/panel-ux-redesign.md` 与 `docs/panel-visual-spec.md`。
 
 > **桌面端（DSH Desktop / Electron 壳）也用同一面板**：壳把页面 `dsh-app://app` 的 fetch 经 Node fetch 重放到宿主，并删掉 `origin`/`host`/`cookie`/`sec-fetch-site`，所以到达 `/remote-wsl/api` 的请求**没有 `Origin`**。闸门从 2026-10-21 起按"无 `Origin` + 无 `Sec-Fetch-Site` = 非浏览器客户端"放行（与官方 `dsh-client-connection` 的 `admit()` 同策略）；此前"`Origin` 必须存在"的实现会让桌面端面板**全部** 403（「跨站请求被拒（Origin/Host 不同源）」）。回归矩阵：`spike/verify/desktop-shell-20261021/`。
+
+> **「在此目录新建会话」= 真正的 DSH 会话**：host 调 `sessionController.create({ cwd })`（Web 前端「新会话」同一入口），cwd 是该 WSL 路径的 UNC；返回 sessionId，会话出现在左侧会话列表。与 `explorer.openSession`（只碰 WSL 侧守护）是两条路。
 
 > **2026-10-21 UI 重做**：头部改为「标题 + 目标 + 守护状态药丸」，卡片内三层（常去位置条 / 上一级+面包屑 / 路径框+筛选框同排），列表吃满剩余高度（原先 72 项只显示 6 行、下方大片空白）；隐藏文件开关并入位置条；未运行守护可在头部药丸一键启动。证据与限制见 `spike/verify/ui-20261021/REPORT-ui-redesign.md`。
 

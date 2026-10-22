@@ -53,6 +53,7 @@ window.__ModuleLoader__.load({
 			fixPin: "explorer.fixPin",
 			listDir: "explorer.listDir",
 			addWorkspace: "explorer.addWorkspace",
+			newSession: "explorer.newSession",
 		});
 
 		/** 上表的**投影视图**（唯一用途：让自检/探针脚本按同一来源比对 host 的 `EXPLORER_METHODS`）。 */
@@ -261,6 +262,14 @@ window.__ModuleLoader__.load({
 				 * code（`E_ARG`/`E_NOTFOUND`/`E_UNAVAILABLE`）。
 				 * 语义提醒：工作区路径是 **UNC ⇒ 文件工具经 9P**，与 `openSession` 的"远端会话"是两条路。
 				 */
+				/**
+				 * 建一个**真正的 DSH 会话**（cwd = 该 WSL 路径的 UNC）；返回 { ok, sessionId, cwd }。
+				 * 与 openSession 的区别：openSession 只碰 WSL 侧守护，不产生 DSH 会话。
+				 */
+				newSession(input, options) {
+					const path = requireString(input && input.path, "path", t);
+					return call(METHODS.newSession, { path }, options);
+				},
 				addWorkspace(input, options) {
 					const path = requireString(input && input.path, "path", t);
 					const args = { path };

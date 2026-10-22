@@ -66,6 +66,7 @@ export const EXPLORER_METHODS = [
   'explorer.fixPin',
   'explorer.listDir',
   'explorer.addWorkspace',
+  'explorer.newSession',
 ];
 
 /**
@@ -276,6 +277,8 @@ function probeDistroState() {
     const name = m[2];
     if (m[1] === '*') out.defaultName = name;
     if (m[3].toLowerCase() === 'running') out.running.add(name);
+    const versionMatch = /\s(\d+)\s*$/.exec(line);
+    if (versionMatch) out.versions.set(name, Number(versionMatch[1]));
   }
   return out;
 }
@@ -805,6 +808,29 @@ export function createExplorerHandlers(deps) {
     return { path, distro, entries };
   }
 
+/** explorer.newSession({path, distro?}) —— 建一个真正的 DSH 会话，cwd = 该 WSL 路径的 UNC。
+ * 为什么不是 explorer.openSession：openSession 只碰 WSL 侧守护（准备/附着一个远端会话），不产生 DSH 会话；
+ * 宿主本来就有 sessionController.create({ cwd })（Web 前端「新会话」用的同一个入口）。这里直接接它。
+ */
+async function newSession(args) {
+const distro = resolveDistro(args);
+const path = assertSafeWslPath(args?.path, 'explorer.newSession');
+const uncPath = unc(distro, path);
+const ctl = typeof deps.sessionController === 'function' ? deps.sessionController() : undefined;
+if (!ctl || typeof ctl.create !== 'function') {
+failUnavailable('remote-wsl: 宿主没有 sessionController 服务（当前 profile 不是 Web 应用？）⇒ 无法创建 DSH 会话');
+}
+let created;
+try {
+created = await ctl.create({ cwd: uncPath });
+} catch (e) {
+failUnavailable('remote-wsl: 创建 DSH 会话失败：' + String(e && e.message ? e.message : e));
+}
+const sessionId = str(created?.sessionId);
+if (!sessionId) failUnavailable('remote-wsl: 创建 DSH 会话后没有拿到 sessionId');
+return { ok: true, sessionId, cwd: uncPath, distro, path };
+}
+
   /**
    * `explorer.addWorkspace({path, title?})` —— 把一个**发行版内路径**登记为 DSH 工作区（采纳项 A1 的 host 半）。
    *
@@ -911,6 +937,7 @@ export function createExplorerHandlers(deps) {
     'explorer.fixPin': fixPin,
     'explorer.listDir': listDir,
     'explorer.addWorkspace': addWorkspace,
+    'explorer.newSession': newSession,
   };
   return { handlers, log };
 }

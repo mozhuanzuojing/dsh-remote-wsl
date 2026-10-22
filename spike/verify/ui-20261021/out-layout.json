@@ -1,9 +1,14 @@
 {
-  "generatedAt": "2026-10-22T01:27:10.193Z",
-  "total": 19,
-  "pass": 19,
+  "generatedAt": "2026-10-22T01:41:52.839Z",
+  "total": 20,
+  "pass": 20,
   "fail": 0,
   "results": [
+    {
+      "name": "头部：主按钮创建 DSH 会话（带 cwd）",
+      "ok": true,
+      "detail": "{\"path\":\"/home/g/project\"}"
+    },
     {
       "name": "头部：未运行时渲染药丸",
       "ok": true,

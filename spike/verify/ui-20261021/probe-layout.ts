@@ -53,7 +53,7 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
     HIDE_UPDATED_PX: 720, NARROW_PX: 420, RECENT_KEY: 'k', RECENT_MAX: 8,
     React, StatusDot: () => null, action: { busy: null, note: null, detail: null, error: null }, actionAbort: { current: null },
     actionFailure: () => '', actionFailureText: () => '', activeDistro: 'debian-u8-1',
-    addWorkspaceErrorText: () => '', addWorkspaceNote: () => '', api: { addWorkspace: async () => ({}) },
+    addWorkspaceErrorText: () => '', addWorkspaceNote: () => '', api: { addWorkspace: async () => ({}), newSession: async (input) => { createdFor = input; return { sessionId: 's1', cwd: '\\\\wsl.localhost\\debian-u8-1\\home\\g' }; } },
     asArray: (v) => (Array.isArray(v) ? v : []), body: [], breadcrumbOf: () => [], browse: { cwd: '/home/g' },
     browseAbort: { current: null }, browseSeq: { current: 0 }, cancelRef: { current: null }, clock: () => '',
     closeMenu: () => {}, collapsed: {}, ctx: {}, cwd: '/home/g', cwdDiffersFromTarget: false,
@@ -66,7 +66,7 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
     narrow: false, newAbortController: () => ({}), normalizeWslPath: (p) => p, onMenuKey: () => {},
     openSessionNote: () => '', others: [], pathError: null, pathInput: '/home/g', pending: null,
     pendingFrom: { current: null }, pushRecent: () => [], readAbort: { current: null }, readRecent: () => [],
-    readSeq: { current: 0 }, recent: [], recentOk: true, rootRef: { current: null }, run: () => {},
+    readSeq: { current: 0 }, recent: [], recentOk: true, rootRef: { current: null }, run: (key, op) => { if (typeof op === 'function') op({}); },
     runDaemon: (action) => { ensureCalls += 1; }, setAction: () => {}, setBrowse: () => {}, setCollapsed: () => {},
     setFocusIndex: () => {}, setMenuOpen: () => {}, setMounts: () => {}, setPathError: () => {}, setPathInput: () => {},
     setPending: () => {}, setRecent: () => {}, setRecentOk: () => {}, setShowHidden: () => {}, setSlow: () => {},
@@ -75,7 +75,12 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
     state: { status: 'ready', snapshot: {}, error: null, lastSuccessAt: null, lastFailureAt: null }, submitPath: () => {},
     t, target: { distro: 'debian-u8-1', cwd: '/home/g', wslHome: '/home/g' }, visibleEntries: [], width: 900,
   };
+  let createdFor = null;
   const off = mod.renderHeader(base);
+  const inSubdir = mod.renderHeader(Object.assign({}, base, { cwd: '/home/g/project', cwdDiffersFromTarget: true }));
+  const primary = inSubdir.headerButtons.map((b) => walk(b, [])).flat().find((n) => n.type === 'button' && String(n.props.className).indexOf('dsh-rw-btn--primary') >= 0);
+  if (primary) primary.props.onClick();
+  check('头部：主按钮创建 DSH 会话（带 cwd）', !!createdFor && createdFor.path === '/home/g/project', JSON.stringify(createdFor));
   const offNodes = walk(off.daemonPill, []);
   const pill = offNodes.find((n) => String(n.props && n.props.className).indexOf('dsh-rw-daemon') >= 0);
   check('头部：未运行时渲染药丸', !!pill, pill ? String(pill.props.className) : 'none');
@@ -152,7 +157,7 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
     listPath: () => {}, load: () => {}, menuOpen: false, menuRef: { current: null }, moreRef: { current: null }, mounts: [], mountsCache: null, mountsProbed: { current: false },
     narrow: false, newAbortController: () => ({}), normalizeWslPath: (p) => p, onDistroChange: () => {}, onMenuKey: () => {}, openSessionNote: () => '',
     others: [], pathError: null, pathInput: '/home/g', pending: null, pendingFrom: { current: null }, primaryBusyKey: '', primaryIsSession: false, pushRecent: () => [],
-    readAbort: { current: null }, readRecent: () => [], readSeq: { current: 0 }, recent: [], recentOk: true, rootRef: { current: null }, run: () => {}, runDaemon: () => {},
+    readAbort: { current: null }, readRecent: () => [], readSeq: { current: 0 }, recent: [], recentOk: true, rootRef: { current: null }, run: (key, op) => { if (typeof op === 'function') op({}); }, runDaemon: () => {},
     setAction: () => {}, setBrowse: () => {}, setCollapsed: (fn) => { updater = fn; }, setFocusIndex: () => {}, setMenuOpen: () => {}, setMounts: () => {}, setPathError: () => {},
     setPathInput: () => {}, setPending: () => {}, setRecent: () => {}, setRecentOk: () => {}, setShowHidden: () => {}, setSlow: () => {}, setState: () => {},
     setWidth: () => {}, showHidden: false, signalOf: () => ({}), slow: false,

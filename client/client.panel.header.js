@@ -97,7 +97,7 @@ function renderHeader(props) {
 							onClick: () => {
 								if (cwd === null) return;
 								if (primaryIsSession) {
-									run(`openbrowse:${cwd}`, (signal) => api.openSession({ distro: activeDistro, path: cwd }, signal), { describe: (result) => openSessionNote(t, result), refresh: true });
+									run(`openbrowse:${cwd}`, (signal) => api.newSession({ path: cwd }, signal), { describe: (result) => t("session.dshCreated", { id: String(result && result.sessionId ? result.sessionId : "?"), cwd: String(result && result.cwd ? result.cwd : cwd) }), refresh: true });
 									return;
 								}
 								run(`a1:${cwd}`, (signal) => api.addWorkspace({ path: cwd }, signal), {

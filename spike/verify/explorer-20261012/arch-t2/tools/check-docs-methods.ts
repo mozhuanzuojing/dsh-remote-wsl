@@ -96,7 +96,7 @@ console.log(`  诊断：扫全 src 的裸 name:'wsl_*' 计数 = ${unanchored.len
 console.log(`client METHODS(${CLIENT.length}): ${CLIENT.join(', ')}`);
 console.log(`docs 根: ${DOCS}`);
 
-must(HOST.length === 6, 'host 方法数 = 6', `实得 ${HOST.length}`);
+must(HOST.length === 7, 'host 方法数 = 7', `实得 ${HOST.length}`);
 must(CLIENT.length === HOST.length && CLIENT.every((m) => HOST.includes(m)), 'client METHODS ≡ host EXPLORER_METHODS', `client=${CLIENT.length}`);
 must(TOOLS.length === 7, '工具数 = 7', `实得 ${TOOLS.length}（锚定 tools.register；来源 ${TOOL_SRC.join('; ') || '(无)'}）`);
 must(registered.length === TOOLS.length, '无重复注册（同一工具名只出现一次）', `注册次数 ${registered.length} vs 去重后 ${TOOLS.length}`);
@@ -120,7 +120,7 @@ else {
   const ml = /method ∈ ([^\n]+)/.exec(design);
   if (ml) {
     const listed = [...ml[1].matchAll(/explorer\.\w+/g)].map((m) => m[0]);
-    must(listed.length === HOST.length, '设计稿 §4 的方法表行 = 6 项', `实得 ${listed.length}: ${listed.join('|')}`);
+    must(listed.length === HOST.length, '设计稿 §4 的方法表行 = 7 项', `实得 ${listed.length}: ${listed.join('|')}`);
   } else fails.push('FAIL 设计稿里找不到 `method ∈` 方法表行（被删了？）');
   // 工具名也要许愿一致（T5 之后工具注册在别的文件，但文档该列的还是这 7 个）
   const missTD = TOOLS.filter((t) => !design.includes(t));

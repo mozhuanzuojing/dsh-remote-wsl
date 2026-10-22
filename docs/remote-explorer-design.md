@@ -93,8 +93,8 @@ interface ExplorerSnapshot {
   POST /remote-wsl/api   body: { "method": "explorer.snapshot", "args": {...} }
   GET  /remote-wsl/api   → 方法清单（调试用）
   body.args 可选 `distro`（缺省 = 配置里的发行版；多发行版机器上面板切换目标就靠它）
-  method ∈ explorer.snapshot | explorer.openSession | explorer.daemon | explorer.fixPin | explorer.listDir | explorer.addWorkspace
-  （**6 个**。权威：`src/explorer.ts` 的 `EXPLORER_METHODS`；client 侧副本 `client/client.api.js`。后两个 `listDir`/`addWorkspace` 是 A3/A1 落地时新增）
+  method ∈ explorer.snapshot | explorer.openSession | explorer.daemon | explorer.fixPin | explorer.listDir | explorer.addWorkspace | explorer.newSession
+  （**7 个**。权威：`src/explorer.ts` 的 `EXPLORER_METHODS`；client 侧副本 `client/client.api.js`。后两个 `listDir`/`addWorkspace` 是 A3/A1 落地时新增）
   ```
   **安全硬要求（T4 会实测"同源 200 / 伪造 Origin 403"）**：
   a) **只接受可信来源**：`Sec-Fetch-Site` 若存在必须 `same-origin`；`Origin` 若存在必须与请求 `Host` 同源；
