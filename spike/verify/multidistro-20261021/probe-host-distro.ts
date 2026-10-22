@@ -29,6 +29,7 @@ const REAL = arg('real', names[0] || '');
 if (!REAL) { console.error('环境不满足：本机没有可用的 WSL 发行版'); process.exit(3); }
 
 const FAKE = 'probe-no-such-distro';
+let asyncNamesCalls = 0;
 const WSL1 = 'probe-wsl1-distro';
 const config = {
   distro: REAL,
@@ -43,6 +44,7 @@ const config = {
 const handlers = createExplorerHandlers({
   config,
   listDistros: () => names.concat([FAKE, WSL1]),
+  listDistrosAsync: async () => { asyncNamesCalls += 1; return names.concat([FAKE, WSL1]); },
   distroStateProbe: () => ({ defaultName: REAL, running: new Set([REAL]), versions: new Map([[WSL1, 1], [REAL, 2]]), ok: true }),
   resolveVersion: () => ({ version: '0.0.0-probe', pin: null, desktopVersion: null, drift: null }),
   writePin: () => true,
@@ -94,6 +96,8 @@ results.push({ name: 'newSession：拒绝 .. 路径', ok: newEvil.ok === false &
 const v1 = await call(() => handlers.handlers['explorer.newSession']({ path: '/home', distro: WSL1 }));
 results.push({ name: 'WSL1 发行版：拒绝', ok: v1.ok === false && v1.code === 'E_ARG', detail: String(v1.code) });
 results.push({ name: 'WSL1 发行版：文案说明仅支持 WSL2', ok: v1.ok === false && String(v1.message).indexOf('WSL2') >= 0, detail: String(v1.message || '').slice(0, 120) });
+
+results.push({ name: '异步发行版清单被实际调用', ok: asyncNamesCalls > 0, detail: String(asyncNamesCalls) });
 
 const summary = { generatedAt: new Date().toISOString(), real: REAL, fake: FAKE, total: results.length, pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok).length, results };
 fs.writeFileSync(path.join(DIR, 'out-host-distro.json'), JSON.stringify(summary, null, 2) + '\n', 'utf8');

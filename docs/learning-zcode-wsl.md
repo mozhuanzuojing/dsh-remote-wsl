@@ -21,9 +21,14 @@
 
 验证：`spike/verify/wsl-parity-20261022/probe-wsl-detect.ts`（11/11，含真实 `wsl -l -v`）。
 
+4. **异步探测**（2026-10-22 晚些补做）：probeDistroState 改为 execFile + Buffer 解码；
+   readDistroFacts 变 async，并在同一次 TTL 窗口内共享 in-flight promise（并发只探测一次）；
+   失败不写缓存；发行版清单走新增的 deps.listDistrosAsync（index.ts 用 execFile wsl -l -q），
+   面板的 snapshot/listDir 不再阻塞 host 事件循环。验证：probe-host-distro 15/15（含「异步清单被调用」）。
+
 ## 值得下一步抄的（未做）
 
-1. **异步探测 + 5s TTL + promise 缓存**（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，
+1. **异步探测 + 5s TTL + promise 缓存**（**已部分完成**：探测已异步，显式失效接口未做）（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，
    立刻可重试；`invalidateWSLDiscoveryCache` 供「重新扫描」用。我们的 `probeDistroState` 仍是
    `spawnSync`（已加 8s 超时），冷启动会阻塞 host。
 2. **WSL 里的代理网关探测**（wslProxy）：`ip route` / `/etc/resolv.conf` 找宿主网关，

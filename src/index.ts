@@ -13,7 +13,7 @@
  *
  * @module dsh-remote-wsl
  */
-import { spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { shellEnvSnippet } from './shell-env.ts';
@@ -21,7 +21,7 @@ import { warmScript, dlxInventoryScript, pickDesktopVersion } from './version.ts
 import {
   ensureDaemon, stopDaemon, daemonPrompt, daemonStatus, daemonSnapshot, readDaemonMeta, stateDirLinux,
 } from './daemon-client.ts';
-import { registerExplorer, withModulePrefix } from './explorer.ts';
+import { decodeWslOutput, registerExplorer, withModulePrefix } from './explorer.ts';
 import { resolveVersion, writePin, runWsl, sweepOwnTempFiles, shellPreamble, sleep } from './wsl-io.ts';
 import { createInHostPool } from './in-host-runtime.ts';
 import { registerTools, sweepStaleRuntimes } from './register-tools.ts';
@@ -227,6 +227,23 @@ export function apply(ctx, rawConfig = {}) {
       .filter(Boolean);
   };
 
+  // 异步版 `wsl -l -q`（面板数据面用）：不阻塞 host 事件循环；失败按「读不到」返回空数组。
+  const listDistrosAsync = () =>
+    new Promise<string[]>((resolve) => {
+      execFile(
+        'wsl.exe',
+        ['-l', '-q'],
+        { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024, windowsHide: true, timeout: 8000 },
+        (error, stdout) => {
+          if (error) {
+            resolve([]);
+            return;
+          }
+          resolve(String(decodeWslOutput(stdout)).split('\n').map((name) => name.trim()).filter(Boolean));
+        },
+      );
+    });
+
   registerTools({
     ctx, config, version, resolveVersion, daemonState, logDaemon, machineLine, ensureDaemonReady,
     isTransportFailure, priorSessionFor, listDistros, getRuntime: inHost.getRuntime, runtimes, webHosts,
@@ -240,6 +257,7 @@ export function apply(ctx, rawConfig = {}) {
   registerExplorer(ctx, {
     config,
     listDistros,
+    listDistrosAsync,
     resolveVersion,
     writePin,
     webHosts,

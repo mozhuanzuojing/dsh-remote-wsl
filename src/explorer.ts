@@ -54,7 +54,7 @@
  *
  * @module dsh-remote-wsl/explorer
  */
-import { spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 
@@ -291,19 +291,33 @@ export function parseWslDistroTable(raw) {
   }
   return rows;
 }
-function probeDistroState() {
+/** 异步执行 wsl.exe 并拿 Buffer：不阻塞 host 事件循环（只读探测专用）。 */
+function execWslBuffer(args, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'wsl.exe',
+      args,
+      { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024, windowsHide: true, timeout: timeoutMs },
+      (error, stdout) => {
+        if (error) reject(error);
+        else resolve(stdout);
+      },
+    );
+  });
+}
+
+async function probeDistroState() {
   const out = { defaultName: null, running: new Set(), versions: new Map(), ok: false };
-  let text = '';
-  let res;
+  let buffer;
   try {
-    res = spawnSync('wsl.exe', ['-l', '-v'], { encoding: 'utf8', windowsHide: true, timeout: 8000 });
-    text = str(res.stdout);
+    buffer = await execWslBuffer(['-l', '-v'], 8000);
   } catch {
     return out;
   }
+  const text = decodeWslOutput(buffer);
   if (!text) return out;
-  out.ok = res.error === undefined && res.status === 0;
-  for (const row of parseWslDistroTable(decodeWslOutput(text))) {
+  out.ok = true;
+  for (const row of parseWslDistroTable(text)) {
     if (row.isDefault) out.defaultName = row.name;
     if (row.state.toLowerCase() === 'running') out.running.add(row.name);
     if (row.version !== null) out.versions.set(row.name, row.version);
@@ -378,18 +392,28 @@ export function createExplorerHandlers(deps) {
    *  · 缓存**只**影响"读事实"这一步：不改变 `listDir` 的"不启动发行版"承诺，也不改变任何错误文案。
    */
   let distroFactsCache = null;
-  const probeState = () => (typeof deps.distroStateProbe === 'function' ? deps.distroStateProbe() : probeDistroState());
+  let distroFactsInflight = null;
+  const probeState = () => (typeof deps.distroStateProbe === 'function' ? Promise.resolve(deps.distroStateProbe()) : probeDistroState());
 
-  /** 读一份发行版事实（命中 TTL 就直接返回上一次的只读结果）。 */
-  function readDistroFacts() {
+  /** 读一份发行版事实（命中 TTL 直接返回；同一时刻的并发调用共享一次探测）。 */
+  async function readDistroFacts() {
     const at = Date.now();
     if (distroFactsCache !== null && at - distroFactsCache.at < DISTRO_FACTS_TTL_MS) return distroFactsCache.facts;
-    const names = deps.listDistros();
-    const flags = probeState();
-    const facts = { names, flags };
-    if (Array.isArray(names) && names.length > 0 && flags && flags.ok === true) distroFactsCache = { at, facts };
-    else distroFactsCache = null; // 失败/退化：既不写入也不复用旧值
-    return facts;
+    if (distroFactsInflight !== null) return distroFactsInflight;
+    const load = (async () => {
+      const names = typeof deps.listDistrosAsync === 'function' ? await deps.listDistrosAsync() : deps.listDistros();
+      const flags = await probeState();
+      const facts = { names, flags };
+      if (Array.isArray(names) && names.length > 0 && flags && flags.ok === true) distroFactsCache = { at: Date.now(), facts };
+      else distroFactsCache = null; // 失败/退化：既不写入也不复用旧值
+      return facts;
+    })();
+    distroFactsInflight = load;
+    try {
+      return await load;
+    } finally {
+      if (distroFactsInflight === load) distroFactsInflight = null;
+    }
   }
 
   /**
@@ -399,15 +423,15 @@ export function createExplorerHandlers(deps) {
    * 为什么允许显式指定（2026-10-21「多发行版」）：面板在多发行版机器上要能切换目标；
    * 切换是**按请求**生效的（不写插件配置），所以每个方法都从 `args.distro` 取一次。
    */
-  function resolveDistro(args) {
+  async function resolveDistro(args) {
     const raw = str(args?.distro).trim();
     if (!raw) {
-      const facts0 = readDistroFacts();
+      const facts0 = await readDistroFacts();
       const v0 = facts0.flags && facts0.flags.versions && typeof facts0.flags.versions.get === 'function' ? facts0.flags.versions.get(cfg.distro) : null;
       if (v0 === 1) failArg('remote-wsl: 配置的发行版 "' + cfg.distro + '" 是 WSL1；本插件只支持 WSL2（可先执行 wsl --set-version ' + cfg.distro + ' 2 升级）');
       return cfg.distro;
     }
-    const facts = readDistroFacts();
+    const facts = await readDistroFacts();
     const names = facts.names;
     if (!Array.isArray(names) || names.indexOf(raw) < 0) {
       failArg(
@@ -474,7 +498,7 @@ export function createExplorerHandlers(deps) {
   /** 单飞：**按发行版分键**（多发行版面板里，A 与 B 的快照互不阻塞、不串味）。 */
   const snapshotInflight = new Map();
   async function snapshot(args) {
-    const distro = resolveDistro(args);
+    const distro = await resolveDistro(args);
     const existing = snapshotInflight.get(distro);
     if (existing !== undefined) return existing;
     const p = runSnapshot(distro);
@@ -488,7 +512,7 @@ export function createExplorerHandlers(deps) {
 
   async function runSnapshot(distro) {
     const eff = cfgFor(distro);
-    const facts = readDistroFacts();
+    const facts = await readDistroFacts();
     const names = facts.names;
     const flags = facts.flags;
     // 与 VS Code Remote-WSL 的 targetsWsl 对齐：过滤 Docker Desktop 自带发行版（除非它是默认），
@@ -603,7 +627,7 @@ export function createExplorerHandlers(deps) {
    *     P0 UI **不暴露**这个参数（lead：留给 P1 的显式动作）；这里保留分支并标注。
    */
   async function openSession(args) {
-    const distro = resolveDistro(args);
+    const distro = await resolveDistro(args);
     const eff = cfgFor(distro);
     const path = str(args?.path).trim();
     if (!path) failArg('remote-wsl: explorer.openSession 需要 path（WSL 绝对路径）');
@@ -685,7 +709,7 @@ export function createExplorerHandlers(deps) {
    */
   async function daemonAction(args) {
     const action = str(args?.action) || 'ensure';
-    const distro = resolveDistro(args);
+    const distro = await resolveDistro(args);
     const base = cfgFor(distro);
     const slot = args?.slot == null ? undefined : Number(args.slot);
     if (slot !== undefined && (!Number.isFinite(slot) || slot <= 0)) {
@@ -757,7 +781,7 @@ export function createExplorerHandlers(deps) {
    * `wsl_sync_version --warm` 的显式选项，面板的"修 pin"不该顺带下载）。
    */
   async function fixPin(args) {
-    const eff = cfgFor(resolveDistro(args));
+    const eff = cfgFor(await resolveDistro(args));
     const v = deps.resolveVersion(eff);
     const pinBefore = v.pin ?? null;
     if (!v.version) {
@@ -802,11 +826,11 @@ export function createExplorerHandlers(deps) {
    */
   async function listDir(args) {
     const path = assertSafeWslPath(args?.path);
-    const distro = resolveDistro(args);
+    const distro = await resolveDistro(args);
 
     // 发行版前置判定（只读：`wsl -l -q` + `wsl -l -v` 的 STATE，两者都零副作用）
     // 与 snapshot 共用同一份短 TTL 事实缓存（DISTRO_FACTS_TTL_MS）；判定分支与文案逐字不变。
-    const facts = readDistroFacts();
+    const facts = await readDistroFacts();
     const names = facts.names;
     const flags = facts.flags;
     if (!names.includes(distro)) {
@@ -851,7 +875,7 @@ export function createExplorerHandlers(deps) {
  * 宿主本来就有 sessionController.create({ cwd })（Web 前端「新会话」用的同一个入口）。这里直接接它。
  */
 async function newSession(args) {
-const distro = resolveDistro(args);
+const distro = await resolveDistro(args);
 const path = assertSafeWslPath(args?.path, 'explorer.newSession');
 const uncPath = unc(distro, path);
 const ctl = typeof deps.sessionController === 'function' ? deps.sessionController() : undefined;
@@ -892,7 +916,7 @@ return { ok: true, sessionId, cwd: uncPath, distro, path };
    */
   async function addWorkspace(args) {
     const path = assertSafeWslPath(args?.path, 'explorer.addWorkspace');
-    const distro = resolveDistro(args);
+    const distro = await resolveDistro(args);
     const mount = windowsDriveForMount(path);
     if (mount !== null) {
       failArg(
