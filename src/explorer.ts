@@ -58,7 +58,7 @@ import { execFile, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 import { parseWslUncPath } from './unc-path.ts';
-import { resolveWslProxy } from './wsl-proxy.ts';
+import { invalidateProxyCache, resolveWslProxy } from './wsl-proxy.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -433,6 +433,12 @@ export function createExplorerHandlers(deps) {
     }
   }
 
+  /** 丢掉发行版事实缓存（面板「重新扫描」用：refresh 时不复用 TTL 内的旧 STATE/清单）。 */
+  const invalidateFacts = () => {
+    distroFactsCache = null;
+    distroFactsInflight = null;
+  };
+
   /**
    * 本次调用要驱动的发行版：缺省 = 配置里的 `distro`；显式给了就必须出现在
    * `listDistros()`（`wsl -l -q`）里 —— **不猜、不回落**（写错名字要响，不要静默换成默认发行版）。
@@ -535,8 +541,14 @@ export function createExplorerHandlers(deps) {
   /** 单飞：**按发行版分键**（多发行版面板里，A 与 B 的快照互不阻塞、不串味）。 */
   const snapshotInflight = new Map();
   async function snapshot(args) {
+    const refresh = args?.refresh === true;
+    if (refresh) invalidateFacts();
     const distro = await resolveDistro(args);
-    const existing = snapshotInflight.get(distro);
+    if (refresh) {
+      invalidateProxyCache(distro);
+      snapshotInflight.delete(distro);
+    }
+    const existing = refresh ? undefined : snapshotInflight.get(distro);
     if (existing !== undefined) return existing;
     const p = runSnapshot(distro);
     snapshotInflight.set(distro, p);

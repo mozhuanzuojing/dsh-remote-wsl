@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-22T06:04:42.755Z",
-  "total": 16,
-  "pass": 16,
+  "generatedAt": "2026-10-22T06:06:35.336Z",
+  "total": 18,
+  "pass": 18,
   "fail": 0,
   "results": [
     {
@@ -73,6 +73,16 @@
       "name": "preamble：含 resolv 回落",
       "ok": true,
       "detail": ""
+    },
+    {
+      "name": "代理缓存：第二次命中不重复探测",
+      "ok": true,
+      "detail": "calls=1"
+    },
+    {
+      "name": "invalidateProxyCache 清掉缓存",
+      "ok": true,
+      "detail": "calls=2"
     },
     {
       "name": "真实 WSL：片段执行成功",

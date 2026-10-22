@@ -113,6 +113,10 @@ results.push({ name: 'UNC 里的未知发行版 ⇒ E_ARG', ok: unknownUnc.ok ==
 const snap = await call(() => handlers.handlers['explorer.snapshot']({}));
 results.push({ name: 'snapshot 带 proxy 段', ok: snap.ok === true && !!snap.value && !!snap.value.proxy && snap.value.proxy.port === 9910, detail: JSON.stringify(snap.value && snap.value.proxy) });
 
+const namesBefore = asyncNamesCalls;
+const snapFresh = await call(() => handlers.handlers['explorer.snapshot']({ refresh: true }));
+results.push({ name: 'snapshot refresh 绕过事实缓存', ok: snapFresh.ok === true && asyncNamesCalls > namesBefore, detail: namesBefore + ' -> ' + asyncNamesCalls });
+
 const summary = { generatedAt: new Date().toISOString(), real: REAL, fake: FAKE, total: results.length, pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok).length, results };
 fs.writeFileSync(path.join(DIR, 'out-host-distro.json'), JSON.stringify(summary, null, 2) + '\n', 'utf8');
 for (const r of results) console.log((r.ok ? 'PASS ' : 'FAIL ') + r.name + (r.detail ? '  —— ' + r.detail : ''));

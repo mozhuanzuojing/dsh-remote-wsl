@@ -77,7 +77,8 @@ function usePanelActions(props) {
 							options && options.alsoList === true && wanted !== null ? api.listDir({ path: wanted }, signalOf(controller)) : Promise.resolve(null);
 						// 快照与"目录复核"**分开结算**：远端快照成功、只是列目录失败时，
 						// 不该把整块事实撤成错误页（那会让用户丢掉正在看的目录）⇒ 保留列表并标 stale。
-						Promise.allSettled([api.snapshot(signalOf(controller)), alsoList]).then(
+						const refresh = options && options.refresh === true;
+						Promise.allSettled([api.snapshot(signalOf(controller), { refresh }), alsoList]).then(
 							(results) => {
 								if (mySeq !== readSeq.current) return;
 								clearTimeout(slowTimer);

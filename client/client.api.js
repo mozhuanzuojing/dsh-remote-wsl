@@ -252,8 +252,9 @@ window.__ModuleLoader__.load({
 				},
 
 				/** → { distros, target, daemon, drift, workspaces, webHosts } */
-				snapshot(options) {
-					return call(METHODS.snapshot, {}, options);
+				snapshot(options, extras) {
+					const args = extras && extras.refresh === true ? { refresh: true } : {};
+					return call(METHODS.snapshot, args, options);
 				},
 
 				/**

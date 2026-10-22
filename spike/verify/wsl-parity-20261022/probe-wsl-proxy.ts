@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { parseGatewayOutput, buildGatewayShellLines, buildProxyEnvBlock, buildProxyProbeCommand } from '../../../src/wsl-proxy.ts';
+import { parseGatewayOutput, buildGatewayShellLines, buildProxyEnvBlock, buildProxyProbeCommand, invalidateProxyCache, resolveWslProxy } from '../../../src/wsl-proxy.ts';
 import { shellPreamble } from '../../../src/wsl-io.ts';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -41,6 +41,17 @@ const preamble = shellPreamble({ proxyPort: 9910, cwd: '/home/g', distro: 'debia
 check('preamble：1 秒探活', preamble.indexOf('timeout 1 bash -c') >= 0);
 check('preamble：不再有 3 秒探活', preamble.indexOf('timeout 3 bash') < 0);
 check('preamble：含 resolv 回落', preamble.indexOf('/etc/resolv.conf') >= 0);
+
+{
+  let calls = 0;
+  const run = async () => { calls += 1; return 'reachable 10.9.9.9'; };
+  const first = await resolveWslProxy({ distro: 'inval', port: 9910, run });
+  const second = await resolveWslProxy({ distro: 'inval', port: 9910, run });
+  check('代理缓存：第二次命中不重复探测', calls === 1 && second.cached === true && first.host === '10.9.9.9', 'calls=' + calls);
+  invalidateProxyCache('inval');
+  await resolveWslProxy({ distro: 'inval', port: 9910, run });
+  check('invalidateProxyCache 清掉缓存', calls === 2, 'calls=' + calls);
+}
 
 {
   const script = preamble + '\nprintf "GATEWAY=%s" "$GATEWAY"\n';

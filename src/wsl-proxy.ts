@@ -93,6 +93,15 @@ const proxyCache = new Map();
  * @param options.ttlMs - 可达时的缓存时长（默认 5 分钟）
  * @param options.negativeTtlMs - 不可达时的缓存时长（默认 30 秒）
  */
+export function invalidateProxyCache(distro) {
+  if (!distro) {
+    proxyCache.clear();
+    return;
+  }
+  const prefix = distro + ':';
+  for (const key of [...proxyCache.keys()]) if (key.startsWith(prefix)) proxyCache.delete(key);
+}
+
 export async function resolveWslProxy({ distro, port, run, ttlMs = 300000, negativeTtlMs = 30000 }) {
   if (!port) return { host: null, port: 0, reachable: null, cached: false };
   const key = distro + ':' + port;

@@ -46,6 +46,10 @@
    面板「诊断信息」显示 代理：host:port 可达/不可达/未探测。验证：probe-host-distro 20/20
    （实测 proxy=172.30.176.1:9910 reachable，cached）、probe-layout 23/23。
 
+9. **缓存失效（重新扫描）**（2026-10-22 晚些补做）：snapshot 支持 {refresh:true} —— 丢发行版事实缓存、
+   清该 distro 的代理缓存、跳过 snapshot 单飞；面板「重新扫描」改为 load({refresh:true})。
+   验证：probe-host-distro 21/21（refresh 后异步清单确实重新探测）、probe-wsl-proxy 18/18（invalidate 后重探）。
+
 ## 值得下一步抄的（未做）
 
 1. **异步探测 + 5s TTL + promise 缓存**（**已部分完成**：探测已异步，显式失效接口未做）（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，
