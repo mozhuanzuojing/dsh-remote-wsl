@@ -1,0 +1,134 @@
+{
+  "generatedAt": "2026-10-22T08:54:39.151Z",
+  "distro": "debian-u8-1",
+  "observations": {
+    "wslNodeVersion": "v26.10.0",
+    "wslLoopbackToHostProxy": "unreachable",
+    "wslDefaultRoute": "default via 172.30.176.1 dev eth0 proto kernel onlink"
+  },
+  "total": 24,
+  "pass": 24,
+  "fail": 0,
+  "results": [
+    {
+      "name": "runWsl spawn 后立刻进归属表",
+      "ok": true,
+      "detail": "size=1"
+    },
+    {
+      "name": "settle 等到它自然退出（不 kill）",
+      "ok": true,
+      "detail": "{\"waitedMs\":120,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
+    },
+    {
+      "name": "runWsl 结果仍正确（stdout/exitCode）",
+      "ok": true,
+      "detail": "{\"exitCode\":0,\"stdout\":\"ok\",\"stderr\":\"wsl: 检测到 localhost 代理配置，但未镜像到 WSL。NAT 模式下的 WSL 不支持 localhost 代理。\\n\"}"
+    },
+    {
+      "name": "退出后自动摘除",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "settle 宽限后 kill 掉短命子进程（forced=true，kill 后干净退出 ⇒ timedOut=false）",
+      "ok": true,
+      "detail": "elapsed=163 {\"waitedMs\":163,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
+    },
+    {
+      "name": "关停后 runWsl 拒绝并返回 E_SHUTDOWN",
+      "ok": true,
+      "detail": "exit=127 ms=0"
+    },
+    {
+      "name": "关停后 runWsl 不 spawn（归属表不增）",
+      "ok": true,
+      "detail": "size=0"
+    },
+    {
+      "name": "收尾路径 allowDuringShutdown 仍能执行",
+      "ok": true,
+      "detail": "{\"exitCode\":0,\"stdout\":\"cleanup-ok\",\"stderr\":\"wsl: 检测到 localhost 代理配置，但未镜像到 WSL。NAT 模式下的 WSL 不支持 localhost 代理。\\n\"}"
+    },
+    {
+      "name": "wslPathConvert：关停后抛 E_SHUTDOWN",
+      "ok": true,
+      "detail": "E_SHUTDOWN"
+    },
+    {
+      "name": "runWsl 输出归一去 CR（A\\r\\nB ⇒ A\\nB）",
+      "ok": true,
+      "detail": "\"A\\nB\\n\""
+    },
+    {
+      "name": "runWsl 输出 UTF-8 中文正确",
+      "ok": true,
+      "detail": "\"中文✓\\n\""
+    },
+    {
+      "name": "UTF-16LE 缓冲按 NUL 判码",
+      "ok": true,
+      "detail": "\"A中\""
+    },
+    {
+      "name": "normalize 去 BOM/NUL/CR",
+      "ok": true,
+      "detail": "\"xy\""
+    },
+    {
+      "name": "与 explorer.decodeWslOutput 行为一致（3 个样本）",
+      "ok": true,
+      "detail": "0:\"plain-utf8 中文\" 1:\"A中\" 2:\" bom\\n\""
+    },
+    {
+      "name": "WSL_EXEC_MAX_BUFFER = 8MB",
+      "ok": true,
+      "detail": "8388608"
+    },
+    {
+      "name": "已知边界：UTF-8 流含裸 NUL 会被判成 UTF-16LE（与 ZCode 同一启发式）",
+      "ok": true,
+      "detail": "\"a\""
+    },
+    {
+      "name": "runWsl 超时仍返回 124",
+      "ok": true,
+      "detail": "exit=124"
+    },
+    {
+      "name": "超时 kill 后归属摘除",
+      "ok": true,
+      "detail": "size=0"
+    },
+    {
+      "name": "源码：runWsl 内 track 子进程",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "源码：spawn 前问关停屏障",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "源码：收尾路径豁免",
+      "ok": true,
+      "detail": "allowDuringShutdown:true x2"
+    },
+    {
+      "name": "源码：wslPathConvert 在 spawnSync 前 assertAlive",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "源码：不再按 utf8 流式解码",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "源码：spawnSync 用 buffer + 8MB 上限",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}

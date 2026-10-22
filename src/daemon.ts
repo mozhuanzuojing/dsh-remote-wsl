@@ -35,7 +35,7 @@
 import net from 'node:net';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn, execSync } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { shellEnvSnippet } from './shell-env.ts';
 import { SdkRuntime } from './sdk-runtime.ts';
@@ -107,18 +107,92 @@ function log(...parts) {
 
 // ── 环境只捕获一次（语义 #9）──────────────────────────────────────────────────
 
-function gateway() {
-  try {
-    return execSync(`ip route show default 2>/dev/null | awk '{print $3; exit}'`, {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch {
-    return '';
-  }
+// ── 网关发现 / 代理可达性（2026-10-22，参考 ZCode `packages/server/src/remote/wslProxy.ts`）──
+//
+// ⚠️ 本文件是**在 WSL 里**跑的独立脚本（daemon-protocol.daemonScriptWsl() 把它交给 WSL 侧 node），
+// **不能** import 宿主侧的 src/wsl-proxy.ts ⇒ 下面三块片段是从它**逐字复制**的：
+//   · GATEWAY_DISCOVERY_LINES              ↔ wsl-proxy.buildGatewayShellLines()
+//   · parseGatewayOutput()                 ↔ wsl-proxy.parseGatewayOutput()
+//   · isLoopback() / isPrivateOrLinkLocal() ↔ 同名判据函数（wsl-proxy.ts 内部）
+// 防漂移：spike/verify/zcode-20261022/probe-daemon-gateway.ts 逐字比对这三块，并用同一组候选输入
+// 断言行为一致；任何一边改了另一边没改 ⇒ 门禁红。
+
+/** wsl-proxy 里是 `import { isIP } from 'node:net'`；这里取同一个函数引用，保证下面三块能**逐字**一致。 */
+const isIP = net.isIP;
+
+/** 与 src/wsl-proxy.ts 的 buildGatewayShellLines() **逐字一致**（多行，join('\n')）。 */
+const GATEWAY_DISCOVERY_LINES = [
+  "GATEWAY=$(ip route show default 2>/dev/null | awk '$1 == \"default\" && $2 == \"via\" { print $3; exit }')",
+  'if [ -z "${GATEWAY:-}" ] && [ -r /etc/resolv.conf ]; then',
+  "  GATEWAY=$(awk '$1 == \"nameserver\" { print $2; exit }' /etc/resolv.conf)",
+  'fi',
+];
+
+/**
+ * 发现脚本 = 上面 4 行**逐字不动** + 只追加"来源标注"（route 优先，否则 resolv）。
+ * 为什么要来源：wsl-proxy 的判据只对 **resolv 来源**的候选要求私有/链路本地
+ * （不能把 8.8.8.8 当代理宿主）；不标来源就没法把那条判据用在裸 IP 上。
+ */
+function gatewayDiscoveryScript() {
+  return [
+    ...GATEWAY_DISCOVERY_LINES,
+    'if [ -n "${GATEWAY:-}" ]; then',
+    '  if ip route show default 2>/dev/null | grep -q .; then printf "route=%s" "$GATEWAY"; else printf "resolv=%s" "$GATEWAY"; fi',
+    'fi',
+  ].join('\n');
 }
 
-function probeTcp(host, port, ms = 3000) {
+/** 网关候选（与 wsl-proxy 的判据一致：route 优先；resolv 只接受私有/链路本地）。 */
+function discoverGateway() {
+  let output = '';
+  try {
+    output = execFileSync('/bin/bash', ['-c', gatewayDiscoveryScript()], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 3000,
+    });
+  } catch {
+    return { host: null, source: null };
+  }
+  return parseGatewayOutput(output);
+}
+
+function parseGatewayOutput(output) {
+  for (const token of String(output ?? '').trim().split(/\s+/).filter(Boolean)) {
+    const match = /^(route|resolv)=(.+)$/.exec(token);
+    const source = match ? match[1] : 'resolv';
+    const candidate = (match ? match[2] : token).replace(/^\[|\]$/g, '');
+    if (isIP(candidate) === 0) continue;
+    if (isLoopback(candidate)) continue;
+    if (source === 'route') return { host: candidate, source: 'route' };
+    if (isPrivateOrLinkLocal(candidate)) return { host: candidate, source: 'resolv' };
+  }
+  return { host: null, source: null };
+}
+
+function isLoopback(address) {
+  return address === '::1' || address === 'localhost' || (isIP(address) === 4 && address.startsWith('127.'));
+}
+
+function isPrivateOrLinkLocal(address) {
+  if (isIP(address) === 6) {
+    const lower = address.toLowerCase();
+    return lower.startsWith('fc') || lower.startsWith('fd') || /^fe[89ab]/u.test(lower);
+  }
+  const parts = address.split('.').map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return false;
+  return (
+    parts[0] === 10 ||
+    (parts[0] === 192 && parts[1] === 168) ||
+    (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+    address.startsWith('169.254.')
+  );
+}
+
+/** 探活超时（毫秒）。ZCode 的 `buildWslProxyPortProbeCommand` 用 `timeout 1`；原来 3 秒 ⇒ 代理停着时白等。 */
+const PROXY_PROBE_TIMEOUT_MS = 1000; // 与 src/wsl-proxy.ts 的 PROXY_PROBE_TIMEOUT_SEC = 1 对齐
+
+function probeTcp(host, port, ms = PROXY_PROBE_TIMEOUT_MS) {
   return new Promise((resolve) => {
     if (!host) return resolve(false);
     const s = net.connect({ host, port });
@@ -131,6 +205,25 @@ function probeTcp(host, port, ms = 3000) {
     s.once('timeout', () => done(false));
     s.once('error', () => done(false));
   });
+}
+
+/** IPv6 放进 URL 必须加方括号（resolv 的 nameserver 可能是 fd00::1 这类链路/私有地址）。 */
+function formatHostForUrl(host) {
+  return net.isIP(host) === 6 ? `[${host}]` : host;
+}
+
+/**
+ * 决定代理地址：**先试 loopback，再退回网关**（handoff §6.5 的统一）。
+ *  · mirrored 网络模式（WSL2 `networkingMode=mirrored`）下宿主代理就在 WSL 的 127.0.0.1 上
+ *    ⇒ 命中就直接用 loopback，**不该**强行换成网关地址；
+ *  · NAT 模式才退回网关（ip route default via → /etc/resolv.conf nameserver 回落，私有/链路本地才算）。
+ */
+async function resolveProxyHost(port) {
+  if (!(port > 0)) return { host: null, source: 'disabled' };
+  if (await probeTcp('127.0.0.1', port)) return { host: '127.0.0.1', source: 'loopback' };
+  const gateway = discoverGateway();
+  if (gateway.host && (await probeTcp(gateway.host, port))) return { host: gateway.host, source: gateway.source };
+  return { host: null, source: gateway.host ? 'gateway-unreachable' : 'no-gateway' };
 }
 
 function runBashCapture(script, timeoutMs) {
@@ -186,14 +279,20 @@ async function buildRuntimeEnv() {
   }
   const basePath = env.PATH || '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
   env = { ...env, PATH: `${HOME}/.local/bin:${HOME}/.local/share/mise/shims:${basePath}` };
-  const gw = gateway();
-  if (PROXY_PORT > 0 && (await probeTcp(gw, PROXY_PORT))) {
-    env.NODE_USE_ENV_PROXY = '1';
-    env.HTTPS_PROXY = `http://${gw}:${PROXY_PORT}`;
-    env.HTTP_PROXY = `http://${gw}:${PROXY_PORT}`;
-    log(`主机代理 ${gw}:${PROXY_PORT} 可达 ⇒ 走代理`);
+  // 代理地址：先 loopback（mirrored 网络），再网关（ip route → resolv 回落）；两条都 1 秒探活。
+  if (PROXY_PORT > 0) {
+    const proxy = await resolveProxyHost(PROXY_PORT);
+    if (proxy.host) {
+      const address = `${formatHostForUrl(proxy.host)}:${PROXY_PORT}`;
+      env.NODE_USE_ENV_PROXY = '1';
+      env.HTTPS_PROXY = `http://${address}`;
+      env.HTTP_PROXY = `http://${address}`;
+      log(`主机代理 ${address} 可达（来源 ${proxy.source}，1s 探活）⇒ 走代理`);
+    } else {
+      log(`主机代理不可达（${proxy.source}，1s 探活）⇒ 直连`);
+    }
   } else {
-    log(`主机代理 ${gw || '?'}:${PROXY_PORT} 不可达 ⇒ 直连`);
+    log('--proxy-port 0 ⇒ 跳过代理探测（直连）');
   }
   env.NO_PROXY = '127.0.0.1,localhost,::1';
   return env;

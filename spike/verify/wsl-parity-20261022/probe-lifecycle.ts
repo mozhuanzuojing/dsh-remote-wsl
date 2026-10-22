@@ -54,7 +54,16 @@ class FakeChild extends EventEmitter {
   const child = new FakeChild();
   lifecycle.track(child);
   const report = await lifecycle.settle(80);
-  check('超时：只 kill 自己记录的子进程', report.timedOut === true && report.killed === 1 && child.killed === true, JSON.stringify(report));
+  // 2026-10-22（ZCode 宽限纪律）：settle 报告把"超时"拆成两个字段 ——
+  //  · forced   = 真的走了 kill 分支（宽限期没等到）；本用例必然 true；
+  //  · timedOut = 总预算耗尽（settle 返回时仍有登记未退出）。本用例 FakeChild 一 kill 就退出
+  //    ⇒ remaining=0 ⇒ timedOut=false。判据因此从 timedOut 改为 forced（更精确，且不弱化：
+  //    额外钉住 timedOut=false，防止 index.ts 的「关停超时」日志在干净关停时误报）。
+  check(
+    '超时：只 kill 自己记录的子进程（forced=true 且 timedOut=false）',
+    report.forced === true && report.timedOut === false && report.killed === 1 && child.killed === true,
+    JSON.stringify(report),
+  );
 }
 
 {

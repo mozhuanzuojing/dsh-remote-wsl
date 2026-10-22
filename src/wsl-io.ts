@@ -8,6 +8,13 @@
  * 纪律（与拆分前一致）：只用 `node:` 内置 + 仓库内相对 `.ts` 导入；脚本一律**落文件**再 `bash <file>`（不内联，
  * 否则 `$VAR`/引号在 `pwsh → wsl.exe → bash` 三层里会被吃掉）；本模块不 import 工具注册/explorer ⇒ 无环。
  *
+ * 2026-10-22（task-1，对照 ZCode `packages/server/src/remote/wsl-backend.ts`）补三条纪律：
+ *  · **spawn 前双检**：每个异步探测之后、真正 spawn 之前再问一次关停屏障（ZCode 的 assertNotDisposed）；
+ *  · **短命子进程也归属 lifecycle**：`runWsl` 的 wsl.exe 一律 `lifecycle.track()`，settle 才等得到
+ *    （handoff-2026-10-22 §5.3 遗留项）；
+ *  · **输出解码**：NUL ⇒ utf16le 否则 utf8（ZCode decodeWslOutput），再归一去 NUL/BOM/CR
+ *    （ZCode normalizeWslOutput）。原来按 utf8 流式读，UTF-16LE 的 wsl.exe 输出会夹满 NUL。
+ *
  * @module dsh-remote-wsl/wsl-io
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -19,6 +26,7 @@ import { shellEnvSnippet } from './shell-env.ts';
 import { buildGatewayShellLines, buildProxyEnvBlock } from './wsl-proxy.ts';
 import { desktopRuntimeCandidates, pickDesktopVersion } from './version.ts';
 import { stateDirLinux, unc } from './daemon-client.ts';
+import { activeLifecycle } from './lifecycle.ts';
 
 /**
  * **最后兜底**候选：老实现写死的那个用户路径。
@@ -31,6 +39,46 @@ export const DEFAULT_DESKTOP_RUNTIME_JSON =
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const renderText = (_args, value) => [{ type: 'text', text: String(value ?? '') }];
+
+// ── wsl.exe 输出解码（参考 ZCode wsl-backend.ts:50-67）────────────────────────
+//
+// 两份来源事实：① `wsl.exe -l -v` 等输出在 Windows 上常是 **UTF-16LE**，按 utf8 读会夹满 NUL；
+// ② 包装层偶尔在 stdout 里留下 BOM / CRLF。ZCode 分成 decode + normalize 两步，这里照抄（含 8MB 上限）。
+
+/** execFile/spawnSync 的 stdout 缓冲上限（ZCode `WSL_EXEC_MAX_BUFFER`）。 */
+export const WSL_EXEC_MAX_BUFFER = 8 * 1024 * 1024;
+
+/** 含 NUL ⇒ UTF-16LE，否则 UTF-8（ZCode decodeWslOutput）。
+ *
+ * ⚠️ 已知边界（与 ZCode 同一条启发式，如实记录、不粉饰）：**UTF-8 输出里若出现裸 NUL**
+ * （例如 `printf 'a\0b'`），会被判成 UTF-16LE 而解坏。我们的 WSL 命令输出不含裸 NUL，
+ * 故不额外加探形逻辑；边界由 `spike/verify/zcode-20261022/probe-wsl-io-lifecycle.ts` 钉住。
+ */
+export function decodeWslOutput(input) {
+  const buffer = Buffer.isBuffer(input) ? input : Buffer.from(String(input ?? ''), 'utf8');
+  if (buffer.length === 0) return '';
+  return buffer.includes(0) ? buffer.toString('utf16le') : buffer.toString('utf8');
+}
+
+/** 去 NUL / 开头 BOM / 全部 CR（ZCode normalizeWslOutput）。 */
+export function normalizeWslOutput(raw) {
+  return String(raw ?? '')
+    .replace(/\u0000/g, '')
+    .replace(/^\uFEFF/, '')
+    .replace(/\r/g, '');
+}
+
+/** 一次性把 wsl.exe 的 Buffer 输出变成干净文本（decode + normalize）。 */
+export function readWslOutput(input) {
+  return normalizeWslOutput(decodeWslOutput(input));
+}
+
+/**
+ * ZCode 的 double-check 纪律：**异步探测 / 配置解析之后、真正 spawn 之前**再问一次关停屏障。
+ * 为什么要这一步：异步期间 dispose 屏障可能已经合上，迟到的 spawn 会落在 settle 的快照之外
+ * （`packages/server/src/remote/wsl-backend.ts:330-337` 的 `assertNotDisposed()` 两次调用）。
+ */
+export const shutdownRejection = 'remote-wsl: 插件正在关停，拒绝新建 WSL 进程（E_SHUTDOWN）';
 
 // ── WSL 文件/脚本工具 ────────────────────────────────────────────────────────
 
@@ -113,7 +161,7 @@ export async function reapWsl(cfg, scriptLinux) {
 fi
 true
 `,
-      { timeoutMs: 15000 },
+      { timeoutMs: 15000, allowDuringShutdown: true }, // 收尾命令：beginShutdown 之后仍必须能跑
     );
   } catch {
     /* 回收失败不能影响主流程（例如发行版已被关掉） */
@@ -182,8 +230,21 @@ export function resolveVersion(cfg) {
 
 // ── 一次性 WSL 执行（远端终端 / 状态探测 / 日志兜底读取）──────────────────────
 
-/** 在 WSL 里跑一段 bash，收集 stdout/stderr/退出码。 */
+/**
+ * 在 WSL 里跑一段 bash，收集 stdout/stderr/退出码。
+ *
+ * 三条纪律（2026-10-22 对照 ZCode）：
+ *  · **spawn 前双检**：进入关停态后不再新建进程（返回 127 + 可读原因；本函数契约是"永不抛"）。
+ *    `opts.allowDuringShutdown` 只给**收尾路径**用（reapWsl / 自有临时文件清扫）——它们必须在
+ *    beginShutdown 之后继续跑，否则包装层被杀、Linux 侧进程会变孤儿。
+ *  · **登记**：spawn 出来的短命 wsl.exe 也进 lifecycle，settle 才会等它退出（handoff §5.3）。
+ *  · **解码**：先收 Buffer，收尾时按 NUL 判码 + 去 NUL/BOM/CR（ZCode normalizeWslOutput）。
+ */
 export function runWsl(cfg, script, opts = {}) {
+  const lifecycle = activeLifecycle();
+  if (!opts.allowDuringShutdown && lifecycle && lifecycle.isShuttingDown()) {
+    return Promise.resolve({ exitCode: 127, stdout: '', stderr: shutdownRejection });
+  }
   let file;
   try {
     file = writeScript(cfg.distro, script);
@@ -196,8 +257,12 @@ export function runWsl(cfg, script, opts = {}) {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });
-    let stdout = '';
-    let stderr = '';
+    // 归属：短命子进程也登记（exit/error/close 任一会自动摘除）
+    if (lifecycle) lifecycle.track(child);
+    const outChunks = [];
+    const errChunks = [];
+    let outBytes = 0;
+    let errBytes = 0;
     let done = false;
     const finish = (code) => {
       if (done) return;
@@ -209,20 +274,26 @@ export function runWsl(cfg, script, opts = {}) {
       } catch {
         /* 已退出 */
       }
-      resolve({ exitCode: code ?? 0, stdout, stderr });
+      resolve({
+        exitCode: code ?? 0,
+        stdout: readWslOutput(Buffer.concat(outChunks)),
+        stderr: readWslOutput(Buffer.concat(errChunks)),
+      });
     };
     const timer = opts.timeoutMs ? setTimeout(() => finish(124), opts.timeoutMs) : null;
     opts.signal?.addEventListener('abort', () => finish(130), { once: true });
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
     child.stdout.on('data', (c) => {
-      if (stdout.length < 200000) stdout += c;
+      if (outBytes >= 200000) return;
+      outChunks.push(c);
+      outBytes += c.length;
     });
     child.stderr.on('data', (c) => {
-      if (stderr.length < 200000) stderr += c;
+      if (errBytes >= 200000) return;
+      errChunks.push(c);
+      errBytes += c.length;
     });
     child.on('error', (e) => {
-      stderr += `\nremote-wsl: 无法启动 wsl.exe: ${e.message}`;
+      errChunks.push(Buffer.from(`\nremote-wsl: 无法启动 wsl.exe: ${e.message}`, 'utf8'));
       finish(1);
     });
     child.on('exit', (code) => finish(code));
@@ -251,7 +322,7 @@ export async function sweepOwnTempFiles(cfg, winPid = process.pid) {
       `ls -1 /tmp/dsh-rwsl-${winPid}-* 2>/dev/null | xargs -r rm -f
 true
 `,
-      { timeoutMs: 15000 },
+      { timeoutMs: 15000, allowDuringShutdown: true }, // 收尾命令：beginShutdown 之后仍必须能跑
     );
   } catch {
     /* 清理失败不能影响主流程 */
@@ -284,19 +355,22 @@ export function wslPathConvert(cfg, rawPath, direction) {
   const path = typeof rawPath === 'string' ? rawPath : rawPath == null ? '' : String(rawPath);
   if (!path.trim()) throw new Error('remote-wsl: wsl_path 需要非空 path（Windows 路径或 WSL 路径）');
   if (path.includes('\0')) throw new Error('remote-wsl: wsl_path 的 path 含 NUL 字符，拒绝执行');
+  // 关停屏障（ZCode 的 spawn 前双检）：dispose 之后进来的工具调用不再起新的 wsl.exe。
+  const lifecycle = activeLifecycle();
+  if (lifecycle) lifecycle.assertAlive();
 
   const res = spawnSync('wsl.exe', ['-d', cfg.distro, '-e', 'bash', '-c', WSLPATH_SCRIPT, '_', path], {
-    encoding: 'utf8',
+    encoding: 'buffer', // NUL ⇒ utf16le（ZCode 判码），不再按 utf8 硬读
+    maxBuffer: WSL_EXEC_MAX_BUFFER,
     windowsHide: true, // 纪律：不许弹可见窗口
     timeout: 20000,
   });
-  const stderrTail = String(res.stderr || '')
-    .replace(/\0/g, '')
+  const stderrTail = normalizeWslOutput(decodeWslOutput(res.stderr))
     .split(/\r?\n/)
     .map((s) => s.trim())
     .filter((s) => s && !/WSL|localhost|NAT|wsl:/i.test(s))
     .slice(-1)[0];
-  const stdout = String(res.stdout || '').replace(/\0/g, '');
+  const stdout = normalizeWslOutput(decodeWslOutput(res.stdout));
 
   if (res.error) {
     throw new Error(`remote-wsl: wsl_path 无法启动 wsl.exe: ${res.error.message}`);

@@ -55,22 +55,58 @@
 11. **家目录探测异步预热**：resolveDistro 在显式发行版分支 await ensureDistroHome（execFile），
     后续 cfgFor → distroHome 直接命中缓存，不再在同步段 spawn。
 
-## 值得下一步抄的（未做）
+### 2.1 本轮（2026-10-22 第二轮）新吸收的五条 —— 全部有探针
 
-1. **异步探测 + 5s TTL + promise 缓存**（**已部分完成**：探测已异步，显式失效接口未做）（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，
-   立刻可重试；`invalidateWSLDiscoveryCache` 供「重新扫描」用。我们的 `probeDistroState` 仍是
-   `spawnSync`（已加 8s 超时），冷启动会阻塞 host。
-2. **WSL 里的代理网关探测**（wslProxy）：`ip route` / `/etc/resolv.conf` 找宿主网关，
-   把 `127.0.0.1:9910` 换成网关地址；用 `/dev/tcp` 判可达。我们目前只透传 `proxyPort`。
-3. **UNC 解析**（wslUncWorkspace）：`\\wsl.localhost\<distro>\<path>` 与 `\\wsl$\...` 都能反解成 `{distro, linuxPath}`。我们只在 addWorkspace 时正向拼 UNC，没有反解。
-4. **生命周期纪律**（design doc）：释放只针对自己 spawn 的子进程，**禁止** `wsl --terminate/--shutdown`；
-   按 workspace generation 释放、有 running task 时延迟到终止；关窗快照去重后再 dispose。
-   我们的守护走 linger + idle，方向一致，但缺少「关窗时等待子进程退出」的显式屏障。
-5. **池化**：同一窗口、同一 distro 共享一个 server launcher（60s idle TTL）；我们是每 distro 一个
-   daemon 槽位，语义接近但没做窗口作用域。
+12. **释放宽限的两段式**（对照 `packages/server/src/remote/wsl-backend.ts` 的 `disposeAndWait()`）：
+    先对每个**自己 spawn** 的 child `stdin.end()`（优雅）→ 宽限 300ms → 只 kill 归属表里仍在的 →
+    kill 后再等 250ms 确认退出。我们原来「等 5s，超时直接 kill 且不等退」会把子进程的收尾截断。
+    总预算仍是 5s（宽限与 kill 后等待都从预算里扣）。验证：`zcode-20261022/probe-lifecycle-grace.ts` 26/26。
+13. **幂等 + 三事件归属**（ZCode `disposeInFlight` / `ownedChildren`）：`settle()` 缓存 in-flight promise
+    （disposer 与关窗路径各调一次也只跑一遍）；归属表认 `exit`/`error`/`close` 三个事件
+    （原来只认 `exit`，spawn 失败时 settle 白等满一个超时）。
+14. **晚订阅丢事件**（ZCode `packages/server/src/remote/closeEvent.ts`）：子进程可能在调用方订阅前就退出，
+    ZCode 对晚订阅者补发 close code。我们的等价做法是**在 `track()` 时就建好 settled promise**，
+    `settle()` 直接 await ——「快照之后、挂监听之前退出就白等到超时」的窗口从根上不存在。
+    实测：先退出的 child，20ms 后再 settle，`waitedMs=0`。
+15. **spawn 前双检 + 短命子进程归属**（ZCode `assertNotDisposed()` 在每次 await 之后再调一次）：
+    `wsl-io.runWsl` 的 wsl.exe 现在全部登记进关停屏障（handoff §5.3 的遗留项由本轮关闭），
+    关停态直接返回 127 + 可读原因（`runWsl` 契约仍是"永不抛"）；`reapWsl` / 自有临时文件清扫这两条
+    **收尾路径**显式豁免（否则 dispose 时 Linux 侧进程会变孤儿）。
+16. **输出解码统一**（ZCode `decodeWslOutput` + `normalizeWslOutput`）：NUL ⇒ utf16le 否则 utf8，
+    再归一去 NUL/BOM/CR；`execFile/spawnSync` 用 buffer + 8MB 上限。原来 `wslPathConvert` 按 utf8 硬读。
+17. **网关探测统一**（ZCode `resolveRuntimeProxy`）：**先试 loopback**（mirrored 网络模式下宿主代理就在
+    WSL 的 127.0.0.1 上，命中就保留、不该换成网关）→ 否则 `ip route default via` →
+    `/etc/resolv.conf` nameserver 回落（只接受私有/链路本地）→ 探活 1s。`src/daemon.ts`（跑在 WSL 里的
+    独立脚本，不能 import 宿主模块）与 `src/wsl-proxy.ts` 的片段**逐字一致**，由源码级探针防漂移。
+    验证：`zcode-20261022/probe-daemon-gateway.ts` 32/32（含真实 WSL 两边发现同一个网关 172.30.176.1）。
+
+## 已关闭/已过时的旧条目
+
+1. ~~异步探测 + 5s TTL + promise 缓存~~ —— **已完成**：`probeDistroState`/`readDistroFacts` 早已是
+   `execFile` 异步 + in-flight 去重（commit 8a5bb7b），失败不写缓存；显式失效由 `snapshot({refresh:true})`
+   与 `invalidateProxyCache` 提供（commit faccf21）。本条目此前写"仍是 spawnSync"是**过期描述**，已更正。
+2. ~~WSL 里的代理网关探测~~ —— **已完成**（第 5 条 + 第 17 条）。
+3. ~~UNC 解析~~ —— **已完成**（第 6 条，`src/unc-path.ts`）。
+4. ~~生命周期纪律~~ —— **主体已完成**（第 7、10、12–15 条）。
+
+## 仍未做（以及为什么）
+
+1. **窗口作用域池化**（ZCode：同窗口同 distro 共享一个 server launcher，60s idle TTL）：
+   DSH 的宿主是**单进程单实例**（`dsh web` 一个进程服务所有窗口），没有 ZCode 那种"每个窗口一个
+   Remote Host"的分层 ⇒ 我们的 `daemon` 槽位（每 distro 一个常驻守护、多客户端 attach）在**语义上已经
+   是**"同一 distro 共享一个远端 host"。**结论：这一条不抄**（抄了会引入一个 DSH 里不存在的层级）。
+   保留差异：我们的守护 idle 是 10 分钟自退 + 运行时 idle 30 分钟回收，比 ZCode 的 60s 宽松（跨宿主复用优先）。
+2. **有 running task 时延迟释放到 terminal**（design doc）：我们的守护本就"客户端断开 ≠ 会话结束"，
+   且宿主退出时**不杀守护**；在宿主进程内，settle 的宽限已经覆盖"让子进程把收尾做完"。**未实现**
+   "跟踪一次 prompt 是否在跑、跑完再释放"——当前语义下宿主退出等同于用户要它退出，延迟反而会让
+   关窗变卡。若将来做"宿主热重启不打断 prompt"，再补。
+3. **`-u/--user` 指定 WSL 用户**（ZCode `buildWslArgs` 支持 `-u`）：我们只有 `-d`。**未做**（无需求证据）。
+4. **上传/大文件通道**（ZCode `upload()` 的 UNC 直写 + `cat >` 流式回落）：我们用 `writeScript` 落
+   `/tmp` + `bash <file>`，路径不同但更贴 DSH 需要（stdin 必须留给 SDK 协议）。**不抄**。
 
 ## 结论
 
-ZCode 与我们的路线基本同构（本地 `wsl.exe` 子进程 + 远端 server + UNC 文件访问），差异在
-「异步探测/缓存」「代理网关」「生命周期屏障」。本轮先把**解析与 `--exec`**这两个已证实的坑补上，
-其余按上面的顺序排进后续。
+ZCode 与我们的路线基本同构（本地 `wsl.exe` 子进程 + 远端 server + UNC 文件访问）。两轮下来，
+「解析与 `--exec`」「异步探测/缓存」「代理网关」「生命周期屏障」四块都已对齐并各自有探针；
+剩下的差异只有**窗口作用域池化**（DSH 架构里不存在，故不抄）与「running task 延迟释放」（语义取舍，暂不做）。
+证据索引：`spike/verify/wsl-parity-20261022/`（第一轮）+ `spike/verify/zcode-20261022/`（第二轮）。

@@ -1,4 +1,4 @@
-origin matrix (after) @ 2026-10-22T06:58:27.698Z  port=62697
+origin matrix (after) @ 2026-10-22T08:54:52.311Z  port=49292
 case                                        expect  actual  verdict
 C1-browser-same-origin-post                 200     200     PASS
 C2-desktop-shell-forward-post               200     200     PASS
