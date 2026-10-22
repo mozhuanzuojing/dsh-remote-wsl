@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-10-22T05:52:39.841Z",
+  "total": 10,
+  "pass": 10,
+  "fail": 0,
+  "results": [
+    {
+      "name": "现代前缀：反解 distro",
+      "ok": true,
+      "detail": "{\"distro\":\"debian-u8-1\",\"linuxPath\":\"/home/g\",\"originalPath\":\"\\\\\\\\wsl.localhost\\\\debian-u8-1\\\\home\\\\g\"}"
+    },
+    {
+      "name": "现代前缀：反解 linuxPath",
+      "ok": true,
+      "detail": "/home/g"
+    },
+    {
+      "name": "旧前缀 wsl$ + 含空格发行版",
+      "ok": true,
+      "detail": "{\"distro\":\"Ubuntu 22.04 LTS\",\"linuxPath\":\"/home/g\",\"originalPath\":\"\\\\\\\\wsl$\\\\Ubuntu 22.04 LTS\\\\home\\\\g\"}"
+    },
+    {
+      "name": "正斜杠形式",
+      "ok": true,
+      "detail": "{\"distro\":\"debian-u8-1\",\"linuxPath\":\"/home\",\"originalPath\":\"//wsl.localhost/debian-u8-1/home\"}"
+    },
+    {
+      "name": "根路径",
+      "ok": true,
+      "detail": "{\"distro\":\"debian-u8-1\",\"linuxPath\":\"/\",\"originalPath\":\"\\\\\\\\wsl.localhost\\\\debian-u8-1\\\\\"}"
+    },
+    {
+      "name": "非 UNC：Linux 路径",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "非 UNC：普通共享",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "非 UNC：只有服务名",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "isWslUncPath 一致",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "正向拼接 → 反解往返一致",
+      "ok": true,
+      "detail": "\\\\wsl.localhost\\debian-u8-1\\home\\g"
+    }
+  ]
+}

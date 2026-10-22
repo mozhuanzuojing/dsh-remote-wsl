@@ -57,6 +57,7 @@
 import { execFile, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
+import { parseWslUncPath } from './unc-path.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -446,6 +447,26 @@ export function createExplorerHandlers(deps) {
   }
 
   /**
+   * 把 `args.path` 归一成 `{ distro, path }`。
+   *
+   * UNC 形式（`\\wsl.localhost\<distro>\...` 或 `\\wsl$\...`）先反解出 distro 与 Linux 路径；
+   * 其余按原约定校验必须是 WSL 绝对路径。显式 `args.distro` 与 UNC 里的发行版不一致时报错（不猜、不静默换）。
+   */
+  async function resolveTarget(args, method) {
+    const parsed = parseWslUncPath(args?.path);
+    if (parsed === null) {
+      const distro = await resolveDistro(args);
+      return { distro, path: assertSafeWslPath(args?.path, method) };
+    }
+    const explicit = str(args?.distro).trim();
+    if (explicit.length > 0 && explicit !== parsed.distro) {
+      failArg(`remote-wsl: ${method} 的 path 属于发行版 "${parsed.distro}"，但 distro 参数写的是 "${explicit}"`);
+    }
+    const distro = await resolveDistro({ distro: parsed.distro });
+    return { distro, path: assertSafeWslPath(parsed.linuxPath, method) };
+  }
+
+  /**
    * 非配置发行版的**家目录**：进程内缓存，成功只解析一次。
    *
    * 为什么必须解析而不是猜：守护的 state 目录是 `${wslHome}/.dsh/remote-wsl`（`stateDirLinux`），
@@ -627,13 +648,8 @@ export function createExplorerHandlers(deps) {
    *     P0 UI **不暴露**这个参数（lead：留给 P1 的显式动作）；这里保留分支并标注。
    */
   async function openSession(args) {
-    const distro = await resolveDistro(args);
+    const { distro, path } = await resolveTarget(args, 'explorer.openSession');
     const eff = cfgFor(distro);
-    const path = str(args?.path).trim();
-    if (!path) failArg('remote-wsl: explorer.openSession 需要 path（WSL 绝对路径）');
-    if (!path.startsWith('/')) {
-      failArg(`remote-wsl: explorer.openSession 的 path 必须是 WSL 绝对路径（以 / 开头），收到 "${path}"`);
-    }
     const v = deps.resolveVersion(eff);
     if (!v.version) failUnavailable('remote-wsl: 无法确定 dsh 版本（桌面 runtime.json 不可读且未配 dshVersion）');
 
@@ -825,8 +841,7 @@ export function createExplorerHandlers(deps) {
    * @returns `{ path, distro, entries: [{ name, kind: 'dir'|'file'|'other', hidden }] }`
    */
   async function listDir(args) {
-    const path = assertSafeWslPath(args?.path);
-    const distro = await resolveDistro(args);
+    const { distro, path } = await resolveTarget(args, 'explorer.listDir');
 
     // 发行版前置判定（只读：`wsl -l -q` + `wsl -l -v` 的 STATE，两者都零副作用）
     // 与 snapshot 共用同一份短 TTL 事实缓存（DISTRO_FACTS_TTL_MS）；判定分支与文案逐字不变。
@@ -875,8 +890,7 @@ export function createExplorerHandlers(deps) {
  * 宿主本来就有 sessionController.create({ cwd })（Web 前端「新会话」用的同一个入口）。这里直接接它。
  */
 async function newSession(args) {
-const distro = await resolveDistro(args);
-const path = assertSafeWslPath(args?.path, 'explorer.newSession');
+const { distro, path } = await resolveTarget(args, 'explorer.newSession');
 const uncPath = unc(distro, path);
 const ctl = typeof deps.sessionController === 'function' ? deps.sessionController() : undefined;
 if (!ctl || typeof ctl.create !== 'function') {
@@ -915,8 +929,7 @@ return { ok: true, sessionId, cwd: uncPath, distro, path };
    * @returns `{ ok:true, id, title, uncPath, alreadyExisted }`
    */
   async function addWorkspace(args) {
-    const path = assertSafeWslPath(args?.path, 'explorer.addWorkspace');
-    const distro = await resolveDistro(args);
+    const { distro, path } = await resolveTarget(args, 'explorer.addWorkspace');
     const mount = windowsDriveForMount(path);
     if (mount !== null) {
       failArg(

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-22T05:46:37.092Z",
+  "generatedAt": "2026-10-22T05:52:43.395Z",
   "real": "debian-u8-1",
   "fake": "probe-no-such-distro",
-  "total": 15,
-  "pass": 15,
+  "total": 19,
+  "pass": 19,
   "fail": 0,
   "results": [
     {
@@ -80,6 +80,26 @@
       "name": "异步发行版清单被实际调用",
       "ok": true,
       "detail": "2"
+    },
+    {
+      "name": "listDir 接受 UNC 路径",
+      "ok": true,
+      "detail": "/home"
+    },
+    {
+      "name": "addWorkspace 接受 UNC 路径",
+      "ok": true,
+      "detail": "\\\\wsl.localhost\\debian-u8-1\\home"
+    },
+    {
+      "name": "UNC 与显式 distro 不一致 ⇒ E_ARG",
+      "ok": true,
+      "detail": "remote-wsl: explorer.listDir 的 path 属于发行版 \"debian-u8-1\"，但 distro 参数写的是 \"probe-no-such-distro\""
+    },
+    {
+      "name": "UNC 里的未知发行版 ⇒ E_ARG",
+      "ok": true,
+      "detail": "E_ARG"
     }
   ]
 }

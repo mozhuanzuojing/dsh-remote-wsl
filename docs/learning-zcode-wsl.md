@@ -31,6 +31,11 @@
    探活超时从 3s 降到 1s；wsl-io.shellPreamble 改为拼装这些片段。验证：probe-wsl-proxy 16/16
    （含真实 WSL 里跑片段，GATEWAY 取到 172.30.176.1）。未做：host 侧一次性解析 + 缓存、把结果写进快照。
 
+6. **UNC 反解**（2026-10-22 晚些补做）：新增 src/unc-path.ts —— 接受 wsl.localhost 与 wsl$ 两种前缀、
+   反斜杠/正斜杠、含空格的发行版名；explorer 的 listDir/openSession/newSession/addWorkspace 统一走
+   resolveTarget（UNC 反解出 distro + Linux 路径，显式 distro 不一致则报错）；客户端路径框粘贴 UNC 会自动归一。
+   验证：probe-unc 10/10、probe-host-distro 19/19（含真实 UNC 的 listDir/addWorkspace）。
+
 ## 值得下一步抄的（未做）
 
 1. **异步探测 + 5s TTL + promise 缓存**（**已部分完成**：探测已异步，显式失效接口未做）（wsl-detect 的 `getCachedDiscovery`）：失败不缓存，

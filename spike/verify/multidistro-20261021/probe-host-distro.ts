@@ -50,6 +50,7 @@ const handlers = createExplorerHandlers({
   writePin: () => true,
   webHosts: new Map(),
   sessionController: () => ({ create: async (req) => ({ sessionId: 'session-probe', cwd: req.cwd }) }),
+  workspaceRegistry: () => ({ resolveByPath: () => null, create: (uncPath, title) => ({ id: 'ws-probe', title, path: uncPath }) }),
 });
 
 const results = [];
@@ -98,6 +99,16 @@ results.push({ name: 'WSL1 发行版：拒绝', ok: v1.ok === false && v1.code =
 results.push({ name: 'WSL1 发行版：文案说明仅支持 WSL2', ok: v1.ok === false && String(v1.message).indexOf('WSL2') >= 0, detail: String(v1.message || '').slice(0, 120) });
 
 results.push({ name: '异步发行版清单被实际调用', ok: asyncNamesCalls > 0, detail: String(asyncNamesCalls) });
+
+const uncHome = String.fromCharCode(92) + String.fromCharCode(92) + 'wsl.localhost' + String.fromCharCode(92) + REAL + String.fromCharCode(92) + 'home';
+const listUnc = await call(() => handlers.handlers['explorer.listDir']({ path: uncHome }));
+results.push({ name: 'listDir 接受 UNC 路径', ok: listUnc.ok === true && listUnc.value && listUnc.value.path === '/home', detail: listUnc.ok ? String(listUnc.value.path) : String(listUnc.message).slice(0, 120) });
+const addUnc = await call(() => handlers.handlers['explorer.addWorkspace']({ path: uncHome }));
+results.push({ name: 'addWorkspace 接受 UNC 路径', ok: addUnc.ok === true, detail: addUnc.ok ? String(addUnc.value && addUnc.value.uncPath) : String(addUnc.message).slice(0, 120) });
+const mismatch = await call(() => handlers.handlers['explorer.listDir']({ distro: FAKE, path: uncHome }));
+results.push({ name: 'UNC 与显式 distro 不一致 ⇒ E_ARG', ok: mismatch.ok === false && mismatch.code === 'E_ARG', detail: String(mismatch.message || '').slice(0, 120) });
+const unknownUnc = await call(() => handlers.handlers['explorer.listDir']({ path: String.fromCharCode(92) + String.fromCharCode(92) + 'wsl.localhost' + String.fromCharCode(92) + 'no-such-distro-xyz' + String.fromCharCode(92) + 'home' }));
+results.push({ name: 'UNC 里的未知发行版 ⇒ E_ARG', ok: unknownUnc.ok === false && unknownUnc.code === 'E_ARG', detail: String(unknownUnc.code) });
 
 const summary = { generatedAt: new Date().toISOString(), real: REAL, fake: FAKE, total: results.length, pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok).length, results };
 fs.writeFileSync(path.join(DIR, 'out-host-distro.json'), JSON.stringify(summary, null, 2) + '\n', 'utf8');

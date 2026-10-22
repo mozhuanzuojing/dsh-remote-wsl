@@ -138,10 +138,33 @@ window.__ModuleLoader__.load({
 				setFocusIndex(-1);
 			}, [setSearch]);
 
+			/** UNC 路径 → { distro, linuxPath }；不是 WSL UNC 时返回 null（与 host 的 unc-path 同一规则）。 */
+			const parseWslUncInput = (value) => {
+				const text = String(value ?? "").trim().split("\\").join("/");
+				if (!text.startsWith("//")) return null;
+				const parts = text.slice(2).split("/");
+				const server = (parts.shift() ?? "").toLowerCase();
+				if (server !== "wsl.localhost" && server !== "wsl$") return null;
+				const distro = (parts.shift() ?? "").trim();
+				if (!distro) return null;
+				const tail = parts.join("/");
+				return { distro, linuxPath: tail ? "/" + tail : "/" };
+			};
+
 			const submitPath = React.useCallback(() => {
 				const raw = String(pathInput).trim();
 				if (raw.length === 0) {
 					setPathError(t("browser.pathRequired"));
+					return;
+				}
+				const unc = parseWslUncInput(raw);
+				if (unc !== null) {
+					const current = typeof api.getDistro === "function" ? api.getDistro() : null;
+					if (current && unc.distro !== current) {
+						setPathError(t("browser.pathOtherDistro", { distro: unc.distro, current }));
+						return;
+					}
+					jumpTo(unc.linuxPath);
 					return;
 				}
 				if (!raw.startsWith("/")) {
