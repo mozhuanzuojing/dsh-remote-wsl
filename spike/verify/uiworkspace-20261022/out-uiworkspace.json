@@ -1,0 +1,20 @@
+{
+  "probe": "probe-uiworkspace.ts",
+  "generatedAt": "2026-10-22T06:52:10.000Z",
+  "instance": {
+    "command": "dsh web --port 8917 --no-open",
+    "profile": "web（bundles: @deepseek-ai/dsh-base, @deepseek-ai/dsh-web-app, dsh-remote-wsl）",
+    "browser": "Chrome/155.0.8059.84 headless=new + CDP 8966",
+    "note": "exit 0；同一结论连跑两轮（14:46 与 14:52）一致"
+  },
+  "raw": {
+    "document.title": "DeepSeek Harness",
+    "document.readyState": "complete",
+    "PROBE_JSON": "{\"at\":\"apply\",\"get\":\"function\",\"tries\":[{\"label\":\"apply\",\"uiHit\":false,\"localeHit\":false},{\"label\":\"t+1500\",\"uiHit\":true,\"startSession\":\"function\",\"openSession\":\"function\",\"listDirectory\":\"function\",\"localeHit\":true},{\"label\":\"t+4000\",\"uiHit\":true,\"startSession\":\"function\",\"openSession\":\"function\",\"listDirectory\":\"function\",\"localeHit\":true}]}"
+  },
+  "reading": {
+    "apply 期": "ctx.get('uiWorkspace') 与 ctx.get('locale') 都还是 undefined（provider fiber 尚未 ACTIVE；cordis 的 get 默认 strict=true）",
+    "t+1500 / t+4000": "两者都命中；uiWorkspace 上 startSession/openSession/listDirectory 均为 function",
+    "结论": "第三方 client 插件的 ctx 在用户可点击的时机一定能拿到 uiWorkspace；'拿不到就静默回落' 不再是主路径风险"
+  }
+}

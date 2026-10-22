@@ -92,6 +92,10 @@
 
 **未复核（T11 报告 §6）**：UNC 工作区**真开会话**的文件工具路径、跨 batch 的 `inject`/`require.async` 行为、9P 写入的性能与语义风险。
 
+> **2026-10-22 更新**：其中「UNC 工作区 `startSession` 能不能真开一个会话」**已核实**（web 实例 + CDP 端到端：
+> `addWorkspace(UNC)` → `ctx.get('uiWorkspace').startSession(ws.id)` → `mainReference` 变新 session、主视图切换；
+> 见 `spike/verify/uiworkspace-20261022/REPORT-uiworkspace-verified.md`）。仍未核实的是**开会话后文件工具在 9P 上的行为**与性能。
+
 ## 3. 采纳清单（按价值/成本排序）
 
 | # | 采纳项 | 为什么 | 怎么做（具体） | 成本 | 风险 |

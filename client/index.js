@@ -565,3 +565,6 @@ window.__ModuleLoader__.load({
 // 2026-10-21 目标列表对齐 VS Code WSL TARGETS：browser/tail/i18n/CSS 改动，刷新入口 rev。
 
 // 2026-10-21 修折叠区崩溃：onToggle 先取 open 再进 updater（currentTarget 会被 React 置空）。
+
+// 2026-10-22 uiWorkspace 端到端验证（web 实例 + CDP）：header chunk 里 startSession 改为按 thenable
+// 兜底（当前实现同步返回 undefined）；刷新入口 rev。

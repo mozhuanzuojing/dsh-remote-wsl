@@ -98,12 +98,18 @@ function renderHeader(props) {
 								if (cwd === null) return;
 								if (primaryIsSession) {
 									run(`openbrowse:${cwd}`, async (signal) => {
-// 先登记 UNC 工作区，再用客户端工作区导航开一个新会话（与侧栏「新会话」同一路径；
-// 它会真正切到主视图）。uiWorkspace 不可用时回落到 host 的 explorer.newSession。
+// 先登记 UNC 工作区，再用客户端工作区导航开一个新会话（与侧栏「新会话」同一条路径；
+// 它会真正切到主视图）。uiWorkspace 取不到时回落到 host 的 explorer.newSession。
+// 2026-10-22 实测（web profile 实例 + CDP，见 spike/verify/uiworkspace-20261022/）：
+//   · apply() 期 ctx.get("uiWorkspace") 还是 undefined（provider fiber 未 ACTIVE）；
+//     等 chunk 就绪、用户真能点按钮时它一定可用（startSession/openSession/listDirectory 都是函数）；
+//   · startSession(workspaceId) **同步**返回 undefined，且自己吞掉失败（console.warn + 平台 toast）。
+//     所以这里不靠返回值判断成败；只按 thenable 兜一层，将来它若改成返回 Promise 也不会丢错误。
 const ws = await api.addWorkspace({ path: cwd }, signal);
 const nav = ctx && typeof ctx.get === "function" ? ctx.get("uiWorkspace") : undefined;
 if (ws && ws.ok === true && ws.id && nav && typeof nav.startSession === "function") {
-nav.startSession(ws.id);
+const opening = nav.startSession(ws.id);
+if (opening && typeof opening.then === "function") await opening;
 return { ok: true, workspaceId: ws.id, cwd: ws.uncPath };
 }
 return api.newSession({ path: cwd }, signal);
