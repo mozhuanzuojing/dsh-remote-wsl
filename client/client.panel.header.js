@@ -227,7 +227,7 @@ function renderHeader(props) {
 						"aria-label": daemon.running === true ? t("status.daemonRunning") : t("status.daemonOff"),
 						title:
 							daemon.running === true
-								? t("status.daemonPillOn", { slot: daemonSlot === null ? "?" : daemonSlot, pid: typeof daemon.pid === "number" ? daemon.pid : "?" })
+								? t("status.daemonPillOn", { slot: daemonSlot === null ? "?" : daemonSlot, pid: typeof daemon.pid === "number" ? daemon.pid : "?", version: typeof daemon.version === "string" && daemon.version.length ? daemon.version : "?" })
 								: t("status.daemonPillOff"),
 						onClick: () => {
 							if (daemon.running !== true && action.busy === null) runDaemon("ensure");

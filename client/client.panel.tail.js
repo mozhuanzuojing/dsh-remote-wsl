@@ -76,7 +76,7 @@ function renderTail(props) {
 								{ key: "facts", className: "dsh-rw-readonly" },
 								React.createElement("div", { className: "dsh-rw-readonly-head" }, t("advanced.title")),
 								React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.distro", { distro: activeDistro === null ? "?" : activeDistro })),
-								React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.daemon", { slot: daemonSlot === null ? "?" : daemonSlot, pid: daemon !== null && typeof daemon.pid === "number" ? daemon.pid : "?" })),
+								React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.daemon", { slot: daemonSlot === null ? "?" : daemonSlot, pid: daemon !== null && typeof daemon.pid === "number" ? daemon.pid : "?", version: daemon !== null && typeof daemon.version === "string" && daemon.version.length ? daemon.version : "?" })),
 								driftKnown && drift.drifted === true ? React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.drift")) : null,
 							),
 						);

@@ -518,6 +518,8 @@ window.__ModuleLoader__.load({
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
 
+// 2026-10-22 守护版本进药丸 title 与诊断行；未运行提示补生命周期说明。
+
 // 2026-10-22 结果条收敛、开会话后刷新、最近文件夹显示全路径；刷新入口 rev。
 
 // 2026-10-21 目标切换入口 + 远端会话卡（browser/actions/i18n/CSS）；刷新入口 rev。

@@ -34,7 +34,7 @@ window.__ModuleLoader__.load({
 			"browser.enter": "进入",
 			"menu.copied": "已复制诊断摘要",
 			"advanced.distro": "发行版：{distro}",
-			"advanced.daemon": "守护：槽位 {slot} · 进程 {pid}",
+			"advanced.daemon": "守护：槽位 {slot} · 进程 {pid} · 版本 {version}",
 			"advanced.drift": "配置漂移：desktop 与 pin 不一致",
 			"confirm.body": "{consequence}（影响：「{distro}」上正在运行的 {count} 个会话）",
 
@@ -45,8 +45,8 @@ window.__ModuleLoader__.load({
 			// 这里去掉行内的前导 `· `（分隔符只由 JSX 提供一处）。
 			"status.readingExtra": "状态读取中…",
 			"status.updated": "更新于 {time}",
-			"status.daemonPillOn": "守护运行中（slot {slot} · pid {pid}）",
-			"status.daemonPillOff": "守护未运行 —— 点击启动",
+			"status.daemonPillOn": "守护运行中 · 版本 {version} · slot {slot} · pid {pid}",
+			"status.daemonPillOff": "守护未运行 —— 点击启动（按需拉起；无会话且无客户端 10 分钟后自动退出）",
 			"load.readingSlow": "网络较慢，仍在读取…",
 			// T63 窄态（面板 <420）短文案：见 usability/p07-narrow/REPORT-narrow320-fix.md
 			"others.item": "实例 #{slot} · {state}",
@@ -298,7 +298,7 @@ window.__ModuleLoader__.load({
 			"browser.enter": "Open",
 			"menu.copied": "Diagnostics copied",
 			"advanced.distro": "Distro: {distro}",
-			"advanced.daemon": "Daemon: slot {slot} · process {pid}",
+			"advanced.daemon": "Daemon: slot {slot} · process {pid} · version {version}",
 			"advanced.drift": "Drift: desktop and pin disagree",
 			"confirm.body": "{consequence} (Affects: {count} running sessions on “{distro}”)",
 
@@ -307,8 +307,8 @@ window.__ModuleLoader__.load({
 			"status.stateUnknown": "Remote daemon state unknown",
 			"status.readingExtra": "reading state…",
 			"status.updated": "Updated {time}",
-			"status.daemonPillOn": "Daemon running (slot {slot} · pid {pid})",
-			"status.daemonPillOff": "Daemon stopped — click to start",
+			"status.daemonPillOn": "Daemon running · version {version} · slot {slot} · pid {pid}",
+			"status.daemonPillOff": "Daemon stopped — click to start (lazy; exits 10 min after the last session/client)",
 			"load.readingSlow": "Still loading…",
 			"others.item": "Instance #{slot} · {state}",
 			"others.conflictBanner": "Another instance uses slot {slot}",
