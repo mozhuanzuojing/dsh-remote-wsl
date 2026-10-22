@@ -147,6 +147,14 @@ token 不符 ⇒ `{"ok":false,"error":"unauthorized"}` 并断开（本机任意�
 - **客户端健壮性**：`ECONNREFUSED` ⇒ 自动起守护 + **重试一次**；若因此换了 sessionId，返回文本**以
   `⚠️ 远端会话已重置…` 开头**，并在元数据里带 `contextReset=yes`（绝不静默）。
 - **单实例幂等**：已有守护就复用（读元数据 + 握手判活），任何一次调用都不会起第二个守护。
+- **关停释放纪律（2026-10-22，参考 zai-org/ZCode `disposeAndWait()`）**：插件卸载/宿主退出时
+  `beginShutdown()` 先合上"新建运行时"的闸门，然后对**本插件 spawn 的每个 wsl.exe 包装层**做
+  `stdin.end()` 优雅收尾 → 宽限 300ms → 只 kill 归属表里仍在的那些 → kill 后再等 250ms 确认退出；
+  `settle(5000)` 总预算不变（干净关停约 550ms 返回），且**幂等**（disposer 与关窗路径各调一次也只跑一遍）。
+  归属表认 `exit`/`error`/`close` 三事件；`track()` 时即建 settled promise，避免"子进程在订阅前就退出
+  ⇒ settle 白等到超时"的竞态。**绝不** `wsl --terminate/--shutdown`（那是发行版级操作）。
+  `runWsl` 的短命子进程同样登记；唯独 `reapWsl` 与自有 /tmp 清扫这两条**收尾路径**豁免（否则包装层被杀、
+  Linux 侧进程会变孤儿）。证据：`spike/verify/zcode-20261022/`。
 
 ### 并发隔离与过渡期兼容（元数据按槽位分文件）
 
@@ -320,6 +328,8 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 > **「在此目录新建会话」= 真正的 DSH 会话**：host 调 `sessionController.create({ cwd })`（Web 前端「新会话」同一入口），cwd 是该 WSL 路径的 UNC；返回 sessionId，会话出现在左侧会话列表。与 `explorer.openSession`（只碰 WSL 侧守护）是两条路。
 
 > **2026-10-21 UI 重做**：头部改为「标题 + 目标 + 守护状态药丸」，卡片内三层（常去位置条 / 上一级+面包屑 / 路径框+筛选框同排），列表吃满剩余高度（原先 72 项只显示 6 行、下方大片空白）；隐藏文件开关并入位置条；未运行守护可在头部药丸一键启动。证据与限制见 `spike/verify/ui-20261021/REPORT-ui-redesign.md`。
+
+> **2026-10-22 代理徽标 + 窄态 320/360**：头部元信息行新增代理三态徽标 `dsh-rw-proxy`（可达 / 不可达 `host:port` / 未探测），颜色 + 圆点形状 + 文字三通道，`aria-label`/`title` 是含端点的整句；数据取自既有 `snapshot.proxy`，**不新增请求**。同一轮真渲染实测发现 **HEAD 本来就溢出**：320 档面板 `scrollWidth 391 > 264`、路径行「显示隐藏」开关右边界 432.9 被卡片 `overflow:hidden` 裁成不可见不可点；修法是底栏/元信息行允许折行 + 窄态短文案（守护药丸、底栏 chip、漂移只留 ⚠）+ 根节点 `dsh-rw-root--narrow` 分档。修后 320/360/376/416/420/480/1280 七档 `scrollWidth === clientWidth`、标题恒 1 行、主按钮完整可见。代价：面板 ≤304 时元信息行折 2 行、424 档底栏折 2 行。证据：`spike/verify/ui-20261022/`（含两张窄态截图）。
 
 > **多发行版**：对位 VS Code Remote Explorer 的 WSL TARGETS —— 主体顶部渲染「WSL 目标」列表（状态点 + 名字 + 默认/当前徽标 + 运行态，点行切换），`distros.length > 1` 才出现；单发行版不摆死控件。切换只影响**本面板的请求**（`api.setDistro` → 每个方法带 `distro`），不写插件配置；host 用 `wsl -l -q` 校验名字，未知 ⇒ 400。选择记在 `localStorage['dsh-remote-wsl.distro']`。目标行内有「切换 / 设为默认 / 停止」三个动作；有会话时还会多一张「远端会话」卡：列出 `cwd + sessionId 前 8 位`，点「打开」附到该会话（不会新建）。每个发行版下面列出**该发行版的最近文件夹**（最多 3 条，点击跳转；不是当前目标时点击会先切到该发行版）；底栏另有 `WSL: 发行版` chip，点开是同一组动作（启动守护 / 停止守护 / 设为默认）。
 
