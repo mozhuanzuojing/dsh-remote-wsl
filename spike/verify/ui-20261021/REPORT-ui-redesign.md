@@ -84,6 +84,11 @@
 现新增 explorer.newSession（方法表第 7 个）：把浏览路径转成 UNC，调 create({ cwd })，返回 sessionId。
 顺带修了 WSL 版本解析：probeDistroState 之前从未写入 versions，所以列表里的 WSL1/WSL2 一直是 null。
 
+## 3.4 仅支持 WSL2（2026-10-22）
+
+WSL1 不支持：host 的 resolveDistro 对 version===1 的发行版（含配置里的默认发行版）直接 400，文案提示用 wsl --set-version 升级；
+面板把 WSL1 行标灰、只显示「仅支持 WSL2」徽标、不给切换/设为默认/停止动作。
+
 ## 4. 未验证 / 限制（如实写）
 
 - **没有真实浏览器的像素/键盘验收**：本机无法在会话内起隔离浏览器跑面板；探针只证明结构、类名、可访问属性与回调接线。

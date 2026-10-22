@@ -81,6 +81,8 @@ window.__ModuleLoader__.load({
 			".dsh-rw-target{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:28px;padding:4px 8px;border-radius:6px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left;}",
 			".dsh-rw-target:hover{background:var(--dsw-alias-interactive-bg-hover)}",
 			".dsh-rw-target--on{background:var(--dsw-alias-interactive-bg-active)}",
+			".dsh-rw-target--unsupported{opacity:0.55}",
+			".dsh-rw-badge--warn{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-targetname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;direction:ltr;unicode-bidi:isolate}",
 			".dsh-rw-targetstate{flex:none;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-tchip{position:relative;flex:none}",
@@ -517,6 +519,8 @@ window.__ModuleLoader__.load({
 
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
+
+// 2026-10-22 仅支持 WSL2：WSL1 行标灰 + 无动作；刷新入口 rev。
 
 // 2026-10-22 i18n 修正后再次刷新入口 rev。
 

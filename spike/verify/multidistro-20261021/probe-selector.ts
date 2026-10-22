@@ -91,6 +91,14 @@ check('其他发行版的文件夹：点击切换到该发行版', calls.indexOf
 const rows1 = nodes1.filter((n) => n.type === 'div' && String(n.props && n.props.className).split(' ').indexOf('dsh-rw-target') >= 0);
 check('单发行版：仍列出本机这 1 个发行版', rows1.length === 1, 'count=' + rows1.length);
 
+// 场景 3：WSL1 发行版 ⇒ 标为不支持、不给动作
+const bodyV1 = render([{ name: 'debian-u8-1', default: true, reachable: true, version: 2 }, { name: 'Ubuntu-18.04', default: false, reachable: true, version: 1 }], 'debian-u8-1', {});
+const nodesV1 = bodyV1.map((n) => walk(n, [])).flat();
+const v1Row = nodesV1.find((n) => n.type === 'div' && String(n.props && n.props.className).indexOf('dsh-rw-target--unsupported') >= 0);
+check('WSL1：行标为不支持', !!v1Row);
+check('WSL1：行内没有动作按钮', !!v1Row && walk(v1Row, []).filter((n) => n.type === 'button' && String(n.props.className).indexOf('dsh-rw-link') >= 0).length === 0);
+check('WSL1：显示仅支持 WSL2', nodesV1.some((n) => (n.children || []).join('').indexOf('targets.wsl1Only') >= 0));
+
 const summary = { generatedAt: new Date().toISOString(), total: results.length, pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok).length, results };
 fs.writeFileSync(path.join(DIR, 'out-selector.json'), JSON.stringify(summary, null, 2) + '\n', 'utf8');
 for (const r of results) console.log((r.ok ? 'PASS ' : 'FAIL ') + r.name + (r.detail ? '  —— ' + r.detail : ''));

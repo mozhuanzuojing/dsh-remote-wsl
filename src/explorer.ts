@@ -373,12 +373,22 @@ export function createExplorerHandlers(deps) {
    */
   function resolveDistro(args) {
     const raw = str(args?.distro).trim();
-    if (!raw) return cfg.distro;
-    const names = readDistroFacts().names;
+    if (!raw) {
+      const facts0 = readDistroFacts();
+      const v0 = facts0.flags && facts0.flags.versions && typeof facts0.flags.versions.get === 'function' ? facts0.flags.versions.get(cfg.distro) : null;
+      if (v0 === 1) failArg('remote-wsl: 配置的发行版 "' + cfg.distro + '" 是 WSL1；本插件只支持 WSL2（可先执行 wsl --set-version ' + cfg.distro + ' 2 升级）');
+      return cfg.distro;
+    }
+    const facts = readDistroFacts();
+    const names = facts.names;
     if (!Array.isArray(names) || names.indexOf(raw) < 0) {
       failArg(
         `remote-wsl: 未知发行版 "${raw}"（本机 wsl -l -q：${(Array.isArray(names) && names.length ? names.join('、') : '(读不到)')}）`,
       );
+    }
+    const versionOf = facts.flags && facts.flags.versions && typeof facts.flags.versions.get === 'function' ? facts.flags.versions.get(raw) : null;
+    if (versionOf === 1) {
+      failArg('remote-wsl: 发行版 "' + raw + '" 是 WSL1；本插件只支持 WSL2（可先执行 wsl --set-version ' + raw + ' 2 升级）');
     }
     return raw;
   }

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-22T01:41:52.917Z",
-  "total": 12,
-  "pass": 12,
+  "generatedAt": "2026-10-22T01:46:24.858Z",
+  "total": 15,
+  "pass": 15,
   "fail": 0,
   "results": [
     {
@@ -63,6 +63,21 @@
       "name": "单发行版：仍列出本机这 1 个发行版",
       "ok": true,
       "detail": "count=1"
+    },
+    {
+      "name": "WSL1：行标为不支持",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "WSL1：行内没有动作按钮",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "WSL1：显示仅支持 WSL2",
+      "ok": true,
+      "detail": ""
     }
   ]
 }

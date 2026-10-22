@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-22T01:41:55.573Z",
+  "generatedAt": "2026-10-22T01:46:25.314Z",
   "real": "debian-u8-1",
   "fake": "probe-no-such-distro",
-  "total": 12,
-  "pass": 12,
+  "total": 14,
+  "pass": 14,
   "fail": 0,
   "results": [
     {
@@ -14,7 +14,7 @@
     {
       "name": "未知发行版：文案点名请求名",
       "ok": true,
-      "detail": "remote-wsl: 未知发行版 \"definitely-not-a-distro\"（本机 wsl -l -q：debian-u8-1、probe-no-such-distro）"
+      "detail": "remote-wsl: 未知发行版 \"definitely-not-a-distro\"（本机 wsl -l -q：debian-u8-1、probe-no-such-distro、probe-wsl1-distro）"
     },
     {
       "name": "未运行发行版：listDir 503",
@@ -39,7 +39,7 @@
     {
       "name": "真实发行版：distros 含运行态字段",
       "ok": true,
-      "detail": "[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true,\"version\":2},{\"name\":\"probe-no-such-distro\",\"default\":false,\"reachable\":false,\"version\":null}]"
+      "detail": "[{\"name\":\"debian-u8-1\",\"default\":true,\"reachable\":true,\"version\":2},{\"name\":\"probe-no-such-distro\",\"default\":false,\"reachable\":false,\"version\":null},{\"name\":\"pr"
     },
     {
       "name": "未运行发行版：snapshot 不抛、target 仍是它",
@@ -65,6 +65,16 @@
       "name": "newSession：拒绝 .. 路径",
       "ok": true,
       "detail": "E_ARG"
+    },
+    {
+      "name": "WSL1 发行版：拒绝",
+      "ok": true,
+      "detail": "E_ARG"
+    },
+    {
+      "name": "WSL1 发行版：文案说明仅支持 WSL2",
+      "ok": true,
+      "detail": "remote-wsl: 发行版 \"probe-wsl1-distro\" 是 WSL1；本插件只支持 WSL2（可先执行 wsl --set-version probe-wsl1-distro 2 升级）"
     }
   ]
 }

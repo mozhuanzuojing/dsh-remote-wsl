@@ -63,7 +63,7 @@ window.__ModuleLoader__.load({
 									{
 										key: "target:" + row.name,
 										role: "listitem",
-										className: "dsh-rw-target" + (active ? " dsh-rw-target--on" : ""),
+										className: "dsh-rw-target" + (active ? " dsh-rw-target--on" : "") + (row.version === 1 ? " dsh-rw-target--unsupported" : ""),
 										"aria-current": active ? "true" : undefined,
 										"aria-label": t(active ? "targets.currentAria" : "targets.switchAria", { distro: row.name }),
 										title: active ? t("targets.currentTitle") : t("targets.switchTitle", { distro: row.name }),
@@ -71,10 +71,11 @@ window.__ModuleLoader__.load({
 									React.createElement(StatusDot, { kind: row.reachable === true ? "running" : "stopped" }),
 									React.createElement("span", { className: "dsh-rw-targetname", dir: "ltr" }, row.name),
 									row.version === 1 || row.version === 2 ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.wslVersion", { version: row.version })) : null,
+									row.version === 1 ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--warn" }, t("targets.wsl1Only")) : null,
 									row.default === true ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.default")) : null,
 									active ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--on" }, t("targets.current")) : null,
 									React.createElement("span", { className: "dsh-rw-targetstate" }, row.reachable === true ? t("targets.running") : t("targets.stopped")),
-									React.createElement(
+									row.version === 1 ? null : React.createElement(
 										"span",
 										{ className: "dsh-rw-targetacts" },
 										!active ? React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onDistroChange === "function") onDistroChange(row.name); } }, t("targets.switch")) : null,
