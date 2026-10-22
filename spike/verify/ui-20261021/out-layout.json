@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-22T06:06:35.775Z",
-  "total": 23,
-  "pass": 23,
+  "generatedAt": "2026-10-22T06:20:38.556Z",
+  "total": 25,
+  "pass": 25,
   "fail": 0,
   "results": [
     {
@@ -78,6 +78,16 @@
       "name": "会话卡：打开回调带 distro+cwd",
       "ok": true,
       "detail": "{\"distro\":\"debian-u8-1\",\"path\":\"/home/g/proj\"}"
+    },
+    {
+      "name": "会话卡：显示轮次与空闲",
+      "ok": true,
+      "detail": "sessions.meta:{\"turns\":3,\"idle\":\"?\"}"
+    },
+    {
+      "name": "会话卡：复制按钮带完整 sessionId",
+      "ok": true,
+      "detail": "abc12345"
     },
     {
       "name": "折叠区：诊断 details 存在",

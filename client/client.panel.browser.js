@@ -28,6 +28,7 @@ window.__ModuleLoader__.load({
 				Entries, search, searchChange, searchRef, searching,
 				setCollapsed, setPathError, setPathInput, setShowHidden, showHidden,
 				snapshot, submitPath, t, target, totalEntries, visibleEntries, onDistroChange,
+				copyNote, onCopySession, formatIdle,
 			} = props;
 
 
@@ -124,6 +125,7 @@ window.__ModuleLoader__.load({
 							{ className: "dsh-rw-cardhead" },
 							React.createElement("span", { className: "dsh-rw-grouptitle" }, t("sessions.title")),
 							React.createElement("span", { className: "dsh-rw-hint" }, t("sessions.count", { count: sessions.length })),
+							copyNote ? React.createElement("span", { className: "dsh-rw-hint dsh-rw-copied" }, t("sessions.copied")) : null,
 						),
 						sessions.map((row, index) =>
 							React.createElement(
@@ -132,7 +134,21 @@ window.__ModuleLoader__.load({
 								icon("clock"),
 								React.createElement("span", { className: "dsh-rw-sessionpath", dir: "ltr", title: row.cwd || "" }, row.cwd || "?"),
 								row.sessionId ? React.createElement("span", { className: "dsh-rw-badge", title: String(row.sessionId) }, t("sessions.id", { id: String(row.sessionId).slice(0, 8) })) : null,
+								React.createElement("span", { className: "dsh-rw-sessionmeta" }, t("sessions.meta", { turns: Number(row.turns) || 0, idle: typeof formatIdle === "function" ? formatIdle(row.idleForMs) : "?" })),
 								React.createElement("span", { className: "dsh-rw-spacer" }),
+								row.sessionId
+									? React.createElement(
+											"button",
+											{
+												type: "button",
+												className: "dsh-rw-link",
+												title: t("sessions.copyTitle"),
+												"aria-label": t("sessions.copyTitle"),
+												onClick: () => { if (typeof onCopySession === "function") onCopySession(String(row.sessionId)); },
+											},
+											t("sessions.copy"),
+										)
+									: null,
 								React.createElement(
 									"button",
 									{

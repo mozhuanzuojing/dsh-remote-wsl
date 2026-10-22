@@ -131,10 +131,13 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
   check('目录卡：没有 cardhead 占位', !!browserCard && cardNodes.every((n) => String(n.props && n.props.className).indexOf('dsh-rw-cardhead') < 0));
   check('目录卡：列表容器在卡片内', classes.some((c) => c.indexOf('dsh-rw-card') >= 0) && nodes.some((n) => typeof n.type === 'function'));
   let opened = null;
+  let copied = null;
   const body3 = [];
   mod.renderBrowser(Object.assign({}, browserProps, {
     body: body3,
-    sessions: [{ cwd: '/home/g/proj', sessionId: 'abc12345' }],
+    sessions: [{ cwd: '/home/g/proj', sessionId: 'abc12345', turns: 3, idleForMs: 125000 }],
+    onCopySession: (id) => { copied = id; },
+    copyNote: null,
     api: { openSession: async (input) => { opened = input; return { sessionId: 'abc12345' }; } },
     run: (key, op) => { op({}); },
     openSessionNote: () => 'ok',
@@ -145,6 +148,11 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
   const openBtn = nodes3.find((n) => n.type === 'button' && (n.children || []).join('').indexOf('sessions.open') >= 0);
   if (openBtn) openBtn.props.onClick();
   check('会话卡：打开回调带 distro+cwd', !!opened && opened.distro === 'debian-u8-1' && opened.path === '/home/g/proj', JSON.stringify(opened));
+  const metaNode = nodes3.find((n) => String(n.props && n.props.className).indexOf('dsh-rw-sessionmeta') >= 0);
+  check('会话卡：显示轮次与空闲', !!metaNode && String(metaNode.children).indexOf('sessions.meta') >= 0, metaNode ? String(metaNode.children) : '');
+  const copyBtn = nodes3.find((n) => n.type === 'button' && (n.children || []).join('').indexOf('sessions.copy') >= 0);
+  if (copyBtn) copyBtn.props.onClick();
+  check('会话卡：复制按钮带完整 sessionId', copied === 'abc12345', String(copied));
 }
 
 // ── 3) 折叠区交互：onToggle 的 currentTarget 在 updater 执行前会被 React 置空 ─────────

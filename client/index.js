@@ -91,6 +91,8 @@ window.__ModuleLoader__.load({
 			".dsh-rw-tchip[open]>summary{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-tchip .dsh-rw-menu{width:200px}",
 			".dsh-rw-sessions{padding-bottom:8px}",
+			".dsh-rw-sessionmeta{color:var(--dsw-alias-label-tertiary);font-size:12px;white-space:nowrap}",
+			".dsh-rw-copied{color:var(--dsw-alias-state-success-primary)}",
 			".dsh-rw-session{display:flex;align-items:center;gap:8px;min-height:28px;padding:4px 10px}",
 			".dsh-rw-sessionpath{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:isolate}",
 			".dsh-rw-folders{display:flex;flex-direction:column;gap:1px;padding:0 8px 6px 26px}",
@@ -519,6 +521,14 @@ window.__ModuleLoader__.load({
 
 // 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
 // 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
+
+// 2026-10-22 formatIdle 由 data hook 注入 scope（不再从 helpers 解构）；刷新入口 rev。
+
+// 2026-10-22 formatIdle 移到 data chunk（helpers 触到 400 行门禁）；刷新入口 rev。
+
+// 2026-10-22 会话卡属性兜底后再刷新入口 rev。
+
+// 2026-10-22 会话卡：轮次/空闲元信息 + 复制 sessionId；刷新入口 rev。
 
 // 2026-10-22 重新扫描走 refresh（绕过 host 的 TTL 缓存）；刷新入口 rev。
 

@@ -138,6 +138,16 @@ window.__ModuleLoader__.load({
 				const [width, setWidth] = React.useState(1280);
 				const [focusIndex, setFocusIndex] = React.useState(-1);
 				const [search, setSearch] = React.useState("");
+const [copyNote, setCopyNote] = React.useState(null);
+// 复制 sessionId（面板会话卡）：成功后短暂显示「已复制」，失败静默（不打断浏览）
+const copySession = React.useCallback((id) => {
+  const done = () => {
+    setCopyNote(id);
+    setTimeout(() => setCopyNote((cur) => (cur === id ? null : cur)), 1500);
+  };
+  const clip = typeof navigator !== "undefined" ? navigator.clipboard : null;
+  if (clip && typeof clip.writeText === "function") clip.writeText(id).then(done, () => {});
+}, []);
 				const [, forceLocale] = React.useReducer((n) => n + 1, 0);
 
 				const readSeq = React.useRef(0);
@@ -200,7 +210,7 @@ window.__ModuleLoader__.load({
 	setPending, setRecent, setRecentOk, setShowHidden,
 	setSlow, setState, setWidth, showHidden,
 	signalOf, slow, splitFirstSentence, splitHumanText,
-	state, t, width, i18n,
+	state, t, width, i18n, copyNote, onCopySession: copySession,
 	search, setSearch, searchRef, navSeq,
 	dirCache, filterEntries, sortEntries, VIRTUAL_MIN_ROWS,
 					body,

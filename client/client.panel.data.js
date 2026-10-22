@@ -21,6 +21,16 @@ window.__ModuleLoader__.load({
 
 		const React = require("react");
 
+		/** 空闲时长的人类可读形式（会话卡用）：<1m 记 '<1m'，其余 m/h/d。 */
+		function formatIdle(ms) {
+			const value = Number(ms);
+			if (!Number.isFinite(value) || value < 0) return "?";
+			if (value < 60000) return "<1m";
+			if (value < 3600000) return Math.floor(value / 60000) + "m";
+			if (value < 86400000) return Math.floor(value / 3600000) + "h";
+			return Math.floor(value / 86400000) + "d";
+		}
+
 		function useDirectoryNavigation(props) {
 			const {
 				React, api, asArray, isRecord, normalizeWslPath,
@@ -174,7 +184,7 @@ window.__ModuleLoader__.load({
 				jumpTo(raw);
 			}, [jumpTo, pathInput, t]);
 
-			return { listPath, jumpTo, submitPath, clearSearch, prefetchDir, cancelPrefetch };
+			return { listPath, jumpTo, submitPath, clearSearch, prefetchDir, cancelPrefetch, formatIdle };
 		}
 
 		exports.useDirectoryNavigation = useDirectoryNavigation;
