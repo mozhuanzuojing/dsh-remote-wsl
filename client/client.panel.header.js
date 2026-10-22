@@ -97,7 +97,7 @@ function renderHeader(props) {
 							onClick: () => {
 								if (cwd === null) return;
 								if (primaryIsSession) {
-									run(`openbrowse:${cwd}`, (signal) => api.openSession({ distro: activeDistro, path: cwd }, signal), { describe: (result) => openSessionNote(t, result) });
+									run(`openbrowse:${cwd}`, (signal) => api.openSession({ distro: activeDistro, path: cwd }, signal), { describe: (result) => openSessionNote(t, result), refresh: true });
 									return;
 								}
 								run(`a1:${cwd}`, (signal) => api.addWorkspace({ path: cwd }, signal), {
@@ -144,7 +144,7 @@ function renderHeader(props) {
 							{ key: "action", className: "dsh-rw-note" + (action.error !== null ? " dsh-rw-note--error" : ""), role: action.error !== null ? "alert" : "status" },
 							React.createElement(
 								"div",
-								{ className: "dsh-rw-note-text", title: action.detail === null ? undefined : action.detail },
+								{ className: "dsh-rw-note-text" + (action.error === null ? " dsh-rw-note-text--clamp" : ""), title: action.error === null ? action.note : undefined },
 								action.error !== null ? t("note.failure", { msg: errorText(action.error) }) : action.note,
 								action.error !== null
 									? React.createElement(

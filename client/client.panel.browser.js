@@ -100,7 +100,7 @@ window.__ModuleLoader__.load({
 														onClick: (event) => { event.stopPropagation(); if (active) jumpTo(path); else if (typeof onDistroChange === "function") onDistroChange(row.name); },
 													},
 													icon("folder"),
-													React.createElement("span", { className: "dsh-rw-folder-name", dir: "ltr" }, String(path).split("/").filter(Boolean).pop() || path),
+													React.createElement("span", { className: "dsh-rw-folder-name", dir: "ltr" }, String(path)),
 												),
 											),
 										),
