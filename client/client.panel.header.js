@@ -97,7 +97,17 @@ function renderHeader(props) {
 							onClick: () => {
 								if (cwd === null) return;
 								if (primaryIsSession) {
-									run(`openbrowse:${cwd}`, (signal) => api.newSession({ path: cwd }, signal), { describe: (result) => t("session.dshCreated", { id: String(result && result.sessionId ? result.sessionId : "?"), cwd: String(result && result.cwd ? result.cwd : cwd) }), refresh: true });
+									run(`openbrowse:${cwd}`, async (signal) => {
+// 先登记 UNC 工作区，再用客户端工作区导航开一个新会话（与侧栏「新会话」同一路径；
+// 它会真正切到主视图）。uiWorkspace 不可用时回落到 host 的 explorer.newSession。
+const ws = await api.addWorkspace({ path: cwd }, signal);
+const nav = ctx && typeof ctx.get === "function" ? ctx.get("uiWorkspace") : undefined;
+if (ws && ws.ok === true && ws.id && nav && typeof nav.startSession === "function") {
+nav.startSession(ws.id);
+return { ok: true, workspaceId: ws.id, cwd: ws.uncPath };
+}
+return api.newSession({ path: cwd }, signal);
+}, { describe: (result) => result && result.workspaceId ? t("session.opened", { cwd: String(result.cwd || cwd) }) : t("session.dshCreated", { id: String(result && result.sessionId ? result.sessionId : "?"), cwd: String(result && result.cwd ? result.cwd : cwd) }), refresh: true });
 									return;
 								}
 								run(`a1:${cwd}`, (signal) => api.addWorkspace({ path: cwd }, signal), {

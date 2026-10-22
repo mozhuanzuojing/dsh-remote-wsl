@@ -315,6 +315,8 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 
 > **仅支持 WSL2**：WSL1 发行版在「WSL 目标」里标灰、不给任何动作，host 侧所有方法也会直接拒绝（提示先 `wsl --set-version <名字> 2`）。
 
+> **「在此目录新建会话」**：先登记 UNC 工作区，再走客户端 `uiWorkspace.startSession(workspaceId)`（与侧栏「新会话」同一条路径，会切到新会话主视图）；客户端没有该服务时回落到 host 的 `explorer.newSession`。
+
 > **「在此目录新建会话」= 真正的 DSH 会话**：host 调 `sessionController.create({ cwd })`（Web 前端「新会话」同一入口），cwd 是该 WSL 路径的 UNC；返回 sessionId，会话出现在左侧会话列表。与 `explorer.openSession`（只碰 WSL 侧守护）是两条路。
 
 > **2026-10-21 UI 重做**：头部改为「标题 + 目标 + 守护状态药丸」，卡片内三层（常去位置条 / 上一级+面包屑 / 路径框+筛选框同排），列表吃满剩余高度（原先 72 项只显示 6 行、下方大片空白）；隐藏文件开关并入位置条；未运行守护可在头部药丸一键启动。证据与限制见 `spike/verify/ui-20261021/REPORT-ui-redesign.md`。

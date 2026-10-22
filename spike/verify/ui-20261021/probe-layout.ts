@@ -53,7 +53,7 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
     HIDE_UPDATED_PX: 720, NARROW_PX: 420, RECENT_KEY: 'k', RECENT_MAX: 8,
     React, StatusDot: () => null, action: { busy: null, note: null, detail: null, error: null }, actionAbort: { current: null },
     actionFailure: () => '', actionFailureText: () => '', activeDistro: 'debian-u8-1',
-    addWorkspaceErrorText: () => '', addWorkspaceNote: () => '', api: { addWorkspace: async () => ({}), newSession: async (input) => { createdFor = input; return { sessionId: 's1', cwd: '\\\\wsl.localhost\\debian-u8-1\\home\\g' }; } },
+    addWorkspaceErrorText: () => '', addWorkspaceNote: () => '', api: { addWorkspace: async (input) => { addedFor = input; return { ok: true, id: 'ws1', uncPath: 'UNC' }; }, newSession: async (input) => { createdFor = input; return { sessionId: 's1', cwd: 'UNC' }; } },
     asArray: (v) => (Array.isArray(v) ? v : []), body: [], breadcrumbOf: () => [], browse: { cwd: '/home/g' },
     browseAbort: { current: null }, browseSeq: { current: 0 }, cancelRef: { current: null }, clock: () => '',
     closeMenu: () => {}, collapsed: {}, ctx: {}, cwd: '/home/g', cwdDiffersFromTarget: false,
@@ -76,11 +76,17 @@ const t = (key, vars) => key + (vars ? ':' + JSON.stringify(vars) : '');
     t, target: { distro: 'debian-u8-1', cwd: '/home/g', wslHome: '/home/g' }, visibleEntries: [], width: 900,
   };
   let createdFor = null;
+  let addedFor = null;
+  let startedWs = null;
   const off = mod.renderHeader(base);
-  const inSubdir = mod.renderHeader(Object.assign({}, base, { cwd: '/home/g/project', cwdDiffersFromTarget: true }));
+  const inSubdir = mod.renderHeader(Object.assign({}, base, { cwd: '/home/g/project', cwdDiffersFromTarget: true, ctx: { get: (name) => (name === 'uiWorkspace' ? { startSession: (id) => { startedWs = id; } } : undefined) } }));
   const primary = inSubdir.headerButtons.map((b) => walk(b, [])).flat().find((n) => n.type === 'button' && String(n.props.className).indexOf('dsh-rw-btn--primary') >= 0);
   if (primary) primary.props.onClick();
-  check('头部：主按钮创建 DSH 会话（带 cwd）', !!createdFor && createdFor.path === '/home/g/project', JSON.stringify(createdFor));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  check('头部：主按钮先登记工作区', !!addedFor && addedFor.path === '/home/g/project', JSON.stringify(addedFor));
+  check('头部：再调 uiWorkspace.startSession 打开新会话', startedWs === 'ws1', String(startedWs));
+  check('头部：不回落 host newSession', createdFor === null, JSON.stringify(createdFor));
   const offNodes = walk(off.daemonPill, []);
   const pill = offNodes.find((n) => String(n.props && n.props.className).indexOf('dsh-rw-daemon') >= 0);
   check('头部：未运行时渲染药丸', !!pill, pill ? String(pill.props.className) : 'none');

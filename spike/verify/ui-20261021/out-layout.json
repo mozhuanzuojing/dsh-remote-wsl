@@ -1,13 +1,23 @@
 {
-  "generatedAt": "2026-10-22T01:46:24.782Z",
-  "total": 20,
-  "pass": 20,
+  "generatedAt": "2026-10-22T02:37:38.458Z",
+  "total": 22,
+  "pass": 22,
   "fail": 0,
   "results": [
     {
-      "name": "头部：主按钮创建 DSH 会话（带 cwd）",
+      "name": "头部：主按钮先登记工作区",
       "ok": true,
       "detail": "{\"path\":\"/home/g/project\"}"
+    },
+    {
+      "name": "头部：再调 uiWorkspace.startSession 打开新会话",
+      "ok": true,
+      "detail": "ws1"
+    },
+    {
+      "name": "头部：不回落 host newSession",
+      "ok": true,
+      "detail": "null"
     },
     {
       "name": "头部：未运行时渲染药丸",

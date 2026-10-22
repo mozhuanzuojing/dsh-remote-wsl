@@ -89,6 +89,12 @@
 WSL1 不支持：host 的 resolveDistro 对 version===1 的发行版（含配置里的默认发行版）直接 400，文案提示用 wsl --set-version 升级；
 面板把 WSL1 行标灰、只显示「仅支持 WSL2」徽标、不给切换/设为默认/停止动作。
 
+## 3.5 「新建会话没有反应」的修正（2026-10-22）
+
+host 创建的是 blank 会话，客户端列表/主视图不会自动切过去（用户看到的就是"没反应"）。
+改为：先 addWorkspace（UNC）→ 再调客户端 uiWorkspace.startSession(workspaceId)（侧栏「新会话」同一条路径，会 replaceMain 切到新会话）；
+uiWorkspace 不可用时回落到 host 的 explorer.newSession。
+
 ## 4. 未验证 / 限制（如实写）
 
 - **没有真实浏览器的像素/键盘验收**：本机无法在会话内起隔离浏览器跑面板；探针只证明结构、类名、可访问属性与回调接线。
