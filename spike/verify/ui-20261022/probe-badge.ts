@@ -9,7 +9,7 @@
  *   B1-c 可访问性：role=img + aria-label + title 三者都有；aria 与 title 同句；三态句中都有 `host:port`；
  *        不可达态句子里含可操作提示（本机代理是否启动 / 不用代理可忽略）。
  *   B1-d 窄态：narrow=true 时换极短词（proxy.*Short），aria/title 仍是整句（信息不丢）。
- *   B1-e 形状通道：三态 StatusDot kind 互不相同（running / error / unknown）。
+ *   B1-e 形状通道：三态 StatusDot kind 互不相同（running / warn / unknown）。
  *   B1-f 位置：tail 把徽标放进 `.dsh-rw-header-meta`（标题区），且根节点在窄态带 `--narrow` 语义类。
  *   B1-g 守护药丸窄态短文案（同一次头部改动）：narrow 时可见文字换短键，aria/title 不变。
  *   B1-h i18n 逐键配对：本轮新增键在 zh/en 都存在、非空、占位符一致。
@@ -91,9 +91,11 @@ const snap = (reachable: any) => ({ proxy: { host: '10.0.0.1', port: 9910, reach
 const render = (over: any = {}) => header.renderHeader(Object.assign({}, HEADER_BASE, over))
 
 // ── B1-a/b/c/e：三态（宽态）────────────────────────────────────────────────────
+// 2026-10-22 review 修：down 的圆点从 error（红）改为 warn（琥珀）——`proxyPort` 默认 9910，
+// 不用代理的用户会常驻"故障红"，而直连是正常状态。判据同步改为 warn（不是放宽，是语义纠正）。
 const states: [string, any, string, string, string][] = [
   ['up', true, 'dsh-rw-proxy--up', 'running', 'proxy.up'],
-  ['down', false, 'dsh-rw-proxy--down', 'error', 'proxy.downAt'],
+  ['down', false, 'dsh-rw-proxy--down', 'warn', 'proxy.downAt'],
   ['unknown', null, 'dsh-rw-proxy--unknown', 'unknown', 'proxy.unknown'],
 ]
 const dots = new Set<string>()

@@ -1,5 +1,16 @@
 # B1 代理状态头部徽标 + B2 窄态 320/360 实测修布局（client 侧）
 
+> **2026-10-22 review 后追加（同轮提交）**：本报告的数字已按修后重跑更新 —— `probe-badge` 63/63、
+> `probe-narrow` 33/33、`probe-render` 214/214（真渲染 7 档重跑，`out-render-after.json` /
+> `ASSERT-render-after.txt` 已刷新）。修了三处：
+> 1. 代理「不可达」由 error 红改为 **warn 琥珀**（`--dsw-alias-state-warn-primary` + 新增
+>    `.dsh-rw-dot--warn`；`StatusDot kind = warn`）——`proxyPort` 默认 9910，不用代理的用户不该常驻故障红；
+>    重跑后三态颜色为 `rgb(34,197,94) | rgb(245,158,11) | rgb(97,102,107)`，旧 error 红已从快照消失；
+> 2. 底栏 `row-gap:6px` 原先写在 `gap:8px` **之前**，被简写重置成 8px（注释所称 6px 从未生效）⇒ 已调换顺序，
+>    `probe-narrow` 新增 1 条断言钉住"row-gap 必须在 gap 之后"；
+> 3. `boot.ps1` 的 Stop：chrome 分支也补上与 instance 相同的命令行归属校验（原来 pidfile 里的 PID 被无条件杀，
+>    PID 复用时会误杀别人的窗口）。
+
 - 日期：2026-10-22
 - 仓库：`D:\project\dsh1\dsh-remote-wsl`（基线 HEAD `323a695`，本轮改动**未提交**：只落在工作区）
 - 范围：`client/**` + 本目录 `spike/verify/ui-20261022/**`。**没有**碰 `src/**`、`docs/**`、`README.md`（工作区里 `src/**`、`docs/learning-zcode-wsl.md` 等改动是 host 侧另一位负责人的，与本轮无关）

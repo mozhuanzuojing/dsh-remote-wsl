@@ -112,9 +112,18 @@ switch ($Mode) {
     $killed = @()
     if (Test-Path -LiteralPath $chromePidFile) {
       $cp = [int](Get-Content -LiteralPath $chromePidFile -Raw).Trim()
-      $mine = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine -match [regex]::Escape($ChromeData) }
-      foreach ($c in @($mine) + @(Get-Process -Id $cp -ErrorAction SilentlyContinue)) {
-        if ($c) { $id = if ($c.ProcessId) { $c.ProcessId } else { $cp }; try { Stop-Process -Id $id -Force -ErrorAction Stop; $killed += "chrome:$id" } catch {} }
+      # 归属判据与 instance 分支一致：**命令行必须带本轮 user-data-dir** 才许杀。
+      # 2026-10-22 review 修：原先 pidfile 里的 PID 被无条件 Stop-Process —— PID 复用时会误杀别人的窗口。
+      $cands = @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and $_.CommandLine -match [regex]::Escape($ChromeData) })
+      $own = Get-CimInstance Win32_Process -Filter "ProcessId=$cp" -ErrorAction SilentlyContinue
+      if ($own -and $own.Name -eq 'chrome.exe' -and $own.CommandLine -and $own.CommandLine -match [regex]::Escape($ChromeData)) {
+        $cands = @($cands) + @($own)
+      } elseif ($own) {
+        Write-Line "拒绝停 chrome pid $cp（命令行不含本轮 user-data-dir，疑似 PID 复用）"
+      }
+      foreach ($c in ($cands | Sort-Object ProcessId -Unique)) {
+        try { Stop-Process -Id $c.ProcessId -Force -ErrorAction Stop; $killed += "chrome:$($c.ProcessId)" } catch {}
       }
     }
     $ids = @()

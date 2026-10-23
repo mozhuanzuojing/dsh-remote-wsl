@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T08:54:41.781Z",
+  "generatedAt": "2026-10-23T03:42:18.995Z",
   "total": 63,
   "pass": 63,
   "fail": 0,
@@ -18,7 +18,7 @@
       "aria": "T:proxy.ariaDown|{\"endpoint\":\"10.0.0.1:9910\"}",
       "title": "T:proxy.ariaDown|{\"endpoint\":\"10.0.0.1:9910\"}",
       "text": "T:proxy.downAt|{\"endpoint\":\"10.0.0.1:9910\"}",
-      "dot": "error"
+      "dot": "warn"
     },
     {
       "state": "unknown",
@@ -117,8 +117,8 @@
     },
     {
       "ok": true,
-      "name": "B1-e down: StatusDot kind=error",
-      "detail": "error"
+      "name": "B1-e down: StatusDot kind=warn",
+      "detail": "warn"
     },
     {
       "ok": true,
@@ -188,7 +188,7 @@
     {
       "ok": true,
       "name": "B1-e 三态形状通道互不相同",
-      "detail": "running / error / unknown"
+      "detail": "running / warn / unknown"
     },
     {
       "ok": true,

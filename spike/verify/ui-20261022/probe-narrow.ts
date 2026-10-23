@@ -90,13 +90,20 @@ const ruleOf = (selector: string) => rules.find((r) => r.startsWith(selector + '
   const footer = ruleOf('.dsh-rw-status')
   check('CSS: 底栏允许折行（0 横向溢出的根因修法）', /flex-wrap:wrap/.test(footer), footer.slice(0, 160))
   check('CSS: 底栏高从固定 47 改为 min-height:47（折行时能长高）', /min-height:47px/.test(footer) && !/(^|;)height:47px/.test(footer), footer.slice(0, 160))
+  // 2026-10-22 review 修：原先 `row-gap:6px` 写在 `gap:8px` 之前，被简写重置成 8px（6px 从未生效）。
+  check(
+    'CSS: 底栏行间距 6px 且写在 gap 简写之后（不被重置）',
+    footer.indexOf('row-gap:6px') > footer.indexOf('gap:8px'),
+    footer.slice(0, 200),
+  )
 
   const proxy = ruleOf('.dsh-rw-proxy')
   check('CSS: 徽标 flex:none（不被压扁）', /flex:none/.test(proxy), proxy.slice(0, 120))
   check('CSS: 徽标 white-space:nowrap（徽标自身不折行）', /white-space:nowrap/.test(proxy), proxy.slice(0, 160))
   check('CSS: 徽标文字同样 nowrap', /white-space:nowrap/.test(ruleOf('.dsh-rw-proxy-text')), ruleOf('.dsh-rw-proxy-text'))
   check('CSS: 可达态用宿主 success token', /--dsw-alias-state-success-primary/.test(ruleOf('.dsh-rw-proxy--up')), ruleOf('.dsh-rw-proxy--up'))
-  check('CSS: 不可达态用宿主 error token', /--dsw-alias-state-error-primary/.test(ruleOf('.dsh-rw-proxy--down')), ruleOf('.dsh-rw-proxy--down'))
+  // 2026-10-22 review 修：不可达从 error（红）降为 warn（琥珀）——不用代理的用户不该看到"故障红"。
+  check('CSS: 不可达态用宿主 warn token（直连是正常态，不是故障）', /--dsw-alias-state-warn-primary/.test(ruleOf('.dsh-rw-proxy--down')), ruleOf('.dsh-rw-proxy--down'))
   check('CSS: 未探测态用次级文字色 + border-l2（不是成功/失败色）', /--dsw-alias-label-secondary/.test(ruleOf('.dsh-rw-proxy--unknown')), ruleOf('.dsh-rw-proxy--unknown'))
   check('CSS: 漂移图标壳存在（窄态只留 ⚠）', !!ruleOf('.dsh-rw-driftmark'), ruleOf('.dsh-rw-driftmark').slice(0, 90))
 

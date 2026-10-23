@@ -123,12 +123,14 @@ window.__ModuleLoader__.load({
 			".dsh-rw-daemon--on{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
 			".dsh-rw-daemon--off{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
 			// 2026-10-22 B1：头部「代理状态」徽标（三态）。与守护药丸同形（h22 / 12px / 圆角 999），
-			// 配色只用宿主 `--dsw-alias-state-*`（与 StatusDot 同族）：可达=success、不可达=error、
+			// 配色只用宿主 `--dsw-alias-state-*`（与 StatusDot 同族）：可达=success、不可达=**warn**、
 			// 未探测=次级文字色 + border-l2。**文字始终存在**（颜色只是第三冗余，不许"只画红点"）；
 			// `white-space:nowrap` 钉死"徽标自身不折行"，元信息行的 `flex-wrap` 负责不让它挤压标题。
+			// 2026-10-22 review 修：不可达原先用 error（红）——但 `proxyPort` 默认 9910，不用代理的用户会
+			// 常驻一个"故障红"；直连本身是正常状态（诊断区也写"不可达（直连）"）⇒ 降为 warn（琥珀色）。
 			".dsh-rw-proxy{display:inline-flex;align-items:center;gap:5px;flex:none;box-sizing:border-box;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;white-space:nowrap}",
 			".dsh-rw-proxy--up{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
-			".dsh-rw-proxy--down{color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}",
+			".dsh-rw-proxy--down{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-proxy--unknown{color:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-border-l2)}",
 			".dsh-rw-proxy-text{white-space:nowrap}",
 			// 2026-10-22 B2：窄态漂移提示只留 ⚠（title/aria-label 承载文字）。
@@ -239,7 +241,9 @@ window.__ModuleLoader__.load({
 			// chip / 漂移提示 / 更新时间后，底栏内容在面板 264–500 区间比面板还宽 —— 264px 时 391>264、
 			// 304px 时 391>304、424px 时 490>424（溢出被面板裁掉 ⇒ 状态词/⋯ 按钮看不见）。
 			// 宽态（≥~560）内容一行放得下 ⇒ 几何与原来一致（min-height 仍 47）。
-			".dsh-rw-status{display:flex;flex-wrap:wrap;row-gap:6px;align-items:center;gap:8px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}",
+			// 2026-10-22 review 修：`row-gap:6px` 必须写在 `gap:8px` **之后** —— 简写 `gap` 会重置行间距，
+			// 原先顺序写反导致注释称 6px、实际生效 8px（review 发现）。
+			".dsh-rw-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;row-gap:6px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}",
 			// 同一个 `box-sizing` 根因第 2 处：`--stopped/--unknown` 带 1.5px 边框，
 			// 内容盒语义下外径 11 ≠ 实心态 8 ⇒ 加 `box-sizing:border-box` 后两态恒 8×8。
 			".dsh-rw-dot{box-sizing:border-box;width:8px;height:8px;border-radius:50%;flex:none}",
@@ -247,6 +251,8 @@ window.__ModuleLoader__.load({
 			".dsh-rw-dot--stopped{background:var(--dsw-alias-bg-base);border:1.5px solid var(--dsw-alias-border-l2)}",
 			".dsh-rw-dot--unknown{background:var(--dsw-alias-state-idle-primary);border:1.5px solid var(--dsw-alias-border-l2)}",
 			".dsh-rw-dot--error{background:var(--dsw-alias-state-error-primary)}",
+			// 2026-10-22 review 修：代理「不可达」改用 warn 圆点（与 `.dsh-rw-proxy--down` 的琥珀色一致）。
+			".dsh-rw-dot--warn{background:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-statusword{flex:none;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);white-space:nowrap}",
 			".dsh-rw-extra{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}",
 			// T63：窄态（<420）会话数改由**菜单/诊断**承载 ⇒ 底栏只留状态词 + 主按钮，避免"会话 N 个"被挤成省略号
@@ -604,3 +610,6 @@ window.__ModuleLoader__.load({
 // proxyBadge，tail 放进 header-meta；aria/title 带端点与不可达提示；i18n 新增 13 键 zh/en 配对）；
 // 窄态 320/360 修布局（底栏允许折行 + 窄态 chip/漂移/守护短文案 + 根节点 .dsh-rw-root--narrow
 // 让路径行/目标行折行）；CSS 全部在本文件 ⇒ 本轮由本入口刷新 chunk rev。
+// 2026-10-22 review 修：底栏 `row-gap:6px` 挪到 `gap:8px` 之后（原先被简写重置成 8px）；
+// 代理「不可达」从 error 红降为 warn 琥珀（proxyPort 默认 9910，不用代理的用户不该看到故障红）；
+// 新增 `.dsh-rw-dot--warn`（header chunk 的 StatusDot kind 同步改 warn）⇒ 刷新入口 rev。

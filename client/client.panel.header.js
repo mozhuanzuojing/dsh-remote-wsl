@@ -302,7 +302,7 @@ return api.newSession({ path: cwd }, signal);
 								"aria-label": proxyAria,
 								title: proxyAria,
 							},
-							React.createElement(StatusDot, { kind: proxyState === "up" ? "running" : proxyState === "down" ? "error" : "unknown" }),
+							React.createElement(StatusDot, { kind: proxyState === "up" ? "running" : proxyState === "down" ? "warn" : "unknown" }),
 							React.createElement("span", { className: "dsh-rw-proxy-text" }, proxyLabel),
 						)
 					: null;

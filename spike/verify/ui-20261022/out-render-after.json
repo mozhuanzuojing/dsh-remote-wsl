@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T08:45:35.467Z",
+  "generatedAt": "2026-10-23T03:40:28.727Z",
   "cdpPort": 9333,
   "widthList": [
     320,
@@ -611,10 +611,10 @@
         "aria": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "title": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "role": "img",
-        "color": "rgb(236, 19, 19)",
-        "borderColor": "rgb(236, 19, 19)",
+        "color": "rgb(245, 158, 11)",
+        "borderColor": "rgb(245, 158, 11)",
         "inside": true,
-        "dotCls": "dsh-rw-dot dsh-rw-dot--error"
+        "dotCls": "dsh-rw-dot dsh-rw-dot--warn"
       },
       "footer": {
         "scrollW": 264,
@@ -1564,10 +1564,10 @@
         "aria": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "title": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "role": "img",
-        "color": "rgb(236, 19, 19)",
-        "borderColor": "rgb(236, 19, 19)",
+        "color": "rgb(245, 158, 11)",
+        "borderColor": "rgb(245, 158, 11)",
         "inside": true,
-        "dotCls": "dsh-rw-dot dsh-rw-dot--error"
+        "dotCls": "dsh-rw-dot dsh-rw-dot--warn"
       },
       "footer": {
         "scrollW": 304,
@@ -2503,10 +2503,10 @@
         "aria": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "title": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "role": "img",
-        "color": "rgb(236, 19, 19)",
-        "borderColor": "rgb(236, 19, 19)",
+        "color": "rgb(245, 158, 11)",
+        "borderColor": "rgb(245, 158, 11)",
         "inside": true,
-        "dotCls": "dsh-rw-dot dsh-rw-dot--error"
+        "dotCls": "dsh-rw-dot dsh-rw-dot--warn"
       },
       "footer": {
         "scrollW": 320,
@@ -3052,7 +3052,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:26"
+          "txt": "更新于 11:40:18"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -3363,7 +3363,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:27"
+          "txt": "更新于 11:40:19"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -3438,10 +3438,10 @@
         "aria": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "title": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "role": "img",
-        "color": "rgb(236, 19, 19)",
-        "borderColor": "rgb(236, 19, 19)",
+        "color": "rgb(245, 158, 11)",
+        "borderColor": "rgb(245, 158, 11)",
         "inside": true,
-        "dotCls": "dsh-rw-dot dsh-rw-dot--error"
+        "dotCls": "dsh-rw-dot dsh-rw-dot--warn"
       },
       "footer": {
         "scrollW": 360,
@@ -3674,7 +3674,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:28"
+          "txt": "更新于 11:40:20"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -3985,7 +3985,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:29"
+          "txt": "更新于 11:40:20"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -4294,7 +4294,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:29"
+          "txt": "更新于 11:40:21"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -4380,25 +4380,25 @@
         "overflow": false,
         "rect": {
           "w": 424,
-          "h": 77,
+          "h": 75,
           "x": 56,
-          "y": 823,
+          "y": 825,
           "right": 480,
           "bottom": 900
         }
       },
-      "footerH": 77,
+      "footerH": 75,
       "body": {
         "scrollW": 424,
         "clientW": 424,
         "overflow": false,
         "rect": {
           "w": 424,
-          "h": 740,
+          "h": 742,
           "x": 56,
           "y": 83,
           "right": 480,
-          "bottom": 823
+          "bottom": 825
         }
       },
       "card": {
@@ -4407,11 +4407,11 @@
         "overflow": false,
         "rect": {
           "w": 404,
-          "h": 522,
+          "h": 524,
           "x": 66,
           "y": 205,
           "right": 470,
-          "bottom": 727
+          "bottom": 729
         }
       },
       "entries": {
@@ -4420,11 +4420,11 @@
         "overflow": false,
         "rect": {
           "w": 402,
-          "h": 419,
+          "h": 421,
           "x": 67,
           "y": 307,
           "right": 469,
-          "bottom": 726
+          "bottom": 728
         }
       }
     },
@@ -4603,7 +4603,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:30"
+          "txt": "更新于 11:40:22"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -4678,10 +4678,10 @@
         "aria": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "title": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "role": "img",
-        "color": "rgb(236, 19, 19)",
-        "borderColor": "rgb(236, 19, 19)",
+        "color": "rgb(245, 158, 11)",
+        "borderColor": "rgb(245, 158, 11)",
         "inside": true,
-        "dotCls": "dsh-rw-dot dsh-rw-dot--error"
+        "dotCls": "dsh-rw-dot dsh-rw-dot--warn"
       },
       "footer": {
         "scrollW": 424,
@@ -4689,25 +4689,25 @@
         "overflow": false,
         "rect": {
           "w": 424,
-          "h": 77,
+          "h": 75,
           "x": 56,
-          "y": 823,
+          "y": 825,
           "right": 480,
           "bottom": 900
         }
       },
-      "footerH": 77,
+      "footerH": 75,
       "body": {
         "scrollW": 424,
         "clientW": 424,
         "overflow": false,
         "rect": {
           "w": 424,
-          "h": 714,
+          "h": 716,
           "x": 56,
           "y": 109,
           "right": 480,
-          "bottom": 823
+          "bottom": 825
         }
       },
       "card": {
@@ -4716,11 +4716,11 @@
         "overflow": false,
         "rect": {
           "w": 404,
-          "h": 496,
+          "h": 498,
           "x": 66,
           "y": 231,
           "right": 470,
-          "bottom": 727
+          "bottom": 729
         }
       },
       "entries": {
@@ -4729,11 +4729,11 @@
         "overflow": false,
         "rect": {
           "w": 402,
-          "h": 393,
+          "h": 395,
           "x": 67,
           "y": 333,
           "right": 469,
-          "bottom": 726
+          "bottom": 728
         }
       }
     },
@@ -4912,7 +4912,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:31"
+          "txt": "更新于 11:40:23"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -4998,25 +4998,25 @@
         "overflow": false,
         "rect": {
           "w": 424,
-          "h": 77,
+          "h": 75,
           "x": 56,
-          "y": 823,
+          "y": 825,
           "right": 480,
           "bottom": 900
         }
       },
-      "footerH": 77,
+      "footerH": 75,
       "body": {
         "scrollW": 424,
         "clientW": 424,
         "overflow": false,
         "rect": {
           "w": 424,
-          "h": 740,
+          "h": 742,
           "x": 56,
           "y": 83,
           "right": 480,
-          "bottom": 823
+          "bottom": 825
         }
       },
       "card": {
@@ -5025,11 +5025,11 @@
         "overflow": false,
         "rect": {
           "w": 404,
-          "h": 522,
+          "h": 524,
           "x": 66,
           "y": 205,
           "right": 470,
-          "bottom": 727
+          "bottom": 729
         }
       },
       "entries": {
@@ -5038,11 +5038,11 @@
         "overflow": false,
         "rect": {
           "w": 402,
-          "h": 419,
+          "h": 421,
           "x": 67,
           "y": 307,
           "right": 469,
-          "bottom": 726
+          "bottom": 728
         }
       }
     },
@@ -5164,7 +5164,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:32"
+          "txt": "更新于 11:40:24"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -5416,7 +5416,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:32"
+          "txt": "更新于 11:40:25"
         },
         {
           "cls": "dsh-rw-iconbtn",
@@ -5491,10 +5491,10 @@
         "aria": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "title": "代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示",
         "role": "img",
-        "color": "rgb(236, 19, 19)",
-        "borderColor": "rgb(236, 19, 19)",
+        "color": "rgb(245, 158, 11)",
+        "borderColor": "rgb(245, 158, 11)",
         "inside": true,
-        "dotCls": "dsh-rw-dot dsh-rw-dot--error"
+        "dotCls": "dsh-rw-dot dsh-rw-dot--warn"
       },
       "footer": {
         "scrollW": 1000,
@@ -5668,7 +5668,7 @@
         {
           "cls": "dsh-rw-updated",
           "w": 83.3,
-          "txt": "更新于 16:45:33"
+          "txt": "更新于 11:40:26"
         },
         {
           "cls": "dsh-rw-iconbtn",

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-22T08:54:41.887Z",
-  "total": 32,
-  "pass": 32,
+  "generatedAt": "2026-10-23T03:42:19.081Z",
+  "total": 33,
+  "pass": 33,
   "fail": 0,
-  "cssChars": 20786,
+  "cssChars": 20850,
   "results": [
     {
       "ok": true,
@@ -33,7 +33,7 @@
     {
       "ok": true,
       "name": "入口 chunk 真的注入了 <style data-plugin-css>",
-      "detail": "20786 字符 / 1 个 style"
+      "detail": "20850 字符 / 1 个 style"
     },
     {
       "ok": true,
@@ -48,12 +48,17 @@
     {
       "ok": true,
       "name": "CSS: 底栏允许折行（0 横向溢出的根因修法）",
-      "detail": ".dsh-rw-status{display:flex;flex-wrap:wrap;row-gap:6px;align-items:center;gap:8px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:"
+      "detail": ".dsh-rw-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;row-gap:6px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:"
     },
     {
       "ok": true,
       "name": "CSS: 底栏高从固定 47 改为 min-height:47（折行时能长高）",
-      "detail": ".dsh-rw-status{display:flex;flex-wrap:wrap;row-gap:6px;align-items:center;gap:8px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:"
+      "detail": ".dsh-rw-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;row-gap:6px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 底栏行间距 6px 且写在 gap 简写之后（不被重置）",
+      "detail": ".dsh-rw-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;row-gap:6px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);bac"
     },
     {
       "ok": true,
@@ -77,8 +82,8 @@
     },
     {
       "ok": true,
-      "name": "CSS: 不可达态用宿主 error token",
-      "detail": ".dsh-rw-proxy--down{color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}"
+      "name": "CSS: 不可达态用宿主 warn token（直连是正常态，不是故障）",
+      "detail": ".dsh-rw-proxy--down{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}"
     },
     {
       "ok": true,
