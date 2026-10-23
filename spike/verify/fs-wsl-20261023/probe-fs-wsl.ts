@@ -169,6 +169,46 @@ try {
   check('F2 WSL 内 stat 看到 mode 与属主', statOut === '600:g' || statOut === '600:root', statOut);
   check('F3 文件在 ext4（/tmp）而非 /mnt', wsl(`stat -c '%d' ${ROOT}/a.txt`) !== wsl(`stat -c '%d' /mnt/d`), '');
 
+  // ── S 沙箱围栏（review 发现：旧实现忽略第 5 个参数 sandboxPolicy）───────────
+  const sandboxTarget = await impl.resolve(`${ROOT}/sandboxed.txt`, { cwd: '/home/g' });
+  check(
+    'S1 read-only 策略拒绝写入（FS_SANDBOX_DENIED）',
+    (await codeOf(() => impl.writeText(sandboxTarget, 'x', null, undefined, { mode: 'read-only' }))) === 'FS_SANDBOX_DENIED',
+    '',
+  );
+  check(
+    'S2 workspace-write：工作区根内允许',
+    await (async () => {
+      try {
+        await impl.writeText(sandboxTarget, 'ok\n', null, undefined, {
+          mode: 'workspace-write',
+          workspaceRoot: `\\\\wsl.localhost\\${DISTRO}${ROOT.replace(/\//g, '\\')}`,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    })(),
+    '',
+  );
+  const escapeTarget = await impl.resolve('/var/tmp/dsh-fs-probe-escape.txt', { cwd: '/home/g' });
+  check(
+    'S3 workspace-write：工作区外拒绝（/var/tmp）',
+    (await codeOf(() => impl.writeText(escapeTarget, 'x', null, undefined, { mode: 'workspace-write', workspaceRoot: '/home/g' }))) === 'FS_SANDBOX_DENIED',
+    '',
+  );
+
+  // ── W 轮询观察 ────────────────────────────────────────────────────────────
+  let watchFired = 0;
+  const closeWatch = await impl.watch(sandboxTarget, () => {
+    watchFired += 1;
+  });
+  await new Promise((r) => setTimeout(r, 600));
+  wsl(`echo changed >> ${ROOT}/sandboxed.txt`);
+  await new Promise((r) => setTimeout(r, 1400));
+  closeWatch();
+  check('W1 watch 在文件变化后回调（轮询近似）', watchFired >= 1, `fired=${watchFired}`);
+
   // ── G 架构断言：provider 不直接读宿主文件 ────────────────────────────────
   const src = fs.readFileSync(path.join(DIR, '../../../src/fs-provider.ts'), 'utf8');
   check('G1 provider 源码不 import node:fs（字节不经宿主盘）', !/from 'node:fs'/.test(src) && !/require\('node:fs'\)/.test(src), '');

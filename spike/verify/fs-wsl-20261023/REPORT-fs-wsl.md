@@ -88,19 +88,36 @@ preset 注册只证明"树挂上了"；工具是否真的走 provider，用 **he
 产物：`out-e2e-write-read.jsonl`、`out-e2e-edit.jsonl`、`out-e2e-agent.json`；
 可复跑脚本 `run-e2e.ps1`（会真实消耗模型额度；跑完删掉隔离 home 里复制的凭据副本）。
 
-## 6. 尚未完成（阶段二之后）
+## 6. Review（2026-10-23）与修复
 
-1. **端到端 agent 验证**：还没有在真实会话里让模型调 `write` 工具（要选 `wsl` preset + 花模型额度）。
-   provider 与 preset 各自已验证，缺的是这一条串起来的证据。
+复核按「契约 / 安全 / 失败面 / 边界」四个角度看实现与 DSH 的调用方式（`dsh-tool-fs` 的
+`writeText(target, content, intent, signal, sandboxPolicy)` 与 `editText(..., sandboxPolicy)`）：
+
+| # | 发现 | 级别 | 处置 |
+|---|---|---|---|
+| F1 | `writeText`/`editText` 忽略第 5 个参数 `sandboxPolicy`：DSH 的 `read-only`/`workspace-write` 围栏被绕过 | **P0 安全** | 已修：`assertWritable()` 把 host 的 workspaceRoot（UNC→发行版内）+ `/tmp` 当根，先 `realpath` 再比，拒绝 `FS_SANDBOX_DENIED`；`sandboxMode` 报 `workspace-write` |
+| F2 | `watch` 直接抛「不支持」，DSH 的文件观察策略只能退化 | P1 | 已修：500ms 轮询 `mtimeNs:size`，变化才回调（不是 inotify，语义上写明"近似"） |
+| F3 | 没有 WSL 内搜索：`tool-fs-search` 未挂，agent 无法 grep/glob | P1 | **未做**（下一项能力） |
+| F4 | `listDir` 用 `stat`（跟随符号链接），符号链接目录会显示成 directory | P2 | 未做（与宿主 `listDirectory` 的 lstat 语义有差） |
+| F5 | 只服务配置的一个发行版 | P2 | 未做（多守护/多槽位映射需要单独设计） |
+| F6 | preset 子插件列表是标准 preset 的静态拷贝 | P2 | 未做（上游增删行不会自动跟随） |
+| F7 | `writeText` 没有内容大小上限（工具层有上限，直连 daemon 的调用方没有） | P3 | 未做 |
+
+修复后的验证：`probe-fs-wsl` **30/30**（新增 S1–S3 围栏、W1 轮询观察）；E2E 重跑
+（`run-e2e.ps1`）仍通过：`write/read/edit` 工具事件齐全，内容 `hello-edited`，ext4 设备号 75。
+
+## 7. 尚未完成（阶段二之后）
+
+1. **真实桌面会话里的 preset 形态**：E2E 用的是 headless + 宿主级替换；`wsl` preset 只验证了挂载/激活，
+   还没在桌面会话里用它调过 `write`。
 2. **搜索**：`tool-fs-search` 未挂进 WSL preset（Windows ripgrep 对 Linux 路径不成立）；WSL 内
    grep/find 待做。
-3. **watch**：明确报不支持；DSH 的文件观察策略会退化为不观察。
-4. **多发行版**：provider 只服务配置的一个发行版（`distro`），UNC 指向别的发行版会明确报错。
-5. **sandbox**：`sandboxMode` 为 undefined（不做 Windows ACL 围栏）；是否在 WSL 侧接
-   `writableRoots` 需要单独设计。
-6. **标准 preset 漂移**：`preset.ts` 的子插件列表是静态拷贝，上游增删行不会自动跟随（已写进代码注释）。
+3. **多发行版**：provider 只服务配置的一个发行版（`distro`），UNC 指向别的发行版会明确报错。
+4. **标准 preset 漂移**：`preset.ts` 的子插件列表是静态拷贝，上游增删行不会自动跟随（已写进代码注释）。
+5. **listDir 符号链接**：当前用 `stat`（跟随），与宿主 `listDirectory` 的 lstat 语义有差。
+6. **写入大小上限**：工具层有上限，直连 daemon 的调用方没有。
 
-## 5. 复跑
+## 8. 复跑
 
 ```powershell
 $node='C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\primary-runtime\dependencies\node\bin\node.exe'

@@ -20,8 +20,9 @@
  * · 写是"同目录临时文件 + rename"（原子），保留既有 mode；
  * · `expected.kind` 支持 `replaceIfVersion` / `createIfAbsent`；
  * · `readText` 拒绝二进制与超限，`readBytes`/`readByteRange` 走 base64。
- * **不做的**：`watch`（明确报不支持，不假装）；`sandboxMode` 为 undefined（本 provider 不做
- * Windows ACL 围栏，WSL 自身是边界 —— 与 README 的安全边界一致）。
+ * **不做的**：`watch` 用 500ms 轮询近似（没有 inotify 桥）；`sandboxMode` 报 `workspace-write`，
+ * 并按 host 传来的 `sandboxPolicy` 做**真实路径**围栏（`FS_SANDBOX_DENIED`），根 = 工作区（UNC→发行版内）
+ * + 发行版 `/tmp`；多发行版仍只服务配置的那一个。
  *
  * @module dsh-remote-wsl/fs-provider
  */
@@ -144,12 +145,62 @@ export function createWslFileSystem(rawConfig = {}) {
     return { targetKey: linuxPath, displayPath: linuxPath };
   };
 
-  const impl = {
-    /** 不围栏：WSL 自身是隔离边界（与插件 README 的安全边界一致）。 */
-    sandboxMode: undefined,
+  /** 沙箱围栏：把 host 的 writable roots 映射到发行版内，再比真实路径（防符号链接逃逸）。 */
+  const canonical = async (linuxPath) => {
+    const r = await call('realpath', { path: linuxPath }).catch(() => null);
+    return r?.realpath ?? linuxPath;
+  };
+  const assertWritable = async (targetKey, policy) => {
+    if (!policy || typeof policy.mode !== 'string') return; // 部署没有策略服务：与宿主一致，不围栏
+    if (policy.mode === 'read-only') {
+      throw fsErr(`cannot write "${targetKey}": read-only sandbox mode`, 'FS_SANDBOX_DENIED');
+    }
+    if (policy.mode !== 'workspace-write') return;
+    const roots = [];
+    if (typeof policy.workspaceRoot === 'string' && policy.workspaceRoot.length > 0) {
+      const unc = parseUnc(policy.workspaceRoot);
+      if (unc !== null && unc.distro === distro) roots.push(unc.linuxPath);
+      else if (policy.workspaceRoot.startsWith('/')) roots.push(policy.workspaceRoot);
+    }
+    roots.push('/tmp'); // workspace-write 的语义包含平台临时区（dsh-sandbox 的 writableRoots 同义）
+    const realTarget = await canonical(targetKey);
+    for (const root of roots) {
+      const realRoot = await canonical(root);
+      if (realTarget === realRoot || realTarget.startsWith(realRoot.endsWith('/') ? realRoot : `${realRoot}/`)) return;
+    }
+    throw fsErr(`cannot write "${targetKey}": outside the writable workspace roots`, 'FS_SANDBOX_DENIED');
+  };
 
-    async watch() {
-      throw fsErr('Filesystem watching is not supported by the WSL provider.', 'FS_IO_ERROR');
+  const impl = {
+    /** 能力事实：本 provider 会按 host 的 workspace-write 策略围栏（见 assertWritable）。 */
+    sandboxMode: 'workspace-write',
+
+    /**
+     * 轮询式观察：DSH 的文件变化观察会调它。WSL 侧没有 inotify 桥，这里每 500ms 比对一次
+     * `mtimeNs:size`；变化才回调。不是"真实时"，但比"直接报不支持"更接近宿主语义。
+     */
+    async watch(target, changed, signal) {
+      signal?.throwIfAborted?.();
+      let closed = false;
+      let last = null;
+      let timer = null;
+      const tick = async () => {
+        if (closed) return;
+        try {
+          const r = await call('stat', { path: target.targetKey }, signal);
+          const version = r?.exists ? r.version : 'missing';
+          if (last !== null && version !== last) changed();
+          last = version;
+        } catch (e) {
+          changed(e instanceof Error ? e : new Error(String(e)));
+        }
+        if (!closed) timer = setTimeout(tick, 500);
+      };
+      tick();
+      return () => {
+        closed = true;
+        if (timer) clearTimeout(timer);
+      };
     },
 
     async resolve(input, opts = {}) {
@@ -222,7 +273,8 @@ export function createWslFileSystem(rawConfig = {}) {
       }));
     },
 
-    async writeText(target, content, expected, signal) {
+    async writeText(target, content, expected, signal, sandboxPolicy) {
+      await assertWritable(target.targetKey, sandboxPolicy);
       const r = await call(
         'writeText',
         { path: target.targetKey, content, expected: expected ? { kind: expected.kind, version: expected.version } : null },
@@ -231,7 +283,8 @@ export function createWslFileSystem(rawConfig = {}) {
       return { operation: r.operation, version: r.version, before: null, after: String(content) };
     },
 
-    async editText(target, edit, expected, signal) {
+    async editText(target, edit, expected, signal, sandboxPolicy) {
+      await assertWritable(target.targetKey, sandboxPolicy);
       const r = await call(
         'editText',
         {

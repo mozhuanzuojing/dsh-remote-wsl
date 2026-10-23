@@ -121,8 +121,19 @@ export async function readRangeOp(args) {
   }
 }
 
-export async function statOp(args, { follow = true } = {}) {
+/** 规范化真实路径（解析符号链接与 `..`）：沙箱围栏比较前必须用它，否则链接可以逃出工作区。 */
+export async function realpathOp(args) {
   const abs = String(args?.path ?? '');
+  assertLinuxAbsolute(abs);
+  try {
+    return { realpath: await fs.promises.realpath(abs) };
+  } catch (e) {
+    if (codeOf(e) === 'ENOENT') return { realpath: null };
+    throw mapFsError(e, abs);
+  }
+}
+
+export async function statOp(args, { follow = true } = {}) {  const abs = String(args?.path ?? '');
   assertLinuxAbsolute(abs);
   const st = await (follow ? fs.promises.stat(abs) : fs.promises.lstat(abs)).catch((e) => {
     if (codeOf(e) === 'ENOENT' || codeOf(e) === 'ENOTDIR') return null;
@@ -240,6 +251,8 @@ export async function handleFsOp(req) {
   switch (method) {
     case 'stat':
       return statOp(args, { follow: true });
+    case 'realpath':
+      return realpathOp(args);
     case 'lstat':
       return statOp(args, { follow: false });
     case 'readText':
