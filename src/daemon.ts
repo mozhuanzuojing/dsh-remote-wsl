@@ -39,6 +39,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { shellEnvSnippet } from './shell-env.ts';
 import { SdkRuntime } from './sdk-runtime.ts';
+import { handleFsOp } from './fs-rpc.ts';
 
 const argv = process.argv.slice(2);
 const arg = (name, dflt) => {
@@ -590,6 +591,16 @@ async function handle(req) {
   if (op === 'shutdown') {
     const reaped = await reapAllAndExit('收到 shutdown');
     return { ok: true, id, reaped };
+  }
+  // 2026-10-23：文件操作走 WSL 原生 node:fs（宿主 ctx.fs provider 的 RPC 后端）。
+  // 语义与 dsh-fs-local 对齐（见 src/fs-rpc.ts 头部）；错误带 FS_* 码（工具层据此渲染）。
+  if (op === 'fs') {
+    try {
+      const result = await handleFsOp(req);
+      return { ok: true, id, result };
+    } catch (e) {
+      return { ok: false, id, code: (e && e.code) || 'FS_IO_ERROR', error: (e && e.message) || String(e) };
+    }
   }
   return { ok: false, id, error: `unknown op: ${String(op)}` };
 }
