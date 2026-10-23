@@ -25,8 +25,8 @@
 ```
 ```
 PATCH recorder: 命中 1 处
-[①open:true（记录器）] OK 2397ms :: http://127.0.0.1:8916/?token=ZeAMjsWc74gLYJxJARSh7vr9Fhf5EaWQpTu4BLzWEJ4 | (opened: recorded-t55)
-RECORDER url=http://127.0.0.1:8916/?token=ZeAMjsWc74gLYJxJARSh7vr9Fhf5EaWQpTu4BLzWEJ4
+[①open:true（记录器）] OK 2397ms :: http://127.0.0.1:8916/?token=<REDACTED> | (opened: recorded-t55)
+RECORDER url=http://127.0.0.1:8916/?token=<REDACTED>
 ASSERT 记录器被走到且 URL 形状正确 = true
 窗口：可见 11 → 11；新增 WindowsTerminal = 0
 ```

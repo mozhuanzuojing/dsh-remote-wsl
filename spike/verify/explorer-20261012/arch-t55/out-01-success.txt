@@ -1,8 +1,8 @@
 remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
 == mode=success port=8915 root=D:/project/dsh1/vendor/dsh-remote-wsl ==
-[①start] OK 2382ms :: http://127.0.0.1:8915/?token=TeuLMuA7UHQAMHjt-D8hmSXz4eD3ExxpvhLh4lQh3gg
+[①start] OK 2382ms :: http://127.0.0.1:8915/?token=<REDACTED>
 [②stop] OK 287ms :: stopped web host on port 8915
-[③start again] OK 2417ms :: http://127.0.0.1:8915/?token=hM8JwrB0Voa4qAGgVJvrkORH8Vki4V2grfY6QRdzQsk
+[③start again] OK 2417ms :: http://127.0.0.1:8915/?token=<REDACTED>
 [④stop] OK 460ms :: stopped web host on port 8915
 ASSERT 成功三态：①真 URL=true ②stop ok=true ③再起真 URL=true
 ASSERT 无静默假成功 = true

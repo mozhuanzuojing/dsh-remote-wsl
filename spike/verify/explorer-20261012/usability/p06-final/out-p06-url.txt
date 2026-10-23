@@ -1,2 +1,2 @@
-http://127.0.0.1:8966/?token=ep6njNmEFVDf1l4QPfdXrylxIMiUw5bJ6WbM7pkMn1I
+http://127.0.0.1:8966/?token=<REDACTED>
 （来源：D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\usability\p06-final\out-p06-host-8966.log；DSH_HOME=C:\Users\l\AppData\Local\Temp\usab-p06-home）

@@ -1,1 +1,1 @@
-http://127.0.0.1:8981/?token=G6ggQR_c1CzGHI2_ElKoKAK6sVGLY_7qv9-ba8DQkgk
+http://127.0.0.1:8981/?token=<REDACTED>

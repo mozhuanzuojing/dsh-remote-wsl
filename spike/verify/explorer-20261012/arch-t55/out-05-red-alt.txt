@@ -21,12 +21,12 @@ To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
   STATE[  第2次 stop 后] procs=0 listen=0 tmp=0
   ASSERT 停止可读 = true
   ASSERT 停止后无残留 = true
-[第3次（期望失败）] OK 3017ms :: http://127.0.0.1:8914/?token=KpNjnIhASzDOeYesGBCYRiN0WkRHI5t9cRkIaD7kdVI
+[第3次（期望失败）] OK 3017ms :: http://127.0.0.1:8914/?token=<REDACTED>
   STATE[第3次之后] procs=2 listen=1 tmp=2
   ASSERT 第3次 形态符合期望（可读失败）= false
   ASSERT 第3次 无静默假成功 = true
   ASSERT 第3次（失败）无残留 = false
-[第4次（期望成功）] OK 0ms :: http://127.0.0.1:8914/?token=KpNjnIhASzDOeYesGBCYRiN0WkRHI5t9cRkIaD7kdVI
+[第4次（期望成功）] OK 0ms :: http://127.0.0.1:8914/?token=<REDACTED>
   STATE[第4次之后] procs=2 listen=1 tmp=2
   ASSERT 第4次 形态符合期望（真 URL）= true
   ASSERT 第4次 无静默假成功 = true

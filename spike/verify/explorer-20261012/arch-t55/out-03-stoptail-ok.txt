@@ -6,7 +6,7 @@ remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由�
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
-[①启动（对照：成功）] OK 4374ms :: http://127.0.0.1:8913/?token=R2nEy_SnYMz4ZWbchQcVU25wZVsOYfvp7xO53lWnTZE
+[①启动（对照：成功）] OK 4374ms :: http://127.0.0.1:8913/?token=<REDACTED>
   ASSERT ①拿到真 URL = true
   STATE[①之后] procs=2 listen=1 tmp=2
   ASSERT ①（成功）之后是**活着的**（进程>0 且端口在听）= true
@@ -17,6 +17,6 @@ To eliminate this warning, add "type": "module" to \\?\C:\Users\l\package.json.
   STATE[②③之后] procs=0 listen=0 tmp=0
   ASSERT ②③之后无残留 = true
   ASSERT 不误杀旁观者（仍在）= true（is-active=active）
-[④对照：stop 之后同端口重起] OK 3148ms :: http://127.0.0.1:8913/?token=0tqwb1Q2dW11Nu9MlaMYZghIn4ZnLUll95Ek6bm3jD4
+[④对照：stop 之后同端口重起] OK 3148ms :: http://127.0.0.1:8913/?token=<REDACTED>
   ASSERT ④stop 后能重新起（去掉"半死"歧义） = true
 [⑤收尾 stop] OK 401ms :: stopped web host on port 8913
