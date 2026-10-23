@@ -249,8 +249,12 @@ export function runWsl(cfg, script, opts = {}) {
       } catch {
         /* 已退出 */
       }
+      // 被信号结束（settle 的 kill 分支）时 Node 给的是 `code=null + signal='SIGTERM'`：
+      // 旧写法 `code ?? 0` 会把它记成**成功**（空 stdout + exitCode 0 = 伪成功，2026-10-23 真 child 探针
+      // probe-real-child-settle 实测 codes=0,0 才发现）。这里按失败记 1 —— 调用方（wsl_exec 等）
+      // 本来就在被关停，拿到"失败"比拿到"成功且空输出"诚实。
       resolve({
-        exitCode: code ?? 0,
+        exitCode: code ?? (child.signalCode ? 1 : 0),
         stdout: readWslOutput(Buffer.concat(outChunks)),
         stderr: readWslOutput(Buffer.concat(errChunks)),
       });
