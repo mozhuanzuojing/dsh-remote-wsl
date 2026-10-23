@@ -35,12 +35,18 @@ export function buildGatewayDiscoveryLines() {
 }
 
 /**
- * 网关**校验**片段：loopback 一律拒绝；`resolv` 来源只接受私有/链路本地。
+ * 网关**校验**片段：先卡字符集（只允许 IP 字面量字符），再判 loopback，最后按来源判私有/链路本地。
  * 判据与 `parseGatewayOutput()` / `src/daemon.ts` 的 `isPrivateOrLinkLocal()` 一致。
+ *
+ * 2026-10-23 review ⑤：字符集白名单。`GATEWAY` 会进 `bash -c "…/dev/tcp/$GATEWAY/9910"`（双引号里
+ * 仍会展开 `$(...)`），而 `route` 来源此前只挡了 loopback、不过字符集 —— 万一 `ip route` 输出被替换/含
+ * 异常字节，就多了一条注入面。这里先把它限制成 `[0-9a-fA-F:.]`（IPv4/IPv6 字面量够用），挡掉一切
+ * shell 元字符与 IPv4-mapped 之类非规范形状。
  */
 export function buildGatewayValidationLines() {
   return [
     'case "${GATEWAY:-}" in',
+    '  *[!0-9a-fA-F:.]*) GATEWAY= ;;',
     '  ""|127.*|::1|localhost) GATEWAY= ;;',
     '  *) if [ "${GW_SRC:-resolv}" = "resolv" ]; then',
     '       case "$GATEWAY" in',

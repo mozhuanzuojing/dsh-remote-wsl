@@ -22,7 +22,7 @@ import {
   ensureDaemon, stopDaemon, daemonPrompt, daemonStatus, daemonSnapshot, readDaemonMeta, stateDirLinux,
 } from './daemon-client.ts';
 import { decodeWslOutput, registerExplorer, withModulePrefix } from './explorer.ts';
-import { createLifecycle } from './lifecycle.ts';
+import { activeLifecycle, adoptPreviousLifecycle, createLifecycle } from './lifecycle.ts';
 import { resolveVersion, writePin, runWsl, sweepOwnTempFiles, shellPreamble, sleep } from './wsl-io.ts';
 import { createInHostPool } from './in-host-runtime.ts';
 import { registerTools, sweepStaleRuntimes } from './register-tools.ts';
@@ -218,7 +218,18 @@ export function apply(ctx, rawConfig = {}) {
   // ── 拆分接线（架构债 T5/task-44）────────────────────────────────────────────
   // 状态与判定**只在这里**创建（单一来源）；register-tools.ts 只拿注册面。
   // 关停屏障（参考 ZCode 的 Remote Host dispose 纪律）：dispose 开始后拒绝新建运行时，并等自己 spawn 的包装层退出。
+  // 2026-10-23 review ⑥：热重载时旧实例可能留下没人等的包装层（旧 disposer 没跑完/没跑）⇒ 新建前
+  // 先把上一份屏障认领掉（幂等；只结算它自己登记的子进程）。
+  const previousLifecycle = activeLifecycle();
   const lifecycle = createLifecycle();
+  if (previousLifecycle) {
+    const adopted = adoptPreviousLifecycle(previousLifecycle);
+    if (adopted) {
+      adopted.catch((error) => {
+        process.stderr.write('remote-wsl: 认领旧关停屏障失败（忽略）: ' + (error && error.message ? error.message : String(error)) + '\n');
+      });
+    }
+  }
   const inHost = createInHostPool({ config, version, warmInBackground, lifecycle });
   const runtimes = inHost.runtimes; // 宿主逃生舱持有的运行时（dispose 时回收；**不含守护**）
 

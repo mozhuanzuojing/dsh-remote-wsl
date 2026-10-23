@@ -95,6 +95,12 @@ check('preamble：含 resolv 回落', preamble.indexOf('/etc/resolv.conf') >= 0)
     ['169.254.1.1', 'resolv', '169.254.1.1', '链路本地保留'],
     ['127.0.0.1', 'route', '', 'loopback 一律拒绝（即使来源是 route）'],
     ['8.8.8.8', 'route', '8.8.8.8', 'route 来源按 ZCode 语义不要求私有（默认网关就是它）'],
+    // 2026-10-23 review ⑤：字符集白名单 —— 不是 IP 字面量形状的一律丢弃（挡 shell 元字符与
+    // IPv4-mapped 之类非规范形状；GATEWAY 会进 `bash -c "…/dev/tcp/$GATEWAY/9910"`）。
+    ['zzz', 'route', '', '非 IP 字符集的候选一律拒绝（字符集白名单）'],
+    ['zzz', 'resolv', '', '非 IP 字符集的候选一律拒绝（resolv 同样）'],
+    ['fe80::1', 'resolv', 'fe80::1', 'IPv6 链路本地保留'],
+    ['fd00::1', 'resolv', 'fd00::1', 'IPv6 ULA 保留'],
   ];
   for (const [gw, src, want, why] of cases) {
     const got = runCase(gw, src);

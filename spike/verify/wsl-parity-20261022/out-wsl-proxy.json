@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-23T03:42:11.731Z",
-  "total": 29,
-  "pass": 29,
+  "generatedAt": "2026-10-23T06:00:27.643Z",
+  "total": 33,
+  "pass": 33,
   "fail": 0,
   "results": [
     {
@@ -148,6 +148,26 @@
       "name": "校验：route=8.8.8.8 ⇒ \"8.8.8.8\"（route 来源按 ZCode 语义不要求私有（默认网关就是它））",
       "ok": true,
       "detail": "8.8.8.8"
+    },
+    {
+      "name": "校验：route=zzz ⇒ \"\"（非 IP 字符集的候选一律拒绝（字符集白名单））",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "校验：resolv=zzz ⇒ \"\"（非 IP 字符集的候选一律拒绝（resolv 同样））",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "校验：resolv=fe80::1 ⇒ \"fe80::1\"（IPv6 链路本地保留）",
+      "ok": true,
+      "detail": "fe80::1"
+    },
+    {
+      "name": "校验：resolv=fd00::1 ⇒ \"fd00::1\"（IPv6 ULA 保留）",
+      "ok": true,
+      "detail": "fd00::1"
     }
   ]
 }

@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-10-23T03:42:18.911Z",
+  "generatedAt": "2026-10-23T06:00:33.827Z",
   "observations": {
     "distro": "debian-u8-1",
     "daemonDiscoveryOutput": "route=172.30.176.1",
     "proxyFragmentOutput": "172.30.176.1",
-    "daemonStartupTail": "[daemon pid=10024 2026-10-23T03:42:18.053Z] listening 127.0.0.1:9101 pid=10024 dsh@0.2.0-rc.2 cwd=/home/g idleMs=0 queue=4 lingerMs=1 | [daemon pid=10024 2026-10-23T03:42:18.055Z] 无 key 且无客户端 1ms ⇒ 守护按寿命闸门自退 | [daemon pid=10024 2026-10-23T03:42:18.055Z] linger ⇒ 回收全部运行时并退出（0 个 key）",
+    "daemonStartupTail": "[daemon pid=25961 2026-10-23T06:00:33.240Z] listening 127.0.0.1:9101 pid=25961 dsh@0.2.0-rc.2 cwd=/home/g idleMs=0 queue=4 lingerMs=1 | [daemon pid=25961 2026-10-23T06:00:33.243Z] 无 key 且无客户端 1ms ⇒ 守护按寿命闸门自退 | [daemon pid=25961 2026-10-23T06:00:33.243Z] linger ⇒ 回收全部运行时并退出（0 个 key）",
     "wslLoopbackToHostProxy": "unreachable",
     "wslNetworkingMode": "nat"
   },
@@ -15,12 +15,12 @@
     {
       "name": "daemon.ts 里有 GATEWAY_DISCOVERY_LINES",
       "ok": true,
-      "detail": "15 行 / 期望 15"
+      "detail": "16 行 / 期望 16"
     },
     {
       "name": "网关发现片段与 wsl-proxy.buildGatewayShellLines() 逐字一致",
       "ok": true,
-      "detail": "\"GATEWAY=$(ip route show default 2>/dev/null | awk '$1 == \\\"default\\\" && $2 == \\\"via\\\" { print $3; exit }')\\nGW_SRC=route\\nif [ -z \\\"${GATEWAY:-}\\\" ] && [ -r /etc/resolv.conf ]; then\\n  GATEWAY=$(awk '$1 == \\\"nameserver\\\" { print $2; exit }' /etc/resolv.conf)\\n  GW_SRC=resolv\\nfi\\ncase \\\"${GATEWAY:-}\\\" in\\n  \\\"\\\"|127.*|::1|localhost) GATEWAY= ;;\\n  *) if [ \\\"${GW_SRC:-resolv}\\\" = \\\"resolv\\\" ]; then\\n       case \\\"$GATEWAY\\\" in\\n         10.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*|169.254.*|fc*|fd*|FC*|FD*|fe[89ab]*|FE[89AB]*) : ;;\\n         *) GATEWAY= ;;\\n       esac\\n     fi ;;\\nesac\""
+      "detail": "\"GATEWAY=$(ip route show default 2>/dev/null | awk '$1 == \\\"default\\\" && $2 == \\\"via\\\" { print $3; exit }')\\nGW_SRC=route\\nif [ -z \\\"${GATEWAY:-}\\\" ] && [ -r /etc/resolv.conf ]; then\\n  GATEWAY=$(awk '$1 == \\\"nameserver\\\" { print $2; exit }' /etc/resolv.conf)\\n  GW_SRC=resolv\\nfi\\ncase \\\"${GATEWAY:-}\\\" in\\n  *[!0-9a-fA-F:.]*) GATEWAY= ;;\\n  \\\"\\\"|127.*|::1|localhost) GATEWAY= ;;\\n  *) if [ \\\"${GW_SRC:-resolv}\\\" = \\\"resolv\\\" ]; then\\n       case \\\"$GATEWAY\\\" in\\n         10.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*|169.254.*|fc*|fd*|FC*|FD*|fe[89ab]*|FE[89AB]*) : ;;\\n         *) GATEWAY= ;;\\n       esac\\n     fi ;;\\nesac\""
     },
     {
       "name": "探活超时 3s ⇒ 1s",
@@ -55,12 +55,12 @@
     {
       "name": "探活：命中本地监听 ⇒ true",
       "ok": true,
-      "detail": "port=56337"
+      "detail": "port=49396"
     },
     {
       "name": "探活：不可达地址按 1s 超时返回 false（不再是 3s）",
       "ok": true,
-      "detail": "elapsed=1006ms"
+      "detail": "elapsed=1002ms"
     },
     {
       "name": "发现脚本以片段原文开头（逐字不动）",
@@ -175,7 +175,7 @@
     {
       "name": "真实 WSL：daemon.ts 由 WSL 侧 node 起得来（listening + 寿命闸门自退）",
       "ok": true,
-      "detail": "exit=0 [daemon pid=10024 2026-10-23T03:42:18.053Z] listening 127.0.0.1:9101 pid=10024 dsh@0.2.0-rc.2 cwd=/home/g idleMs=0 queue=4 lingerMs=1 | [daemon pid=10024 2026-10-23T03:42:18.055Z] 无 key 且无客户端 1ms ⇒ 守护按寿命闸门自退 | [daemon pid=10024 2026-10-23T03:42:18.055Z] linger ⇒ 回收全部运行时并退出（0 个 key）"
+      "detail": "exit=0 [daemon pid=25961 2026-10-23T06:00:33.240Z] listening 127.0.0.1:9101 pid=25961 dsh@0.2.0-rc.2 cwd=/home/g idleMs=0 queue=4 lingerMs=1 | [daemon pid=25961 2026-10-23T06:00:33.243Z] 无 key 且无客户端 1ms ⇒ 守护按寿命闸门自退 | [daemon pid=25961 2026-10-23T06:00:33.243Z] linger ⇒ 回收全部运行时并退出（0 个 key）"
     }
   ]
 }

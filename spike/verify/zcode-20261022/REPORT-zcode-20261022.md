@@ -142,3 +142,16 @@ src/wsl-io.ts                       +89 −15
 spike/verify/wsl-parity-20261022/probe-lifecycle.ts  +10 −1   （判据调整，Lead 指示）
 spike/verify/zcode-20261022/       新增 3 探针 + 3 out + 本报告
 ```
+
+---
+
+## 2026-10-23 review ⑤/⑥：网关字符集白名单 + 热重载认领
+
+- **⑤ 字符集白名单**：`GATEWAY` 最终会进 `bash -c "…/dev/tcp/$GATEWAY/9910"`（双引号里仍会展开 `$(…)`），
+  而 `route` 来源此前只挡 loopback、不过字符集。现加一条 `case "$GATEWAY" in *[!0-9a-fA-F:.]*) GATEWAY= ;; esac`
+  （daemon 片段逐字同步），挡掉 shell 元字符与 IPv4-mapped 之类非规范形状。`probe-wsl-proxy` 29→**33**
+  （新增 `zzz` 两例拒绝、`fe80::1` / `fd00::1` 保留）。
+- **⑥ 热重载认领**：`ambientLifecycle` 是进程级单例，插件重新 apply 时旧实例 spawn 的包装层没人等。
+  新增 `adoptPreviousLifecycle(previous)`：`beginShutdown()` + `settle(1000)`，幂等，只结算旧实例自己登记的
+  子进程；`index.ts` 在建新屏障前调用。`probe-lifecycle-grace` 26→**34**（新增 8 条：返回 promise、进入关停态、
+  子进程被结算、二次认领返回 null、null/非法参数安全）。

@@ -55,6 +55,25 @@ export function setAmbientLifecycle(lifecycle) {
   return ambientLifecycle;
 }
 
+/**
+ * 认领「上一个插件实例遗留的关停屏障」。
+ *
+ * 为什么需要（2026-10-23 review ⑥）：`ambientLifecycle` 是进程级单例，`createLifecycle()` 会把"当前"
+ * 指向新实例；而 `runWsl` 的短命子进程是登记在**创建那一刻**的实例上的。如果宿主做了插件热重载
+ * （cordis 重新 apply，而旧实例的 disposer 没跑完/压根没跑），旧实例 spawn 的 wsl.exe 包装层就再也没人
+ * 等 —— 新实例的 `settle()` 看不见它们。这里在 apply 时把旧实例显式关停并结算：幂等（旧实例已关停则
+ * 直接返回 null），且只作用于**旧实例自己登记的**子进程（仍不按进程名扫、不 terminate 发行版）。
+ *
+ * @param previous - 上一个实例的 lifecycle（可为 null）
+ * @returns 结算 promise，或 null（没有可认领的旧实例）
+ */
+export function adoptPreviousLifecycle(previous) {
+  if (!previous || typeof previous.beginShutdown !== 'function' || typeof previous.settle !== 'function') return null;
+  if (typeof previous.isShuttingDown === 'function' && previous.isShuttingDown()) return null;
+  previous.beginShutdown();
+  return previous.settle(1000);
+}
+
 export function createLifecycle() {
   /** child -> { closed, resolveClosed }：归属表。exit/error/close 任一事件都会结算并摘除。 */
   const children = new Map();

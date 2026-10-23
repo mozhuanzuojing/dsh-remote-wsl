@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import {
   createLifecycle,
   activeLifecycle,
+  adoptPreviousLifecycle,
   DEFAULT_GRACE_TIMEOUT_MS,
   DEFAULT_KILL_WAIT_TIMEOUT_MS,
   DEFAULT_SETTLE_TIMEOUT_MS,
@@ -238,6 +239,23 @@ class FakeChild extends EventEmitter {
   check('beginShutdown 幂等递增 + 关停后 E_SHUTDOWN', g2 === g1 + 1 && code === 'E_SHUTDOWN', g1 + '->' + g2 + ' code=' + code);
   const empty = await lifecycle.settle(0);
   check('空归属的 settle(0) 立刻返回', empty.timedOut === false && empty.killed === 0 && empty.remaining === 0, JSON.stringify(empty));
+}
+
+// ── review ⑥：热重载时认领上一个实例遗留的屏障 ────────────────────────────────
+{
+  const oldLc = createLifecycle();
+  check('新实例创建后 ambient 指向它', activeLifecycle() === oldLc);
+  const orphan = new FakeChild();
+  oldLc.track(orphan);
+  check('旧实例登记了 1 个子进程', oldLc.size() === 1);
+  const adopted = adoptPreviousLifecycle(oldLc);
+  check('adoptPreviousLifecycle 返回 settle promise', !!adopted && typeof adopted.then === 'function');
+  const rep = await adopted;
+  check('认领后旧实例进入关停态', oldLc.isShuttingDown() === true);
+  check('认领会结算旧实例登记的子进程（不留给新实例背锅）', rep.remaining === 0 && orphan.killed === true, JSON.stringify(rep));
+  check('已关停的旧实例再认领返回 null（幂等）', adoptPreviousLifecycle(oldLc) === null);
+  check('adoptPreviousLifecycle(null) 安全返回 null', adoptPreviousLifecycle(null) === null);
+  check('adoptPreviousLifecycle(非 lifecycle) 安全返回 null', adoptPreviousLifecycle({}) === null);
 }
 
 const summary = { generatedAt: new Date().toISOString(), total: results.length, pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok).length, results };

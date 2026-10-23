@@ -129,6 +129,7 @@ const GATEWAY_DISCOVERY_LINES = [
   '  GW_SRC=resolv',
   'fi',
   'case "${GATEWAY:-}" in',
+  '  *[!0-9a-fA-F:.]*) GATEWAY= ;;',
   '  ""|127.*|::1|localhost) GATEWAY= ;;',
   '  *) if [ "${GW_SRC:-resolv}" = "resolv" ]; then',
   '       case "$GATEWAY" in',
