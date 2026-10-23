@@ -120,21 +120,28 @@ window.__ModuleLoader__.load({
 			".dsh-rw-btn--quiet:hover:enabled{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-daemon{display:inline-flex;align-items:center;gap:5px;flex:none;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;white-space:nowrap}",
 			".dsh-rw-daemon:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
-			".dsh-rw-daemon--on{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
-			".dsh-rw-daemon--off{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
+			// 2026-10-23 review ①：状态 token 只用于**边框/圆点**，文字一律用 `label-primary`。
+			// 原因（实测对比度，白底）：success rgb(34,197,94)=2.28、warn rgb(245,158,11)=2.15、error 4.50 ——
+			// 前两个连 3:1（图形/大字）都不到，更别说 4.5:1（正文）。状态语义由圆点形状 + 边框 + 文字共同承载。
+			".dsh-rw-daemon--on{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-success-primary)}",
+			".dsh-rw-daemon--off{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-warn-primary)}",
 			// 2026-10-22 B1：头部「代理状态」徽标（三态）。与守护药丸同形（h22 / 12px / 圆角 999），
-			// 配色只用宿主 `--dsw-alias-state-*`（与 StatusDot 同族）：可达=success、不可达=**warn**、
+			// 状态色放在**圆点与边框**上（与 StatusDot 同族）：可达=success、不可达=warn、
 			// 未探测=次级文字色 + border-l2。**文字始终存在**（颜色只是第三冗余，不许"只画红点"）；
 			// `white-space:nowrap` 钉死"徽标自身不折行"，元信息行的 `flex-wrap` 负责不让它挤压标题。
 			// 2026-10-22 review 修：不可达原先用 error（红）——但 `proxyPort` 默认 9910，不用代理的用户会
 			// 常驻一个"故障红"；直连本身是正常状态（诊断区也写"不可达（直连）"）⇒ 降为 warn（琥珀色）。
+			// 2026-10-23 review ①：文字色一律 `label-primary`（琥珀/绿在白底只有 2.1–2.3:1，不过 WCAG AA），
+			// 状态色只留在圆点与边框上。
 			".dsh-rw-proxy{display:inline-flex;align-items:center;gap:5px;flex:none;box-sizing:border-box;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;white-space:nowrap}",
-			".dsh-rw-proxy--up{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
-			".dsh-rw-proxy--down{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
+			".dsh-rw-proxy--up{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-success-primary)}",
+			".dsh-rw-proxy--down{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-proxy--unknown{color:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-border-l2)}",
 			".dsh-rw-proxy-text{white-space:nowrap}",
 			// 2026-10-22 B2：窄态漂移提示只留 ⚠（title/aria-label 承载文字）。
-			".dsh-rw-driftmark{display:inline-flex;align-items:center;flex:none;color:var(--dsw-alias-state-warn-primary)}",
+			// 2026-10-23 review ①：warn 在浅底只有 2.15:1，非文本图形也要 3:1 ⇒ 改 `label-primary`，
+			// 语义靠 ⚠ 形状 + aria/title 承载。
+			".dsh-rw-driftmark{display:inline-flex;align-items:center;flex:none;color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-body{flex:1;min-height:0;overflow:hidden;padding:10px 10px 6px;display:flex;flex-direction:column;gap:8px}",
 			".dsh-rw-card{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:0;box-shadow:none;display:flex;flex-direction:column;min-height:0;flex:1;overflow:hidden}",
 			".dsh-rw-cardhead{display:flex;align-items:center;gap:8px;min-width:0}",

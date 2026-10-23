@@ -154,6 +154,12 @@ const MEASURE = `(() => {
   const pRect=_rect(p);
   const metaRows = meta ? Array.from(new Set(Array.from(meta.children).map(c=>Math.round(c.getBoundingClientRect().top)))) .length : null;
   const pc = proxy ? getComputedStyle(proxy) : null;
+  const proxyDot = proxy ? proxy.querySelector('.dsh-rw-dot') : null;
+  const dotC = proxyDot ? getComputedStyle(proxyDot) : null;
+  const daemonEl = q('.dsh-rw-daemon');
+  const dc = daemonEl ? getComputedStyle(daemonEl) : null;
+  // 2026-10-23 review ①：徽标/药丸的**文字**对比度必须可算 ⇒ 取所在行的实际背景色。
+  const headerBg = header ? getComputedStyle(header).backgroundColor : null;
   // 越界/溢出定位：找出右边界超出面板的元素（最多 8 个）与自身横向溢出的非滚动容器
   const offenders = [];
   const all = p.querySelectorAll('*');
@@ -186,9 +192,12 @@ const MEASURE = `(() => {
       state: proxy.getAttribute('data-proxy-state'), cls: String(proxy.className),
       aria: proxy.getAttribute('aria-label'), title: proxy.getAttribute('title'), role: proxy.getAttribute('role'),
       color: pc ? pc.color : null, borderColor: pc ? pc.borderColor : null,
+      dotColor: dotC ? dotC.backgroundColor : null,
+      bg: headerBg,
       inside: (_rect(proxy).x >= pRect.x - 0.5) && (_rect(proxy).right <= pRect.right + 0.5),
       dotCls: (q('.dsh-rw-proxy .dsh-rw-dot') || {}).className || null
     } : null,
+    daemon: daemonEl ? { color: dc.color, borderColor: dc.borderColor, bg: headerBg } : null,
     footer: _ov(footer), footerH: footer?_rect(footer).h:null,
     body: _ov(bodyEl), card: _ov(card), entries: _ov(entries)
   });
@@ -322,6 +331,23 @@ function interpolate(tpl: string, vars?: any) {
   return tpl.replace(/\{(\w+)\}/g, (_m, k) => (vars[k] === undefined ? '{' + k + '}' : String(vars[k])))
 }
 
+// ── 对比度（WCAG 2.x 相对亮度）——2026-10-23 review ① 用真实渲染色算，不靠眼睛 ──────────────
+const parseRgb = (s: string | null): [number, number, number] | null => {
+  const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(String(s ?? ''))
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null
+}
+const relLum = (rgb: [number, number, number]) => {
+  const f = (v: number) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4) }
+  return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2])
+}
+const contrast = (fg: string | null, bg: string | null): number | null => {
+  const a = parseRgb(fg), b = parseRgb(bg)
+  if (!a || !b) return null
+  const la = relLum(a), lb = relLum(b)
+  const hi = Math.max(la, lb), lo = Math.min(la, lb)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
 for (const r of rows) {
   const id = `w=${r.reqW}/panel=${r.panelW}/${r.state}`
   if (r.missing) { bad(`L0 面板存在 (${id})`, 'missing'); continue }
@@ -373,9 +399,20 @@ for (const r of rows) {
     else if (!narrowPanel && hasEndpoint(p.text)) ok(`B1-8c 宽态可见文字直接给出代理地址 (${id})`, `'${p.text}'`)
     else bad(`B1-8b/c 不可达态可见文字与档位不符 (${id})`, `panel=${r.panelW} text='${p.text}'`)
   }
+  // 2026-10-23 review ①：文字对比度（WCAG AA 正文 4.5:1）。状态色只允许出现在圆点/边框上，
+  // 文字必须是 label-primary/secondary —— 否则浅色主题下琥珀/绿只有 2.1–2.3:1。
+  const crBadge = contrast(p.color, p.bg)
+  if (crBadge !== null && crBadge >= 4.5) ok(`B1-11 徽标文字对比度 ≥4.5:1 (${id})`, `${p.color} on ${p.bg} = ${crBadge.toFixed(2)}`)
+  else bad(`B1-11 徽标文字对比度 ≥4.5:1 (${id})`, `${p.color} on ${p.bg} = ${crBadge === null ? 'n/a' : crBadge.toFixed(2)}`)
+  if (r.daemon) {
+    const crDaemon = contrast(r.daemon.color, r.daemon.bg)
+    if (crDaemon !== null && crDaemon >= 4.5) ok(`B1-12 守护药丸文字对比度 ≥4.5:1 (${id})`, `${r.daemon.color} on ${r.daemon.bg} = ${crDaemon.toFixed(2)}`)
+    else bad(`B1-12 守护药丸文字对比度 ≥4.5:1 (${id})`, `${r.daemon.color} on ${r.daemon.bg} = ${crDaemon === null ? 'n/a' : crDaemon.toFixed(2)}`)
+  }
 }
 
-// 三态颜色互不相同（同一视口下）
+// 三态**状态色**互不相同（同一视口下）——2026-10-23 review ① 起，状态色改由圆点/边框承载（文字走
+// label-primary/secondary 保对比度），所以这里比 borderColor 与 dotColor 两个通道，不再比文字色。
 {
   const byW = new Map<number, any[]>()
   for (const r of rows) { if (!byW.has(r.reqW)) byW.set(r.reqW, []); byW.get(r.reqW)!.push(r) }
@@ -384,9 +421,12 @@ for (const r of rows) {
     const downs = list.find((x) => x.state === 'down' && x.proxy)
     const unks = list.find((x) => x.state === 'unknown' && x.proxy)
     if (!ups || !downs || !unks) continue
-    const colors = [ups.proxy.color, downs.proxy.color, unks.proxy.color]
-    if (new Set(colors).size === 3) ok(`B1-9 三态颜色互不相同 (w=${w})`, colors.join(' | '))
-    else bad(`B1-9 三态颜色互不相同 (w=${w})`, colors.join(' | '))
+    const borders = [ups.proxy.borderColor, downs.proxy.borderColor, unks.proxy.borderColor]
+    if (new Set(borders).size === 3) ok(`B1-9 三态边框色互不相同 (w=${w})`, borders.join(' | '))
+    else bad(`B1-9 三态边框色互不相同 (w=${w})`, borders.join(' | '))
+    const dotColors = [ups.proxy.dotColor, downs.proxy.dotColor, unks.proxy.dotColor]
+    if (new Set(dotColors).size === 3) ok(`B1-9b 三态圆点色互不相同（状态色通道） (w=${w})`, dotColors.join(' | '))
+    else bad(`B1-9b 三态圆点色互不相同 (w=${w})`, dotColors.join(' | '))
     const dots = [ups.proxy.dotCls, downs.proxy.dotCls, unks.proxy.dotCls]
     if (new Set(dots).size === 3) ok(`B1-10 三态圆点形状/种类互不相同（形状通道） (w=${w})`, dots.join(' | '))
     else bad(`B1-10 三态圆点互不相同 (w=${w})`, dots.join(' | '))

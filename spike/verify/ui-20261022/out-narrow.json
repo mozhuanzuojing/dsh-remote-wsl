@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-23T03:42:19.081Z",
-  "total": 33,
-  "pass": 33,
+  "generatedAt": "2026-10-23T06:00:33.989Z",
+  "total": 37,
+  "pass": 37,
   "fail": 0,
-  "cssChars": 20850,
+  "cssChars": 20819,
   "results": [
     {
       "ok": true,
@@ -33,7 +33,7 @@
     {
       "ok": true,
       "name": "入口 chunk 真的注入了 <style data-plugin-css>",
-      "detail": "20850 字符 / 1 个 style"
+      "detail": "20819 字符 / 1 个 style"
     },
     {
       "ok": true,
@@ -78,12 +78,12 @@
     {
       "ok": true,
       "name": "CSS: 可达态用宿主 success token",
-      "detail": ".dsh-rw-proxy--up{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}"
+      "detail": ".dsh-rw-proxy--up{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-success-primary)}"
     },
     {
       "ok": true,
       "name": "CSS: 不可达态用宿主 warn token（直连是正常态，不是故障）",
-      "detail": ".dsh-rw-proxy--down{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}"
+      "detail": ".dsh-rw-proxy--down{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-warn-primary)}"
     },
     {
       "ok": true,
@@ -92,8 +92,28 @@
     },
     {
       "ok": true,
+      "name": "CSS: 可达态文字用 label-primary（状态色只在边框）",
+      "detail": ".dsh-rw-proxy--up{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-success-primary)}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 不可达态文字用 label-primary（状态色只在边框）",
+      "detail": ".dsh-rw-proxy--down{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-warn-primary)}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 守护药丸 on/off 文字用 label-primary（状态色只在边框）",
+      "detail": ".dsh-rw-daemon--off{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-warn-primary)}"
+    },
+    {
+      "ok": true,
       "name": "CSS: 漂移图标壳存在（窄态只留 ⚠）",
-      "detail": ".dsh-rw-driftmark{display:inline-flex;align-items:center;flex:none;color:var(--dsw-alias-s"
+      "detail": ".dsh-rw-driftmark{display:inline-flex;align-items:center;flex:none;color:var(--dsw-alias-l"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 漂移图标用 label-primary（warn 在浅底仅 2.15:1，非文本图形也要 3:1）",
+      "detail": ".dsh-rw-driftmark{display:inline-flex;align-items:center;flex:none;color:var(--dsw-alias-label-primary)}"
     },
     {
       "ok": true,

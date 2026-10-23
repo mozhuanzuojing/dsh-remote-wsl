@@ -105,7 +105,32 @@ const ruleOf = (selector: string) => rules.find((r) => r.startsWith(selector + '
   // 2026-10-22 review 修：不可达从 error（红）降为 warn（琥珀）——不用代理的用户不该看到"故障红"。
   check('CSS: 不可达态用宿主 warn token（直连是正常态，不是故障）', /--dsw-alias-state-warn-primary/.test(ruleOf('.dsh-rw-proxy--down')), ruleOf('.dsh-rw-proxy--down'))
   check('CSS: 未探测态用次级文字色 + border-l2（不是成功/失败色）', /--dsw-alias-label-secondary/.test(ruleOf('.dsh-rw-proxy--unknown')), ruleOf('.dsh-rw-proxy--unknown'))
+  // 2026-10-23 review ①：状态色只许出现在边框/圆点上；**文字**必须是 label-primary。
+  // 判据来自实测对比度（白底）：success 2.28、warn 2.15 —— 都不过 WCAG AA 的 4.5:1。
+  check(
+    'CSS: 可达态文字用 label-primary（状态色只在边框）',
+    /color:var\(--dsw-alias-label-primary\)/.test(ruleOf('.dsh-rw-proxy--up')) && /border-color:var\(--dsw-alias-state-success-primary\)/.test(ruleOf('.dsh-rw-proxy--up')),
+    ruleOf('.dsh-rw-proxy--up'),
+  )
+  check(
+    'CSS: 不可达态文字用 label-primary（状态色只在边框）',
+    /color:var\(--dsw-alias-label-primary\)/.test(ruleOf('.dsh-rw-proxy--down')) && /border-color:var\(--dsw-alias-state-warn-primary\)/.test(ruleOf('.dsh-rw-proxy--down')),
+    ruleOf('.dsh-rw-proxy--down'),
+  )
+  check(
+    'CSS: 守护药丸 on/off 文字用 label-primary（状态色只在边框）',
+    /color:var\(--dsw-alias-label-primary\)/.test(ruleOf('.dsh-rw-daemon--on')) &&
+      /border-color:var\(--dsw-alias-state-success-primary\)/.test(ruleOf('.dsh-rw-daemon--on')) &&
+      /color:var\(--dsw-alias-label-primary\)/.test(ruleOf('.dsh-rw-daemon--off')) &&
+      /border-color:var\(--dsw-alias-state-warn-primary\)/.test(ruleOf('.dsh-rw-daemon--off')),
+    ruleOf('.dsh-rw-daemon--off'),
+  )
   check('CSS: 漂移图标壳存在（窄态只留 ⚠）', !!ruleOf('.dsh-rw-driftmark'), ruleOf('.dsh-rw-driftmark').slice(0, 90))
+  check(
+    'CSS: 漂移图标用 label-primary（warn 在浅底仅 2.15:1，非文本图形也要 3:1）',
+    /color:var\(--dsw-alias-label-primary\)/.test(ruleOf('.dsh-rw-driftmark')),
+    ruleOf('.dsh-rw-driftmark'),
+  )
 
   const formrow = rules.find((r) => r.startsWith('.dsh-rw-root--narrow .dsh-rw-formrow{')) || ''
   const pathform = rules.find((r) => r.startsWith('.dsh-rw-root--narrow .dsh-rw-pathform{')) || ''

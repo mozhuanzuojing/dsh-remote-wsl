@@ -6,8 +6,10 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=320/panel=264/up)         
 PASS  B1-3 徽标在面板内 (w=320/panel=264/up)                         — x=70 right=125
 PASS  B1-4 徽标有 aria-label 与 title (w=320/panel=264/up)         — 代理可达：192.0.2.7:9910（WSL 侧流量可以走它）
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=320/panel=264/up)      — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=320/panel=264/up)                — rgb(34, 197, 94) / border rgb(34, 197, 94)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=320/panel=264/up)                — rgb(15, 17, 21) / border rgb(34, 197, 94)
 PASS  B1-7 up 态文案取自字典且档位正确（面板 264<420 ⇒ 短文案） (w=320/panel=264/up) — '可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=320/panel=264/up)                — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=320/panel=264/up)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=320/panel=264/down)                       — page 320/320, panel 264/264
 PASS  L3 标题 1 行且未被省略 (w=320/panel=264/down)                    — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=320/panel=264/down)          — w=87 h=28 '添加工作区'
@@ -16,10 +18,12 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=320/panel=264/down)       
 PASS  B1-3 徽标在面板内 (w=320/panel=264/down)                       — x=70 right=137
 PASS  B1-4 徽标有 aria-label 与 title (w=320/panel=264/down)       — 代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=320/panel=264/down)    — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=320/panel=264/down)              — rgb(245, 158, 11) / border rgb(245, 158, 11)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=320/panel=264/down)              — rgb(15, 17, 21) / border rgb(245, 158, 11)
 PASS  B1-7 down 态文案取自字典且档位正确（面板 264<420 ⇒ 短文案） (w=320/panel=264/down) — '不可达'
 PASS  B1-8 不可达态 aria/title 给出代理地址 (w=320/panel=264/down)       — 192.0.2.7:9910
 PASS  B1-8b 窄态可见文字让位给短词（地址仍在 aria/title） (w=320/panel=264/down) — '不可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=320/panel=264/down)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=320/panel=264/down)            — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=320/panel=264/unknown)                    — page 320/320, panel 264/264
 PASS  L3 标题 1 行且未被省略 (w=320/panel=264/unknown)                 — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=320/panel=264/unknown)       — w=87 h=28 '添加工作区'
@@ -30,6 +34,8 @@ PASS  B1-4 徽标有 aria-label 与 title (w=320/panel=264/unknown)    — 代�
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=320/panel=264/unknown) — img
 PASS  B1-6 徽标取到宿主 token 颜色 (w=320/panel=264/unknown)           — rgb(97, 102, 107) / border rgba(0, 0, 0, 0.1)
 PASS  B1-7 unknown 态文案取自字典且档位正确（面板 264<420 ⇒ 短文案） (w=320/panel=264/unknown) — '未探测'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=320/panel=264/unknown)           — rgb(97, 102, 107) on rgb(255, 255, 255) = 5.80
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=320/panel=264/unknown)         — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=360/panel=304/up)                         — page 360/360, panel 304/304
 PASS  L3 标题 1 行且未被省略 (w=360/panel=304/up)                      — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=360/panel=304/up)            — w=87 h=28 '添加工作区'
@@ -38,8 +44,10 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=360/panel=304/up)         
 PASS  B1-3 徽标在面板内 (w=360/panel=304/up)                         — x=70 right=125
 PASS  B1-4 徽标有 aria-label 与 title (w=360/panel=304/up)         — 代理可达：192.0.2.7:9910（WSL 侧流量可以走它）
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=360/panel=304/up)      — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=360/panel=304/up)                — rgb(34, 197, 94) / border rgb(34, 197, 94)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=360/panel=304/up)                — rgb(15, 17, 21) / border rgb(34, 197, 94)
 PASS  B1-7 up 态文案取自字典且档位正确（面板 304<420 ⇒ 短文案） (w=360/panel=304/up) — '可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=360/panel=304/up)                — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=360/panel=304/up)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=360/panel=304/down)                       — page 360/360, panel 304/304
 PASS  L3 标题 1 行且未被省略 (w=360/panel=304/down)                    — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=360/panel=304/down)          — w=87 h=28 '添加工作区'
@@ -48,10 +56,12 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=360/panel=304/down)       
 PASS  B1-3 徽标在面板内 (w=360/panel=304/down)                       — x=70 right=137
 PASS  B1-4 徽标有 aria-label 与 title (w=360/panel=304/down)       — 代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=360/panel=304/down)    — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=360/panel=304/down)              — rgb(245, 158, 11) / border rgb(245, 158, 11)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=360/panel=304/down)              — rgb(15, 17, 21) / border rgb(245, 158, 11)
 PASS  B1-7 down 态文案取自字典且档位正确（面板 304<420 ⇒ 短文案） (w=360/panel=304/down) — '不可达'
 PASS  B1-8 不可达态 aria/title 给出代理地址 (w=360/panel=304/down)       — 192.0.2.7:9910
 PASS  B1-8b 窄态可见文字让位给短词（地址仍在 aria/title） (w=360/panel=304/down) — '不可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=360/panel=304/down)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=360/panel=304/down)            — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=360/panel=304/unknown)                    — page 360/360, panel 304/304
 PASS  L3 标题 1 行且未被省略 (w=360/panel=304/unknown)                 — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=360/panel=304/unknown)       — w=87 h=28 '添加工作区'
@@ -62,6 +72,8 @@ PASS  B1-4 徽标有 aria-label 与 title (w=360/panel=304/unknown)    — 代�
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=360/panel=304/unknown) — img
 PASS  B1-6 徽标取到宿主 token 颜色 (w=360/panel=304/unknown)           — rgb(97, 102, 107) / border rgba(0, 0, 0, 0.1)
 PASS  B1-7 unknown 态文案取自字典且档位正确（面板 304<420 ⇒ 短文案） (w=360/panel=304/unknown) — '未探测'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=360/panel=304/unknown)           — rgb(97, 102, 107) on rgb(255, 255, 255) = 5.80
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=360/panel=304/unknown)         — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=376/panel=320/up)                         — page 376/376, panel 320/320
 PASS  L3 标题 1 行且未被省略 (w=376/panel=320/up)                      — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=376/panel=320/up)            — w=87 h=28 '添加工作区'
@@ -70,8 +82,10 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=376/panel=320/up)         
 PASS  B1-3 徽标在面板内 (w=376/panel=320/up)                         — x=167 right=222
 PASS  B1-4 徽标有 aria-label 与 title (w=376/panel=320/up)         — 代理可达：192.0.2.7:9910（WSL 侧流量可以走它）
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=376/panel=320/up)      — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=376/panel=320/up)                — rgb(34, 197, 94) / border rgb(34, 197, 94)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=376/panel=320/up)                — rgb(15, 17, 21) / border rgb(34, 197, 94)
 PASS  B1-7 up 态文案取自字典且档位正确（面板 320<420 ⇒ 短文案） (w=376/panel=320/up) — '可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=376/panel=320/up)                — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=376/panel=320/up)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=376/panel=320/down)                       — page 376/376, panel 320/320
 PASS  L3 标题 1 行且未被省略 (w=376/panel=320/down)                    — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=376/panel=320/down)          — w=87 h=28 '添加工作区'
@@ -80,10 +94,12 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=376/panel=320/down)       
 PASS  B1-3 徽标在面板内 (w=376/panel=320/down)                       — x=167 right=234
 PASS  B1-4 徽标有 aria-label 与 title (w=376/panel=320/down)       — 代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=376/panel=320/down)    — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=376/panel=320/down)              — rgb(245, 158, 11) / border rgb(245, 158, 11)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=376/panel=320/down)              — rgb(15, 17, 21) / border rgb(245, 158, 11)
 PASS  B1-7 down 态文案取自字典且档位正确（面板 320<420 ⇒ 短文案） (w=376/panel=320/down) — '不可达'
 PASS  B1-8 不可达态 aria/title 给出代理地址 (w=376/panel=320/down)       — 192.0.2.7:9910
 PASS  B1-8b 窄态可见文字让位给短词（地址仍在 aria/title） (w=376/panel=320/down) — '不可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=376/panel=320/down)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=376/panel=320/down)            — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=376/panel=320/unknown)                    — page 376/376, panel 320/320
 PASS  L3 标题 1 行且未被省略 (w=376/panel=320/unknown)                 — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=376/panel=320/unknown)       — w=87 h=28 '添加工作区'
@@ -94,6 +110,8 @@ PASS  B1-4 徽标有 aria-label 与 title (w=376/panel=320/unknown)    — 代�
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=376/panel=320/unknown) — img
 PASS  B1-6 徽标取到宿主 token 颜色 (w=376/panel=320/unknown)           — rgb(97, 102, 107) / border rgba(0, 0, 0, 0.1)
 PASS  B1-7 unknown 态文案取自字典且档位正确（面板 320<420 ⇒ 短文案） (w=376/panel=320/unknown) — '未探测'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=376/panel=320/unknown)           — rgb(97, 102, 107) on rgb(255, 255, 255) = 5.80
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=376/panel=320/unknown)         — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=416/panel=360/up)                         — page 416/416, panel 360/360
 PASS  L3 标题 1 行且未被省略 (w=416/panel=360/up)                      — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=416/panel=360/up)            — w=87 h=28 '添加工作区'
@@ -102,8 +120,10 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=416/panel=360/up)         
 PASS  B1-3 徽标在面板内 (w=416/panel=360/up)                         — x=167 right=222
 PASS  B1-4 徽标有 aria-label 与 title (w=416/panel=360/up)         — 代理可达：192.0.2.7:9910（WSL 侧流量可以走它）
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=416/panel=360/up)      — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=416/panel=360/up)                — rgb(34, 197, 94) / border rgb(34, 197, 94)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=416/panel=360/up)                — rgb(15, 17, 21) / border rgb(34, 197, 94)
 PASS  B1-7 up 态文案取自字典且档位正确（面板 360<420 ⇒ 短文案） (w=416/panel=360/up) — '可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=416/panel=360/up)                — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=416/panel=360/up)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=416/panel=360/down)                       — page 416/416, panel 360/360
 PASS  L3 标题 1 行且未被省略 (w=416/panel=360/down)                    — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=416/panel=360/down)          — w=87 h=28 '添加工作区'
@@ -112,10 +132,12 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=416/panel=360/down)       
 PASS  B1-3 徽标在面板内 (w=416/panel=360/down)                       — x=167 right=234
 PASS  B1-4 徽标有 aria-label 与 title (w=416/panel=360/down)       — 代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=416/panel=360/down)    — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=416/panel=360/down)              — rgb(245, 158, 11) / border rgb(245, 158, 11)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=416/panel=360/down)              — rgb(15, 17, 21) / border rgb(245, 158, 11)
 PASS  B1-7 down 态文案取自字典且档位正确（面板 360<420 ⇒ 短文案） (w=416/panel=360/down) — '不可达'
 PASS  B1-8 不可达态 aria/title 给出代理地址 (w=416/panel=360/down)       — 192.0.2.7:9910
 PASS  B1-8b 窄态可见文字让位给短词（地址仍在 aria/title） (w=416/panel=360/down) — '不可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=416/panel=360/down)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=416/panel=360/down)            — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=416/panel=360/unknown)                    — page 416/416, panel 360/360
 PASS  L3 标题 1 行且未被省略 (w=416/panel=360/unknown)                 — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=416/panel=360/unknown)       — w=87 h=28 '添加工作区'
@@ -126,6 +148,8 @@ PASS  B1-4 徽标有 aria-label 与 title (w=416/panel=360/unknown)    — 代�
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=416/panel=360/unknown) — img
 PASS  B1-6 徽标取到宿主 token 颜色 (w=416/panel=360/unknown)           — rgb(97, 102, 107) / border rgba(0, 0, 0, 0.1)
 PASS  B1-7 unknown 态文案取自字典且档位正确（面板 360<420 ⇒ 短文案） (w=416/panel=360/unknown) — '未探测'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=416/panel=360/unknown)           — rgb(97, 102, 107) on rgb(255, 255, 255) = 5.80
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=416/panel=360/unknown)         — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=420/panel=364/unknown)                    — page 420/420, panel 364/364
 PASS  L3 标题 1 行且未被省略 (w=420/panel=364/unknown)                 — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=420/panel=364/unknown)       — w=87 h=28 '添加工作区'
@@ -136,6 +160,8 @@ PASS  B1-4 徽标有 aria-label 与 title (w=420/panel=364/unknown)    — 代�
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=420/panel=364/unknown) — img
 PASS  B1-6 徽标取到宿主 token 颜色 (w=420/panel=364/unknown)           — rgb(97, 102, 107) / border rgba(0, 0, 0, 0.1)
 PASS  B1-7 unknown 态文案取自字典且档位正确（面板 364<420 ⇒ 短文案） (w=420/panel=364/unknown) — '未探测'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=420/panel=364/unknown)           — rgb(97, 102, 107) on rgb(255, 255, 255) = 5.80
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=420/panel=364/unknown)         — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=480/panel=424/up)                         — page 480/480, panel 424/424
 PASS  L3 标题 1 行且未被省略 (w=480/panel=424/up)                      — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=480/panel=424/up)            — w=132.3 h=28 '添加为 WSL 工作区'
@@ -144,8 +170,10 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=480/panel=424/up)         
 PASS  B1-3 徽标在面板内 (w=480/panel=424/up)                         — x=191 right=270
 PASS  B1-4 徽标有 aria-label 与 title (w=480/panel=424/up)         — 代理可达：192.0.2.7:9910（WSL 侧流量可以走它）
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=480/panel=424/up)      — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=480/panel=424/up)                — rgb(34, 197, 94) / border rgb(34, 197, 94)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=480/panel=424/up)                — rgb(15, 17, 21) / border rgb(34, 197, 94)
 PASS  B1-7 up 态文案取自字典且档位正确（面板 424≥420 ⇒ 完整文案） (w=480/panel=424/up) — '代理可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=480/panel=424/up)                — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=480/panel=424/up)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=480/panel=424/down)                       — page 480/480, panel 424/424
 PASS  L3 标题 1 行且未被省略 (w=480/panel=424/down)                    — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=480/panel=424/down)          — w=132.3 h=28 '添加为 WSL 工作区'
@@ -154,10 +182,12 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=480/panel=424/down)       
 PASS  B1-3 徽标在面板内 (w=480/panel=424/down)                       — x=70 right=215.4
 PASS  B1-4 徽标有 aria-label 与 title (w=480/panel=424/down)       — 代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=480/panel=424/down)    — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=480/panel=424/down)              — rgb(245, 158, 11) / border rgb(245, 158, 11)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=480/panel=424/down)              — rgb(15, 17, 21) / border rgb(245, 158, 11)
 PASS  B1-7 down 态文案取自字典且档位正确（面板 424≥420 ⇒ 完整文案） (w=480/panel=424/down) — '不可达 192.0.2.7:9910'
 PASS  B1-8 不可达态 aria/title 给出代理地址 (w=480/panel=424/down)       — 192.0.2.7:9910
 PASS  B1-8c 宽态可见文字直接给出代理地址 (w=480/panel=424/down)              — '不可达 192.0.2.7:9910'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=480/panel=424/down)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=480/panel=424/down)            — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=480/panel=424/unknown)                    — page 480/480, panel 424/424
 PASS  L3 标题 1 行且未被省略 (w=480/panel=424/unknown)                 — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=480/panel=424/unknown)       — w=132.3 h=28 '添加为 WSL 工作区'
@@ -168,6 +198,8 @@ PASS  B1-4 徽标有 aria-label 与 title (w=480/panel=424/unknown)    — 代�
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=480/panel=424/unknown) — img
 PASS  B1-6 徽标取到宿主 token 颜色 (w=480/panel=424/unknown)           — rgb(97, 102, 107) / border rgba(0, 0, 0, 0.1)
 PASS  B1-7 unknown 态文案取自字典且档位正确（面板 424≥420 ⇒ 完整文案） (w=480/panel=424/unknown) — '代理未探测'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=480/panel=424/unknown)           — rgb(97, 102, 107) on rgb(255, 255, 255) = 5.80
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=480/panel=424/unknown)         — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=1280/panel=1000/up)                       — page 1280/1280, panel 1000/1000
 PASS  L3 标题 1 行且未被省略 (w=1280/panel=1000/up)                    — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=1280/panel=1000/up)          — w=132.3 h=28 '添加为 WSL 工作区'
@@ -176,8 +208,10 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=1280/panel=1000/up)       
 PASS  B1-3 徽标在面板内 (w=1280/panel=1000/up)                       — x=415 right=494
 PASS  B1-4 徽标有 aria-label 与 title (w=1280/panel=1000/up)       — 代理可达：192.0.2.7:9910（WSL 侧流量可以走它）
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=1280/panel=1000/up)    — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=1280/panel=1000/up)              — rgb(34, 197, 94) / border rgb(34, 197, 94)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=1280/panel=1000/up)              — rgb(15, 17, 21) / border rgb(34, 197, 94)
 PASS  B1-7 up 态文案取自字典且档位正确（面板 1000≥420 ⇒ 完整文案） (w=1280/panel=1000/up) — '代理可达'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=1280/panel=1000/up)              — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=1280/panel=1000/up)            — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=1280/panel=1000/down)                     — page 1280/1280, panel 1000/1000
 PASS  L3 标题 1 行且未被省略 (w=1280/panel=1000/down)                  — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=1280/panel=1000/down)        — w=132.3 h=28 '添加为 WSL 工作区'
@@ -186,10 +220,12 @@ PASS  B1-2 徽标文字 1 行（窄态不折行） (w=1280/panel=1000/down)     
 PASS  B1-3 徽标在面板内 (w=1280/panel=1000/down)                     — x=415 right=560.4
 PASS  B1-4 徽标有 aria-label 与 title (w=1280/panel=1000/down)     — 代理不可达：192.0.2.7:9910 —— 请确认本机代理已启动；若你本来就不使用代理，可忽略此提示
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=1280/panel=1000/down)  — img
-PASS  B1-6 徽标取到宿主 token 颜色 (w=1280/panel=1000/down)            — rgb(245, 158, 11) / border rgb(245, 158, 11)
+PASS  B1-6 徽标取到宿主 token 颜色 (w=1280/panel=1000/down)            — rgb(15, 17, 21) / border rgb(245, 158, 11)
 PASS  B1-7 down 态文案取自字典且档位正确（面板 1000≥420 ⇒ 完整文案） (w=1280/panel=1000/down) — '不可达 192.0.2.7:9910'
 PASS  B1-8 不可达态 aria/title 给出代理地址 (w=1280/panel=1000/down)     — 192.0.2.7:9910
 PASS  B1-8c 宽态可见文字直接给出代理地址 (w=1280/panel=1000/down)            — '不可达 192.0.2.7:9910'
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=1280/panel=1000/down)            — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=1280/panel=1000/down)          — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
 PASS  L1/L2 无横向溢出 (w=1280/panel=1000/unknown)                  — page 1280/1280, panel 1000/1000
 PASS  L3 标题 1 行且未被省略 (w=1280/panel=1000/unknown)               — '远程资源管理器'
 PASS  L4 主按钮可见/命中盒≥24/文字1行/不越界 (w=1280/panel=1000/unknown)     — w=132.3 h=28 '添加为 WSL 工作区'
@@ -200,19 +236,27 @@ PASS  B1-4 徽标有 aria-label 与 title (w=1280/panel=1000/unknown)  — 代�
 PASS  B1-5 徽标 role=img（可被 AT 读成单一对象） (w=1280/panel=1000/unknown) — img
 PASS  B1-6 徽标取到宿主 token 颜色 (w=1280/panel=1000/unknown)         — rgb(97, 102, 107) / border rgba(0, 0, 0, 0.1)
 PASS  B1-7 unknown 态文案取自字典且档位正确（面板 1000≥420 ⇒ 完整文案） (w=1280/panel=1000/unknown) — '代理未探测'
-PASS  B1-9 三态颜色互不相同 (w=320)                                    — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(97, 102, 107)
+PASS  B1-11 徽标文字对比度 ≥4.5:1 (w=1280/panel=1000/unknown)         — rgb(97, 102, 107) on rgb(255, 255, 255) = 5.80
+PASS  B1-12 守护药丸文字对比度 ≥4.5:1 (w=1280/panel=1000/unknown)       — rgb(15, 17, 21) on rgb(255, 255, 255) = 18.90
+PASS  B1-9 三态边框色互不相同 (w=320)                                   — rgb(34, 197, 94) | rgb(245, 158, 11) | rgba(0, 0, 0, 0.1)
+PASS  B1-9b 三态圆点色互不相同（状态色通道） (w=320)                           — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(212, 212, 212)
 PASS  B1-10 三态圆点形状/种类互不相同（形状通道） (w=320)                        — dsh-rw-dot dsh-rw-dot--running | dsh-rw-dot dsh-rw-dot--warn | dsh-rw-dot dsh-rw-dot--unknown
-PASS  B1-9 三态颜色互不相同 (w=360)                                    — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(97, 102, 107)
+PASS  B1-9 三态边框色互不相同 (w=360)                                   — rgb(34, 197, 94) | rgb(245, 158, 11) | rgba(0, 0, 0, 0.1)
+PASS  B1-9b 三态圆点色互不相同（状态色通道） (w=360)                           — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(212, 212, 212)
 PASS  B1-10 三态圆点形状/种类互不相同（形状通道） (w=360)                        — dsh-rw-dot dsh-rw-dot--running | dsh-rw-dot dsh-rw-dot--warn | dsh-rw-dot dsh-rw-dot--unknown
-PASS  B1-9 三态颜色互不相同 (w=376)                                    — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(97, 102, 107)
+PASS  B1-9 三态边框色互不相同 (w=376)                                   — rgb(34, 197, 94) | rgb(245, 158, 11) | rgba(0, 0, 0, 0.1)
+PASS  B1-9b 三态圆点色互不相同（状态色通道） (w=376)                           — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(212, 212, 212)
 PASS  B1-10 三态圆点形状/种类互不相同（形状通道） (w=376)                        — dsh-rw-dot dsh-rw-dot--running | dsh-rw-dot dsh-rw-dot--warn | dsh-rw-dot dsh-rw-dot--unknown
-PASS  B1-9 三态颜色互不相同 (w=416)                                    — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(97, 102, 107)
+PASS  B1-9 三态边框色互不相同 (w=416)                                   — rgb(34, 197, 94) | rgb(245, 158, 11) | rgba(0, 0, 0, 0.1)
+PASS  B1-9b 三态圆点色互不相同（状态色通道） (w=416)                           — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(212, 212, 212)
 PASS  B1-10 三态圆点形状/种类互不相同（形状通道） (w=416)                        — dsh-rw-dot dsh-rw-dot--running | dsh-rw-dot dsh-rw-dot--warn | dsh-rw-dot dsh-rw-dot--unknown
-PASS  B1-9 三态颜色互不相同 (w=480)                                    — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(97, 102, 107)
+PASS  B1-9 三态边框色互不相同 (w=480)                                   — rgb(34, 197, 94) | rgb(245, 158, 11) | rgba(0, 0, 0, 0.1)
+PASS  B1-9b 三态圆点色互不相同（状态色通道） (w=480)                           — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(212, 212, 212)
 PASS  B1-10 三态圆点形状/种类互不相同（形状通道） (w=480)                        — dsh-rw-dot dsh-rw-dot--running | dsh-rw-dot dsh-rw-dot--warn | dsh-rw-dot dsh-rw-dot--unknown
-PASS  B1-9 三态颜色互不相同 (w=1280)                                   — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(97, 102, 107)
+PASS  B1-9 三态边框色互不相同 (w=1280)                                  — rgb(34, 197, 94) | rgb(245, 158, 11) | rgba(0, 0, 0, 0.1)
+PASS  B1-9b 三态圆点色互不相同（状态色通道） (w=1280)                          — rgb(34, 197, 94) | rgb(245, 158, 11) | rgb(212, 212, 212)
 PASS  B1-10 三态圆点形状/种类互不相同（形状通道） (w=1280)                       — dsh-rw-dot dsh-rw-dot--running | dsh-rw-dot dsh-rw-dot--warn | dsh-rw-dot dsh-rw-dot--unknown
 
 读数来源：out-render-after.json（19 条：320/360/376/416/420/480/1280 × 三态）
-PASS = 214   FAIL = 0
+PASS = 258   FAIL = 0
 ==> PASS

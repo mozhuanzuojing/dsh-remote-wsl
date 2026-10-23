@@ -34,3 +34,16 @@
 [11:40:44] 拒绝停 pid 29772（不像本轮实例）: 
 [11:40:47] killed: chrome:10644,chrome:12380,chrome:18940,chrome:24304,chrome:25488,chrome:29616,chrome:30624,chrome:31120,instance:19900
 [11:40:47] 端口残留：instance=8917 -> 无；cdp=9333 -> 无
+[13:57:05] DSH_HOME=C:\Users\l\AppData\Local\Temp\rwui-1022-home
+[13:57:05] junction: C:\Users\l\AppData\Local\Temp\rwui-1022-home\profiles\rwui1022\node_modules\dsh-remote-wsl -> D:\project\dsh1\dsh-remote-wsl
+[13:57:05] --dump-config exit=0 -> D:\project\dsh1\dsh-remote-wsl\spike\verify\ui-20261022\out-dumpconfig.txt
+[13:57:05]   # == dsh-remote-wsl
+[13:57:05]   - id: remote-wsl
+[13:57:05]   name: dsh-remote-wsl
+[13:57:15] [rwui1022] wrapper pid=26672 port=8917
+[13:57:18] [rwui1022] ready=True port=8917 owner=17604 url=http://127.0.0.1:8917/?token=<REDACTED>
+[13:57:18] [chrome] pid=22100 cdp=9333 up=True data=C:\Users\l\AppData\Local\Temp\rwui-1022-chrome
+[13:57:18] 就绪：实例 8917 / CDP 9333
+[13:58:30] 拒绝停 pid 26672（不像本轮实例）: 
+[13:58:33] killed: chrome:12636,chrome:17480,chrome:19164,chrome:22100,chrome:23252,chrome:23336,chrome:24680,instance:17604
+[13:58:33] 端口残留：instance=8917 -> 无；cdp=9333 -> 无
