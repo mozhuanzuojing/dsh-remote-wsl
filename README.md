@@ -345,11 +345,11 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 
 > **2026-10-23 宿主退出 e2e（关停屏障第一次在真宿主里被量到）**：`spike/verify/lifecycle-e2e-20261023/` 两条探针 ——
 > ① `probe-host-dispose` **27/27**：隔离实例（`%TEMP%\rwlife-1023-home` + junction 到本仓库）起真宿主，`explorer.*` 数据面
-> 真跑通后触发 SIGINT，**exit code 130、关停 157ms**，`settle` 实测 `tracked=0 waitedMs=0 killed=0 remaining=0
+> 真跑通后触发 SIGINT，**exit code 130、关停 242ms**，`settle` 实测 `tracked=0 waitedMs=0 killed=0 remaining=0
 > timedOut=false forced=false`，stderr **无**「关停超时」、有「关停结算」与「宿主退出」，关停后
 > `/tmp/dsh-rwsl-<hostpid>-*` 为 0、8917/9555 均释放。
 > ② `probe-real-child-settle` **15/15**：真 `runWsl('sleep 5')` ×2 + 真 `createLifecycle/settle/sweepOwnTempFiles`，
-> `forced=true killed=2 remaining=0 timedOut=false waitedMs=315`（走的是「宽限 300ms → kill → 确认退出」分支），
+> `forced=true killed=2 remaining=0 timedOut=false waitedMs=319`（走的是「宽限 300ms → kill → 确认退出」分支），
 > 关停态再 `runWsl` 得 `127 + E_SHUTDOWN`。**这条探针第一轮就抓到真缺陷**：被 settle kill 的 `wsl.exe` 在 Node 里是
 > `code=null + signal='SIGTERM'`，旧 `code ?? 0` 把它记成 **exitCode 0（空输出 = 伪成功）**，已修成 1 并由 `B5c` 钉住。
 > **触发方式如实说明**：本机三条 Windows 控制台事件投递路线全部失败（细节见探针头部），最终用 CDP 执行

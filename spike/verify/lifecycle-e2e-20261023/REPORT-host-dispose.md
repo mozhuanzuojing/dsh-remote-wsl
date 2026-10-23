@@ -51,13 +51,16 @@ JSON 里 `trigger.kind = "cdp-inspect"` 也如实标注。
 
 ### 4.1 `probe-host-dispose.ts` —— 27/27
 
+> 数字以 `out-host-dispose.json`（提交版）为准：两次复跑分别是 **157ms / 242ms**，`waitedMs` 都是 0；
+> 本文档统一引用提交版那次（242ms）。
+
 | 组 | 判据 | 实测 |
 |---|---|---|
 | A0–A2 | 端口空闲、隔离 profile 建立、junction 指向工作区 | 通过 |
-| A3–A5 | launch URL、HTTP ready、插件在真宿主里 apply（数据面注册行） | readyMs≈1.9s，HTTP **303**（首页跳转） |
+| A3–A5 | launch URL、HTTP ready、插件在真宿主里 apply（数据面注册行） | readyMs≈1.6s，HTTP **303**（首页跳转） |
 | B1–B3 | GET 方法清单 7 个、`explorer.snapshot`、`explorer.listDir /home/g` 真跑通 | 通过（真 WSL 数据面） |
 | C2 | CDP 触发 SIGINT，`process.emit` 返回 true（有监听者） | 通过 |
-| C3–C5 | 9s 内退出、exit code **130**、关停 **157ms**（< 5s forceExit 预算） | 通过 |
+| C3–C5 | 9s 内退出、exit code **130**、关停 **242ms**（< 5s forceExit 预算） | 通过 |
 | D1–D8 | 「关停结算」诊断行可解析；`timedOut=false`、`remaining=0`、`waitedMs∈[0,5000]`；有「宿主退出」；**无**「关停超时」；无「认领旧关停屏障失败」；tracked 与观测自洽 | `tracked=0 waitedMs=0 killed=0 remaining=0 timedOut=false forced=false` |
 | E1–E6 | `/tmp/dsh-rwsl-<hostpid>-*` 清零、WSL 侧无该 pid 脚本进程、无 wsl.exe 子进程、宿主 pid 不在、8917/9555 释放、用户桌面 GUI（61491）未受影响 | 全部通过 |
 
@@ -68,7 +71,7 @@ JSON 里 `trigger.kind = "cdp-inspect"` 也如实标注。
 | 判据 | 实测 |
 |---|---|
 | 起两个真 child（/tmp 2 个脚本、2 个 wsl.exe 子进程）、settle 前 `size=2` | 通过 |
-| `forced=true`（5s 脚本不可能在 300ms 宽限内自退）、`killed=2`、`remaining=0`、`timedOut=false` | `waitedMs=315` |
+| `forced=true`（5s 脚本不可能在 300ms 宽限内自退）、`killed=2`、`remaining=0`、`timedOut=false` | `waitedMs=319` |
 | 关停态 `runWsl` 返回 `127 + E_SHUTDOWN`（不再新建运行时） | 通过 |
 | 两个 promise 都结算、被 kill 的包装层 `exitCode=1`（修完后的语义） | `codes=1,1` |
 | 关停后本 pid 的 `/tmp` 脚本清零、`sweepOwnTempFiles` 不抛 | 通过 |
