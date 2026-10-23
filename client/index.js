@@ -620,3 +620,7 @@ window.__ModuleLoader__.load({
 // 2026-10-22 review 修：底栏 `row-gap:6px` 挪到 `gap:8px` 之后（原先被简写重置成 8px）；
 // 代理「不可达」从 error 红降为 warn 琥珀（proxyPort 默认 9910，不用代理的用户不该看到故障红）；
 // 新增 `.dsh-rw-dot--warn`（header chunk 的 StatusDot kind 同步改 warn）⇒ 刷新入口 rev。
+// 2026-10-23 清小债（README「仍余」①）：删掉 i18n 里已无引用的 5 组键（stamp.snapshot /
+// stamp.lastSuccessRefreshing / stamp.failedLastSuccess / stamp.none / status.loading）—— 它们对应的
+// 「加载期把『尚未取得快照』渲染两次」与「结果条透传 host note」两条文案瑕早已在 T 系列修掉，
+// 只剩死键误导读者；当前加载期只渲染「远端守护状态未知 + 状态读取中…」一处。改的是 chunk ⇒ 刷新入口 rev。

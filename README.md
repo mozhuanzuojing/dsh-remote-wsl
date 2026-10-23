@@ -266,7 +266,7 @@ token 不符 ⇒ `{"ok":false,"error":"unauthorized"}` 并断开（本机任意�
 
 **这一轮修掉并独立复验通过的 9 条**（P0 验收里记为 P1 的 + 可用性/稳定性新报的）：**F32** 路由残留（inject 二次触发后 `dispose` 计数 **0**，改前为 1）｜**F33** 跨槽位串台（**显示层 + 动作面 + 渲染层三层**：snapshot 只报配置槽位、别槽进只读 `others[]`、非配置槽位动作 **400/E_ARG 且无副作用**）｜**F15** `webServer` 永不就绪时的降级日志｜**F14b** 500 → **503** 统一｜**F31** `launch-stderr.log` **0600**（根因：UNC/9p 上 `chmod` **静默失败** ⇒ 改由 WSL 侧 launcher `chmod 600`）｜**F34** 首挂载不再误报"读取失败后已撤下"｜**F25** 动作失败按 `ok===false` 渲染失败 + 重试｜**F35** 路径不再按 RTL 渲染（`direction:ltr` + `unicode-bidi:plaintext`）｜**F36** 主行动的可见反馈不再被它自己触发的刷新清空。**故意红 3 条全部按预期变红**；A 组回归 ①②③⑤ 全 PASS（③ 正常场景 strong=11 逐项 MATCH）。
 
-**仍余（不装成已解决）**：① **两条文案瑕**（结果条透传 host `note` 里的实现者词汇如 `上游 daemon`/`本方法`；加载期戳记把"尚未取得快照"渲染两次）；② **`wsl_status` 字段改名 `discoveredDaemon`** 属 **P2**（要动 6 个工具 + `selftest`，"同源 + 明确选择器"的定义本轮已写进设计稿 §8.6 与本文）；③ **P2 性能**：12,000 行树 → 72,445 节点、树首帧 237–310ms（虚拟滚动未做；本轮未使其变差）；④ **未复核项**：`keys>0` 形态、`webHosts` 非空、desktop(Electron) 宿主、`fixPin` 真实失败渲染（桩级已验）、F14b 的自然故障路径（用端口占用逼出）、`client.<name>.js` 的 served URL 形态、`order/id` 的 served 验证、像素截图未落盘。⑤ **回退深度与名义 `daemonPortTries=3` 不一致**（Windows 侧试 3 个、WSL 侧扫到 +10 才 FATAL）—— 实测现象，属实现行为，记为未复核。
+**仍余（不装成已解决）**：① ~~两条文案瑕~~ → **2026-10-23 核对：这两条早已不存在，属过期记录**（结果条主句全部走用户语言，host 原文只进「技术细节（host 原文）」折叠区：`openSessionNote`/`daemonNote`/`actionFailure` 三个入口都按 `{text, detail}` 分流；加载期只渲染「远端守护状态未知 + 状态读取中…」一处）。本轮顺手删掉只剩误导的 5 组死键（`stamp.snapshot`/`stamp.lastSuccessRefreshing`/`stamp.failedLastSuccess`/`stamp.none`/`status.loading`，zh/en 各 5），i18n 键数 259 → **254**；**其余死键未清**（全量审计有 90 个候选，但其中 `advanced.*`/`sessions.*`/`api.*` 可能被动态取用，需要先在客户端侧做键引用收敛，属独立小债）；② **`wsl_status` 字段改名 `discoveredDaemon`** 属 **P2**（要动 6 个工具 + `selftest`，"同源 + 明确选择器"的定义本轮已写进设计稿 §8.6 与本文）；③ **P2 性能**：12,000 行树 → 72,445 节点、树首帧 237–310ms（虚拟滚动未做；本轮未使其变差）；④ **未复核项**：`keys>0` 形态、`webHosts` 非空、desktop(Electron) 宿主、`fixPin` 真实失败渲染（桩级已验）、F14b 的自然故障路径（用端口占用逼出）、`client.<name>.js` 的 served URL 形态、`order/id` 的 served 验证、像素截图未落盘。⑤ **回退深度与名义 `daemonPortTries=3` 不一致**（Windows 侧试 3 个、WSL 侧扫到 +10 才 FATAL）—— 实测现象，属实现行为，记为未复核。
 
 ## 安装（link 进 profile）
 
@@ -765,7 +765,7 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 - **`stop` 失败被静默吞掉**：`src/explorer.ts` 的 `stop` 分支**硬编码 `ok: true`` ⇒ P1 保护生效（守护没死、元数据保留）时调用方却被告知"成功"**。改为 `ok: r.ok !== false` + 透传 `notes`。
 - **失败原因没到达用户**：client 没消费 `result.notes`，界面显示"host 回了 ok:false 但**没有给出原因**" ⇒ 改为**用户语言主句 + host 原文进折叠 `技术细节`**（含 `pid`；主视线正则仍 0 命中）。
 - **头部同名两按钮**（`cwd == 目标` 时）/ **「启动守护」底栏与菜单双入口** / **确认框 `{slot}` 未插值**（把 slot 裸露给用户）。
-- **i18n**：官方 `ctx.get('locale')` 优先、取不到/缺键/抛错全部回退且不崩；**zh/en 逐键配对**（现值以脚本为准：`spike/verify/explorer-20261012/arch-t2/tools/count-i18n-keys.ts` 实测 **218/语言**、`paired:true`（2026-10-19 增量轮 +11 键后；此前 207 —— 原写的 219 是过期数字）；历史值 181/215 的区别见该脚本与 `docs/panel-ux-redesign.md §3.2.1`）。
+- **i18n**：官方 `ctx.get('locale')` 优先、取不到/缺键/抛错全部回退且不崩；**zh/en 逐键配对**（现值以脚本为准：`spike/verify/explorer-20261012/arch-t2/tools/count-i18n-keys.ts` 实测 **254/语言**、`paired:true`（2026-10-23 删掉 5 组死键后；此前 259 —— 更早的 218/207/219 都是当时的快照）；历史值见该脚本与 `docs/panel-ux-redesign.md §3.2.1`）。
 - **最近目录**：client 侧 `localStorage`（键 `dsh-remote-wsl.recent`、只存路径、≤8 条），不可用/被清空 ⇒ **静默降级**。
 - **门禁**：`css-token-audit.mjs` 两条硬约束 **C1 硬编码色 0** + **C2 引用 token 集合 ⊆ 17**（+ 软检 S1）；该门禁**已被 5 个夹具证伪过**（4 FAIL + 1 PASS）。
 
@@ -907,6 +907,6 @@ VS Code 的应对是**明写轮询**：配置键 `remote.WSL.fileWatcher.polling
 
 **宿主（`src/explorer.ts`）**：发行版事实 2s TTL（`wsl -l -q` + `wsl -l -v` 合成一份，snapshot/listDir 共用；失败不缓存）+ `snapshot` 并发单飞。实测 `listDir` 热 **104.3 → 1.2ms**、首屏 burst **398.3 → 238.4ms**、3 并发 snapshot **950.3 → 326.8ms**；错误 code/文案 + HTTP 9 项 + 字段形状 **16/16 逐字 0 差异**。**代价**：发行版在 2s 窗口内启停，面板最多滞后 2s（不是实时承诺）。
 
-**门禁**：`panel-smoke-node` **18/18**｜`check-client-rev` **PASS**（11 chunks）｜`css-token-audit` **逐文件** exit 0（index.js 107 rules / 17 tokens / C1=0）｜`box-sizing-audit` PASS（真陷阱 0）｜`count-i18n-keys` **218/218 paired**。
+**门禁**：`panel-smoke-node` **18/18**｜`check-client-rev` **PASS**（11 chunks）｜`css-token-audit` **逐文件** exit 0（index.js 107 rules / 17 tokens / C1=0）｜`box-sizing-audit` PASS（真陷阱 0）｜`count-i18n-keys` **254/254 paired**。
 
 **未验证（不许当通过）**：**未在真实 DSH 宿主里重启验证**（需用户重启 profile 才加载新 rev；真实 WSL/UNC/守护端到端本轮未重跑）｜极端目录高度（>10 万条）未测｜client 缓存 30s / host 事实 2s 的"最快可见"语义代价｜headless Chrome 读数不等于低端真机｜暗色非采样 token 为近似值。性能绝对值跨批次有 ±10–20% 漂移，复现请以同批次 A/B 为准。

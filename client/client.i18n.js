@@ -270,7 +270,6 @@ window.__ModuleLoader__.load({
 			"daemon.noteNotes": "：{notes}",
 
 			"status.noData": "数据不可用：读取失败后已撤下，不显示守护/漂移状态。",
-			"status.loading": "尚未取得快照：正在读取守护与漂移状态（超时 {ms}ms）…",
 			"status.reading": "读取中…",
 			"status.noDaemonField": "快照缺少 daemon 段，守护状态未知（不断言“未运行”）。",
 			"status.daemonOff": "远端守护未运行",
@@ -296,11 +295,6 @@ window.__ModuleLoader__.load({
 			"status.driftTitle": "desktop={desktop} pin={pin}",
 			"status.driftUnknown": "drift 未知",
 			"status.webHost": "web {port}",
-
-			"stamp.snapshot": "更新于 {time}",
-			"stamp.lastSuccessRefreshing": "上次成功 {time} · 刷新中…",
-			"stamp.failedLastSuccess": "读取失败 · 最后一次成功 {time}",
-			"stamp.none": "尚未取得快照",
 
 			"raw.summary": "诊断信息（与 wsl_status 同源）",
 
@@ -557,7 +551,6 @@ window.__ModuleLoader__.load({
 			"daemon.noteNotes": ": {notes}",
 
 			"status.noData": "No data: withdrawn after a read failure; daemon/drift state is not shown.",
-			"status.loading": "No snapshot yet: reading daemon and drift state (timeout {ms}ms)…",
 			"status.reading": "Reading…",
 			"status.noDaemonField": "The snapshot has no daemon section, so daemon state is unknown (this panel does not claim “not running”).",
 			"status.daemonOff": "Remote daemon is not running",
@@ -583,11 +576,6 @@ window.__ModuleLoader__.load({
 			"status.driftTitle": "desktop={desktop} pin={pin}",
 			"status.driftUnknown": "drift unknown",
 			"status.webHost": "web {port}",
-
-			"stamp.snapshot": "Updated {time}",
-			"stamp.lastSuccessRefreshing": "last success {time} · refreshing…",
-			"stamp.failedLastSuccess": "read failed · last success {time}",
-			"stamp.none": "no snapshot yet",
 
 			"raw.summary": "Diagnostics (same source as wsl_status)",
 
