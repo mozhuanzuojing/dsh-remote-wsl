@@ -40,7 +40,8 @@ import { randomBytes } from 'node:crypto';
 import { shellEnvSnippet } from './shell-env.ts';
 import { SdkRuntime } from './sdk-runtime.ts';
 import { handleFsOp } from './fs-rpc.ts';
-import { handleSearchOp } from './search-rpc.ts';
+import { handleSearchOp, setSearchToolPaths } from './search-rpc.ts';
+import { ensureSearchTools, toolPaths } from './search-provision.ts';
 
 const argv = process.argv.slice(2);
 const arg = (name, dflt) => {
@@ -593,11 +594,47 @@ async function handle(req) {
     const reaped = await reapAllAndExit('收到 shutdown');
     return { ok: true, id, reaped };
   }
+  // 2026-10-23：探测/安装搜索工具（探针与工具共用；安装只写指定目录，默认 ~/.local/bin）。
+  // 没显式给 proxy 时用宿主代理网关（NAT 下 GitHub 直连不通）。
+  if (op === 'provision') {
+    try {
+      const args = req?.args ?? {};
+      let proxy = typeof args.proxy === 'string' && args.proxy ? args.proxy : null;
+      if (proxy === null && args.proxy !== false) {
+        const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
+        proxy = resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null;
+      }
+      const result = ensureSearchTools({
+        autoInstall: args.autoInstall !== false,
+        installDir: typeof args.installDir === 'string' && args.installDir ? args.installDir : undefined,
+        proxy,
+        ignorePath: args.ignorePath === true,
+      });
+      return { ok: true, id, result };
+    } catch (e) {
+      return { ok: false, id, code: (e && e.code) || 'E_IO', error: (e && e.message) || String(e) };
+    }
+  }
   // 2026-10-23：搜索也走发行版（grep/find），不给 Windows ripgrep 喂 Linux 路径。
+  // 体验优先：缺 rg/fd 就**自动装**（静态二进制到 ~/.local/bin，不用 sudo）；装失败也要退回慢后端
+  // 并把原因/手动安装命令带给调用方（不许静默降级）。
   if (op === 'search') {
     try {
+      const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
+      const provision = ensureSearchTools({
+        autoInstall: req?.autoInstall !== false,
+        proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null,
+      });
+      setSearchToolPaths(toolPaths());
       const result = await handleSearchOp(req);
-      return { ok: true, id, result };
+      return {
+        ok: true,
+        id,
+        result: {
+          ...result,
+          provision: { rg: provision.rg?.source ?? 'missing', fd: provision.fd?.source ?? 'missing', notes: provision.notes ?? [] },
+        },
+      };
     } catch (e) {
       return { ok: false, id, code: (e && e.code) || 'FS_IO_ERROR', error: (e && e.message) || String(e) };
     }
@@ -709,6 +746,18 @@ async function listenOn(port) {
     server.once('listening', onOk);
     server.listen(port, '127.0.0.1');
   });
+  // 体验优先：守护一起来就在后台补齐搜索工具（rg/fd 缺就装，静态二进制到 ~/.local/bin），
+  // 用户第一次 grep 时它们通常已经就绪；失败只记日志，不影响搜索回落到 grep/find。
+  setTimeout(async () => {
+    try {
+      const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
+      const provision = ensureSearchTools({ autoInstall: true, proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null });
+      setSearchToolPaths(toolPaths());
+      for (const note of provision.notes ?? []) process.stderr.write(`[daemon] search provision: ${note}\n`);
+    } catch (e) {
+      process.stderr.write(`[daemon] search provision failed: ${(e && e.message) || String(e)}\n`);
+    }
+  }, 1500);
 }
 
 async function main() {

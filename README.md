@@ -373,6 +373,9 @@ DSH 的文件工具只认 `ctx.fs`。宿主默认 provider 用 Windows 的 node:
 - id `wsl`，名称「WSL（远程执行世界）」；
 - 组 `wsl-world` 里 `isolate: { fs: true }`，挂 `fs-wsl` + `@deepseek-ai/dsh-tool-fs` + WSL 内搜索
   （`search-wsl`：`grep`/`glob` 走 daemon，优先 **ripgrep / fd**，没有就回落 ugrep/GNU grep 与 find）；
+- **缺工具会自动装**（`src/search-provision.ts`）：ripgrep/fd 的静态二进制装到 `~/.local/bin`
+  （不用 sudo），daemon 启动后台预热；装不上就把原因和手动安装命令附在结果里
+  （`[search tools] …`），不静默降级；config `searchAutoInstall: false` 可关闭自动安装；
 - 其余工具沿用标准 preset（静态拷贝；上游增删行不会自动跟随，已在代码注释与报告中写明）。
 
 **怎么用**：重启 DSH（host 半改了）→ 新会话的 preset 选择「WSL（远程执行世界）」→ 文件工具落到

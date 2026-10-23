@@ -130,6 +130,22 @@ preset 注册只证明"树挂上了"；工具是否真的走 provider，用 **he
 fixedString、无命中、`*.txt` 单层、`**/*.md` 跨目录、无斜杠按 basename；E2E `out-e2e-search.jsonl`
 里模型看到的工具结果直接带 `via ripgrep` / `via fd`。
 
+### 7.1 缺工具时自动安装（`src/search-provision.ts`）
+
+用户要求"不怕没有，也不怕装"：搜索优先 ripgrep/fd，缺了**自动装**，装不上**明确提示**，绝不静默降级。
+
+- 装什么：ripgrep 14.1.1、fd v10.2.0 的**静态 musl 二进制**，从 GitHub Releases 下载；
+- 装到哪：默认 `~/.local/bin`（**不用 sudo、不写系统目录**）；探针用 /tmp 临时目录验证；
+- 网络：daemon 用 `resolveProxyHost()` 自动取宿主代理网关（NAT 下 GitHub 直连超时），curl 带
+  `--retry 3 --retry-delay 2`；
+- 时机：daemon 启动 1.5s 后在**后台**预热（首次搜索通常已就绪），搜索前再 `ensureSearchTools()` 兜底；
+- 失败：`notes[]` 里带失败原因 + 手动安装命令（`sudo apt install ripgrep` / `fd-find`），工具结果里
+  以 `[search tools] …` 追加给模型/用户看；搜索仍用回落后端并标注 `via gnu grep` / `via find`；
+- 开关：工具 config `searchAutoInstall: false` 可关（关了就只提示不下载）。
+
+**证据**：`probe-search-provision` **7/7**（真实下载到 /tmp、`rg --version`/`fd --version` 可跑、
+`autoInstall:false` 只提示、坏代理 ⇒ `source:failed` + 原因不抛）。本机 WSL 原本已有 `rg`/`fdfind`，
+所以自动安装只在探针的"忽略 PATH"模式下验证，**没有**动用户的系统目录。
 ## 8. 尚未完成（阶段二之后）
 
 1. **真实桌面会话里的 preset 形态**：E2E 用的是 headless + 宿主级替换；`wsl` preset 只验证了挂载/激活，

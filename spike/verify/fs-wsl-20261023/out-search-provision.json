@@ -1,0 +1,65 @@
+{
+  "probe": "probe-search-provision",
+  "generatedAt": "2026-10-23T09:13:09.096Z",
+  "target": {
+    "distro": "debian-u8-1",
+    "daemonPort": 8731
+  },
+  "evidence": {
+    "proxy": null,
+    "first": {
+      "rg": {
+        "path": "/tmp/dsh-prov-28476/one/rg",
+        "source": "installed"
+      },
+      "fd": {
+        "path": "/tmp/dsh-prov-28476/one/fd",
+        "source": "installed"
+      },
+      "notes": [
+        "已自动安装 rg@14.1.1 → /tmp/dsh-prov-28476/one/rg",
+        "已自动安装 fd@v10.2.0 → /tmp/dsh-prov-28476/one/fd"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "name": "P1 缺工具时自动安装 rg+fd（不用 sudo，装到临时目录）",
+      "ok": true,
+      "detail": "{\"rg\":\"installed\",\"fd\":\"installed\"}"
+    },
+    {
+      "name": "P2 装出来的 rg 能跑 --version",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "P3 装出来的 fd 能跑 --version",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "P4 note 里写明\"已自动安装\"",
+      "ok": true,
+      "detail": "[\"已自动安装 rg@14.1.1 → /tmp/dsh-prov-28476/one/rg\",\"已自动安装 fd@v10.2.0 → /tmp/dsh-prov-28476/one/fd\"]"
+    },
+    {
+      "name": "P5 autoInstall:false 不安装",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "P6 给「手动安装」提示（提示用户，不静默）",
+      "ok": true,
+      "detail": "[\"rg 未安装且已禁用自动安装；手动安装：sudo apt install ripgrep   # Debian/Ubuntu；或 dnf install ripgrep\",\"fd 未安装且已禁用自动安装；手动安装：sudo apt install fd-find   # Debian/Ubuntu（二进制名 fdfind）\"]"
+    },
+    {
+      "name": "P7 下载失败 ⇒ source:failed + 原因（不抛、不假装成功）",
+      "ok": true,
+      "detail": "[\"rg 自动安装失败（ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz: curl exit 7: curl: (7) Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server\\ncurl: (7) Failed to connect to 127.0.0.1 port 1 after 0 m"
+    }
+  ],
+  "passed": 7,
+  "total": 7,
+  "failures": []
+}

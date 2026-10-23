@@ -98,15 +98,22 @@ function hasCommand(bin) {
 
 const isMissingBinary = (e) => /ENOENT|cannot run/.test(String(e?.message ?? e));
 
+/** 由 daemon 在每次 search 前注入（自动安装出来的绝对路径；null = 用 PATH 上的名字）。 */
+let installedPaths = { rg: null, fd: null };
+export function setSearchToolPaths(paths) {
+  installedPaths = { rg: paths?.rg ?? null, fd: paths?.fd ?? null };
+}
+
 /** grep 后端候选：ripgrep（最快）→ ugrep（grep 旗标兼容）→ GNU grep。 */
 function grepBackends(args, root, pattern) {
   const fixed = args?.fixedString === true;
   const ignoreCase = args?.ignoreCase === true;
   const list = [];
-  if (hasCommand('rg')) {
+  const rgPath = installedPaths.rg ?? (hasCommand('rg') ? 'rg' : null);
+  if (rgPath) {
     list.push({
       name: 'ripgrep',
-      command: 'rg',
+      command: rgPath,
       args: [
         '-n', '--no-heading', '--color', 'never', '--with-filename', '--hidden',
         '--glob', '!.git/**', '--glob', '!node_modules/**', '--glob', '!.svn/**',
@@ -209,8 +216,9 @@ export async function globOp(args) {
   if (pattern.length === 0) throw searchError('glob requires a non-empty pattern', 'E_ARG');
   // 枚举后端：fd 并行且默认跳过 .git 与 gitignored（与 ripgrep 的语义一致）；没有就退回 find。
   const enumerators = [];
-  for (const fdBin of ['fd', 'fdfind']) {
-    if (hasCommand(fdBin)) {
+  const fdCandidates = installedPaths.fd ? [installedPaths.fd] : ['fd', 'fdfind'];
+  for (const fdBin of fdCandidates) {
+    if (fdBin === installedPaths.fd || hasCommand(fdBin)) {
       enumerators.push({ name: 'fd', command: fdBin, args: ['--type', 'f', '--hidden', '--exclude', '.git', '--exclude', 'node_modules', '.', root] });
       break;
     }

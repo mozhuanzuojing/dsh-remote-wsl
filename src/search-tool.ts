@@ -18,7 +18,7 @@ import { renderText } from './wsl-io.ts';
 export const name = 'dsh-remote-wsl-search';
 export const inject = [];
 
-const DEFAULTS = { distro: 'debian-u8-1', wslHome: '/home/g', cwd: '/home/g', daemonPort: 8731 };
+const DEFAULTS = { distro: 'debian-u8-1', wslHome: '/home/g', cwd: '/home/g', daemonPort: 8731, searchAutoInstall: true };
 
 /** 把模型给的路径解析成发行版内绝对路径：优先走 realm 的 ctx.fs，其次自己按 UNC/cwd 推导。 */
 async function resolveLinuxPath(ctx, config, rawPath, exec) {
@@ -90,13 +90,15 @@ export function apply(ctx, rawConfig = {}) {
           fixedString: args.fixed_string === true,
           ignoreCase: args.ignore_case === true,
           maxMatches: args.max_matches,
+          autoInstall: config.searchAutoInstall !== false,
         }, exec?.signal);
         const matches = Array.isArray(r?.matches) ? r.matches : [];
-        if (matches.length === 0) return `no matches for ${JSON.stringify(String(args.pattern ?? ''))} in ${path}`;
+        const noteLines = Array.isArray(r?.provision?.notes) && r.provision.notes.length ? `\n[search tools] ${r.provision.notes.join(' | ')}` : '';
+        if (matches.length === 0) return `no matches for ${JSON.stringify(String(args.pattern ?? ''))} in ${path}${noteLines}`;
         const lines = matches.map((m) => `${m.path}:${m.line}: ${m.text}`);
         const via = r?.backend ? ` via ${r.backend}` : '';
         const head = `${matches.length} match(es) in ${path}${via}${r?.truncated ? ' (truncated)' : ''}`;
-        return `${head}\n${lines.join('\n')}`;
+        return `${head}\n${lines.join('\n')}${noteLines}`;
       },
     });
 
@@ -118,11 +120,13 @@ export function apply(ctx, rawConfig = {}) {
           pattern: String(args.pattern ?? ''),
           path,
           maxResults: args.max_results,
+          autoInstall: config.searchAutoInstall !== false,
         }, exec?.signal);
         const files = Array.isArray(r?.files) ? r.files : [];
-        if (files.length === 0) return `no files match ${JSON.stringify(String(args.pattern ?? ''))} under ${path}`;
+        const noteLines = Array.isArray(r?.provision?.notes) && r.provision.notes.length ? `\n[search tools] ${r.provision.notes.join(' | ')}` : '';
+        if (files.length === 0) return `no files match ${JSON.stringify(String(args.pattern ?? ''))} under ${path}${noteLines}`;
         const via = r?.backend ? ` via ${r.backend}` : '';
-        return `${files.length} file(s) under ${path}${via}${r?.truncated ? ' (truncated)' : ''}\n${files.join('\n')}`;
+        return `${files.length} file(s) under ${path}${via}${r?.truncated ? ' (truncated)' : ''}\n${files.join('\n')}${noteLines}`;
       },
     });
   });
