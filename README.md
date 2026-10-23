@@ -361,6 +361,27 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 
 > `wsl_open_ui` 开的是**另一件事**：WSL 里那份 dsh 的 Web UI（浏览器应用窗口）；本节的实例是**宿主自己的 Web 前端**，面板属于宿主 UI。
 
+## WSL 执行世界（2026-10-23，实验）
+
+DSH 的文件工具只认 `ctx.fs`。宿主默认 provider 用 Windows 的 node:fs 直接读 `\\wsl.localhost\…`（9P 共享），
+而 9P 不支持它的原子写（复制 DACL / 硬链接发布）—— 现象就是 `write` 报 `GetFileSecurityW EIO`。
+
+本插件现在自带一个 **WSL 执行世界**的 provider（`src/fs-provider.ts`）：所有文件操作都变成
+`{op:'fs'}` RPC，由 WSL 侧守护（`src/daemon.ts` + `src/fs-rpc.ts`）用原生 node:fs 执行 ——
+**宿主不碰 9P**。它通过 `src/preset.ts` 注册成 agent preset：
+
+- id `wsl`，名称「WSL（远程执行世界）」；
+- 组 `wsl-world` 里 `isolate: { fs: true }`，挂 `fs-wsl` + `@deepseek-ai/dsh-tool-fs`；
+- 其余工具沿用标准 preset（静态拷贝；上游增删行不会自动跟随，已在代码注释与报告中写明）。
+
+**怎么用**：重启 DSH（host 半改了）→ 新会话的 preset 选择「WSL（远程执行世界）」→ 文件工具落到
+`debian-u8-1` 内。**证据**：`spike/verify/fs-wsl-20261023/`（provider 26/26、preset 注册日志、
+REPORT-fs-wsl.md）。
+
+**边界（当前）**：只服务配置的一个发行版；`watch` 明确不支持；`tool-fs-search` 未挂（Windows ripgrep
+对 Linux 路径不成立，WSL 内搜索待做）；`sandboxMode` 为 undefined（不做 Windows ACL 围栏，WSL 自身是边界）；
+真实会话里的 `write` 端到端还没跑（要选 `wsl` preset + 花模型额度）。
+
 ## 与现有 DSH WSL 插件的关系（2026-10-12 先例调研）
 
 同域在 npm 上**已有一批真插件在跑**（`dsh-wsl-workspace`、`dsh-plugin-wsl-env`、`dsh-wsl-workspace-picker`、`dsh-wsl-tool`、`dsh-wsl-projects`、`dsh-wsl-desktop`、`dsh-wsl-tray`/`dsh-web-tray`/`dsh-wsl-launcher`、`dsh-wsl-expose`、`dsh-network-settings`…）。完整清单、官方约定（`directoryFlow` 槽、`ctx.workspaces.*`、`dsh.client.inject`、`dsh.compatibility.dshReleases`）与我们的采纳/分歧清单见 **[docs/prior-art-dsh-wsl.md](docs/prior-art-dsh-wsl.md)**。三条与使用者直接相关：

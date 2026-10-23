@@ -26,6 +26,7 @@ import { activeLifecycle, adoptPreviousLifecycle, createLifecycle } from './life
 import { resolveVersion, writePin, runWsl, sweepOwnTempFiles, shellPreamble, sleep } from './wsl-io.ts';
 import { createInHostPool } from './in-host-runtime.ts';
 import { registerTools, sweepStaleRuntimes } from './register-tools.ts';
+import { apply as applyWslPreset } from './preset.ts';
 
 /** Stable Loader identity. */
 export const name = 'dsh-remote-wsl';
@@ -281,6 +282,11 @@ export function apply(ctx, rawConfig = {}) {
     // 2026-10-22：面板「在此目录新建会话」= 真正的 DSH 会话（sessionController.create({cwd})）。
     sessionController: () => (typeof ctx?.get === 'function' ? ctx.get('sessionController') : undefined),
   });
+
+  // 2026-10-23：注册 WSL 执行世界的 agent preset（`wsl`）。文件工具通过它的 isolate realm
+  // 挂上本插件的 `ctx.fs` provider（src/fs-provider.ts），读写走 WSL 原生 node:fs，不碰 9P。
+  // 服务不可用时 preset.ts 会明确打一行，不静默跳过。
+  applyWslPreset(ctx, config);
   // 插件卸载时回收常驻进程（idle 定时器之外的第二道保险）。
   // ⚠️ disposer 必须**可等待**：早前写成 `void rt.close()`（不 await），宿主/测试一退出就把清理
   // 截断，WSL 侧会留下 .sh/.pid（2026-10-10 实测）。
