@@ -331,7 +331,9 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 
 > **2026-10-22 代理徽标 + 窄态 320/360**：头部元信息行新增代理三态徽标 `dsh-rw-proxy`（可达 / 不可达 `host:port` / 未探测），颜色 + 圆点形状 + 文字三通道，`aria-label`/`title` 是含端点的整句；数据取自既有 `snapshot.proxy`，**不新增请求**。同一轮真渲染实测发现 **HEAD 本来就溢出**：320 档面板 `scrollWidth 391 > 264`、路径行「显示隐藏」开关右边界 432.9 被卡片 `overflow:hidden` 裁成不可见不可点；修法是底栏/元信息行允许折行 + 窄态短文案（守护药丸、底栏 chip、漂移只留 ⚠）+ 根节点 `dsh-rw-root--narrow` 分档。修后 320/360/376/416/420/480/1280 七档 `scrollWidth === clientWidth`、标题恒 1 行、主按钮完整可见。代价：面板 ≤304 时元信息行折 2 行、424 档底栏折 2 行。证据：`spike/verify/ui-20261022/`（含两张窄态截图）。
 
-> **多发行版**：对位 VS Code Remote Explorer 的 WSL TARGETS —— 主体顶部渲染「WSL 目标」列表（状态点 + 名字 + 默认/当前徽标 + 运行态，点行切换），`distros.length > 1` 才出现；单发行版不摆死控件。切换只影响**本面板的请求**（`api.setDistro` → 每个方法带 `distro`），不写插件配置；host 用 `wsl -l -q` 校验名字，未知 ⇒ 400。选择记在 `localStorage['dsh-remote-wsl.distro']`。目标行内有「切换 / 设为默认 / 停止」三个动作；有会话时还会多一张「远端会话」卡：列出 `cwd + sessionId 前 8 位`，点「打开」附到该会话（不会新建）。每个发行版下面列出**该发行版的最近文件夹**（最多 3 条，点击跳转；不是当前目标时点击会先切到该发行版）；底栏另有 `WSL: 发行版` chip，点开是同一组动作（启动守护 / 停止守护 / 设为默认）。
+> **多发行版**：对位 VS Code Remote Explorer 的 WSL TARGETS —— 主体顶部渲染「WSL 目标」列表（状态点 + 名字 + 默认/当前标记 + 运行态，点行切换），`distros.length > 1` 才出现；单发行版不摆死控件。切换只影响**本面板的请求**（`api.setDistro` → 每个方法带 `distro`），不写插件配置；host 用 `wsl -l -q` 校验名字，未知 ⇒ 400。选择记在 `localStorage['dsh-remote-wsl.distro']`。目标行内有「切换 / 设为默认 / 停止」三个动作；有会话时还会多一张「远端会话」卡：列出 `cwd + sessionId 前 8 位`，点「打开」附到该会话（不会新建）。每个发行版下面列出**该发行版的最近文件夹**（最多 3 条，点击跳转；不是当前目标时点击会先切到该发行版）；底栏另有 `WSL: 发行版` chip，点开是同一组动作（启动守护 / 停止守护 / 设为默认）。
+
+> **2026-10-22 review 修**（代理徽标与网关探测）：① 代理「不可达」从 error 红降为 **warn 琥珀** —— `proxyPort` 默认 9910，不用代理的用户不该常驻一个"故障红"（直连是正常状态）；② 底栏 `row-gap:6px` 原先写在 `gap:8px` 之前被简写重置成 8px，已修正（并加断言钉住顺序）；③ 网关"只接受私有/链路本地"的校验原先只在 `parseGatewayOutput` 里（生产路径没人调用），现已**下沉进 shell 片段**，且来源戳 `GW_SRC` 与取值在同一条命令里打下（避免 `default dev eth0` 无 via 时把 resolv 候选误标成 route）；④ 宿主 shell 也改成**先试 127.0.0.1 再退网关**（mirrored 网络）；⑤ `decodeWslOutput` 两份实现合并到 `src/wsl-output.ts`。证据：`probe-wsl-proxy` 29/29、`probe-narrow` 33/33、`probe-render` 重跑 214/214。
 
 > `wsl_open_ui` 开的是**另一件事**：WSL 里那份 dsh 的 Web UI（浏览器应用窗口）；本节的实例是**宿主自己的 Web 前端**，面板属于宿主 UI。
 
