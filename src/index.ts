@@ -293,7 +293,28 @@ export function apply(ctx, rawConfig = {}) {
       await Promise.allSettled([...runtimes.values()].map((rt) => rt.close()));
       await Promise.allSettled([...webHosts.values()].map((h) => h.stop()));
       // 等本插件 spawn 的 wsl.exe 包装层退出；超时只 kill 自己记录的（绝不动发行版）
+      const trackedAtDispose = lifecycle.size();
       const settled = await lifecycle.settle(5000);
+      // 诊断行（2026-10-23 宿主退出 e2e 探针要的证据面）：settle 的五个字段只有 in-process 才看得见，
+      // 而"真宿主 dispose 有没有误判超时/有没有等到自己的包装层"必须能从进程外部（stderr）判定。
+      // 只在显式打开时输出：正常用户不该看到这行噪音；探针用 DSH_REMOTE_WSL_DIAG=1 起隔离实例。
+      if (process.env.DSH_REMOTE_WSL_DIAG === '1') {
+        process.stderr.write(
+          'remote-wsl: 关停结算 tracked=' +
+            trackedAtDispose +
+            ' waitedMs=' +
+            settled.waitedMs +
+            ' killed=' +
+            settled.killed +
+            ' remaining=' +
+            settled.remaining +
+            ' timedOut=' +
+            settled.timedOut +
+            ' forced=' +
+            settled.forced +
+            '\n',
+        );
+      }
       if (settled.timedOut) {
         process.stderr.write(
           'remote-wsl: 关停超时；已 kill 自己 spawn 的包装层 ' +
