@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-10-23T16:33:57.6836229+08:00",
+  "profile": "e2e",
+  "home": "C:\\Users\\l\\AppData\\Local\\Temp\\rwlife-e2e-home",
+  "distro": "debian-u8-1",
+  "model": "auto/deepseek-v4.1-flash",
+  "toolEvents": {
+    "write": true,
+    "read": true,
+    "edit": true
+  },
+  "file": {
+    "content": "hello-edited",
+    "stat": "664:g:75",
+    "mntDDevice": "72"
+  },
+  "verdict": {
+    "contentOk": true,
+    "ext4": true,
+    "ok": true
+  }
+}

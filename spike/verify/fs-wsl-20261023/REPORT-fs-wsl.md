@@ -3,8 +3,9 @@
 > 目录：`spike/verify/fs-wsl-20261023/`
 > 起因：DSH 的 `write` 在 `\\wsl.localhost\debian-u8-1\…` 上失败（`GetFileSecurityW EIO`）——
 > Windows 侧 9P 共享不支持 `dsh-fs-local` 的原子写（复制 DACL / 硬链接发布）。
-> 结论：**文件操作已经可以真的在 WSL 里执行**（26/26 探针，独立复核），并且 **`wsl` preset 已在隔离实例里
-> 注册并激活**（`plugins=21`）。还差最后一条：真实会话里让模型调一次 `write`（要花模型额度）。
+> 结论：**文件操作已经可以真的在 WSL 里执行**（26/26 探针，独立复核），**`wsl` preset 已在隔离实例里
+> 注册并激活**（`plugins=21`），并且 **headless agent 用 `write`/`read`/`edit` 工具真跑通**（`--json`
+> 事件 + `wsl.exe` 内独立复核）。
 
 ## 1. 方案（为什么不是照抄 dsh-wsl-workspace）
 
@@ -72,7 +73,22 @@ remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（…）
 `tool-fs`）已经挂载成功；失败会 reject 并打「注册失败」。实例随后正常退出（`boot.ps1 -Mode Stop`，
 8917/9333 无残留）。
 
-## 5. 尚未完成（阶段二之后）
+## 5. 端到端：headless agent 真调 `write` / `read` / `edit`
+
+preset 注册只证明"树挂上了"；工具是否真的走 provider，用 **headless agent** 串起来验：
+
+- 隔离 profile `e2e`（从 shipped `headless` 模板造），patch 里 **关掉宿主 `fs-sandbox`**、把
+  `src/fs-provider.ts` 作为**唯一**的 `fs` 服务挂上；
+- 真实模型（`auto/deepseek-v4.1-flash`，经 magpie）用 `write` 写 `/tmp/…/e2e.txt`、`read` 读回、
+  `edit` 改内容、再 `read`；
+- `--json` 事件里能看到 `tool_call` 的 `write` / `read` / `edit` 且 `status=completed`，**没有 shell 调用**；
+- 之后用 `wsl.exe` 独立复核：内容 `hello-edited`，`mode:owner:dev = 664:g:75`，而 `/mnt/d` 的设备号是 `72`
+  ⇒ 文件真的在 ext4 上，不在 drvfs。
+
+产物：`out-e2e-write-read.jsonl`、`out-e2e-edit.jsonl`、`out-e2e-agent.json`；
+可复跑脚本 `run-e2e.ps1`（会真实消耗模型额度；跑完删掉隔离 home 里复制的凭据副本）。
+
+## 6. 尚未完成（阶段二之后）
 
 1. **端到端 agent 验证**：还没有在真实会话里让模型调 `write` 工具（要选 `wsl` preset + 花模型额度）。
    provider 与 preset 各自已验证，缺的是这一条串起来的证据。
