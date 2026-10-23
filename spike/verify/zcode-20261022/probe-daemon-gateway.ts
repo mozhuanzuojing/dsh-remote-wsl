@@ -64,7 +64,10 @@ function extractFunction(src, name) {
 
 const linesMatch = /const GATEWAY_DISCOVERY_LINES = (\[[\s\S]*?\n\]);/.exec(daemonSrc);
 const daemonLines = linesMatch ? new Function('return ' + linesMatch[1])() : null;
-check('daemon.ts 里有 GATEWAY_DISCOVERY_LINES', Array.isArray(daemonLines) && daemonLines.length === 4, daemonLines ? daemonLines.length + ' 行' : 'not found');
+// 2026-10-22 review 修：片段从"4 行发现"扩成"发现 + 来源戳 + 校验"，行数不再写死 4 ——
+// 判据改成"与 wsl-proxy.buildGatewayShellLines() 逐行等长"（下一行的逐字相等才是真判据）。
+const expectedLineCount = buildGatewayShellLines().split('\n').length;
+check('daemon.ts 里有 GATEWAY_DISCOVERY_LINES', Array.isArray(daemonLines) && daemonLines.length === expectedLineCount, daemonLines ? daemonLines.length + ' 行 / 期望 ' + expectedLineCount : 'not found');
 check(
   '网关发现片段与 wsl-proxy.buildGatewayShellLines() 逐字一致',
   Array.isArray(daemonLines) && daemonLines.join('\n') === buildGatewayShellLines(),
@@ -137,12 +140,15 @@ const probeTcp = probeFactory(net, PROXY_PROBE_TIMEOUT_SEC * 1000);
   );
 }
 
-// 网关脚本：4 行片段原样保留 + 只追加来源标注
+// 网关脚本：发现+校验片段原样保留 + 只追加"用 GW_SRC 打戳"
 {
   const scriptFactory = new Function('GATEWAY_DISCOVERY_LINES', extractFunction(daemonSrc, 'gatewayDiscoveryScript') + '\nreturn gatewayDiscoveryScript;');
   const discoveryScript = scriptFactory(daemonLines)();
-  check('发现脚本以 4 行片段原文开头（逐字不动）', discoveryScript.startsWith(daemonLines.join('\n') + '\n'), JSON.stringify(discoveryScript.slice(0, 60)));
-  check('发现脚本带来源标注（route= / resolv=）', discoveryScript.indexOf('route=%s') >= 0 && discoveryScript.indexOf('resolv=%s') >= 0);
+  check('发现脚本以片段原文开头（逐字不动）', discoveryScript.startsWith(daemonLines.join('\n') + '\n'), JSON.stringify(discoveryScript.slice(0, 60)));
+  // 2026-10-22 review 修：来源戳必须来自同一条命令里的 GW_SRC，不能再事后用 `ip route … | grep -q .` 猜
+  // （`default dev eth0` 无 via 时会把 resolv 候选误标成 route，从而绕过私有/链路本地校验）。
+  check('发现脚本用 GW_SRC 打戳（route=/resolv= 与取值同源）', discoveryScript.indexOf('GW_SRC') >= 0 && /printf "%s=%s" "\$\{GW_SRC:-resolv\}"/.test(discoveryScript), discoveryScript.split('\n').slice(-1)[0]);
+  check('发现脚本不再事后猜来源（无 `ip route … | grep -q .`）', discoveryScript.indexOf('grep -q .') < 0);
 
   // mirrored 网络：先试 loopback，再退回网关
   const resolveSrc = extractFunction(daemonSrc, 'resolveProxyHost');

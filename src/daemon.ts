@@ -123,22 +123,33 @@ const isIP = net.isIP;
 /** 与 src/wsl-proxy.ts 的 buildGatewayShellLines() **逐字一致**（多行，join('\n')）。 */
 const GATEWAY_DISCOVERY_LINES = [
   "GATEWAY=$(ip route show default 2>/dev/null | awk '$1 == \"default\" && $2 == \"via\" { print $3; exit }')",
+  'GW_SRC=route',
   'if [ -z "${GATEWAY:-}" ] && [ -r /etc/resolv.conf ]; then',
   "  GATEWAY=$(awk '$1 == \"nameserver\" { print $2; exit }' /etc/resolv.conf)",
+  '  GW_SRC=resolv',
   'fi',
+  'case "${GATEWAY:-}" in',
+  '  ""|127.*|::1|localhost) GATEWAY= ;;',
+  '  *) if [ "${GW_SRC:-resolv}" = "resolv" ]; then',
+  '       case "$GATEWAY" in',
+  '         10.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*|169.254.*|fc*|fd*|FC*|FD*|fe[89ab]*|FE[89AB]*) : ;;',
+  '         *) GATEWAY= ;;',
+  '       esac',
+  '     fi ;;',
+  'esac',
 ];
 
 /**
- * 发现脚本 = 上面 4 行**逐字不动** + 只追加"来源标注"（route 优先，否则 resolv）。
- * 为什么要来源：wsl-proxy 的判据只对 **resolv 来源**的候选要求私有/链路本地
- * （不能把 8.8.8.8 当代理宿主）；不标来源就没法把那条判据用在裸 IP 上。
+ * 发现脚本 = 上面的发现+校验块**逐字不动** + 只追加"打戳输出"。
+ *
+ * 2026-10-22 review 修：来源戳必须在**取值同一条命令里**打下（`GW_SRC`），不能再事后用
+ * `ip route show default | grep -q .` 猜 —— 遇到 `default dev eth0`（无 via）这种路由时，
+ * 会把实际来自 resolv 的公网候选误标成 `route=`，从而绕过"只接受私有/链路本地"的校验。
  */
 function gatewayDiscoveryScript() {
   return [
     ...GATEWAY_DISCOVERY_LINES,
-    'if [ -n "${GATEWAY:-}" ]; then',
-    '  if ip route show default 2>/dev/null | grep -q .; then printf "route=%s" "$GATEWAY"; else printf "resolv=%s" "$GATEWAY"; fi',
-    'fi',
+    'if [ -n "${GATEWAY:-}" ]; then printf "%s=%s" "${GW_SRC:-resolv}" "$GATEWAY"; fi',
   ].join('\n');
 }
 

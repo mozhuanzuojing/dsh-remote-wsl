@@ -59,6 +59,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 import { parseWslUncPath } from './unc-path.ts';
 import { invalidateProxyCache, resolveWslProxy } from './wsl-proxy.ts';
+import { readWslOutput } from './wsl-output.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -262,13 +263,11 @@ function kindOf(p) {
 /**
  * wsl.exe 输出解码：wsl -l -v 在 Windows 上常是 UTF-16LE；按 UTF-8 读会夹满 NUL。
  * 参考 ZCode 的 wsl-detect：含 NUL 字节即按 UTF-16LE 解码，同时兼容 UTF-8。
+ *
+ * 2026-10-22 review：实现已合并到 `src/wsl-output.ts`（与 wsl-io 共用单一来源）；
+ * 这里保留原名导出（index.ts 与既有探针依赖 `explorer.decodeWslOutput`）。
  */
-export function decodeWslOutput(input) {
-  const buf = Buffer.isBuffer(input) ? input : Buffer.from(String(input ?? ''), 'utf8');
-  if (buf.length === 0) return '';
-  const text = buf.includes(0) ? buf.toString('utf16le') : buf.toString('utf8');
-  return text.replace(/\u0000/g, '').replace(/^\uFEFF/, '').replace(/\r/g, '');
-}
+export const decodeWslOutput = readWslOutput;
 
 /**
  * 解析 wsl.exe -l -v 的表：列之间是两个以上空格，发行版名可以含单个空格

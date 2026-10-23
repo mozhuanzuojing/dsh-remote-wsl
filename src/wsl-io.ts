@@ -42,36 +42,11 @@ export const renderText = (_args, value) => [{ type: 'text', text: String(value 
 
 // ── wsl.exe 输出解码（参考 ZCode wsl-backend.ts:50-67）────────────────────────
 //
-// 两份来源事实：① `wsl.exe -l -v` 等输出在 Windows 上常是 **UTF-16LE**，按 utf8 读会夹满 NUL；
-// ② 包装层偶尔在 stdout 里留下 BOM / CRLF。ZCode 分成 decode + normalize 两步，这里照抄（含 8MB 上限）。
+// 实现已抽到 `src/wsl-output.ts`（2026-10-22 review：原来 explorer.ts 与 wsl-io.ts 各一份，
+// 只靠探针断言行为一致 —— 那是重复实现）。这里 import 供本模块使用，并 re-export 保持导出面不变。
 
-/** execFile/spawnSync 的 stdout 缓冲上限（ZCode `WSL_EXEC_MAX_BUFFER`）。 */
-export const WSL_EXEC_MAX_BUFFER = 8 * 1024 * 1024;
-
-/** 含 NUL ⇒ UTF-16LE，否则 UTF-8（ZCode decodeWslOutput）。
- *
- * ⚠️ 已知边界（与 ZCode 同一条启发式，如实记录、不粉饰）：**UTF-8 输出里若出现裸 NUL**
- * （例如 `printf 'a\0b'`），会被判成 UTF-16LE 而解坏。我们的 WSL 命令输出不含裸 NUL，
- * 故不额外加探形逻辑；边界由 `spike/verify/zcode-20261022/probe-wsl-io-lifecycle.ts` 钉住。
- */
-export function decodeWslOutput(input) {
-  const buffer = Buffer.isBuffer(input) ? input : Buffer.from(String(input ?? ''), 'utf8');
-  if (buffer.length === 0) return '';
-  return buffer.includes(0) ? buffer.toString('utf16le') : buffer.toString('utf8');
-}
-
-/** 去 NUL / 开头 BOM / 全部 CR（ZCode normalizeWslOutput）。 */
-export function normalizeWslOutput(raw) {
-  return String(raw ?? '')
-    .replace(/\u0000/g, '')
-    .replace(/^\uFEFF/, '')
-    .replace(/\r/g, '');
-}
-
-/** 一次性把 wsl.exe 的 Buffer 输出变成干净文本（decode + normalize）。 */
-export function readWslOutput(input) {
-  return normalizeWslOutput(decodeWslOutput(input));
-}
+import { WSL_EXEC_MAX_BUFFER, decodeWslOutput, normalizeWslOutput, readWslOutput } from './wsl-output.ts';
+export { WSL_EXEC_MAX_BUFFER, decodeWslOutput, normalizeWslOutput, readWslOutput };
 
 /**
  * ZCode 的 double-check 纪律：**异步探测 / 配置解析之后、真正 spawn 之前**再问一次关停屏障。

@@ -1,5 +1,15 @@
 # task-1 验收：吸收 ZCode 的释放/探测纪律（host 侧）
 
+> **2026-10-22 review 后追加（同轮提交）**：本轮代码在 review 后被改过三处，本报告的数字是**修后**的
+> （`probe-daemon-gateway` 33/33、`probe-wsl-proxy` 29/29、`probe-wsl-io-lifecycle` 24/24、
+> `probe-lifecycle-grace` 26/26）：
+> 1. `daemon.ts` 的网关**来源戳**改成与取值同一条命令（`GW_SRC=route|resolv`），不再事后 `ip route … | grep -q .`
+>    猜（那条猜法遇到 `default dev eth0` 无 via 时会把 resolv 的候选误标成 route，绕过私有/链路本地校验）；
+> 2. 校验（loopback 拒、resolv 只收私有/链路本地）从 `parseGatewayOutput`（生产路径没人调用）**下沉进 shell 片段**，
+>    宿主 `shellPreamble` 与 daemon 共用同一段；探针在**真 bash** 里跑了 6 组候选；
+> 3. 宿主 shell 的代理导出改成**先试 127.0.0.1 再退网关**（mirrored 网络下以前会判"网关不可达"而白直连）。
+> 另：`decodeWslOutput` 的两份实现已合并到 `src/wsl-output.ts`（`wsl-io` / `explorer` 都从它取）。
+
 - **日期**：2026-10-22 ｜ **仓库**：`D:\project\dsh1\dsh-remote-wsl` ｜ **起点 HEAD**：`323a695`（工作区干净）
 - **写域**：`src/lifecycle.ts`、`src/wsl-io.ts`、`src/daemon.ts`、新建 `spike/verify/zcode-20261022/**`
   （另按 Lead 指示改了 1 条既有探针断言，见 §5）

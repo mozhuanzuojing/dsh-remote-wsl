@@ -78,7 +78,16 @@
     WSL 的 127.0.0.1 上，命中就保留、不该换成网关）→ 否则 `ip route default via` →
     `/etc/resolv.conf` nameserver 回落（只接受私有/链路本地）→ 探活 1s。`src/daemon.ts`（跑在 WSL 里的
     独立脚本，不能 import 宿主模块）与 `src/wsl-proxy.ts` 的片段**逐字一致**，由源码级探针防漂移。
-    验证：`zcode-20261022/probe-daemon-gateway.ts` 32/32（含真实 WSL 两边发现同一个网关 172.30.176.1）。
+    验证：`zcode-20261022/probe-daemon-gateway.ts` 33/33（含真实 WSL 两边发现同一个网关 172.30.176.1）。
+
+    **2026-10-22 review 补齐的三处**（此前只在 daemon 侧成立，宿主 shell 路径没有）：
+    · 来源戳 `GW_SRC` 与取值写在**同一条命令**里（原来 daemon 事后用 `ip route … | grep -q .` 猜，
+      遇到 `default dev eth0`（无 via）会把 resolv 的候选误标成 route，绕过校验）；
+    · 校验（loopback 一律拒；resolv 只收私有/链路本地）**下沉进 shell 片段** —— 原来它只存在于
+      `parseGatewayOutput`，而那个函数在生产路径上没人调用；
+    · 宿主 shell 也改成 **先试 127.0.0.1 再退网关**（与 daemon、ZCode 顺序一致；mirrored 网络下代理就在
+      WSL loopback，以前会以"网关不可达"失败而白白直连）。
+    验证：`wsl-parity-20261022/probe-wsl-proxy.ts` 29/29（+11 条，含 6 组候选在**真 bash** 里跑校验）。
 
 ## 已关闭/已过时的旧条目
 
@@ -88,6 +97,8 @@
 2. ~~WSL 里的代理网关探测~~ —— **已完成**（第 5 条 + 第 17 条）。
 3. ~~UNC 解析~~ —— **已完成**（第 6 条，`src/unc-path.ts`）。
 4. ~~生命周期纪律~~ —— **主体已完成**（第 7、10、12–15 条）。
+5. ~~`decodeWslOutput` 两处实现~~ —— **已合并**（2026-10-22 review）：单一来源 `src/wsl-output.ts`，
+   `explorer.ts` 与 `wsl-io.ts` 都从它取，两个原名保留为 re-export（导出面不变）。
 
 ## 仍未做（以及为什么）
 

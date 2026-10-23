@@ -17,14 +17,55 @@ import { isIP } from 'node:net';
 /** 探活超时（秒）。宿主代理停着时，这个值直接等于每条命令的额外延迟。 */
 export const PROXY_PROBE_TIMEOUT_SEC = 1;
 
-/** shell 侧网关发现：先 ip route 的 default via，再退回 /etc/resolv.conf 的 nameserver。 */
-export function buildGatewayShellLines() {
+/**
+ * 网关**发现**片段：route 优先、resolv 回落，并在取值的同一条命令里打来源戳 `GW_SRC`。
+ *
+ * 这是 `buildGatewayShellLines()` 的前半段；单独导出是为了让探针能**只跑校验**（后半段）而不受
+ * 真实 `ip route` 影响 —— 见 `spike/verify/wsl-parity-20261022/probe-wsl-proxy.ts` 的"校验语义"一节。
+ */
+export function buildGatewayDiscoveryLines() {
   return [
     "GATEWAY=$(ip route show default 2>/dev/null | awk '$1 == \"default\" && $2 == \"via\" { print $3; exit }')",
+    'GW_SRC=route',
     'if [ -z "${GATEWAY:-}" ] && [ -r /etc/resolv.conf ]; then',
     "  GATEWAY=$(awk '$1 == \"nameserver\" { print $2; exit }' /etc/resolv.conf)",
+    '  GW_SRC=resolv',
     'fi',
-  ].join('\n');
+  ];
+}
+
+/**
+ * 网关**校验**片段：loopback 一律拒绝；`resolv` 来源只接受私有/链路本地。
+ * 判据与 `parseGatewayOutput()` / `src/daemon.ts` 的 `isPrivateOrLinkLocal()` 一致。
+ */
+export function buildGatewayValidationLines() {
+  return [
+    'case "${GATEWAY:-}" in',
+    '  ""|127.*|::1|localhost) GATEWAY= ;;',
+    '  *) if [ "${GW_SRC:-resolv}" = "resolv" ]; then',
+    '       case "$GATEWAY" in',
+    '         10.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*|169.254.*|fc*|fd*|FC*|FD*|fe[89ab]*|FE[89AB]*) : ;;',
+    '         *) GATEWAY= ;;',
+    '       esac',
+    '     fi ;;',
+    'esac',
+  ];
+}
+
+/**
+ * shell 侧网关发现 + 校验（发现片段 + 校验片段）。**本文件是唯一来源**；`src/daemon.ts` 在 WSL 里跑、
+ * 不能 import 宿主模块，逐字复制同一段，由 `spike/verify/zcode-20261022/probe-daemon-gateway.ts`
+ * 的源码级比对防漂移。
+ *
+ * 2026-10-22 review 修两处（此前只有 `parseGatewayOutput` 带校验，而它在生产路径上没人调用）：
+ *  1. **来源在取值同一条命令里打戳**（`GW_SRC=route|resolv`）。原来 daemon 事后用
+ *     `ip route show default | grep -q .` 猜来源 —— 遇到 `default dev eth0` 这种**没有 via** 的默认路由时，
+ *     会把实际来自 resolv 的候选（可能是 8.8.8.8 这类公网 DNS）误标成 `route`，从而跳过下面的校验；
+ *  2. **校验下沉到 shell**：loopback 一律拒绝；`resolv` 来源只接受私有/链路本地
+ *     （与 `parseGatewayOutput` / daemon 的判据一致）。
+ */
+export function buildGatewayShellLines() {
+  return [...buildGatewayDiscoveryLines(), ...buildGatewayValidationLines()].join('\n');
 }
 
 /** /dev/tcp 探活命令（bash 内建；timeout 包一层避免挂死）。host 可以是 $GATEWAY 这样的 shell 变量。 */
@@ -47,27 +88,39 @@ export function parseGatewayOutput(output) {
   return { host: null, source: null };
 }
 
-/** 拼接导出代理环境变量的 shell 片段（与 shellPreamble 里的行为一致）。 */
-export function buildProxyEnvBlock(port, hostVar = '$GATEWAY', timeoutSec = PROXY_PROBE_TIMEOUT_SEC) {
-  const name = hostVar.replace(/^\$/, '');
-  const address = hostVar + ':' + port;
+/**
+ * 拼接导出代理环境变量的 shell 片段（`shellPreamble` 用）。
+ *
+ * 顺序与 `daemon.ts` 的 `resolveProxyHost()`、ZCode 的 `resolveRuntimeProxy()` 一致：
+ * **先试 WSL 自己的 127.0.0.1**（mirrored 网络模式下宿主代理就在这里，命中就不该换成网关），
+ * 再退回上面校验过的网关。两条都不通 ⇒ 明确打一行 stderr 说明"本次直连"，不静默。
+ */
+export function buildProxyEnvBlock(port, timeoutSec = PROXY_PROBE_TIMEOUT_SEC) {
+  const loop = '127.0.0.1:' + port;
+  const gw = '$GATEWAY:' + port;
   return [
-    'if [ -n "${' + name + ':-}" ] && ' + buildProxyProbeCommand(hostVar, port, timeoutSec) + ' 2>/dev/null; then',
+    'if ' + buildProxyProbeCommand('127.0.0.1', port, timeoutSec) + ' 2>/dev/null; then',
     '  export NODE_USE_ENV_PROXY=1',
-    '  export HTTPS_PROXY="http://' + address + '"',
-    '  export HTTP_PROXY="http://' + address + '"',
+    '  export HTTPS_PROXY="http://' + loop + '"',
+    '  export HTTP_PROXY="http://' + loop + '"',
+    'elif [ -n "${GATEWAY:-}" ] && ' + buildProxyProbeCommand('$GATEWAY', port, timeoutSec) + ' 2>/dev/null; then',
+    '  export NODE_USE_ENV_PROXY=1',
+    '  export HTTPS_PROXY="http://' + gw + '"',
+    '  export HTTP_PROXY="http://' + gw + '"',
     'else',
-    '  echo "remote-wsl: 主机代理 ' + address + ' 不可用 ⇒ 本次直连" >&2',
+    '  echo "remote-wsl: 主机代理 ' + loop + ' 与 ${GATEWAY:-<网关未知>}:' + port + ' 都不可达 ⇒ 本次直连" >&2',
     'fi',
   ].join('\n');
 }
 
 
-/** 拼一次性探测脚本：发现网关 + 探活，输出 `reachable <host>` / `unreachable <host>`。 */
+/** 拼一次性探测脚本：发现网关 + 探活（同样先 loopback 再网关），输出 `reachable <host>` / `unreachable <host>`。 */
 export function buildProxyProbeScript(port, timeoutSec = PROXY_PROBE_TIMEOUT_SEC) {
   return [
     buildGatewayShellLines(),
-    'if [ -n "\${GATEWAY:-}" ] && ' + buildProxyProbeCommand('$GATEWAY', port, timeoutSec) + ' 2>/dev/null; then',
+    'if ' + buildProxyProbeCommand('127.0.0.1', port, timeoutSec) + ' 2>/dev/null; then',
+    '  printf "reachable %s" "127.0.0.1"',
+    'elif [ -n "\${GATEWAY:-}" ] && ' + buildProxyProbeCommand('$GATEWAY', port, timeoutSec) + ' 2>/dev/null; then',
     '  printf "reachable %s" "$GATEWAY"',
     'else',
     '  printf "unreachable %s" "\${GATEWAY:-}"',

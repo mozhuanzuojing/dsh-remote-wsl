@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T08:54:35.089Z",
+  "generatedAt": "2026-10-23T03:42:10.402Z",
   "real": "debian-u8-1",
   "fake": "probe-no-such-distro",
   "total": 21,
@@ -104,7 +104,7 @@
     {
       "name": "snapshot 带 proxy 段",
       "ok": true,
-      "detail": "{\"host\":\"172.30.176.1\",\"port\":9910,\"reachable\":true,\"cached\":true}"
+      "detail": "{\"host\":\"172.30.176.1\",\"port\":9910,\"reachable\":false,\"cached\":true}"
     },
     {
       "name": "snapshot refresh 绕过事实缓存",

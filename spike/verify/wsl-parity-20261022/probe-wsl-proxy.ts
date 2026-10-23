@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { parseGatewayOutput, buildGatewayShellLines, buildProxyEnvBlock, buildProxyProbeCommand, invalidateProxyCache, resolveWslProxy } from '../../../src/wsl-proxy.ts';
+import { parseGatewayOutput, buildGatewayShellLines, buildGatewayValidationLines, buildProxyEnvBlock, buildProxyProbeCommand, invalidateProxyCache, resolveWslProxy } from '../../../src/wsl-proxy.ts';
 import { shellPreamble } from '../../../src/wsl-io.ts';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -30,10 +30,17 @@ check('网关：空输出', parseGatewayOutput('').host === null);
 const lines = buildGatewayShellLines();
 check('片段：含 ip route', lines.indexOf('ip route show default') >= 0);
 check('片段：含 resolv.conf 回落', lines.indexOf('/etc/resolv.conf') >= 0);
+// 2026-10-22 review 修：来源必须在取值同一条命令里打戳（GW_SRC），且校验下沉到 shell ——
+// 原来"只接受私有/链路本地"只写在 parseGatewayOutput 里（生产路径没人调用），shell 片段不判。
+check('片段：来源戳 GW_SRC 与取值同处（review 修）', lines.indexOf('GW_SRC=route') >= 0 && lines.indexOf('GW_SRC=resolv') >= 0, lines.split('\n').slice(1, 5).join(' / '));
+check('片段：shell 侧拒绝 loopback（review 修）', /127\.\*\|::1\|localhost/.test(lines), lines.split('\n').find((l) => l.indexOf('127.*') >= 0) || '');
+check('片段：shell 侧 resolv 只接受私有/链路本地（review 修）', /10\.\*\|192\.168\.\*\|172\.1\[6-9\]/.test(lines) && /169\.254\.\*/.test(lines), '');
 const block = buildProxyEnvBlock(9910);
 check('片段：探活超时 1 秒', block.indexOf('timeout 1 ') >= 0, block.split('\n')[0]);
-check('片段：导出 HTTPS_PROXY', block.indexOf('HTTPS_PROXY="http://$GATEWAY:9910"') >= 0);
-check('片段：代理不可达走直连', block.indexOf('不可用') >= 0);
+check('片段：先试 WSL 自己的 loopback（mirrored 网络，review 修）', block.indexOf('/dev/tcp/127.0.0.1/9910') >= 0 && block.indexOf('/dev/tcp/127.0.0.1/9910') < block.indexOf('/dev/tcp/$GATEWAY/9910'), block.split('\n')[0]);
+check('片段：导出 HTTPS_PROXY（网关分支）', block.indexOf('HTTPS_PROXY="http://$GATEWAY:9910"') >= 0);
+check('片段：导出 HTTPS_PROXY（loopback 分支）', block.indexOf('HTTPS_PROXY="http://127.0.0.1:9910"') >= 0);
+check('片段：两路都不可达 ⇒ 明确说直连', block.indexOf('都不可达') >= 0);
 const probe = buildProxyProbeCommand('$GATEWAY', 9910);
 check('探活命令：双引号让 GATEWAY 在外层展开', probe.indexOf('bash -c "exec 3<>/dev/tcp/$GATEWAY/9910"') >= 0, probe);
 
@@ -63,6 +70,36 @@ check('preamble：含 resolv 回落', preamble.indexOf('/etc/resolv.conf') >= 0)
   }
   check('真实 WSL：片段执行成功', out.indexOf('GATEWAY=') >= 0, out.trim().slice(0, 160));
   check('真实 WSL：GATEWAY 非空', /GATEWAY=\d+\.\d+\.\d+\.\d+/.test(out), out.trim().slice(0, 160));
+}
+
+// ── 2026-10-22 review 修：校验语义（真 bash 里跑 buildGatewayValidationLines）────────
+// 为什么单独测校验：发现片段的第一行会真的去跑 `ip route`，覆盖掉预设值；校验片段只读 $GATEWAY/$GW_SRC，
+// 可以独立喂候选。判据与 daemon 的 isPrivateOrLinkLocal / parseGatewayOutput 一致。
+{
+  // ⚠️ buildGatewayValidationLines() 返回**数组**，必须自己 join('\n') —— 直接字符串相加会被
+  // Array#toString 用逗号拼起来（本轮实测踩过：bash 报 `syntax error near unexpected token 'in,'`）。
+  const validator = buildGatewayValidationLines().join('\n');
+  const runCase = (gateway, src) => {
+    // 候选都是 IP 字面量，直接赋值（不加引号：`wsl.exe … -c` 走 CommandLineToArgvW，引号会被外层处理掉）。
+    const script = 'GATEWAY=' + gateway + '; GW_SRC=' + src + '\n' + validator + '\nprintf %s "${GATEWAY:-}"';
+    try {
+      return execFileSync('wsl.exe', ['-d', 'debian-u8-1', '--exec', 'bash', '-c', script], { encoding: 'utf8', windowsHide: true, timeout: 20000 }).trim();
+    } catch (e) {
+      return 'ERR ' + String(e).slice(0, 80);
+    }
+  };
+  const cases: [string, string, string, string][] = [
+    ['8.8.8.8', 'resolv', '', 'resolv 来源的公网 DNS 必须被拒（不能当代理宿主）'],
+    ['172.30.176.1', 'resolv', '172.30.176.1', 'resolv 来源的私有网关保留'],
+    ['192.168.1.1', 'resolv', '192.168.1.1', '192.168/16 保留'],
+    ['169.254.1.1', 'resolv', '169.254.1.1', '链路本地保留'],
+    ['127.0.0.1', 'route', '', 'loopback 一律拒绝（即使来源是 route）'],
+    ['8.8.8.8', 'route', '8.8.8.8', 'route 来源按 ZCode 语义不要求私有（默认网关就是它）'],
+  ];
+  for (const [gw, src, want, why] of cases) {
+    const got = runCase(gw, src);
+    check(`校验：${src}=${gw} ⇒ "${want}"（${why}）`, got === want, got === want ? got : got + ' ≠ ' + want);
+  }
 }
 
 const summary = { generatedAt: new Date().toISOString(), total: results.length, pass: results.filter((r) => r.ok).length, fail: results.filter((r) => !r.ok).length, results };

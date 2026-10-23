@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T08:54:39.151Z",
+  "generatedAt": "2026-10-23T03:42:16.065Z",
   "distro": "debian-u8-1",
   "observations": {
     "wslNodeVersion": "v26.10.0",
@@ -18,12 +18,12 @@
     {
       "name": "settle 等到它自然退出（不 kill）",
       "ok": true,
-      "detail": "{\"waitedMs\":120,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
+      "detail": "{\"waitedMs\":114,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
     },
     {
       "name": "runWsl 结果仍正确（stdout/exitCode）",
       "ok": true,
-      "detail": "{\"exitCode\":0,\"stdout\":\"ok\",\"stderr\":\"wsl: 检测到 localhost 代理配置，但未镜像到 WSL。NAT 模式下的 WSL 不支持 localhost 代理。\\n\"}"
+      "detail": "{\"exitCode\":0,\"stdout\":\"ok\",\"stderr\":\"\"}"
     },
     {
       "name": "退出后自动摘除",
@@ -33,7 +33,7 @@
     {
       "name": "settle 宽限后 kill 掉短命子进程（forced=true，kill 后干净退出 ⇒ timedOut=false）",
       "ok": true,
-      "detail": "elapsed=163 {\"waitedMs\":163,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
+      "detail": "elapsed=161 {\"waitedMs\":161,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
     },
     {
       "name": "关停后 runWsl 拒绝并返回 E_SHUTDOWN",
@@ -48,7 +48,7 @@
     {
       "name": "收尾路径 allowDuringShutdown 仍能执行",
       "ok": true,
-      "detail": "{\"exitCode\":0,\"stdout\":\"cleanup-ok\",\"stderr\":\"wsl: 检测到 localhost 代理配置，但未镜像到 WSL。NAT 模式下的 WSL 不支持 localhost 代理。\\n\"}"
+      "detail": "{\"exitCode\":0,\"stdout\":\"cleanup-ok\",\"stderr\":\"\"}"
     },
     {
       "name": "wslPathConvert：关停后抛 E_SHUTDOWN",

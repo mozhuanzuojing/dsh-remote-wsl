@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T08:54:35.854Z",
+  "generatedAt": "2026-10-23T03:42:12.021Z",
   "total": 9,
   "pass": 9,
   "fail": 0,
@@ -17,17 +17,17 @@
     {
       "name": "settle 等到子进程自然退出",
       "ok": true,
-      "detail": "{\"waitedMs\":49,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
+      "detail": "{\"waitedMs\":42,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
     },
     {
       "name": "settle 记录等待时长",
       "ok": true,
-      "detail": "49"
+      "detail": "42"
     },
     {
       "name": "超时：只 kill 自己记录的子进程（forced=true 且 timedOut=false）",
       "ok": true,
-      "detail": "{\"waitedMs\":93,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
+      "detail": "{\"waitedMs\":94,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
     },
     {
       "name": "未关停时 assertAlive 放行",

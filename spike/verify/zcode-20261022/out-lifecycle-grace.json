@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T08:54:37.594Z",
+  "generatedAt": "2026-10-23T03:42:13.778Z",
   "total": 26,
   "pass": 26,
   "fail": 0,
@@ -12,7 +12,7 @@
     {
       "name": "优雅：宽限内自己退出 ⇒ 不 kill",
       "ok": true,
-      "detail": "{\"waitedMs\":15,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
+      "detail": "{\"waitedMs\":24,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
     },
     {
       "name": "优雅：settle 后归属清空",
@@ -22,27 +22,27 @@
     {
       "name": "干净关停 ⇒ timedOut=false（index 不会误报\"关停超时\"）",
       "ok": true,
-      "detail": "{\"waitedMs\":15,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
+      "detail": "{\"waitedMs\":24,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
     },
     {
       "name": "宽限 300ms 后才 kill，kill 后等到真的退出（remaining 归零）",
       "ok": true,
-      "detail": "{\"waitedMs\":343,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
+      "detail": "{\"waitedMs\":344,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
     },
     {
       "name": "超过宽限但 kill 后干净退出 ⇒ forced=true 且 timedOut=false",
       "ok": true,
-      "detail": "{\"waitedMs\":343,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
+      "detail": "{\"waitedMs\":344,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
     },
     {
       "name": "默认宽限 300 + kill 后等待 250（总预算 5s 内）",
       "ok": true,
-      "detail": "{\"waitedMs\":552,\"killed\":1,\"remaining\":1,\"timedOut\":true,\"forced\":true}"
+      "detail": "{\"waitedMs\":580,\"killed\":1,\"remaining\":1,\"timedOut\":true,\"forced\":true}"
     },
     {
       "name": "真的关不干净 ⇒ timedOut=true 且 remaining>0",
       "ok": true,
-      "detail": "{\"waitedMs\":552,\"killed\":1,\"remaining\":1,\"timedOut\":true,\"forced\":true}"
+      "detail": "{\"waitedMs\":580,\"killed\":1,\"remaining\":1,\"timedOut\":true,\"forced\":true}"
     },
     {
       "name": "kill 只作用于自己登记的 child",
@@ -82,7 +82,7 @@
     {
       "name": "对照：在跑的 child 仍被等（不是无条件立刻返回）",
       "ok": true,
-      "detail": "{\"waitedMs\":404,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
+      "detail": "{\"waitedMs\":408,\"killed\":1,\"remaining\":0,\"timedOut\":false,\"forced\":true}"
     },
     {
       "name": "error 事件也结算归属",
@@ -92,7 +92,7 @@
     {
       "name": "只退 error 的 child 不会让 settle 白等",
       "ok": true,
-      "detail": "{\"waitedMs\":0,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
+      "detail": "{\"waitedMs\":1,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
     },
     {
       "name": "close 事件也结算归属",

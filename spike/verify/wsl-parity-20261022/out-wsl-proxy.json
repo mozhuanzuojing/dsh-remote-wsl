@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-22T08:54:35.543Z",
-  "total": 18,
-  "pass": 18,
+  "generatedAt": "2026-10-23T03:42:11.731Z",
+  "total": 29,
+  "pass": 29,
   "fail": 0,
   "results": [
     {
@@ -40,17 +40,42 @@
       "detail": ""
     },
     {
-      "name": "片段：探活超时 1 秒",
+      "name": "片段：来源戳 GW_SRC 与取值同处（review 修）",
       "ok": true,
-      "detail": "if [ -n \"${GATEWAY:-}\" ] && timeout 1 bash -c \"exec 3<>/dev/tcp/$GATEWAY/9910\" 2>/dev/null; then"
+      "detail": "GW_SRC=route / if [ -z \"${GATEWAY:-}\" ] && [ -r /etc/resolv.conf ]; then /   GATEWAY=$(awk '$1 == \"nameserver\" { print $2; exit }' /etc/resolv.conf) /   GW_SRC=resolv"
     },
     {
-      "name": "片段：导出 HTTPS_PROXY",
+      "name": "片段：shell 侧拒绝 loopback（review 修）",
+      "ok": true,
+      "detail": "  \"\"|127.*|::1|localhost) GATEWAY= ;;"
+    },
+    {
+      "name": "片段：shell 侧 resolv 只接受私有/链路本地（review 修）",
       "ok": true,
       "detail": ""
     },
     {
-      "name": "片段：代理不可达走直连",
+      "name": "片段：探活超时 1 秒",
+      "ok": true,
+      "detail": "if timeout 1 bash -c \"exec 3<>/dev/tcp/127.0.0.1/9910\" 2>/dev/null; then"
+    },
+    {
+      "name": "片段：先试 WSL 自己的 loopback（mirrored 网络，review 修）",
+      "ok": true,
+      "detail": "if timeout 1 bash -c \"exec 3<>/dev/tcp/127.0.0.1/9910\" 2>/dev/null; then"
+    },
+    {
+      "name": "片段：导出 HTTPS_PROXY（网关分支）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "片段：导出 HTTPS_PROXY（loopback 分支）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "片段：两路都不可达 ⇒ 明确说直连",
       "ok": true,
       "detail": ""
     },
@@ -93,6 +118,36 @@
       "name": "真实 WSL：GATEWAY 非空",
       "ok": true,
       "detail": "GATEWAY=172.30.176.1"
+    },
+    {
+      "name": "校验：resolv=8.8.8.8 ⇒ \"\"（resolv 来源的公网 DNS 必须被拒（不能当代理宿主））",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "校验：resolv=172.30.176.1 ⇒ \"172.30.176.1\"（resolv 来源的私有网关保留）",
+      "ok": true,
+      "detail": "172.30.176.1"
+    },
+    {
+      "name": "校验：resolv=192.168.1.1 ⇒ \"192.168.1.1\"（192.168/16 保留）",
+      "ok": true,
+      "detail": "192.168.1.1"
+    },
+    {
+      "name": "校验：resolv=169.254.1.1 ⇒ \"169.254.1.1\"（链路本地保留）",
+      "ok": true,
+      "detail": "169.254.1.1"
+    },
+    {
+      "name": "校验：route=127.0.0.1 ⇒ \"\"（loopback 一律拒绝（即使来源是 route））",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "校验：route=8.8.8.8 ⇒ \"8.8.8.8\"（route 来源按 ZCode 语义不要求私有（默认网关就是它））",
+      "ok": true,
+      "detail": "8.8.8.8"
     }
   ]
 }
