@@ -41,7 +41,7 @@ import { shellEnvSnippet } from './shell-env.ts';
 import { SdkRuntime } from './sdk-runtime.ts';
 import { handleFsOp } from './fs-rpc.ts';
 import { handleSearchOp, setSearchToolPaths } from './search-rpc.ts';
-import { ensureSearchTools, toolPaths } from './search-provision.ts';
+import { ensureSearchTools, ensureTools, catalog, resolveAssetFor, CORE_TOOLS, toolPaths } from './search-provision.ts';
 
 const argv = process.argv.slice(2);
 const arg = (name, dflt) => {
@@ -594,7 +594,8 @@ async function handle(req) {
     const reaped = await reapAllAndExit('收到 shutdown');
     return { ok: true, id, reaped };
   }
-  // 2026-10-23：探测/安装搜索工具（探针与工具共用；安装只写指定目录，默认 ~/.local/bin）。
+  // 2026-10-23：探测/安装 Rust CLI 工具（探针与工具共用；安装只写指定目录，默认 ~/.local/bin）。
+  // `args.list === true` 只报告清单不安装；`args.tools` 指定子集（缺省核心集合）。
   // 没显式给 proxy 时用宿主代理网关（NAT 下 GitHub 直连不通）。
   if (op === 'provision') {
     try {
@@ -604,7 +605,21 @@ async function handle(req) {
         const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
         proxy = resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null;
       }
-      const result = ensureSearchTools({
+      if (args.resolveOnly === true) {
+        const ids = Array.isArray(args.tools) && args.tools.length > 0 ? args.tools : catalog().map((t) => t.id);
+        const assets = {};
+        for (const id of ids) {
+          assets[id] = resolveAssetFor(id, { proxy });
+        }
+        return { ok: true, id, result: { assets, proxyUsed: proxy } };
+      }
+      if (args.list === true) {
+        const ids = Array.isArray(args.tools) && args.tools.length > 0 ? args.tools : catalog().map((t) => t.id);
+        const result = ensureTools(ids, { autoInstall: false, installDir: args.installDir, proxy, ignorePath: args.ignorePath === true });
+        return { ok: true, id, result: { ...result, catalog: catalog() } };
+      }
+      const ids = Array.isArray(args.tools) && args.tools.length > 0 ? args.tools : CORE_TOOLS;
+      const result = ensureTools(ids, {
         autoInstall: args.autoInstall !== false,
         installDir: typeof args.installDir === 'string' && args.installDir ? args.installDir : undefined,
         proxy,
@@ -746,16 +761,16 @@ async function listenOn(port) {
     server.once('listening', onOk);
     server.listen(port, '127.0.0.1');
   });
-  // 体验优先：守护一起来就在后台补齐搜索工具（rg/fd 缺就装，静态二进制到 ~/.local/bin），
-  // 用户第一次 grep 时它们通常已经就绪；失败只记日志，不影响搜索回落到 grep/find。
+  // 体验优先：守护一起来就在后台补齐核心 CLI 工具（rg/fd/ast-grep/sd/bat/tokei/dust/procs 缺就装，
+  // 静态二进制到 ~/.local/bin），用户第一次搜索/调用时通常已就绪；失败只记日志，不阻塞也不伪装成功。
   setTimeout(async () => {
     try {
       const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
-      const provision = ensureSearchTools({ autoInstall: true, proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null });
+      const provision = ensureTools(CORE_TOOLS, { autoInstall: true, proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null });
       setSearchToolPaths(toolPaths());
-      for (const note of provision.notes ?? []) process.stderr.write(`[daemon] search provision: ${note}\n`);
+      for (const note of provision.notes ?? []) process.stderr.write(`[daemon] tool provision: ${note}\n`);
     } catch (e) {
-      process.stderr.write(`[daemon] search provision failed: ${(e && e.message) || String(e)}\n`);
+      process.stderr.write(`[daemon] tool provision failed: ${(e && e.message) || String(e)}\n`);
     }
   }, 1500);
 }

@@ -129,5 +129,43 @@ export function apply(ctx, rawConfig = {}) {
         return `${files.length} file(s) under ${path}${via}${r?.truncated ? ' (truncated)' : ''}\n${files.join('\n')}${noteLines}`;
       },
     });
+    tools.register({
+      name: 'wsl_tools',
+      description: [
+        'List or install the Rust command-line tools available inside the WSL distribution (ripgrep, fd, ast-grep/sg, sd, bat, tokei, difftastic/difft, dust, procs, xh, hexyl, qsv, typos, taplo, just, delta, rga, hyperfine).',
+        'action="list" reports which ones are already available (PATH or auto-installed under ~/.local/bin) with their paths.',
+        'action="install" downloads the requested tool from GitHub Releases into ~/.local/bin without sudo; failures return the reason plus the manual install command.',
+        'These binaries are then usable from wsl_exec/bash as well as the dedicated grep/glob tools.',
+      ].join(' '),
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', description: '"list" (default) or "install".' },
+          tool: { type: 'string', description: 'Tool id to install when action="install" (e.g. ast-grep, sd, bat).' },
+        },
+      },
+      output: { schema: { type: 'string' }, render: renderText },
+      execute: async (args, exec) => {
+        const action = String(args.action ?? 'list');
+        if (action === 'install') {
+          const id = String(args.tool ?? '').trim();
+          if (!id) throw new Error('wsl_tools: action="install" requires tool="<id>"');
+          const r = await rpc.call('provision', '', { tools: [id], autoInstall: config.searchAutoInstall !== false }, exec?.signal);
+          const entry = r?.tools?.[id];
+          const notes = Array.isArray(r?.notes) ? r.notes : [];
+          const head = entry?.path ? `installed ${id} → ${entry.path} (${entry.source})` : `could not install ${id}`;
+          return `${head}\n${notes.join('\n')}`.trim();
+        }
+        const r = await rpc.call('provision', '', { list: true, autoInstall: false }, exec?.signal);
+        const rows = [];
+        for (const item of r?.catalog ?? []) {
+          const t = r?.tools?.[item.id];
+          const state = t?.path ? `✅ ${t.source} ${t.path}` : '❌ missing';
+          rows.push(`${item.id.padEnd(12)} ${state}`);
+        }
+        const notes = Array.isArray(r?.notes) ? r.notes : [];
+        return `Rust CLI tools in WSL:\n${rows.join('\n')}${notes.length ? `\n\n${notes.join('\n')}` : ''}`;
+      },
+    });
   });
 }

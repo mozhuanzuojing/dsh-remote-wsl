@@ -1,14 +1,17 @@
 /**
- * dsh-remote-wsl / search-provision —— **在发行版里自动装搜索工具**（ripgrep / fd）。
+ * dsh-remote-wsl / search-provision —— **WSL 里按需/自动安装 Rust CLI 工具**。
  *
- * 为什么需要（用户要求 2026-10-23）：本机 WSL 有 `rg`/`fdfind`，但别的发行版不一定有。
- * 搜索优先用快工具（ripgrep、fd），缺了就不该静默退回慢的 grep/find —— 要么装，要么**明确提示**
- * 用户手动装。所以这里实现：
- *   1. 先 `command -v` 探测（`rg` / `fd` / `fdfind`）；
- *   2. 缺了且允许自动装 ⇒ 从 GitHub Releases 拉**静态 musl 二进制**，只写 `~/.local/bin`（**不用 sudo**）；
- *   3. 失败（网络/无 curl/无 tar）⇒ 返回 `notes[]`（可读原因 + 手动安装命令），搜索仍用回落后端，不假装成功。
+ * 用户要求（2026-10-23）：缺工具就自己装，装不上提示用户；把能用的 Rust 工具尽量都装上。
  *
- * 只依赖 `node:` 内置；跑在 WSL 侧守护里（daemon import 它）。
+ * 做法：
+ *   1. 目录（{@link TOOLS}）列出仓库 + 二进制名（ripgrep、fd、ast-grep、sd、bat、tokei、difft、
+ *      dust、procs、xh、hexyl、qsv、typos、taplo、just、delta、rga、hyperfine）；
+ *   2. **从 GitHub Releases API 解析资产名**（不写死版本/后缀，适配各仓库命名差异），按
+ *      linux/本机 arch/静态优先 选 tar.gz 或 zip；
+ *   3. 下载（自动走宿主代理网关）→ 解压 → 复制到 `~/.local/bin`（**不用 sudo、不写系统目录**）；
+ *   4. 失败返回可读原因 + 手动安装命令；调用方（工具/daemon）负责把提示带给用户，不静默降级。
+ *
+ * 只依赖 `node:` 内置；运行在 WSL 侧守护里。
  *
  * @module dsh-remote-wsl/search-provision
  */
@@ -17,27 +20,82 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-/** 固定版本 + 静态二进制资产名（musl 不依赖发行版 glibc 版本）。 */
-const PINS = {
-  rg: {
-    version: '14.1.1',
-    bin: 'rg',
-    assets: (arch) => [
-      `ripgrep-14.1.1-${arch === 'aarch64' ? 'aarch64-unknown-linux-gnu' : 'x86_64-unknown-linux-musl'}.tar.gz`,
-    ],
-    manual: 'sudo apt install ripgrep   # Debian/Ubuntu；或 dnf install ripgrep',
-  },
-  fd: {
-    version: 'v10.2.0',
-    bin: 'fd',
-    assets: (arch) => [
-      `fd-v10.2.0-${arch === 'aarch64' ? 'aarch64-unknown-linux-musl' : 'x86_64-unknown-linux-musl'}.tar.gz`,
-    ],
-    manual: 'sudo apt install fd-find   # Debian/Ubuntu（二进制名 fdfind）',
-  },
+/**
+ * 工具目录。`bins` 是解压后可能出现的二进制名（各仓库不同），`repo` 用于调 GitHub API。
+ * @type {Array<{id:string, repo:string, bins:string[], label:string}>}
+ */
+export const TOOLS = [
+  { id: 'rg', repo: 'BurntSushi/ripgrep', bins: ['rg'], label: 'ripgrep 文本搜索' },
+  { id: 'fd', repo: 'sharkdp/fd', bins: ['fd', 'fdfind'], label: 'fd 文件名搜索' },
+  { id: 'ast-grep', repo: 'ast-grep/ast-grep', bins: ['sg', 'ast-grep'], label: 'ast-grep 结构化搜索/替换' },
+  { id: 'sd', repo: 'chmln/sd', bins: ['sd'], label: 'sd 查找替换' },
+  { id: 'bat', repo: 'sharkdp/bat', bins: ['bat', 'batcat'], label: 'bat 语法高亮预览' },
+  { id: 'tokei', repo: 'XAMPPRocky/tokei', bins: ['tokei'], label: 'tokei 代码统计' },
+  { id: 'difft', repo: 'Wilfred/difftastic', bins: ['difft'], label: 'difftastic 结构化 diff' },
+  { id: 'dust', repo: 'bootandy/dust', bins: ['dust'], label: 'dust 磁盘占用' },
+  { id: 'procs', repo: 'dalance/procs', bins: ['procs'], label: 'procs 进程查看' },
+  { id: 'xh', repo: 'ducaale/xh', bins: ['xh'], label: 'xh HTTP 客户端' },
+  { id: 'hexyl', repo: 'sharkdp/hexyl', bins: ['hexyl'], label: 'hexyl 十六进制查看' },
+  { id: 'qsv', repo: 'dathere/qsv', bins: ['qsv'], label: 'qsv CSV 工具' },
+  { id: 'typos', repo: 'crate-ci/typos', bins: ['typos'], label: 'typos 拼写检查' },
+  { id: 'taplo', repo: 'tamasfe/taplo', bins: ['taplo'], label: 'taplo TOML 格式化/校验' },
+  { id: 'just', repo: 'casey/just', bins: ['just'], label: 'just 任务运行器' },
+  { id: 'delta', repo: 'dandavison/delta', bins: ['delta'], label: 'delta git diff 美化' },
+  { id: 'rga', repo: 'phiresky/ripgrep-all', bins: ['rga'], label: 'rga 全格式搜索（PDF/压缩包）' },
+  { id: 'hyperfine', repo: 'sharkdp/hyperfine', bins: ['hyperfine'], label: 'hyperfine 基准测试' },
+];
+
+/** 守护启动时后台预热的核心集合（其余按需装）。 */
+export const CORE_TOOLS = ['rg', 'fd', 'ast-grep', 'sd', 'bat', 'tokei', 'dust', 'procs'];
+
+/**
+ * API 不可用（GitHub 未认证限流 60/小时、多人共享代理 IP 时很常见）时的**固定下载地址兜底**。
+ * 这些 URL 已逐个用 `curl -r 0-0` 验证过（2026-10-23）；只有 x86_64，aarch64 仍走 API。
+ * 资产名不随版本变化时可直接命中；版本过旧时若 404，会回落到"给用户手动安装提示"。
+ */
+const FALLBACK_X86_64 = {
+  rg: { url: 'https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: '14.1.1' },
+  fd: { url: 'https://github.com/sharkdp/fd/releases/download/v10.2.0/fd-v10.2.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v10.2.0' },
+  'ast-grep': { url: 'https://github.com/ast-grep/ast-grep/releases/download/0.51.0/app-x86_64-unknown-linux-gnu.zip', kind: 'zip', tag: '0.51.0' },
+  sd: { url: 'https://github.com/chmln/sd/releases/download/v1.1.0/sd-v1.1.0-x86_64-unknown-linux-gnu.tar.gz', kind: 'tar.gz', tag: 'v1.1.0' },
+  bat: { url: 'https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v0.26.1' },
+  tokei: { url: 'https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v12.1.2' },
+  dust: { url: 'https://github.com/bootandy/dust/releases/download/v1.1.1/dust-v1.1.1-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v1.1.1' },
+  procs: { url: 'https://github.com/dalance/procs/releases/download/v0.14.5/procs-v0.14.5-x86_64-linux.zip', kind: 'zip', tag: 'v0.14.5' },
+  xh: { url: 'https://github.com/ducaale/xh/releases/download/v0.23.0/xh-v0.23.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v0.23.0' },
+  hexyl: { url: 'https://github.com/sharkdp/hexyl/releases/download/v0.16.0/hexyl-v0.16.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v0.16.0' },
+  difft: { url: 'https://github.com/Wilfred/difftastic/releases/download/0.65.0/difft-x86_64-unknown-linux-gnu.tar.gz', kind: 'tar.gz', tag: '0.65.0' },
+  rga: { url: 'https://github.com/phiresky/ripgrep-all/releases/download/v0.10.6/ripgrep_all-v0.10.6-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v0.10.6' },
+  taplo: { url: 'https://github.com/tamasfe/taplo/releases/download/0.9.3/taplo-linux-x86_64.gz', kind: 'gz', tag: '0.9.3' },
+  qsv: { url: 'https://github.com/dathere/qsv/releases/download/0.135.0/qsv-0.135.0-x86_64-unknown-linux-musl.zip', kind: 'zip', tag: '0.135.0' },
+  typos: { url: 'https://github.com/crate-ci/typos/releases/download/v1.29.7/typos-v1.29.7-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v1.29.7' },
+  just: { url: 'https://github.com/casey/just/releases/download/1.38.0/just-1.38.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: '1.38.0' },
+  delta: { url: 'https://github.com/dandavison/delta/releases/download/0.18.2/delta-0.18.2-x86_64-unknown-linux-gnu.tar.gz', kind: 'tar.gz', tag: '0.18.2' },
+  hyperfine: { url: 'https://github.com/sharkdp/hyperfine/releases/download/v1.19.0/hyperfine-v1.19.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v1.19.0' },
 };
 
-const exists = (p) => {
+const MANUAL = {
+  rg: 'sudo apt install ripgrep',
+  fd: 'sudo apt install fd-find',
+  'ast-grep': 'npm i -g @ast-grep/cli   # 或 cargo install ast-grep',
+  sd: 'cargo install sd',
+  bat: 'sudo apt install bat',
+  tokei: 'cargo install tokei',
+  difft: 'cargo install difftastic',
+  dust: 'cargo install du-dust',
+  procs: 'cargo install procs',
+  xh: 'cargo install xh',
+  hexyl: 'cargo install hexyl',
+  qsv: 'cargo install qsv',
+  typos: 'cargo install typos-cli',
+  taplo: 'cargo install taplo-cli',
+  just: 'cargo install just',
+  delta: 'cargo install git-delta',
+  rga: 'cargo install ripgrep_all',
+  hyperfine: 'cargo install hyperfine',
+};
+
+const execOk = (p) => {
   try {
     fs.accessSync(p, fs.constants.X_OK);
     return true;
@@ -56,27 +114,76 @@ const archOf = () => {
   return (r.stdout || '').trim() === 'aarch64' ? 'aarch64' : 'x86_64';
 };
 
-/** 用 curl 或 wget 下载；代理存在时走 `--proxy` / `https_proxy`。 */
-function download(url, outFile, proxy) {
-  if (commandOf('curl')) {
-    const args = ['-fsSL', '--connect-timeout', '20', '--max-time', '300', '--retry', '3', '--retry-delay', '2', '--retry-all-errors', '-o', outFile];
-    if (proxy) args.push('--proxy', proxy);
-    args.push(url);
-    const r = spawnSync('curl', args, { encoding: 'utf8', timeout: 320000 });
-    return r.status === 0 ? { ok: true } : { ok: false, error: `curl exit ${r.status}: ${(r.stderr || '').slice(0, 200)}` };
-  }
-  if (commandOf('wget')) {
-    const args = ['-q', '-T', '180', '-O', outFile];
-    if (proxy) args.push('-e', `https_proxy=${proxy}`);
-    args.push(url);
-    const r = spawnSync('wget', args, { encoding: 'utf8', timeout: 200000 });
-    return r.status === 0 ? { ok: true } : { ok: false, error: `wget exit ${r.status}: ${(r.stderr || '').slice(0, 200)}` };
-  }
-  return { ok: false, error: '发行版里没有 curl 也没有 wget，无法下载' };
+/** 走 curl 取文本（GitHub API）。 */
+function fetchText(url, proxy) {
+  const args = ['-sSL', '--connect-timeout', '20', '--max-time', '120', '-w', '\n%{http_code}'];
+  if (proxy) args.push('--proxy', proxy);
+  args.push(url);
+  const r = spawnSync('curl', args, { encoding: 'utf8', timeout: 150000 });
+  const out = r.stdout ?? '';
+  const cut = out.lastIndexOf('\n');
+  const code = cut >= 0 ? out.slice(cut + 1).trim() : '';
+  const body = cut >= 0 ? out.slice(0, cut) : out;
+  if (r.status !== 0) return { ok: false, error: `curl exit ${r.status}: ${(r.stderr || '').slice(0, 200)}` };
+  if (code !== '200') return { ok: false, error: `HTTP ${code}: ${body.slice(0, 160)}` };
+  return { ok: true, text: body };
 }
 
-/** 从解压目录里找可执行文件（发布包目录名随版本变化，按文件名找）。 */
-function findBinary(root, binName) {
+/** 资产打分：linux + 本机架构 + 静态优先；排除校验/包管理器产物。 */
+function scoreAsset(name, arch) {
+  const n = name.toLowerCase();
+  if (!/linux/.test(n)) return -1;
+  if (!/\.(tar\.gz|tgz|zip|gz)$/.test(n)) return -1;
+  if (/(sha256|sha512|\.sig|\.txt|\.json|\.sbom|\.deb|\.rpm|\.apk)/.test(n)) return -1;
+  const archTokens = arch === 'aarch64' ? ['aarch64', 'arm64'] : ['x86_64', 'amd64'];
+  if (!archTokens.some((t) => n.includes(t))) return -1;
+  if (arch === 'x86_64' && /(aarch64|arm64|armv7|i686|i386)/.test(n)) return -1;
+  if (arch === 'aarch64' && /(x86_64|amd64|i686|i386)/.test(n)) return -1;
+  let score = 0;
+  if (/musl/.test(n)) score += 4;
+  if (/\.tar\.gz$/.test(n)) score += 3;
+  if (/\.zip$/.test(n)) score += 1;
+  if (/static/.test(n)) score += 2;
+  return score;
+}
+
+/** 从 GitHub API 解析一个仓库的可下载资产。 */
+export function resolveAsset(repo, { arch = archOf(), proxy = null } = {}) {
+  const api = `https://api.github.com/repos/${repo}/releases/latest`;
+  const res = fetchText(api, proxy);
+  if (!res.ok) return { ok: false, error: `GitHub API 失败（${api}）：${res.error}` };
+  let json;
+  try {
+    json = JSON.parse(res.text);
+  } catch (e) {
+    return { ok: false, error: `GitHub API 返回非 JSON：${String(e?.message ?? e).slice(0, 120)}` };
+  }
+  const assets = Array.isArray(json?.assets) ? json.assets : [];
+  const ranked = assets
+    .map((a) => ({ a, score: scoreAsset(String(a?.name ?? ''), arch) }))
+    .filter((x) => x.score >= 0)
+    .sort((x, y) => y.score - x.score);
+  if (ranked.length === 0) return { ok: false, error: `没有匹配 linux/${arch} 的资产（共 ${assets.length} 个）` };
+  const chosen = ranked[0].a;
+  const name = String(chosen.name);
+  return {
+    ok: true,
+    name,
+    url: chosen.browser_download_url,
+    tag: json.tag_name ?? null,
+    kind: name.endsWith('.zip') ? 'zip' : name.endsWith('.tar.gz') || name.endsWith('.tgz') ? 'tar.gz' : 'gz',
+  };
+}
+
+function download(url, outFile, proxy) {
+  const args = ['-fsSL', '--connect-timeout', '20', '--max-time', '300', '--retry', '3', '--retry-delay', '2', '--retry-all-errors', '-o', outFile];
+  if (proxy) args.push('--proxy', proxy);
+  args.push(url);
+  const r = spawnSync('curl', args, { encoding: 'utf8', timeout: 320000 });
+  return r.status === 0 ? { ok: true } : { ok: false, error: `curl exit ${r.status}: ${(r.stderr || '').slice(0, 200)}` };
+}
+
+function findBinary(root, bins) {
   const stack = [root];
   while (stack.length > 0) {
     const dir = stack.pop();
@@ -89,106 +196,151 @@ function findBinary(root, binName) {
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) stack.push(full);
-      else if (entry.name === binName && exists(full)) return full;
+      else if (bins.includes(entry.name) && execOk(full)) return full;
     }
   }
   return null;
 }
 
+function extract(file, kind, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  if (kind === 'tar.gz') {
+    const r = spawnSync('tar', ['-xzf', file, '-C', dest], { encoding: 'utf8', timeout: 120000 });
+    return r.status === 0 ? { ok: true } : { ok: false, error: `tar exit ${r.status}: ${(r.stderr || '').slice(0, 120)}` };
+  }
+  if (kind === 'zip') {
+    if (!commandOf('unzip')) return { ok: false, error: '发行版里没有 unzip，无法解压 zip 资产' };
+    const r = spawnSync('unzip', ['-q', '-o', file, '-d', dest], { encoding: 'utf8', timeout: 120000 });
+    return r.status === 0 ? { ok: true } : { ok: false, error: `unzip exit ${r.status}: ${(r.stderr || '').slice(0, 120)}` };
+  }
+  const target = path.join(dest, 'payload');
+  const r = spawnSync('bash', ['-c', `gzip -dc ${JSON.stringify(file)} > ${JSON.stringify(target)}`], { encoding: 'utf8', timeout: 120000 });
+  return r.status === 0 ? { ok: true } : { ok: false, error: `gzip exit ${r.status}: ${(r.stderr || '').slice(0, 120)}` };
+}
+
 /**
- * 装一个工具到 installDir（默认 `~/.local/bin`），返回绝对路径。
- * @returns `{ok, path, version, error}`
+ * 装一个工具到 installDir（默认 `~/.local/bin`）。
+ * @param id - {@link TOOLS} 里的 id
+ * @returns `{ok, path, version, asset, error}`
  */
-export function installTool(name, { installDir, proxy } = {}) {
-  const spec = PINS[name];
-  if (!spec) return { ok: false, error: `unknown tool: ${name}` };
+/**
+ * 解析一个工具的资产：先 GitHub API，失败（限流/网络/无资产）用固定兜底地址。
+ * @returns 与 {@link resolveAsset} 同形，另带 `fallback:boolean`
+ */
+export function resolveAssetFor(id, { proxy = null } = {}) {
+  const spec = TOOLS.find((t) => t.id === id);
+  if (!spec) return { ok: false, error: `unknown tool: ${id}` };
+  const api = resolveAsset(spec.repo, { proxy });
+  if (api.ok) return { ...api, fallback: false };
+  const arch = archOf();
+  const fb = arch === 'x86_64' ? FALLBACK_X86_64[id] : null;
+  if (fb) {
+    const name = fb.url.split('/').pop();
+    return { ok: true, name, url: fb.url, tag: fb.tag, kind: fb.kind, fallback: true, apiError: api.error };
+  }
+  return { ...api, fallback: false };
+}
+
+export function installToolById(id, { installDir, proxy = null } = {}) {
+  const spec = TOOLS.find((t) => t.id === id);
+  if (!spec) return { ok: false, error: `unknown tool: ${id}` };
   const dir = installDir || path.join(os.homedir(), '.local', 'bin');
   fs.mkdirSync(dir, { recursive: true });
-  const existing = path.join(dir, spec.bin);
-  if (exists(existing)) return { ok: true, path: existing, version: spec.version, cached: true };
-  const arch = archOf();
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `dsh-rwsl-${name}-`));
-  const errors = [];
-  for (const asset of spec.assets(arch)) {
-    const url = `https://github.com/${name === 'rg' ? 'BurntSushi/ripgrep' : 'sharkdp/fd'}/releases/download/${spec.version}/${asset}`;
-    const tgz = path.join(tmp, asset);
-    const dl = download(url, tgz, proxy);
-    if (!dl.ok) {
-      errors.push(`${asset}: ${dl.error}`);
-      continue;
-    }
-    const extractDir = path.join(tmp, 'x');
-    fs.mkdirSync(extractDir, { recursive: true });
-    const tar = spawnSync('tar', ['-xzf', tgz, '-C', extractDir], { encoding: 'utf8', timeout: 60000 });
-    if (tar.status !== 0) {
-      errors.push(`${asset}: tar exit ${tar.status}: ${(tar.stderr || '').slice(0, 120)}`);
-      continue;
-    }
-    const found = findBinary(extractDir, spec.bin);
-    if (!found) {
-      errors.push(`${asset}: 解压后找不到 ${spec.bin}`);
-      continue;
-    }
-    fs.copyFileSync(found, existing);
-    fs.chmodSync(existing, 0o755);
+  const existing = spec.bins.map((b) => path.join(dir, b)).find((p) => execOk(p));
+  if (existing) return { ok: true, path: existing, asset: 'cached' };
+  const asset = resolveAssetFor(id, { proxy });
+  if (!asset.ok) return { ok: false, error: asset.error };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `dsh-rwsl-${id}-`));
+  try {
+    const file = path.join(tmp, asset.name);
+    const dl = download(asset.url, file, proxy);
+    if (!dl.ok) return { ok: false, error: `下载 ${asset.name} 失败：${dl.error}` };
+    const extracted = path.join(tmp, 'x');
+    const ex = extract(file, asset.kind, extracted);
+    if (!ex.ok) return { ok: false, error: `解压 ${asset.name} 失败：${ex.error}` };
+    const found = findBinary(extracted, spec.bins);
+    if (!found) return { ok: false, error: `${asset.name} 里找不到 ${spec.bins.join('/')}` };
+    const target = path.join(dir, path.basename(found));
+    fs.copyFileSync(found, target);
+    fs.chmodSync(target, 0o755);
+    return { ok: true, path: target, version: asset.tag ?? null, asset: asset.name };
+  } finally {
     try {
       fs.rmSync(tmp, { recursive: true, force: true });
     } catch {
-      /* 忽略 */
+      /* ignore */
     }
-    return { ok: true, path: existing, version: spec.version };
   }
-  try {
-    fs.rmSync(tmp, { recursive: true, force: true });
-  } catch {
-    /* 忽略 */
-  }
-  return { ok: false, error: errors.join(' | ') || '下载失败' };
 }
 
-/** 进程内缓存：同一安装目录只跑一次（自动安装可能很慢，不能每次搜索都试）。 */
-const provisionCache = new Map();
+const cache = new Map();
 
 /**
- * 确保搜索工具可用。
+ * 确保一组工具可用（先 PATH、再已装目录、最后自动下载安装）。
+ * @param ids - 工具 id 列表
  * @param options.autoInstall - 允许自动安装（默认 true）
- * @param options.installDir - 安装目录（默认 `~/.local/bin`）
- * @param options.proxy - `http://host:port`（宿主代理网关；没有就直连）
- * @param options.ignorePath - 跳过 PATH 探测（只给探针模拟"发行版里没有"用）
- * @returns `{rg, fd, notes}`：绝对路径或 null + 可读提示（失败原因 / 手动安装命令）
+ * @param options.ignorePath - 跳过 PATH 探测（探针用）
+ * @returns `{tools:{[id]:{path,source,version}}, notes}`
  */
-export function ensureSearchTools({ autoInstall = true, installDir, proxy, ignorePath = false } = {}) {
-  const key = `${installDir || ''}|${proxy || ''}|${autoInstall ? '1' : '0'}|${ignorePath ? '1' : '0'}`;
-  if (provisionCache.has(key)) return provisionCache.get(key);
+export function ensureTools(ids, { autoInstall = true, installDir, proxy = null, ignorePath = false } = {}) {
+  const key = `${ids.join(',')}|${installDir || ''}|${proxy || ''}|${autoInstall ? '1' : '0'}|${ignorePath ? '1' : '0'}`;
+  if (cache.has(key)) return cache.get(key);
+  const dir = installDir || path.join(os.homedir(), '.local', 'bin');
+  const tools = {};
   const notes = [];
-  const resolve = (name) => {
-    const spec = PINS[name];
-    // PATH 上的名字：rg；fd 在 Debian 叫 fdfind（ignorePath 只给探针用：模拟"发行版里没有"）
-    for (const candidate of ignorePath ? [] : name === 'fd' ? ['fd', 'fdfind'] : ['rg']) {
-      const found = commandOf(candidate);
-      if (found) return { path: found, source: 'path', backend: candidate };
+  for (const id of ids) {
+    const spec = TOOLS.find((t) => t.id === id);
+    if (!spec) {
+      tools[id] = { path: null, source: 'unknown' };
+      notes.push(`未知工具：${id}`);
+      continue;
+    }
+    const onPath = ignorePath ? null : spec.bins.map((b) => commandOf(b)).find(Boolean) ?? null;
+    if (onPath) {
+      tools[id] = { path: onPath, source: 'path' };
+      continue;
+    }
+    const preinstalled = spec.bins.map((b) => path.join(dir, b)).find((p) => execOk(p));
+    if (preinstalled) {
+      tools[id] = { path: preinstalled, source: 'installed-dir' };
+      continue;
     }
     if (!autoInstall) {
-      notes.push(`${name} 未安装且已禁用自动安装；手动安装：${spec.manual}`);
-      return { path: null, source: 'missing' };
+      tools[id] = { path: null, source: 'missing' };
+      notes.push(`${id} 未安装（已禁用自动安装）；手动安装：${MANUAL[id] ?? '见项目文档'}`);
+      continue;
     }
-    const installed = installTool(name, { installDir, proxy });
+    const installed = installToolById(id, { installDir: dir, proxy });
     if (installed.ok) {
-      notes.push(`已自动安装 ${name}@${installed.version} → ${installed.path}`);
-      return { path: installed.path, source: 'installed' };
+      tools[id] = { path: installed.path, source: 'installed', version: installed.version };
+      notes.push(`已自动安装 ${id}${installed.version ? `@${installed.version}` : ''} → ${installed.path}`);
+    } else {
+      tools[id] = { path: null, source: 'failed' };
+      notes.push(`${id} 自动安装失败（${installed.error}）；手动安装：${MANUAL[id] ?? '见项目文档'}`);
     }
-    notes.push(`${name} 自动安装失败（${installed.error}）；搜索会回落到较慢的后端。手动安装：${spec.manual}`);
-    return { path: null, source: 'failed' };
-  };
-  const rg = resolve('rg');
-  const fd = resolve('fd');
-  const result = { rg, fd, notes };
-  provisionCache.set(key, result);
+  }
+  const result = { tools, notes };
+  cache.set(key, result);
   return result;
 }
 
-/** 探测结果 → 给 search-rpc 用的绝对路径（null = 用 PATH 上的名字）。 */
+/** 搜索用：确保 rg/fd（保留旧名，语义不变）。 */
+export function ensureSearchTools(opts = {}) {
+  const r = ensureTools(['rg', 'fd'], opts);
+  return {
+    rg: { path: r.tools.rg?.path ?? null, source: r.tools.rg?.source },
+    fd: { path: r.tools.fd?.path ?? null, source: r.tools.fd?.source },
+    notes: r.notes,
+  };
+}
+
+/** rg/fd 的绝对路径（daemon 注入给 search-rpc）。 */
 export function toolPaths() {
-  const last = [...provisionCache.values()].at(-1);
-  return { rg: last?.rg?.path ?? null, fd: last?.fd?.path ?? null };
+  const last = [...cache.values()].at(-1);
+  return { rg: last?.tools?.rg?.path ?? null, fd: last?.tools?.fd?.path ?? null };
+}
+
+/** 允许工具清单读取（`wsl_tools` 用）。 */
+export function catalog() {
+  return TOOLS.map((t) => ({ id: t.id, repo: t.repo, label: t.label, manual: MANUAL[t.id] ?? null }));
 }

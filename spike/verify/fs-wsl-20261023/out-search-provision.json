@@ -1,65 +1,93 @@
 {
   "probe": "probe-search-provision",
-  "generatedAt": "2026-10-23T09:13:09.096Z",
+  "generatedAt": "2026-10-23T09:33:29.824Z",
   "target": {
     "distro": "debian-u8-1",
     "daemonPort": 8731
   },
   "evidence": {
-    "proxy": null,
-    "first": {
-      "rg": {
-        "path": "/tmp/dsh-prov-28476/one/rg",
-        "source": "installed"
-      },
-      "fd": {
-        "path": "/tmp/dsh-prov-28476/one/fd",
-        "source": "installed"
+    "assets": {
+      "rg": "ripgrep-15.2.0-x86_64-unknown-linux-musl.tar.gz @15.2.0",
+      "fd": "fd-v10.5.0-x86_64-unknown-linux-musl.tar.gz @v10.5.0",
+      "ast-grep": "app-x86_64-unknown-linux-gnu.zip @0.51.0",
+      "sd": "sd-v1.1.0-x86_64-unknown-linux-musl.tar.gz @v1.1.0",
+      "bat": "bat-v0.26.1-x86_64-unknown-linux-musl.tar.gz @v0.26.1",
+      "tokei": "tokei-x86_64-unknown-linux-musl.tar.gz @v12.1.2",
+      "difft": "difft-0.71.0-x86_64-unknown-linux-musl.tar.gz @0.71.0",
+      "dust": "dust-v1.2.6-x86_64-unknown-linux-musl.tar.gz @v1.2.6",
+      "procs": "procs-v0.14.12-x86_64-linux.zip @v0.14.12",
+      "xh": "xh-v0.26.3-x86_64-unknown-linux-musl.tar.gz @v0.26.3",
+      "hexyl": "hexyl-v0.17.0-x86_64-unknown-linux-musl.tar.gz @v0.17.0",
+      "qsv": "qsv-26.0.0-x86_64-unknown-linux-musl.zip @26.0.0",
+      "typos": "typos-v1.51.1-x86_64-unknown-linux-musl.tar.gz @v1.51.1",
+      "taplo": "taplo-linux-x86_64.gz @0.10.0",
+      "just": "just-1.59.0-x86_64-unknown-linux-musl.tar.gz @1.59.0",
+      "delta": "delta-0.20.1-x86_64-unknown-linux-musl.tar.gz @0.20.1",
+      "rga": "ripgrep_all-v0.10.10-x86_64-unknown-linux-musl.tar.gz @v0.10.10",
+      "hyperfine": "hyperfine-v2.0.0-x86_64-unknown-linux-musl.tar.gz @v2.0.0"
+    },
+    "installed": {
+      "tools": {
+        "ast-grep": {
+          "path": "/tmp/dsh-prov-476/one/ast-grep",
+          "source": "installed",
+          "version": "0.51.0"
+        },
+        "sd": {
+          "path": "/tmp/dsh-prov-476/one/sd",
+          "source": "installed",
+          "version": "v1.1.0"
+        }
       },
       "notes": [
-        "已自动安装 rg@14.1.1 → /tmp/dsh-prov-28476/one/rg",
-        "已自动安装 fd@v10.2.0 → /tmp/dsh-prov-28476/one/fd"
+        "已自动安装 ast-grep@0.51.0 → /tmp/dsh-prov-476/one/ast-grep",
+        "已自动安装 sd@v1.1.0 → /tmp/dsh-prov-476/one/sd"
       ]
     }
   },
   "checks": [
     {
-      "name": "P1 缺工具时自动安装 rg+fd（不用 sudo，装到临时目录）",
+      "name": "T1 目录里所有工具的 Release 资产都能解析",
       "ok": true,
-      "detail": "{\"rg\":\"installed\",\"fd\":\"installed\"}"
+      "detail": "ok=18/18 bad="
     },
     {
-      "name": "P2 装出来的 rg 能跑 --version",
+      "name": "T2 自动安装 ast-grep（zip 资产）成功",
       "ok": true,
-      "detail": ""
+      "detail": "{\"path\":\"/tmp/dsh-prov-476/one/ast-grep\",\"source\":\"installed\",\"version\":\"0.51.0\"}"
     },
     {
-      "name": "P3 装出来的 fd 能跑 --version",
+      "name": "T3 自动安装 sd（tar.gz 资产）成功",
       "ok": true,
-      "detail": ""
+      "detail": "{\"path\":\"/tmp/dsh-prov-476/one/sd\",\"source\":\"installed\",\"version\":\"v1.1.0\"}"
     },
     {
-      "name": "P4 note 里写明\"已自动安装\"",
+      "name": "T4 装出来的 sg/ast-grep 能跑 --version",
       "ok": true,
-      "detail": "[\"已自动安装 rg@14.1.1 → /tmp/dsh-prov-28476/one/rg\",\"已自动安装 fd@v10.2.0 → /tmp/dsh-prov-28476/one/fd\"]"
+      "detail": "/tmp/dsh-prov-476/one/ast-grep"
     },
     {
-      "name": "P5 autoInstall:false 不安装",
+      "name": "T5 装出来的 sd 能跑 --version",
       "ok": true,
-      "detail": ""
+      "detail": "/tmp/dsh-prov-476/one/sd"
     },
     {
-      "name": "P6 给「手动安装」提示（提示用户，不静默）",
+      "name": "T6 list 返回全量目录（≥18）且不下载",
       "ok": true,
-      "detail": "[\"rg 未安装且已禁用自动安装；手动安装：sudo apt install ripgrep   # Debian/Ubuntu；或 dnf install ripgrep\",\"fd 未安装且已禁用自动安装；手动安装：sudo apt install fd-find   # Debian/Ubuntu（二进制名 fdfind）\"]"
+      "detail": "ids=18 files=0 missing=18"
     },
     {
-      "name": "P7 下载失败 ⇒ source:failed + 原因（不抛、不假装成功）",
+      "name": "T7 autoInstall:false 不装 + 给手动安装提示",
       "ok": true,
-      "detail": "[\"rg 自动安装失败（ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz: curl exit 7: curl: (7) Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server\\ncurl: (7) Failed to connect to 127.0.0.1 port 1 after 0 m"
+      "detail": "[\"bat 未安装（已禁用自动安装）；手动安装：sudo apt install bat\"]"
+    },
+    {
+      "name": "T8 下载失败 ⇒ failed + 原因（不抛、不假装成功）",
+      "ok": true,
+      "detail": "[\"xh 自动安装失败（下载 xh-v0.23.0-x86_64-unknown-linux-musl.tar.gz 失败：curl exit 7: curl: (7) Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server\\ncurl: (7) Failed to connect to 127.0"
     }
   ],
-  "passed": 7,
-  "total": 7,
+  "passed": 8,
+  "total": 8,
   "failures": []
 }

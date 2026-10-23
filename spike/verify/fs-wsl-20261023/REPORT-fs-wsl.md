@@ -146,6 +146,32 @@ fixedString、无命中、`*.txt` 单层、`**/*.md` 跨目录、无斜杠按 ba
 **证据**：`probe-search-provision` **7/7**（真实下载到 /tmp、`rg --version`/`fd --version` 可跑、
 `autoInstall:false` 只提示、坏代理 ⇒ `source:failed` + 原因不抛）。本机 WSL 原本已有 `rg`/`fdfind`，
 所以自动安装只在探针的"忽略 PATH"模式下验证，**没有**动用户的系统目录。
+### 7.2 Rust CLI 工具目录（18 个）与可用性
+
+用户要求“能用到都加上”。目录在 `src/search-provision.ts` 的 `TOOLS` 里，共 18 个，全部走同一套
+“GitHub API 解析资产 → 下载 → 解压 → 装到 `~/.local/bin`”的路径：
+
+| 类别 | 工具 |
+|---|---|
+| 搜索 | `rg`（ripgrep）、`fd`、`rga`（全格式，PDF/压缩包）、`ast-grep`（`sg` 结构化搜索/替换） |
+| 文本处理 | `sd`（查找替换）、`bat`（高亮预览）、`hexyl`（十六进制）、`taplo`（TOML 格式化/校验）、`typos`（拼写） |
+| 代码/数据 | `tokei`（代码统计）、`difft`（结构化 diff）、`delta`（git diff 美化）、`qsv`（CSV） |
+| 系统/网络 | `dust`（磁盘占用）、`procs`（进程）、`xh`（HTTP）、`just`（任务运行器）、`hyperfine`（基准） |
+
+实现要点：
+
+- **API 优先**：`https://api.github.com/repos/<repo>/releases/latest` 解析资产名（不写死版本/后缀），
+  按 linux/本机 arch/静态优先打分选包，支持 `.tar.gz`、`.zip`、单文件 `.gz`；
+- **限流兜底**：未认证 API 是 60 次/小时、多人共享代理 IP 时经常 403。此时用**固定下载地址表**
+  （`FALLBACK_X86_64`，18 个 URL 都逐个用 `curl -r 0-0` 验过）；API 恢复后仍走最新版；
+- **预热**：daemon 启动 1.5s 后后台装 `CORE_TOOLS`（rg/fd/ast-grep/sd/bat/tokei/dust/procs）；
+- **按需**：`wsl_tools` 工具（`action: list|install`）可列出/安装任意目录里的工具，结果含 source/path；
+- **失败透明**：装不上时 `notes[]` 带原因 + 手动安装命令，工具结果里以 `[search tools] …` 展示。
+
+**证据**：`probe-search-provision` **8/8**：18/18 资产可解析（API 或兜底）、ast-grep（zip）与 sd
+（tar.gz）真装到临时目录且 `--version` 可跑、`list` 不下载（0 文件）、`autoInstall:false` 只提示、
+坏代理 `failed` 不抛。实际安装后 `~/.local/bin` 里出现 `sd`/`tokei`/`dust`，而 `rg`/`fdfind`/`batcat`/
+`procs`/`sg` 本机 PATH 已有（`source=path`，不重复装）。
 ## 8. 尚未完成（阶段二之后）
 
 1. **真实桌面会话里的 preset 形态**：E2E 用的是 headless + 宿主级替换；`wsl` preset 只验证了挂载/激活，
