@@ -343,6 +343,22 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 > ⑤ `boot.ps1` 文件头写明两条使用纪律（别把 Start 输出接管道；token 只落 TEMP）。
 > 证据：`probe-render` **258/258**（+44 条对比度/状态色）、`probe-narrow` **37/37**、`probe-badge` 63/63、`probe-lifecycle-grace` **34/34**、`probe-wsl-proxy` **33/33**、`probe-daemon-gateway` 33/33。
 
+> **2026-10-23 宿主退出 e2e（关停屏障第一次在真宿主里被量到）**：`spike/verify/lifecycle-e2e-20261023/` 两条探针 ——
+> ① `probe-host-dispose` **27/27**：隔离实例（`%TEMP%\rwlife-1023-home` + junction 到本仓库）起真宿主，`explorer.*` 数据面
+> 真跑通后触发 SIGINT，**exit code 130、关停 157ms**，`settle` 实测 `tracked=0 waitedMs=0 killed=0 remaining=0
+> timedOut=false forced=false`，stderr **无**「关停超时」、有「关停结算」与「宿主退出」，关停后
+> `/tmp/dsh-rwsl-<hostpid>-*` 为 0、8917/9555 均释放。
+> ② `probe-real-child-settle` **15/15**：真 `runWsl('sleep 5')` ×2 + 真 `createLifecycle/settle/sweepOwnTempFiles`，
+> `forced=true killed=2 remaining=0 timedOut=false waitedMs=315`（走的是「宽限 300ms → kill → 确认退出」分支），
+> 关停态再 `runWsl` 得 `127 + E_SHUTDOWN`。**这条探针第一轮就抓到真缺陷**：被 settle kill 的 `wsl.exe` 在 Node 里是
+> `code=null + signal='SIGTERM'`，旧 `code ?? 0` 把它记成 **exitCode 0（空输出 = 伪成功）**，已修成 1 并由 `B5c` 钉住。
+> **触发方式如实说明**：本机三条 Windows 控制台事件投递路线全部失败（细节见探针头部），最终用 CDP 执行
+> `process.emit('SIGINT')` —— 与 cli.js 控制台处理器**同一句**，下游 dispose 链完全一致，但不是"按了 Ctrl+C"。
+> **仍未覆盖**：真宿主 + **在途登记 child**（面板数据面全走 `execFile`/`spawnSync`，不登记 lifecycle ⇒ tracked 恒 0）；
+> 桌面 Electron 窗口的真实关窗；mirrored 网络与 daemon 代理 env（见 `docs/handoff-2026-10-22.md` §5）。
+> 诊断：`DSH_REMOTE_WSL_DIAG=1` 时 disposer 多打一行
+> `remote-wsl: 关停结算 tracked=… waitedMs=… killed=… remaining=… timedOut=… forced=…`（默认关闭）。
+
 > `wsl_open_ui` 开的是**另一件事**：WSL 里那份 dsh 的 Web UI（浏览器应用窗口）；本节的实例是**宿主自己的 Web 前端**，面板属于宿主 UI。
 
 ## 与现有 DSH WSL 插件的关系（2026-10-12 先例调研）

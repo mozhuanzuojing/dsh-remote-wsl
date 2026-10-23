@@ -1,0 +1,208 @@
+{
+  "probe": "probe-host-dispose",
+  "generatedAt": "2026-10-23T07:22:14.014Z",
+  "durationMs": 6093,
+  "isolation": {
+    "dshHome": "C:\\Users\\l\\AppData\\Local\\Temp\\rwlife-1023-home",
+    "profile": "rwlife1023",
+    "port": 8917,
+    "inspectPort": 9555,
+    "distro": "debian-u8-1",
+    "junction": "C:\\Users\\l\\AppData\\Local\\Temp\\rwlife-1023-home\\profiles\\rwlife1023\\node_modules\\dsh-remote-wsl -> D:\\project\\dsh1\\dsh-remote-wsl"
+  },
+  "trigger": {
+    "kind": "cdp-inspect",
+    "expression": "process.emit('SIGINT')",
+    "why": "与 @deepseek-ai/dsh-desktop-host/lib/cli.js 的 installWindowsCliSignals 控制台处理器调用的动作同一句；本机三条控制台事件投递路线实测失败（见 notes.ctrlC）"
+  },
+  "notes": {
+    "tmpBaseline": 0,
+    "apiAuth": "no-origin",
+    "ctrlC": {
+      "attempted": [
+        "AllocConsole 私有隐藏控制台 + 子进程继承 + GenerateConsoleCtrlEvent(CTRL_C,0)",
+        "cmd/ping + 重定向组合",
+        "CTRL_BREAK"
+      ],
+      "observed": "GetConsoleProcessList 证明子进程确实挂在本控制台、GenerateConsoleCtrlEvent 返回 TRUE，但 cmd/ping 与 pwsh 子进程均不退出；CTRL_BREAK 打到发送方自己（SetConsoleCtrlHandler(NULL,TRUE) 只忽略 CTRL_C）"
+    }
+  },
+  "evidence": {
+    "hostPid": 35892,
+    "launchUrlRedacted": "http://127.0.0.1:8917/?token=<REDACTED>",
+    "readyMs": 1628,
+    "httpStatus": 303,
+    "inFlight": {
+      "observedTmpFile": null,
+      "burstToSigintMs": 3008,
+      "note": "面板数据面用 execFile/spawnSync（不登记 lifecycle）⇒ 预期观测不到 /tmp 脚本、tracked=0"
+    },
+    "shutdownMs": 242,
+    "exit": {
+      "code": 130,
+      "signal": null,
+      "at": 1792740139325
+    },
+    "settle": {
+      "tracked": 0,
+      "waitedMs": 0,
+      "killed": 0,
+      "remaining": 0,
+      "timedOut": false,
+      "forced": false
+    },
+    "burstResults": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200
+    ]
+  },
+  "checks": [
+    {
+      "name": "A0 端口空闲（8917/9555）",
+      "ok": true,
+      "detail": "8917=空闲 9555=空闲"
+    },
+    {
+      "name": "A1 隔离 home/profile 建立",
+      "ok": true,
+      "detail": "home=C:\\Users\\l\\AppData\\Local\\Temp\\rwlife-1023-home 复用=false"
+    },
+    {
+      "name": "A2 插件经 junction 指向工作区（量的就是当前字节）",
+      "ok": true,
+      "detail": "C:\\Users\\l\\AppData\\Local\\Temp\\rwlife-1023-home\\profiles\\rwlife1023\\node_modules\\dsh-remote-wsl -> D:\\project\\dsh1\\dsh-remote-wsl"
+    },
+    {
+      "name": "A3 launch URL 出现且端口正确",
+      "ok": true,
+      "detail": "readyMs=1628 url=http://127.0.0.1:8917/?token=<REDACTED>"
+    },
+    {
+      "name": "A4 HTTP ready（200–3xx）",
+      "ok": true,
+      "detail": "status=303 readyMs=1715"
+    },
+    {
+      "name": "A5 插件在真宿主里 apply（面板数据面注册行）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "B1 GET /remote-wsl/api 200 且方法清单完整（7）",
+      "ok": true,
+      "detail": "status=200 methods=explorer.snapshot,explorer.openSession,explorer.daemon,explorer.fixPin,explorer.listDir,explorer.addWorkspace,explorer.newSession"
+    },
+    {
+      "name": "B2 explorer.snapshot 跑通（真 WSL 数据面）",
+      "ok": true,
+      "detail": "status=200 ok=true distros=1 ms=319"
+    },
+    {
+      "name": "B3 explorer.listDir /home/g 跑通",
+      "ok": true,
+      "detail": "status=200 entries=72"
+    },
+    {
+      "name": "C2 CDP 触发 SIGINT（process.emit 返回 true = 有监听者并已进入 shutdown）",
+      "ok": true,
+      "detail": "reply={\"result\":{\"type\":\"boolean\",\"value\":true}}"
+    },
+    {
+      "name": "C3 宿主在 9s 内退出（没挂死）",
+      "ok": true,
+      "detail": "shutdownMs=242 exit={\"code\":130,\"signal\":null,\"at\":1792740139325}"
+    },
+    {
+      "name": "C4 exit code = 130（profile-boot 的 SIGINT 语义，不是被硬杀）",
+      "ok": true,
+      "detail": "code=130 signal=null"
+    },
+    {
+      "name": "C5 关停耗时 < 5000ms（没吃到 dispose 的 forceExit 预算）",
+      "ok": true,
+      "detail": "shutdownMs=242"
+    },
+    {
+      "name": "D1 stderr 有「关停结算」诊断行（settle 六字段可判）",
+      "ok": true,
+      "detail": "{\"tracked\":0,\"waitedMs\":0,\"killed\":0,\"remaining\":0,\"timedOut\":false,\"forced\":false}"
+    },
+    {
+      "name": "D2 timedOut=false（不是伪失败）",
+      "ok": true,
+      "detail": "timedOut=false"
+    },
+    {
+      "name": "D3 remaining=0（没有留下没人收的包装层）",
+      "ok": true,
+      "detail": "remaining=0"
+    },
+    {
+      "name": "D4 wait 未超预算且确实等过（waitedMs ∈ [0,5000]）",
+      "ok": true,
+      "detail": "waitedMs=0"
+    },
+    {
+      "name": "D5 出现「宿主退出；WSL 侧守护保持运行」（disposer 走完全程）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "D6 **没有**「关停超时」日志",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "D7 没有「认领旧关停屏障失败」",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "D8 空闲宿主下 tracked=0 且与观测自洽（未观测到 /tmp 脚本 ⇒ 不应有登记 child）",
+      "ok": true,
+      "detail": "tracked=0 observed=no"
+    },
+    {
+      "name": "E1 /tmp/dsh-rwsl-<hostpid>-* 清零（本宿主的脚本全被清掉）",
+      "ok": true,
+      "detail": "left=0"
+    },
+    {
+      "name": "E2 WSL 侧无本 pid 的脚本进程",
+      "ok": true,
+      "detail": "count=0"
+    },
+    {
+      "name": "E3 无本宿主的 wsl.exe 子进程残留",
+      "ok": true,
+      "detail": "pids=[]"
+    },
+    {
+      "name": "E4 宿主进程已退出（pid 不在）",
+      "ok": true,
+      "detail": "pid=35892"
+    },
+    {
+      "name": "E5 8917/9555 已释放",
+      "ok": true,
+      "detail": "8917=已释放 9555=已释放"
+    },
+    {
+      "name": "E6 用户桌面 GUI（61491）未受本探针影响",
+      "ok": true,
+      "detail": "61491 仍在听"
+    }
+  ],
+  "passed": 27,
+  "total": 27,
+  "failures": [],
+  "fatal": null,
+  "rawLogs": {
+    "stdout": "C:\\Users\\l\\AppData\\Local\\Temp\\rwlife-1023-instance-8917.out.log",
+    "stderr": "C:\\Users\\l\\AppData\\Local\\Temp\\rwlife-1023-instance-8917.err.log"
+  }
+}
