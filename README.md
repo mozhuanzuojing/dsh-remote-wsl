@@ -335,6 +335,14 @@ distro 选择器 + 收藏路径树 + 底部守护状态条（pid/端口/version/
 
 > **2026-10-22 review 修**（代理徽标与网关探测）：① 代理「不可达」从 error 红降为 **warn 琥珀** —— `proxyPort` 默认 9910，不用代理的用户不该常驻一个"故障红"（直连是正常状态）；② 底栏 `row-gap:6px` 原先写在 `gap:8px` 之前被简写重置成 8px，已修正（并加断言钉住顺序）；③ 网关"只接受私有/链路本地"的校验原先只在 `parseGatewayOutput` 里（生产路径没人调用），现已**下沉进 shell 片段**，且来源戳 `GW_SRC` 与取值在同一条命令里打下（避免 `default dev eth0` 无 via 时把 resolv 候选误标成 route）；④ 宿主 shell 也改成**先试 127.0.0.1 再退网关**（mirrored 网络）；⑤ `decodeWslOutput` 两份实现合并到 `src/wsl-output.ts`。证据：`probe-wsl-proxy` 29/29、`probe-narrow` 33/33、`probe-render` 重跑 214/214。
 
+> **2026-10-23 review 修**（多角度复审）：
+> ① **对比度**：状态 token 只留在**圆点/边框**上，文字统一 `label-primary` —— 实测白底下 success `rgb(34,197,94)`=2.28:1、warn `rgb(245,158,11)`=2.15:1（旧 error 4.50），都不过 WCAG AA；改后徽标/守护药丸文字对比度 **18.90:1**，并由 `probe-render` 的 `B1-11/B1-12` 用真实渲染色自动判（阈值 4.5）。
+> ② **token 不再落仓库**：`boot.ps1` 的原始实例日志（含 launch token）改落 `%TEMP%`，仓库里的 `out-instance-*.log`/`out-url.txt` 只是打码副本，真 URL 只在 `%TEMP%\rwui-1022-live-url.txt` 且 Stop 后删除 —— 从根上解决"每跑一次还要手工打码"。
+> ③ **热重载认领**：`adoptPreviousLifecycle()` —— 插件重新 apply 时先把上一份关停屏障 `beginShutdown()+settle()`，避免旧实例 spawn 的 wsl.exe 包装层变成没人等的孤儿。
+> ④ **网关字符集白名单**：`GATEWAY` 会进 `bash -c "…/dev/tcp/$GATEWAY/…"`，现在先过 `[0-9a-fA-F:.]` 白名单（挡 shell 元字符与非规范形状），再判 loopback/私有。
+> ⑤ `boot.ps1` 文件头写明两条使用纪律（别把 Start 输出接管道；token 只落 TEMP）。
+> 证据：`probe-render` **258/258**（+44 条对比度/状态色）、`probe-narrow` **37/37**、`probe-badge` 63/63、`probe-lifecycle-grace` **34/34**、`probe-wsl-proxy` **33/33**、`probe-daemon-gateway` 33/33。
+
 > `wsl_open_ui` 开的是**另一件事**：WSL 里那份 dsh 的 Web UI（浏览器应用窗口）；本节的实例是**宿主自己的 Web 前端**，面板属于宿主 UI。
 
 ## 与现有 DSH WSL 插件的关系（2026-10-12 先例调研）
