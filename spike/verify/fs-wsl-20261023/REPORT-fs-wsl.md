@@ -97,8 +97,8 @@ preset 注册只证明"树挂上了"；工具是否真的走 provider，用 **he
 |---|---|---|---|
 | F1 | `writeText`/`editText` 忽略第 5 个参数 `sandboxPolicy`：DSH 的 `read-only`/`workspace-write` 围栏被绕过 | **P0 安全** | 已修：`assertWritable()` 把 host 的 workspaceRoot（UNC→发行版内）+ `/tmp` 当根，先 `realpath` 再比，拒绝 `FS_SANDBOX_DENIED`；`sandboxMode` 报 `workspace-write` |
 | F2 | `watch` 直接抛「不支持」，DSH 的文件观察策略只能退化 | P1 | 已修：500ms 轮询 `mtimeNs:size`，变化才回调（不是 inotify，语义上写明"近似"） |
-| F3 | 没有 WSL 内搜索：`tool-fs-search` 未挂，agent 无法 grep/glob | P1 | **未做**（下一项能力） |
-| F4 | `listDir` 用 `stat`（跟随符号链接），符号链接目录会显示成 directory | P2 | 未做（与宿主 `listDirectory` 的 lstat 语义有差） |
+| F3 | 没有 WSL 内搜索：`tool-fs-search` 未挂，agent 无法 grep/glob | P1 | ✅ 已做：`search-tool.ts` 注册 `grep`/`glob`，daemon 在发行版里执行（ripgrep/fd 优先） |
+| F4 | `listDir` 用 `stat`（跟随符号链接），符号链接目录会显示成 directory | P2 | ✅ 已修：改用 `lstat`（与宿主 `listDirectory` 对齐），符号链接一律报 `other` |
 | F5 | 只服务配置的一个发行版 | P2 | 未做（多守护/多槽位映射需要单独设计） |
 | F6 | preset 子插件列表是标准 preset 的静态拷贝 | P2 | 未做（上游增删行不会自动跟随） |
 | F7 | `writeText` 没有内容大小上限（工具层有上限，直连 daemon 的调用方没有） | P3 | 未做 |
@@ -106,18 +106,40 @@ preset 注册只证明"树挂上了"；工具是否真的走 provider，用 **he
 修复后的验证：`probe-fs-wsl` **30/30**（新增 S1–S3 围栏、W1 轮询观察）；E2E 重跑
 （`run-e2e.ps1`）仍通过：`write/read/edit` 工具事件齐全，内容 `hello-edited`，ext4 设备号 75。
 
-## 7. 尚未完成（阶段二之后）
+## 7. 搜索（grep / glob）：在发行版里跑，优先用更快的后端
+
+`src/search-tool.ts` 注册两个模型面工具（形状照抄本插件已有工具，不 import `@deepseek-ai/dsh-tools`）：
+
+| 工具 | 执行体 | 后端优先级（自动探测 PATH） |
+|---|---|---|
+| `grep` | `src/search-rpc.ts` → daemon `{op:'search', method:'grep'}` | **ripgrep**（`rg -n --no-heading --hidden`，跳过 `.git`/`node_modules`）→ `ugrep` → GNU `grep` |
+| `glob` | 同上 | **fd**（`fd --type f --hidden --exclude .git --exclude node_modules`）→ `find` |
+
+设计要点：
+
+- 搜索**在发行版里跑**，模型给的是 Linux 路径；宿主侧 Windows ripgrep 的路径语义问题从根上消失。
+- 后端自动探测（`command -v` 缓存一次），工具结果里带 `via ripgrep` / `via fd`，不是"黑箱更快"。
+- `grep` 默认 POSIX ERE（rg 的 Rust regex 支持 `\d`/`\w`/`\b`/`(?i)`，不支持环视/反向引用）；
+  `fixed_string` 走字面量；`ignore_case` 生效。
+- `glob` 的匹配在插件侧做（`*` 不跨 `/`、`**` 跨、`?`、`[...]`），后端只负责枚举，避免
+  `find -name` 与 `fd --glob` 语义漂移；`fd` 默认尊重 gitignore（与 ripgrep 同源），`find` 回落时
+  会列全部文件 —— 这条差异写在这里。
+- 输出有条数上限（grep 500 命中 / glob 1000 条 / 扫描 50000 条），超限明确标 `truncated`。
+
+**证据**：`probe-search-wsl` **10/10**（真 WSL）：`backend=ripgrep`、`backend=fd`、ignoreCase、
+fixedString、无命中、`*.txt` 单层、`**/*.md` 跨目录、无斜杠按 basename；E2E `out-e2e-search.jsonl`
+里模型看到的工具结果直接带 `via ripgrep` / `via fd`。
+
+## 8. 尚未完成（阶段二之后）
 
 1. **真实桌面会话里的 preset 形态**：E2E 用的是 headless + 宿主级替换；`wsl` preset 只验证了挂载/激活，
-   还没在桌面会话里用它调过 `write`。
-2. **搜索**：`tool-fs-search` 未挂进 WSL preset（Windows ripgrep 对 Linux 路径不成立）；WSL 内
-   grep/find 待做。
-3. **多发行版**：provider 只服务配置的一个发行版（`distro`），UNC 指向别的发行版会明确报错。
-4. **标准 preset 漂移**：`preset.ts` 的子插件列表是静态拷贝，上游增删行不会自动跟随（已写进代码注释）。
-5. **listDir 符号链接**：当前用 `stat`（跟随），与宿主 `listDirectory` 的 lstat 语义有差。
-6. **写入大小上限**：工具层有上限，直连 daemon 的调用方没有。
+   还没在桌面会话里用它调过 `write`/`grep`。
+2. **多发行版**：provider 只服务配置的一个发行版（`distro`），UNC 指向别的发行版会明确报错。
+3. **标准 preset 漂移**：`preset.ts` 的子插件列表是静态拷贝，上游增删行不会自动跟随（已写进代码注释）。
+4. **fd/find 的 ignore 语义差**：`fd` 尊重 gitignore、`find` 不尊重（见 §7）。
+5. **写入大小上限**：工具层有上限，直连 daemon 的调用方没有。
 
-## 8. 复跑
+## 9. 复跑
 
 ```powershell
 $node='C:\Users\l\AppData\Local\Programs\DeepSeek Harness\resources\runtime\primary-runtime\dependencies\node\bin\node.exe'

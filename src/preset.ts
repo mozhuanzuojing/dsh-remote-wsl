@@ -28,6 +28,7 @@ export const name = 'dsh-remote-wsl-preset';
 export const inject = [];
 
 const PROVIDER_PATH = fileURLToPath(new URL('./fs-provider.ts', import.meta.url));
+const SEARCH_TOOL_PATH = fileURLToPath(new URL('./search-tool.ts', import.meta.url));
 
 const DEFAULTS = {
   distro: 'debian-u8-1',
@@ -69,6 +70,17 @@ export function buildWslPresetPlugins(cfg) {
           },
         },
         { id: 'tool-fs', name: '@deepseek-ai/dsh-tool-fs' },
+        // WSL 内搜索：grep/glob 由 daemon 在发行版里执行（Windows ripgrep 对 Linux 路径不成立）。
+        {
+          id: 'search-wsl',
+          name: SEARCH_TOOL_PATH,
+          config: {
+            distro: String(cfg.distro ?? DEFAULTS.distro),
+            wslHome: String(cfg.wslHome ?? DEFAULTS.wslHome),
+            cwd: String(cfg.cwd ?? DEFAULTS.cwd),
+            daemonPort: Number(cfg.daemonPort ?? DEFAULTS.daemonPort),
+          },
+        },
       ],
     },
     { id: 'tool-jobs', name: '@deepseek-ai/dsh-tool-jobs' },

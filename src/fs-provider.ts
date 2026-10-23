@@ -74,6 +74,50 @@ export function parseUnc(input) {
 }
 
 /**
+ * 造一个 WSL 侧 RPC 调用器（文件与搜索共用）：懒起守护 + 元数据鉴权 + 错误码透传。
+ *
+ * @param rawConfig - `distro` / `daemonPort` / `wslHome` / `cwd`（缺省同插件默认）
+ * @returns `{config, distro, ensure, call(op, method, args, signal)}`
+ */
+export function createWslRpc(rawConfig = {}) {
+  const config = { ...DEFAULTS, ...(rawConfig ?? {}) };
+  const distro = String(config.distro || DEFAULTS.distro);
+
+  /** 懒起守护：第一次操作时确保 WSL 侧守护在跑（失败要明确报，不许假装成功）。 */
+  let daemonReady = null;
+  const ensure = async () => {
+    if (daemonReady === null) {
+      const version = resolveVersion(config);
+      if (!version.version) throw fsErr('remote-wsl: 无法确定 dsh 版本（desktop runtime.json 不可读且未配 dshVersion）', 'FS_IO_ERROR');
+      daemonReady = ensureDaemon(config, { version: version.version, log: () => {} }).catch((e) => {
+        daemonReady = null;
+        throw fsErr(`remote-wsl: 启动 WSL 守护失败：${e?.message ?? String(e)}`, 'FS_IO_ERROR');
+      });
+    }
+    return daemonReady;
+  };
+
+  const call = async (op, method, args, signal) => {
+    signal?.throwIfAborted?.();
+    await ensure();
+    const rec = readDaemonRecord(config);
+    if (!rec || !rec.token) throw fsErr('remote-wsl: 守护元数据缺失（WSL 侧守护不在）', 'FS_IO_ERROR');
+    const r = await callDaemon(config, {
+      port: rec.meta?.port ?? rec.slot,
+      token: rec.token,
+      req: { op, id: 1, method, args },
+      timeoutMs: Number(config.timeoutMs) || 60000,
+    });
+    signal?.throwIfAborted?.();
+    if (!r?.msg) throw fsErr(`remote-wsl: 守护调用失败（${r?.kind ?? 'unknown'}）：${r?.error ?? '没有回包'}`, 'FS_IO_ERROR');
+    if (r.msg.ok !== true) throw fsErr(String(r.msg.error ?? 'operation failed'), String(r.msg.code ?? 'FS_IO_ERROR'));
+    return r.msg.result;
+  };
+
+  return { config, distro, ensure, call };
+}
+
+/**
  * 造一个 WSL 执行世界的 FileSystem 实现（**普通对象**：不 import `@deepseek-ai/dsh-fs`，
  * 因为本插件以 `link:` 安装，拿不到宿主包的解析路径 —— 见 README「零运行时依赖」）。
  *
@@ -81,42 +125,9 @@ export function parseUnc(input) {
  * @returns 与 `FileSystem` 同形的方法集合（tool-fs 只按方法名调用）
  */
 export function createWslFileSystem(rawConfig = {}) {
-  const config = { ...DEFAULTS, ...(rawConfig ?? {}) };
-  const distro = String(config.distro || DEFAULTS.distro);
-
-  /** 懒起守护：第一次文件操作时确保 WSL 侧守护在跑（失败要明确报，不许假装成功）。 */
-  let daemonReady = null;
-  const ensure = async () => {
-    if (daemonReady === null) {
-      const version = resolveVersion(config);
-      if (!version.version) throw fsErr('remote-wsl fs: 无法确定 dsh 版本（desktop runtime.json 不可读且未配 dshVersion）', 'FS_IO_ERROR');
-      daemonReady = ensureDaemon(config, { version: version.version, log: () => {} }).catch((e) => {
-        daemonReady = null;
-        throw fsErr(`remote-wsl fs: 启动 WSL 守护失败：${e?.message ?? String(e)}`, 'FS_IO_ERROR');
-      });
-    }
-    return daemonReady;
-  };
-
-  const call = async (method, args, signal) => {
-    signal?.throwIfAborted?.();
-    await ensure();
-    const rec = readDaemonRecord(config);
-    if (!rec || !rec.token) throw fsErr('remote-wsl fs: 守护元数据缺失（WSL 侧守护不在）', 'FS_IO_ERROR');
-    const r = await callDaemon(config, {
-      port: rec.meta?.port ?? rec.slot,
-      token: rec.token,
-      req: { op: 'fs', id: 1, method, args },
-      timeoutMs: Number(config.timeoutMs) || 60000,
-    });
-    signal?.throwIfAborted?.();
-    if (!r?.msg) throw fsErr(`remote-wsl fs: 守护调用失败（${r?.kind ?? 'unknown'}）：${r?.error ?? '没有回包'}`, 'FS_IO_ERROR');
-    if (r.msg.ok !== true) {
-      const error = fsErr(String(r.msg.error ?? 'fs operation failed'), String(r.msg.code ?? 'FS_IO_ERROR'));
-      throw error;
-    }
-    return r.msg.result;
-  };
+  const rpc = createWslRpc(rawConfig);
+  const { config, distro } = rpc;
+  const call = (method, args, signal) => rpc.call('fs', method, args, signal);
 
   /** 把一个输入路径解析成 `{distro, linuxPath}`；相对路径用 cwd 兜底。 */
   const translate = (input, cwd) => {

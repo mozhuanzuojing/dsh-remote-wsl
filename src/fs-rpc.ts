@@ -164,7 +164,9 @@ export async function listDirOp(args) {
     const child = path.posix.join(abs, entry.name);
     let info = null;
     try {
-      info = await fs.promises.stat(child);
+      // 与宿主 dsh-fs-local 的 listDirectory 对齐：用 lstat，不跟随符号链接
+      // （符号链接一律报 other，不把「链接到目录」显示成 directory）。
+      info = await fs.promises.lstat(child);
     } catch {
       /* 悬空链接 / 权限：按 other 报，不丢条目 */
     }

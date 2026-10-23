@@ -212,7 +212,7 @@ try {
   // ── G 架构断言：provider 不直接读宿主文件 ────────────────────────────────
   const src = fs.readFileSync(path.join(DIR, '../../../src/fs-provider.ts'), 'utf8');
   check('G1 provider 源码不 import node:fs（字节不经宿主盘）', !/from 'node:fs'/.test(src) && !/require\('node:fs'\)/.test(src), '');
-  check('G2 provider 走 `{op:\'fs\'}` RPC', src.includes("op: 'fs'"), '');
+  check('G2 provider 走 `{op:\'fs\'}` RPC', src.includes("rpc.call('fs'"), '');
 } finally {
   // 清理 + 只停本探针起的守护
   try {

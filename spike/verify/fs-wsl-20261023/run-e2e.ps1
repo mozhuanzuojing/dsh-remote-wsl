@@ -59,9 +59,18 @@ $patch = @"
               max: max
 - id: fs-sandbox
   disabled: true
+- id: tool-fs-search
+  disabled: true
 - insert:
     - id: fs-wsl
       name: '$($Repo -replace '\\','/')/src/fs-provider.ts'
+      config:
+        distro: $Distro
+        wslHome: /home/g
+        cwd: /home/g
+        daemonPort: 8731
+    - id: search-wsl
+      name: '$($Repo -replace '\\','/')/src/search-tool.ts'
       config:
         distro: $Distro
         wslHome: /home/g
@@ -86,6 +95,14 @@ $log2 = Join-Path $OutDir 'out-e2e-edit.jsonl'
 & $DshCmd --profile $Profile --json $task2 *>&1 | Tee-Object -FilePath $log2 | Out-Null
 $okEdit = (Select-String -Path $log2 -Pattern '"tool":"edit"' -Quiet)
 
+# 5b) WSL 内搜索：grep + glob（模型面工具，执行在发行版里）
+$task3 = "用 grep 工具在 $root 里搜 hello-edited（path=$root, pattern=hello-edited）；再用 glob 工具列出 $root 下的 *.txt。只许 grep/glob 工具，不许 shell。"
+$log3 = Join-Path $OutDir 'out-e2e-search.jsonl'
+& $DshCmd --profile $Profile --json $task3 *>&1 | Tee-Object -FilePath $log3 | Out-Null
+$okGrep = Select-String -Path $log3 -Pattern '"tool":"grep"' -Quiet
+$okGlob = Select-String -Path $log3 -Pattern '"tool":"glob"' -Quiet
+"search 工具事件：grep=$okGrep glob=$okGlob"
+
 # 6) WSL 内独立复核
 $content = (wsl.exe -d $Distro --exec bash -c "cat $root/e2e.txt" 2>$null) -join "`n"
 $stat = (wsl.exe -d $Distro --exec bash -c "stat -c '%a:%U:%d' $root/e2e.txt" 2>$null) -join ''
@@ -104,9 +121,9 @@ foreach ($secret in @('.env', '.credentials.yaml')) {
 $result = [ordered]@{
   generatedAt = (Get-Date).ToString('o')
   profile = $Profile; home = $Home0; distro = $Distro; model = $Model
-  toolEvents = [ordered]@{ write = (Select-String -Path $log1 -Pattern '"tool":"write"' -Quiet); read = (Select-String -Path $log1 -Pattern '"tool":"read"' -Quiet); edit = $okEdit }
+  toolEvents = [ordered]@{ write = (Select-String -Path $log1 -Pattern '"tool":"write"' -Quiet); read = (Select-String -Path $log1 -Pattern '"tool":"read"' -Quiet); edit = $okEdit; grep = $okGrep; glob = $okGlob }
   file = [ordered]@{ content = $content.Trim(); stat = $stat; mntDDevice = $mntDev }
-  verdict = [ordered]@{ contentOk = $okContent; ext4 = $okExt4; ok = ($okWrite -and $okEdit -and $okContent -and $okExt4) }
+  verdict = [ordered]@{ contentOk = $okContent; ext4 = $okExt4; ok = ($okWrite -and $okEdit -and $okContent -and $okExt4 -and $okGrep -and $okGlob) }
 }
 $result | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $OutDir 'out-e2e-agent.json') -Encoding utf8
 if (-not $result.verdict.ok) { exit 1 }

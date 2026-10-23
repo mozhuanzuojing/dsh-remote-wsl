@@ -1,9 +1,9 @@
 {
   "probe": "probe-fs-wsl",
-  "generatedAt": "2026-10-23T08:41:25.744Z",
+  "generatedAt": "2026-10-23T09:00:23.999Z",
   "target": {
     "distro": "debian-u8-1",
-    "root": "/tmp/dsh-fs-probe-24504",
+    "root": "/tmp/dsh-fs-probe-22932",
     "daemonPort": 8731
   },
   "version": "0.2.1-rc.2",
@@ -12,14 +12,14 @@
       "started": true,
       "reused": false,
       "port": 8731,
-      "pid": 188027
+      "pid": 225677
     }
   },
   "checks": [
     {
       "name": "A1 Linux 绝对路径解析",
       "ok": true,
-      "detail": "{\"targetKey\":\"/tmp/dsh-fs-probe-24504/a.txt\",\"displayPath\":\"/tmp/dsh-fs-probe-24504/a.txt\"}"
+      "detail": "{\"targetKey\":\"/tmp/dsh-fs-probe-22932/a.txt\",\"displayPath\":\"/tmp/dsh-fs-probe-22932/a.txt\"}"
     },
     {
       "name": "A2 UNC 反解成发行版内路径",
@@ -29,12 +29,12 @@
     {
       "name": "A3 相对路径 + UNC cwd",
       "ok": true,
-      "detail": "{\"targetKey\":\"/tmp/dsh-fs-probe-24504/sub/b.txt\",\"displayPath\":\"/tmp/dsh-fs-probe-24504/sub/b.txt\"}"
+      "detail": "{\"targetKey\":\"/tmp/dsh-fs-probe-22932/sub/b.txt\",\"displayPath\":\"/tmp/dsh-fs-probe-22932/sub/b.txt\"}"
     },
     {
       "name": "A4 processPath 回 UNC",
       "ok": true,
-      "detail": "\\\\wsl.localhost\\debian-u8-1\\tmp\\dsh-fs-probe-24504\\a.txt"
+      "detail": "\\\\wsl.localhost\\debian-u8-1\\tmp\\dsh-fs-probe-22932\\a.txt"
     },
     {
       "name": "A5 processPathFromHostPath 只认本发行版",
@@ -49,7 +49,7 @@
     {
       "name": "B1 createIfAbsent 新建（operation=create）",
       "ok": true,
-      "detail": "{\"operation\":\"create\",\"version\":\"1792744881894647693:6\",\"before\":null,\"after\":\"hello\\n\"}"
+      "detail": "{\"operation\":\"create\",\"version\":\"1792746020126484893:6\",\"before\":null,\"after\":\"hello\\n\"}"
     },
     {
       "name": "B2 readText 读到同一内容",
@@ -59,12 +59,12 @@
     {
       "name": "B3 stat 版本与写回一致",
       "ok": true,
-      "detail": "{\"version\":\"1792744881894647693:6\",\"type\":\"file\",\"size\":6}"
+      "detail": "{\"version\":\"1792746020126484893:6\",\"type\":\"file\",\"size\":6}"
     },
     {
       "name": "B4 replaceIfVersion 命中时更新、版本变化",
       "ok": true,
-      "detail": "{\"operation\":\"update\",\"version\":\"1792744881911980892:12\",\"before\":null,\"after\":\"hello world\\n\"}"
+      "detail": "{\"operation\":\"update\",\"version\":\"1792746020144617018:12\",\"before\":null,\"after\":\"hello world\\n\"}"
     },
     {
       "name": "B5 过期版本 ⇒ FS_STALE_VERSION",
@@ -84,7 +84,7 @@
     {
       "name": "C1 唯一字面量替换",
       "ok": true,
-      "detail": "{\"version\":\"1792744881943124054:12\",\"before\":\"aaa bbb aaa\\n\",\"after\":\"aaa ccc aaa\\n\"}"
+      "detail": "{\"version\":\"1792746020176788597:12\",\"before\":\"aaa bbb aaa\\n\",\"after\":\"aaa ccc aaa\\n\"}"
     },
     {
       "name": "C2 非唯一匹配且 replaceAll=false ⇒ 拒绝",
