@@ -22,6 +22,9 @@
  *
  * @module dsh-remote-wsl/preset
  */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const name = 'dsh-remote-wsl-preset';
@@ -145,16 +148,19 @@ export function buildWslPresetPlugins(cfg) {
 
 /**
  * 注册 preset；服务不在（老版本 DSH）时**明确打一行**，不静默跳过。
+ * 同时把结论追加到 `~/.dsh/remote-wsl/startup.log`：桌面 GUI 没有 stderr 日志，
+ * 落文件后「运行中的 host 到底加载了哪版代码、preset 注册成没成」才能被离线验证。
  * @param ctx - cordis 上下文（注入 `agentPresets`）
  * @param rawConfig - 插件配置
  */
 export function apply(ctx, rawConfig = {}) {
   const cfg = { ...DEFAULTS, ...(rawConfig ?? {}) };
   const plugins = buildWslPresetPlugins(cfg);
+  logStartup(`apply 进入（codeTag=preset-log-v1，plugins=${plugins.length}）`);
   ctx.inject(['agentPresets'], (child) => {
     const presets = typeof child.get === 'function' ? child.get('agentPresets') : undefined;
     if (!presets || typeof presets.register !== 'function') {
-      process.stderr.write('remote-wsl: agentPresets 服务不可用（该 DSH 版本不支持运行时注册 preset），WSL preset 未注册\n');
+      logStartup('agentPresets 服务不可用（该 DSH 版本不支持运行时注册 preset），WSL preset 未注册');
       return;
     }
     let disposed = false;
@@ -171,10 +177,10 @@ export function apply(ctx, rawConfig = {}) {
         .then((un) => {
           unregister = un;
           if (disposed) void un();
-          else process.stderr.write('remote-wsl: WSL preset 已注册（id=wsl，plugins=' + plugins.length + '）\n');
+          else logStartup('WSL preset 已注册（id=wsl，plugins=' + plugins.length + '）');
         })
         .catch((e) => {
-          process.stderr.write('remote-wsl: WSL preset 注册失败：' + (e && e.message ? e.message : String(e)) + '\n');
+          logStartup('WSL preset 注册失败：' + (e && e.message ? e.message : String(e)));
         });
       return () => {
         disposed = true;
@@ -182,4 +188,20 @@ export function apply(ctx, rawConfig = {}) {
       };
     });
   });
+}
+
+/** 追加一行启动诊断到 `~/.dsh/remote-wsl/startup.log`（stderr 在桌面 GUI 里看不到）。 */
+function logStartup(line) {
+  try {
+    const dir = path.join(process.env.USERPROFILE ?? os.homedir(), '.dsh', 'remote-wsl');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(path.join(dir, 'startup.log'), `${new Date().toISOString()} ${line}\n`);
+  } catch {
+    /* 日志写不进去不影响注册 */
+  }
+  try {
+    process.stderr.write(`remote-wsl: ${line}\n`);
+  } catch {
+    /* stderr 可能已关闭 */
+  }
 }
