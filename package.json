@@ -17,7 +17,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./package.json": "./package.json",
-    "./client": "./client/index.js"
+    "./client": "./client/index.js",
+    "./fs-provider": "./src/fs-provider.ts",
+    "./search-tool": "./src/search-tool.ts"
   },
   "files": [
     "src",

@@ -102,6 +102,12 @@ preset 注册只证明"树挂上了"；工具是否真的走 provider，用 **he
 | F5 | 只服务配置的一个发行版 | P2 | 未做（多守护/多槽位映射需要单独设计） |
 | F6 | preset 子插件列表是标准 preset 的静态拷贝 | P2 | 未做（上游增删行不会自动跟随） |
 | F7 | `writeText` 没有内容大小上限（工具层有上限，直连 daemon 的调用方没有） | P3 | 未做 |
+| F8 | preset 行名用**绝对文件路径**：preset 的 EntryTree 按裸模块说明符 import，绝对路径解析失败 ⇒ 两行 `never started` ⇒ preset 永久 `broken`，UI 下拉里**看不到**（2026-10-24 用 `/api/agentPresets/list` 实测抓到的真实原因） | **P0 功能** | ✅ 已修：行名改包内子路径 `dsh-remote-wsl/fs-provider` / `dsh-remote-wsl/search-tool`（`package.json` 增补对应 `exports`），并让启动日志把 `broken` 一起写出来 |
+
+**F8 补充**：此前"preset 已注册"只看 `register()` resolve，而 registry 的 mount 失败不抛错、只写进
+`list()` 的 `broken` 字段；隔离实例的 `/api/agentPresets/list` 显示 `fs-wsl … never started` /
+`search-wsl … never started`。改成包内子路径后同一接口返回的 `wsl` 行不再有 `broken`，UI 下拉也
+出现了「WSL（远程执行世界）」。
 
 修复后的验证：`probe-fs-wsl` **30/30**（新增 S1–S3 围栏、W1 轮询观察）；E2E 重跑
 （`run-e2e.ps1`）仍通过：`write/read/edit` 工具事件齐全，内容 `hello-edited`，ext4 设备号 75。

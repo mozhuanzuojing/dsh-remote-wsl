@@ -25,13 +25,16 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 export const name = 'dsh-remote-wsl-preset';
 export const inject = [];
 
-const PROVIDER_PATH = fileURLToPath(new URL('./fs-provider.ts', import.meta.url));
-const SEARCH_TOOL_PATH = fileURLToPath(new URL('./search-tool.ts', import.meta.url));
+// 2026-10-24：preset 行名必须用**包内子路径**，不能用绝对文件路径。
+// 实测（隔离实例 `/api/agentPresets/list`）：绝对路径 `D:/.../src/fs-provider.ts` 在 preset 的
+// EntryTree 里 import 失败，两行都显示 "never started" ⇒ preset 标记 broken、UI 下拉里看不到。
+// 包内子路径由 profile 的模块解析器按 node_modules 解析，和宿主平面加载 `dsh-remote-wsl` 同一条路。
+const PROVIDER_PATH = 'dsh-remote-wsl/fs-provider';
+const SEARCH_TOOL_PATH = 'dsh-remote-wsl/search-tool';
 
 const DEFAULTS = {
   distro: 'debian-u8-1',
@@ -174,10 +177,26 @@ export function apply(ctx, rawConfig = {}) {
           order: 9,
           plugins,
         })
-        .then((un) => {
+        .then(async (un) => {
           unregister = un;
-          if (disposed) void un();
-          else logStartup('WSL preset 已注册（id=wsl，plugins=' + plugins.length + '）');
+          if (disposed) {
+            void un();
+            return;
+          }
+          // 注册成功 ≠ 可用：mount 失败会记在 list() 的 `broken` 字段里（UI 会隐藏该 preset）。
+          // 启动日志必须把这一点写出来，否则"已注册"会掩盖"点不到"。
+          let broken;
+          try {
+            const rows = typeof presets.list === 'function' ? await presets.list() : [];
+            broken = Array.isArray(rows) ? rows.find((row) => row && row.id === 'wsl')?.broken : undefined;
+          } catch {
+            broken = undefined;
+          }
+          logStartup(
+            broken
+              ? 'WSL preset 注册但有 broken（id=wsl，plugins=' + plugins.length + '）：' + String(broken).replace(/\n/g, ' | ')
+              : 'WSL preset 已注册（id=wsl，plugins=' + plugins.length + '）',
+          );
         })
         .catch((e) => {
           logStartup('WSL preset 注册失败：' + (e && e.message ? e.message : String(e)));
