@@ -615,11 +615,11 @@ async function handle(req) {
       }
       if (args.list === true) {
         const ids = Array.isArray(args.tools) && args.tools.length > 0 ? args.tools : catalog().map((t) => t.id);
-        const result = ensureTools(ids, { autoInstall: false, installDir: args.installDir, proxy, ignorePath: args.ignorePath === true });
+        const result = await ensureTools(ids, { autoInstall: false, installDir: args.installDir, proxy, ignorePath: args.ignorePath === true });
         return { ok: true, id, result: { ...result, catalog: catalog() } };
       }
       const ids = Array.isArray(args.tools) && args.tools.length > 0 ? args.tools : CORE_TOOLS;
-      const result = ensureTools(ids, {
+      const result = await ensureTools(ids, {
         autoInstall: args.autoInstall !== false,
         installDir: typeof args.installDir === 'string' && args.installDir ? args.installDir : undefined,
         proxy,
@@ -636,7 +636,7 @@ async function handle(req) {
   if (op === 'search') {
     try {
       const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
-      const provision = ensureSearchTools({
+      const provision = await ensureSearchTools({
         autoInstall: req?.autoInstall !== false,
         proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null,
       });
@@ -766,7 +766,7 @@ async function listenOn(port) {
   setTimeout(async () => {
     try {
       const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
-      const provision = ensureTools(CORE_TOOLS, { autoInstall: true, proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null });
+      const provision = await ensureTools(CORE_TOOLS, { autoInstall: true, proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null });
       setSearchToolPaths(toolPaths());
       for (const note of provision.notes ?? []) process.stderr.write(`[daemon] tool provision: ${note}\n`);
     } catch (e) {

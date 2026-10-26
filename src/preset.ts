@@ -156,13 +156,24 @@ export function buildWslPresetPlugins(cfg) {
  * @param ctx - cordis 上下文（注入 `agentPresets`）
  * @param rawConfig - 插件配置
  */
+/** 注册状态（内存态，供 `wsl_status` 这类宿主工具读取；不影响行为）。 */
+export const presetState = { phase: 'idle', plugins: 0, broken: null };
+
+/** @returns 当前 preset 注册状态快照。 */
+export function presetStatus() {
+  return { ...presetState };
+}
+
 export function apply(ctx, rawConfig = {}) {
   const cfg = { ...DEFAULTS, ...(rawConfig ?? {}) };
   const plugins = buildWslPresetPlugins(cfg);
+  presetState.phase = 'registering';
+  presetState.plugins = plugins.length;
   logStartup(`apply 进入（codeTag=preset-log-v1，plugins=${plugins.length}）`);
   ctx.inject(['agentPresets'], (child) => {
     const presets = typeof child.get === 'function' ? child.get('agentPresets') : undefined;
     if (!presets || typeof presets.register !== 'function') {
+      presetState.phase = 'unavailable';
       logStartup('agentPresets 服务不可用（该 DSH 版本不支持运行时注册 preset），WSL preset 未注册');
       return;
     }
@@ -197,8 +208,12 @@ export function apply(ctx, rawConfig = {}) {
               ? 'WSL preset 注册但有 broken（id=wsl，plugins=' + plugins.length + '）：' + String(broken).replace(/\n/g, ' | ')
               : 'WSL preset 已注册（id=wsl，plugins=' + plugins.length + '）',
           );
+          presetState.phase = 'registered';
+          presetState.broken = broken ?? null;
         })
         .catch((e) => {
+          presetState.phase = 'failed';
+          presetState.broken = e && e.message ? e.message : String(e);
           logStartup('WSL preset 注册失败：' + (e && e.message ? e.message : String(e)));
         });
       return () => {

@@ -17,6 +17,7 @@ import {
   ensureDaemon, stopDaemon, daemonPrompt, daemonStatus, daemonSnapshot, readDaemonMeta, stateDirLinux, unc,
 } from './daemon-client.ts';
 import { withModulePrefix } from './explorer.ts';
+import { presetStatus } from './preset.ts';
 // T47（P0 修复，**只加这一行 import，逻辑一行未改**）：`WebHost.start()` 的脚本里有
 // `exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@<v> web --port <p>`。
 // 根因链：T1 把 `ALLOW_BUILDS`/`allowBuildFlags` 唯一化到 `src/sdk-runtime.ts`；T5 把「七个工具的注册面」
@@ -336,6 +337,19 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
         } else {
           daemonLine = `not running（${dstat.kind}: ${dstat.error}）`;
         }
+        const ps = presetStatus();
+        const presetLine =
+          ps.phase === 'registered'
+            ? ps.broken
+              ? `注册但 broken（UI 不可选）：${String(ps.broken).replace(/\n/g, ' | ')}`
+              : `已注册（id=wsl，plugins=${ps.plugins}）`
+            : ps.phase === 'failed'
+              ? `注册失败：${ps.broken ?? 'unknown'}`
+              : ps.phase === 'unavailable'
+                ? '不可用（该 DSH 版本不支持运行时注册 preset）'
+                : ps.phase === 'registering'
+                  ? '注册中'
+                  : '未初始化（插件未加载？）';
         return [
           `distros: ${distros.join(', ') || '(none)'}`,
           `target: ${config.distro}  wslHome=${config.wslHome}  cwd=${config.cwd}`,
@@ -361,6 +375,7 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
           ...(daemonState.collisions.length ? [`daemon port notes: ${daemonState.collisions.join(' | ')}`] : []),
           `resident runtimes (in-host backend only): ${[...runtimes.entries()].filter(([, r]) => !r.closed).map(([k, r]) => `${k}(turn ${r.turns})`).join(', ') || '(none)'}`,
           `web hosts: ${[...webHosts.keys()].join(', ') || '(none)'}`,
+          `wsl preset: ${presetLine}`,
           `pid files in WSL /tmp: ${pidFiles}（>0 表示可能有 in-host 孤儿运行时；首次有副作用的调用会清）`,
         ].join('\n');
       },

@@ -18,7 +18,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 /**
  * 工具目录。`bins` 是解压后可能出现的二进制名（各仓库不同），`repo` 用于调 GitHub API。
@@ -175,12 +175,50 @@ export function resolveAsset(repo, { arch = archOf(), proxy = null } = {}) {
   };
 }
 
-function download(url, outFile, proxy) {
+/**
+ * 异步跑一条命令（下载/解压用）。**不能用 spawnSync**：守护是单进程，同步等待会把整个
+ * 事件循环卡住——首次搜索/面板刷新会和几分钟的下载一起排队（2026-10-26 UX 复查）。
+ * @returns `{code, error}`
+ */
+function runCommand(command, args, timeoutMs) {
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn(command, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    } catch (e) {
+      resolve({ code: null, error: e?.message ?? String(e) });
+      return;
+    }
+    let stderr = '';
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => {
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        /* ignore */
+      }
+      finish({ code: null, error: `timed out after ${timeoutMs}ms` });
+    }, timeoutMs);
+    child.stderr.on('data', (c) => {
+      stderr = (stderr + c).slice(-400);
+    });
+    child.on('error', (e) => finish({ code: null, error: e?.message ?? String(e) }));
+    child.on('close', (code) => finish({ code, error: stderr.trim().slice(0, 200) }));
+  });
+}
+
+async function download(url, outFile, proxy) {
   const args = ['-fsSL', '--connect-timeout', '20', '--max-time', '300', '--retry', '3', '--retry-delay', '2', '--retry-all-errors', '-o', outFile];
   if (proxy) args.push('--proxy', proxy);
   args.push(url);
-  const r = spawnSync('curl', args, { encoding: 'utf8', timeout: 320000 });
-  return r.status === 0 ? { ok: true } : { ok: false, error: `curl exit ${r.status}: ${(r.stderr || '').slice(0, 200)}` };
+  const r = await runCommand('curl', args, 320000);
+  return r.code === 0 ? { ok: true } : { ok: false, error: `curl exit ${r.code}: ${r.error}` };
 }
 
 function findBinary(root, bins) {
@@ -210,20 +248,20 @@ function findBinary(root, bins) {
   return null;
 }
 
-function extract(file, kind, dest) {
+async function extract(file, kind, dest) {
   fs.mkdirSync(dest, { recursive: true });
   if (kind === 'tar.gz') {
-    const r = spawnSync('tar', ['-xzf', file, '-C', dest], { encoding: 'utf8', timeout: 120000 });
-    return r.status === 0 ? { ok: true } : { ok: false, error: `tar exit ${r.status}: ${(r.stderr || '').slice(0, 120)}` };
+    const r = await runCommand('tar', ['-xzf', file, '-C', dest], 120000);
+    return r.code === 0 ? { ok: true } : { ok: false, error: `tar exit ${r.code}: ${r.error}` };
   }
   if (kind === 'zip') {
     if (!commandOf('unzip')) return { ok: false, error: '发行版里没有 unzip，无法解压 zip 资产' };
-    const r = spawnSync('unzip', ['-q', '-o', file, '-d', dest], { encoding: 'utf8', timeout: 120000 });
-    return r.status === 0 ? { ok: true } : { ok: false, error: `unzip exit ${r.status}: ${(r.stderr || '').slice(0, 120)}` };
+    const r = await runCommand('unzip', ['-q', '-o', file, '-d', dest], 120000);
+    return r.code === 0 ? { ok: true } : { ok: false, error: `unzip exit ${r.code}: ${r.error}` };
   }
   const target = path.join(dest, 'payload');
-  const r = spawnSync('bash', ['-c', `gzip -dc ${JSON.stringify(file)} > ${JSON.stringify(target)}`], { encoding: 'utf8', timeout: 120000 });
-  return r.status === 0 ? { ok: true } : { ok: false, error: `gzip exit ${r.status}: ${(r.stderr || '').slice(0, 120)}` };
+  const r = await runCommand('bash', ['-c', `gzip -dc ${JSON.stringify(file)} > ${JSON.stringify(target)}`], 120000);
+  return r.code === 0 ? { ok: true } : { ok: false, error: `gzip exit ${r.code}: ${r.error}` };
 }
 
 /**
@@ -249,7 +287,7 @@ export function resolveAssetFor(id, { proxy = null } = {}) {
   return { ...api, fallback: false };
 }
 
-export function installToolById(id, { installDir, proxy = null } = {}) {
+export async function installToolById(id, { installDir, proxy = null } = {}) {
   const spec = TOOLS.find((t) => t.id === id);
   if (!spec) return { ok: false, error: `unknown tool: ${id}` };
   const dir = installDir || path.join(os.homedir(), '.local', 'bin');
@@ -261,10 +299,10 @@ export function installToolById(id, { installDir, proxy = null } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `dsh-rwsl-${id}-`));
   try {
     const file = path.join(tmp, asset.name);
-    const dl = download(asset.url, file, proxy);
+    const dl = await download(asset.url, file, proxy);
     if (!dl.ok) return { ok: false, error: `下载 ${asset.name} 失败：${dl.error}` };
     const extracted = path.join(tmp, 'x');
-    const ex = extract(file, asset.kind, extracted);
+    const ex = await extract(file, asset.kind, extracted);
     if (!ex.ok) return { ok: false, error: `解压 ${asset.name} 失败：${ex.error}` };
     // 单文件 `.gz` 资产（如 taplo-linux-x86_64.gz）解压出来叫 payload，没有目录结构，
     // 直接按工具名落盘；tar.gz/zip 才去包里找匹配的二进制名。
@@ -293,7 +331,7 @@ const cache = new Map();
  * @param options.ignorePath - 跳过 PATH 探测（探针用）
  * @returns `{tools:{[id]:{path,source,version}}, notes}`
  */
-export function ensureTools(ids, { autoInstall = true, installDir, proxy = null, ignorePath = false } = {}) {
+export async function ensureTools(ids, { autoInstall = true, installDir, proxy = null, ignorePath = false } = {}) {
   const key = `${ids.join(',')}|${installDir || ''}|${proxy || ''}|${autoInstall ? '1' : '0'}|${ignorePath ? '1' : '0'}`;
   if (cache.has(key)) return cache.get(key);
   const dir = installDir || path.join(os.homedir(), '.local', 'bin');
@@ -321,7 +359,7 @@ export function ensureTools(ids, { autoInstall = true, installDir, proxy = null,
       notes.push(`${id} 未安装（已禁用自动安装）；手动安装：${MANUAL[id] ?? '见项目文档'}`);
       continue;
     }
-    const installed = installToolById(id, { installDir: dir, proxy });
+    const installed = await installToolById(id, { installDir: dir, proxy });
     if (installed.ok) {
       tools[id] = { path: installed.path, source: 'installed', version: installed.version };
       notes.push(`已自动安装 ${id}${installed.version ? `@${installed.version}` : ''} → ${installed.path}`);
@@ -336,8 +374,8 @@ export function ensureTools(ids, { autoInstall = true, installDir, proxy = null,
 }
 
 /** 搜索用：确保 rg/fd（保留旧名，语义不变）。 */
-export function ensureSearchTools(opts = {}) {
-  const r = ensureTools(['rg', 'fd'], opts);
+export async function ensureSearchTools(opts = {}) {
+  const r = await ensureTools(['rg', 'fd'], opts);
   return {
     rg: { path: r.tools.rg?.path ?? null, source: r.tools.rg?.source },
     fd: { path: r.tools.fd?.path ?? null, source: r.tools.fd?.source },
