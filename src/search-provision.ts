@@ -196,7 +196,15 @@ function findBinary(root, bins) {
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) stack.push(full);
-      else if (bins.includes(entry.name) && execOk(full)) return full;
+      // 不要求解压后已有可执行位：zip 里的 `qsv` 就没有 exec 位（实测 2026-10-26），
+      // 拷贝后统一 chmod 755，所以这里只按文件名认。
+      else if (bins.includes(entry.name)) {
+        try {
+          if (fs.statSync(full).isFile()) return full;
+        } catch {
+          /* 忽略坏条目 */
+        }
+      }
     }
   }
   return null;
@@ -258,9 +266,12 @@ export function installToolById(id, { installDir, proxy = null } = {}) {
     const extracted = path.join(tmp, 'x');
     const ex = extract(file, asset.kind, extracted);
     if (!ex.ok) return { ok: false, error: `解压 ${asset.name} 失败：${ex.error}` };
-    const found = findBinary(extracted, spec.bins);
+    // 单文件 `.gz` 资产（如 taplo-linux-x86_64.gz）解压出来叫 payload，没有目录结构，
+    // 直接按工具名落盘；tar.gz/zip 才去包里找匹配的二进制名。
+    const payload = path.join(extracted, 'payload');
+    const found = asset.kind === 'gz' && fs.existsSync(payload) ? payload : findBinary(extracted, spec.bins);
     if (!found) return { ok: false, error: `${asset.name} 里找不到 ${spec.bins.join('/')}` };
-    const target = path.join(dir, path.basename(found));
+    const target = path.join(dir, asset.kind === 'gz' ? spec.bins[0] : path.basename(found));
     fs.copyFileSync(found, target);
     fs.chmodSync(target, 0o755);
     return { ok: true, path: target, version: asset.tag ?? null, asset: asset.name };
