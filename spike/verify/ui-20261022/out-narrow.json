@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-23T06:00:33.989Z",
-  "total": 37,
-  "pass": 37,
+  "generatedAt": "2026-10-26T09:25:26.845Z",
+  "total": 41,
+  "pass": 41,
   "fail": 0,
-  "cssChars": 20819,
+  "cssChars": 20948,
   "results": [
     {
       "ok": true,
@@ -33,7 +33,7 @@
     {
       "ok": true,
       "name": "入口 chunk 真的注入了 <style data-plugin-css>",
-      "detail": "20819 字符 / 1 个 style"
+      "detail": "20948 字符 / 1 个 style"
     },
     {
       "ok": true,
@@ -134,6 +134,26 @@
       "ok": true,
       "name": "CSS: 窄态目标行允许换行（徽标不再把行挤爆）",
       "detail": ".dsh-rw-root--narrow .dsh-rw-target{flex-wrap:wrap;row-gap:2px}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 快捷目录 chips 不被 flex 压扁（flex:none）",
+      "detail": ".dsh-rw-chip{display:inline-flex;align-items:center;gap:2px;min-width:24px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 快捷目录 chips 单行不换行（white-space:nowrap）",
+      "detail": ".dsh-rw-chip{display:inline-flex;align-items:center;gap:2px;min-width:24px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 快捷目录容器隐藏滚动条（scrollbar-width:none）",
+      "detail": ".dsh-rw-places{display:flex;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:8px 10px 0;flex:none;min-width:0;scrollbar-width:none;-ms-overflow-style:none}"
+    },
+    {
+      "ok": true,
+      "name": "CSS: 窄态目标名不被压成 0 宽（flex:1 1 auto）",
+      "detail": ".dsh-rw-root--narrow .dsh-rw-targetname{flex:1 1 auto}"
     },
     {
       "ok": true,

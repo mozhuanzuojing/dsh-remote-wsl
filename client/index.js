@@ -105,7 +105,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-target:hover .dsh-rw-targetacts,.dsh-rw-target:focus-within .dsh-rw-targetacts{visibility:visible}",
 			".dsh-rw-link--danger{color:var(--dsw-alias-state-error-primary)}",
 			".dsh-rw-badge--on{color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}",
-			".dsh-rw-places{display:flex;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:8px 10px 0;flex:none;min-width:0}",
+			".dsh-rw-places{display:flex;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;padding:8px 10px 0;flex:none;min-width:0;scrollbar-width:none;-ms-overflow-style:none}",
 			".dsh-rw-places::-webkit-scrollbar{height:0}",
 			".dsh-rw-navrow{display:flex;align-items:center;gap:4px;padding:2px 10px 0;min-width:0}",
 			".dsh-rw-formrow{display:flex;align-items:center;gap:8px;padding:6px 10px 8px;min-width:0;border-bottom:1px solid var(--dsw-alias-border-l1)}",
@@ -205,7 +205,11 @@ window.__ModuleLoader__.load({
 			".dsh-rw-iconbtn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:24px;height:24px;padding:0;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-secondary);cursor:pointer;box-shadow:none}",
 			".dsh-rw-iconbtn:hover:enabled{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-iconbtn:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
-			".dsh-rw-chip{display:inline-flex;align-items:center;gap:2px;min-width:24px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;direction:ltr;unicode-bidi:isolate;box-shadow:none}",
+			// 2026-10-26 窄态快捷目录（places）实测：360/320 档 chips 被 flex 默认 `0 1 auto`
+			// 压到 min-content，`Home` 渲染成 `Hon`、`/mnt` 渲染成 `/mn`，且右侧被卡片 overflow
+			// 裁掉。chips 必须 `flex:none` + 单行不换行，让 `.dsh-rw-places` 自己横向滚动；
+			// 滚动条已在上面隐藏（places::-webkit-scrollbar + scrollbar-width:none）。
+			".dsh-rw-chip{display:inline-flex;align-items:center;gap:2px;min-width:24px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;direction:ltr;unicode-bidi:isolate;box-shadow:none;flex:none;white-space:nowrap}",
 			".dsh-rw-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-chip--on{color:var(--dsw-alias-label-primary)}",
 			// M15 形状通道：任何带 `dsh-rw-current` 的元素都必须**不靠填充**可辨。
@@ -295,7 +299,11 @@ window.__ModuleLoader__.load({
 			".dsh-rw-root--narrow .dsh-rw-search{flex:1 1 100%;min-width:0}",
 			// ② 目标行：多发行版徽标（WSL 2 / 默认 / 当前）+ 状态词 + 行内动作在 264px 档把行挤到 323px
 			//    （超出面板 320）⇒ 允许换行（宽态内容本来就放得下，不会换）。
+			//    2026-10-26 补：`.dsh-rw-targetname` 的 `flex:1` 等价 `1 1 0%`，换行前先被压成
+			//    0 宽 —— 实拍 360 档发行版名只剩 `d.`。窄态改 `flex:1 1 auto`，让名称先占内容宽，
+			//    徽标/状态在需要时换到下一行。
 			".dsh-rw-root--narrow .dsh-rw-target{flex-wrap:wrap;row-gap:2px}",
+			".dsh-rw-root--narrow .dsh-rw-targetname{flex:1 1 auto}",
 			// ③ 窄态底栏：折行后各段自己成行，不再靠压缩命中盒/裁字来"塞进一行"。
 			".dsh-rw-root--narrow .dsh-rw-updated{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}",
 		].join("\n");

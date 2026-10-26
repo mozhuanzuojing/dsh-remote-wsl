@@ -202,3 +202,20 @@ pwsh -NoProfile -File .\boot.ps1 -Mode Stop       # 收尾：实例与 Chrome �
 
 结果：`probe-render` **258/258**（原 214，+44 = 19 条读数 × 2 条对比度 + 状态色通道拆分）、`probe-narrow`
 **37/37**、`probe-badge` 63/63。截图与 `out-render-after.json` / `ASSERT-render-after.txt` 已按修后重跑刷新。
+
+## 2026-10-26 追加：窄态快捷目录 chips 压字
+
+- **现象**（隔离实例 + 真 CDP 实拍 360）：快捷目录 chips 被 flex 默认 `0 1 auto` 压到 min-content，
+  `Home` 渲染成 `Hon`、`/mnt` 渲染成 `/mn`，右侧继续被卡片 `overflow:hidden` 裁掉；面板本身
+  `scrollWidth === clientWidth`，所以旧探针没抓到。
+- **根因**：`.dsh-rw-chip` 没有 `flex:none`/`white-space:nowrap`，`.dsh-rw-places` 的
+  `overflow-x:auto` 没有机会触发滚动；同理窄态 `.dsh-rw-targetname` 的 `flex:1`（等价 `1 1 0%`）
+  先把发行版名压成 0 宽，实拍只剩 `d.`。
+- **修法**（`client/index.js`）：chips 加 `flex:none;white-space:nowrap`；`places` 加
+  `scrollbar-width:none;-ms-overflow-style:none`；窄态目标名改 `flex:1 1 auto`。
+- **验证**：
+  - `probe-narrow` **41/41 PASS**（原 37 + 新增 4 条：chips `flex:none` / `nowrap`、places 隐藏滚动条、
+    窄态 targetname `flex:1 1 auto`）。
+  - 真渲染 7 档（320/360/376/416/420/480/1280）：`panel.scrollWidth === clientWidth`、
+    `documentElement.scrollWidth === clientWidth`、`chipClip=[]`、目标名 `scrollWidth === clientWidth`。
+  - 截图：`dsh-remote-wsl/assets/screenshot-narrow.webp`（720×1800，2x；README 以 360 宽显示）。

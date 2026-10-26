@@ -140,6 +140,13 @@ const ruleOf = (selector: string) => rules.find((r) => r.startsWith(selector + '
   check('CSS: 窄态路径容器占满一行', /flex:1 1 100%/.test(pathform), pathform)
   check('CSS: 窄态筛选框占满一行且可收缩（不再被推出卡片）', /flex:1 1 100%/.test(search) && /min-width:0/.test(search), search)
   check('CSS: 窄态目标行允许换行（徽标不再把行挤爆）', /flex-wrap:wrap/.test(target), target.slice(0, 120))
+  const places = rules.find((r) => r.startsWith('.dsh-rw-places{')) || ''
+  const chip = rules.find((r) => r.startsWith('.dsh-rw-chip{')) || ''
+  const targetName = rules.find((r) => r.startsWith('.dsh-rw-root--narrow .dsh-rw-targetname{')) || ''
+  check('CSS: 快捷目录 chips 不被 flex 压扁（flex:none）', /flex:none/.test(chip), chip.slice(0, 160))
+  check('CSS: 快捷目录 chips 单行不换行（white-space:nowrap）', /white-space:nowrap/.test(chip), chip.slice(0, 160))
+  check('CSS: 快捷目录容器隐藏滚动条（scrollbar-width:none）', /scrollbar-width:none/.test(places), places.slice(0, 180))
+  check('CSS: 窄态目标名不被压成 0 宽（flex:1 1 auto）', /flex:1 1 auto/.test(targetName), targetName)
 }
 
 // ── ③ 元素树：窄/宽两态的可见文案切换 ───────────────────────────────────────
