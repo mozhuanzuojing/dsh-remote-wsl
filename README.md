@@ -40,7 +40,7 @@ flowchart LR
   D --> F["WSL 文件世界<br/>fs / search RPC"]
 ```
 
-- 默认 `daemon` 后端下，守护、token、日志都在 WSL 侧；Windows 侧不持有 agent 运行时，只发短命命令、按 token 握手，或为 `wsl_open_ui` 挂一个 web host。
+- 默认 `daemon` 后端下，守护的元数据、token 与运行日志都在 WSL 侧（preset 注册诊断 `startup.log` 在 Windows 侧）；Windows 侧不持有 agent 运行时，只发短命命令、按 token 握手，或为 `wsl_open_ui` 挂一个 web host。
 - 运行时由守护持有，所以宿主进程退出不会带走会话。
 - 版本 pin 在 WSL 侧；桌面升级后用 `wsl_sync_version` 显式对齐。
 
@@ -51,11 +51,11 @@ flowchart LR
 - **同 key 串行**：并发 prompt 在守护里 FIFO；超过 `daemonQueueLimit`（默认 4）明确拒绝，不静默排队——上游 SDK 没有 cancel。
 - **七个工具**：诊断、一次性命令、常驻 agent、守护生命周期、远程 UI、版本对齐、路径互转，详见下方表格。
 - **远程资源管理器**：左侧栏「插件」下的面板。
-  - **WSL 目标**：发行版列表（状态点 + 默认/当前徽标 + WSL 版本），点行内「切换」换目标；切换只影响本面板的请求，不改插件配置。WSL1 行标「仅支持 WSL2」，host 侧也会拒绝。
+  - **WSL 目标**：发行版列表（状态点 + 默认/当前徽标 + WSL 版本），点行内「切换」换目标；切换只影响本面板的请求，不改插件配置。WSL1 行标「仅支持 WSL2」，面板的 host 方法会拒绝。
   - **目录浏览**：路径框 / 面包屑 / Home / 最近目录，支持隐藏文件与筛选。
-  - **守护状态**：头部药丸显示 pid/版本/槽位，未运行时可直接点起；底栏显示会话数、更新时间和漂移。
+  - **守护状态**：头部药丸显示运行态，悬停提示里带 pid/版本/槽位；未运行时可直接点起。底栏显示会话数、更新时间和漂移。
   - **代理三态徽标**：可达 / 不可达（带 `host:port`）/ 未探测。数据取自既有 `snapshot.proxy`，不新增请求。
-  - **在此目录新建会话**：在当前目录建一个真 DSH 会话（cwd 是该 WSL 路径的 UNC，会话出现在左侧列表）。
+  - **在此目录新建会话**：浏览到配置 `cwd` 以外的目录时，主按钮是它——建一个真 DSH 会话（cwd 是该 WSL 路径的 UNC，会话出现在左侧列表）；在配置 `cwd` 内主按钮是「添加为 WSL 工作区」。
   - **添加为 WSL 工作区**：把目录登记成 UNC 工作区（该工作区的文件工具走 9P，和「远端会话」是两条路，见下方「已知边界」）。
   - **远端会话卡**：列出 `cwd + sessionId 前 8 位`、轮次与空闲时间，可复制完整 sessionId。
   - **窄态与双语**：320 / 360 / 376 / 416 / 420 / 480 / 1280 七档实测无横向溢出；中文 / English 跟随宿主语言。
@@ -83,8 +83,8 @@ flowchart LR
 
 ### 前置条件
 
-- **Windows 10/11 + WSL2**。WSL1 不支持：目标行会标灰，host 侧所有方法直接拒绝。
-- **WSL 侧 `mise` + `pnpm` + Node ≥ 26.10**。插件用 `mise exec -- pnpm dlx @deepseek-ai/dsh@<pin>` 拉取对应版本，不要求全局装 `dsh`；首次需要网络/代理。
+- **Windows 10/11 + WSL2**。WSL1 不支持：目标行会标灰，面板的 host 方法会拒绝（7 个工具本身不做 WSL1 检查）。
+- **WSL 侧 `mise` + `pnpm` + Node ≥ 26.10**。插件用 `mise exec -- pnpm dlx @deepseek-ai/dsh@<pin> --profile sdk` 拉取对应版本（实际还带 `--allow-build=...`），不要求全局装 `dsh`；首次需要网络/代理。
 - **推荐启用 systemd**：`/etc/wsl.conf` 里 `[boot] systemd=true`。systemd 主路径无窗口、且守护独立于 Windows 侧；不可用时走兼容回退，可能弹出可见控制台窗口（插件会在返回值/`notes` 里告警）。
 - **WSL 侧凭据**：`~/.dsh/.credentials.yaml`。WSL 与 Windows 是两份独立的 `~/.dsh`，**不要复制任何 key**。
 - 代理：`proxyPort` 默认 `9910`。插件先探测再使用；不用代理也可以，探测失败只会显示「不可达 / 未探测」，不阻断直连。
@@ -167,7 +167,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `daemonIdleMs` | `1800000` | 空闲回收，到期即丢上下文 |
 | `daemonLingerMs` | `600000` | 无 key 且无客户端时的自退闸门；有会话不触发 |
 | `daemonQueueLimit` | `4` | 同 key 并发 prompt 的等待位上限，超出明确拒绝 |
-| `useShellEnvironment` | `true` | 把 WSL 登录 shell 环境注入常驻运行时（`wsl_agent` / `wsl_open_ui`）；一次性 `wsl_exec` 不注入 |
+| `useShellEnvironment` | `true` | 把 WSL 登录 shell 环境注入 `wsl_open_ui` / `in-host` 运行时；一次性 `wsl_exec` 不注入。默认 `daemon` 后端的 `wsl_agent` 目前恒注入（该开关尚未接到守护启动参数） |
 | `backgroundWarm` | `true` | 版本漂移时后台预热，不阻塞当前调用 |
 | `webPort` | `3082` | `wsl_open_ui` 在 WSL 里起的 web 端口 |
 | `proxyPort` | `9910` | 宿主代理探测端口 |
@@ -215,14 +215,15 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 ### WSL 执行世界
 
-新建会话时把 preset 选成「WSL（远程执行世界）」，文件工具就落到配置的发行版里；`wsl_tools` 可以列/装搜索工具。想跑 WSL 里的命令或一次性体检，仍用 `wsl_exec` / `wsl_agent`。
+新建会话时把 preset 选成「WSL（远程执行世界）」，文件工具就落到配置的发行版里；`wsl_tools` 可以列/装这些 WSL 侧 CLI 工具。想跑 WSL 里的命令或一次性体检，仍用 `wsl_exec` / `wsl_agent`。
 
 ## 数据存在哪里
 
 - **Windows 侧配置**：`%USERPROFILE%\.dsh\profiles\<profile>\package.json` 与 `cordis.patch.yml`。
+- **Windows 侧诊断**：`%USERPROFILE%\.dsh\remote-wsl\startup.log`（preset 注册 / 启动诊断，宿主侧写入）。
 - **WSL 侧状态目录**：`$wslHome/.dsh/remote-wsl/`
   - `daemon.<slot>.json` / `daemon.<slot>.token`（0600，按槽位分文件）
-  - `daemon.log`、`launch-stderr.log`、`startup.log`
+  - `daemon.log`、`launch-stderr.log`、`launch.<slot>.sh`（一次性启动脚本，正常启动后清理）
 - **面板最近目录**：浏览器 `localStorage['dsh-remote-wsl.recent']`（按发行版分组，最多 8 条）。
 - **WSL 版本 pin**：`$wslHome/.dsh/.desktop-version-pin`。
 - **凭据**：WSL 的 `~/.dsh/.credentials.yaml`。Windows 的 `%USERPROFILE%\.dsh` 与它是两份独立副本，**不要跨侧复制**。
