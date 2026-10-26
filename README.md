@@ -1,5 +1,7 @@
 # dsh-remote-wsl
 
+<img width="2172" height="724" alt="dsh-remote-wsl：把 WSL 2 当作 DeepSeek Harness 的远端执行宿主" src="assets/banner.webp">
+
 > 把 WSL 2 发行版当作 DeepSeek Harness 的**远端执行宿主**。
 >
 > 常驻守护让「关掉客户端 ≠ 会话结束」；换一个宿主进程，用同一个 `key` 还能接上之前的上下文。
@@ -10,6 +12,8 @@
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
 当前版本 **0.1.0** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+
+<img width="1280" height="900" alt="远程资源管理器面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
 **它是什么**：DSH 桌面壳的 host 由本机启动，没有「连远端 host」的开关（实测与机制见 [docs/2026-10-10-wsl-dsh-sdk-bridge.md](docs/2026-10-10-wsl-dsh-sdk-bridge.md)）。这个插件不假装有——它从 Windows 宿主侧驱动 WSL 里那份 dsh，提供七个工具、一个「远程资源管理器」面板，以及一个把文件工具搬进 WSL 的 agent preset，并把会话持久性、版本一致性和关停边界一起管起来。
 
@@ -268,6 +272,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `src/fs-provider.ts`、`src/fs-rpc.ts` | WSL 执行世界的 fs provider 与 RPC |
 | `src/preset.ts`、`src/search-tool.ts` | `wsl` preset、WSL 内 `grep` / `glob` 与 `wsl_tools` |
 | `client/` | client 半 chunk（含 i18n 与全部 CSS） |
+| `assets/` | README 配图：banner 与面板截图 |
 | `docs/` | 契约、设计、评审与先例调研 |
 | `spike/verify/` | 每轮探针、原始输出与报告 |
 
