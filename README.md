@@ -382,7 +382,8 @@ DSH 的文件工具只认 `ctx.fs`。宿主默认 provider 用 Windows 的 node:
 
 **怎么用**：重启 DSH（host 半改了）→ 新会话的 preset 选择「WSL（远程执行世界）」→ 文件工具落到
 `debian-u8-1` 内。**证据**：`spike/verify/fs-wsl-20261023/`（provider 30/30、搜索 10/10、preset 注册日志、
-headless agent 真调 write/read/edit/grep/glob 的 `--json` 事件与 `wsl.exe` 内独立复核、REPORT-fs-wsl.md）。
+headless agent 真调 write/read/edit/grep/glob 的 `--json` 事件与 `wsl.exe` 内独立复核、**preset 形态端到端**
+（`agentPreset=wsl`，1 轮 3 步：`wsl_tools`/`grep`/`write`，文件落 `/tmp` ext4）、REPORT-fs-wsl.md）。
 
 **边界（当前）**：只服务配置的一个发行版；`watch` 是 500ms 轮询近似；`sandboxMode` 报 `workspace-write`
 并按 host 策略做真实路径围栏；`fd` 尊重 gitignore 而 `find` 回落不尊重（见报告 §7）。

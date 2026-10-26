@@ -88,6 +88,19 @@ preset 注册只证明"树挂上了"；工具是否真的走 provider，用 **he
 产物：`out-e2e-write-read.jsonl`、`out-e2e-edit.jsonl`、`out-e2e-agent.json`；
 可复跑脚本 `run-e2e.ps1`（会真实消耗模型额度；跑完删掉隔离 home 里复制的凭据副本）。
 
+### 5.1 preset 形态端到端（2026-10-26）
+
+上面的 E2E 是宿主级替换，preset 形态一直只验证到"注册/挂载"。这次用隔离 **web** profile 打通：
+
+- profile：`base` + `web-app` + `dsh-remote-wsl`（junction 到仓库）+ magpie 模型；`--from-default-profile web` 造；
+- 在 GUI 里选「WSL（远程执行世界）」后发一轮任务（也可直接 `session/create {request:{agentPreset:'wsl'}}`）；
+- 模型 1 轮 3 步、**10 秒**完成：`wsl_tools list` → `grep`（/home/g/.dsh/remote-wsl）→ `write`；
+- `write` 落盘 `/tmp/preset-e2e.txt`，WSL 内复核 `preset-ok`、`664:g:74`（`/mnt/d` 是 `72`）⇒ 真在 ext4；
+- session projection 记录 `agentPreset: "wsl"`、`steps: 3`。
+
+证据：`out-preset-e2e.json`、`out-preset-e2e-session.json`、`out-preset-e2e-dom.txt`。
+意义：preset 不只是“能注册”，而是**选中后文件与工具真的在 WSL 里执行**。
+
 ## 6. Review（2026-10-23）与修复
 
 复核按「契约 / 安全 / 失败面 / 边界」四个角度看实现与 DSH 的调用方式（`dsh-tool-fs` 的
