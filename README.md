@@ -62,7 +62,7 @@ flowchart LR
   - **在此目录新建会话**：浏览到配置 `cwd` 以外的目录时，主按钮是它——建一个真 DSH 会话（cwd 是该 WSL 路径的 UNC，会话出现在左侧列表）；在配置 `cwd` 内主按钮是「添加为 WSL 工作区」。
   - **添加为 WSL 工作区**：把目录登记成 UNC 工作区（该工作区的文件工具走 9P，和「远端会话」是两条路，见下方「已知边界」）。
   - **远端会话卡**：列出 `cwd + sessionId 前 8 位`、轮次与空闲时间，可复制完整 sessionId。
-  - **窄态与双语**：320 / 360 / 376 / 416 / 420 / 480 / 1280 七档实测无横向溢出；中文 / English 跟随宿主语言。
+  - **窄态与双语**：320 / 360 / 376 / 416 / 420 / 480 / 1280 七档实测无横向溢出；窄态下快捷目录 chips 保持完整并横向滚动（不压字）；中文 / English 跟随宿主语言。
 - **WSL 执行世界（实验）**：agent preset `wsl`，名称「WSL（远程执行世界）」。
   - 文件工具经 `{op:'fs'}` RPC 交给 WSL 侧守护用原生 `node:fs` 执行，**不走 9P**（绕开 `write` 在 `\\wsl.localhost\…` 上的原子写失败）。
   - WSL 内 `grep` / `glob` 优先用 ripgrep / fd，没有再回落 ugrep / GNU grep / find。
@@ -70,6 +70,19 @@ flowchart LR
   - 文件工具按 host 的 `workspace-write` 策略做真实路径围栏（越界返回 `FS_SANDBOX_DENIED`）；`watch` 是 500ms 轮询近似，不做跨 OS 文件事件。
 - **版本对齐**：桌面版本从 `primary-runtime/runtime.json` 读；WSL pin 落 `~/.dsh/.desktop-version-pin`。`wsl_status` 报漂移，`wsl_sync_version` 修复，`backgroundWarm` 负责后台预热。守护不会因版本不一致被自动杀掉——要换版本走显式 `wsl_daemon action=restart`。
 - **路径互转**：`wsl_path` 只做字符串转换，不创建目录、不改文件；路径走 argv 位置参数，含空格/引号/`$(...)` 也保持字面量。
+- **主题**：跟随 DSH 的浅色 / 深色（面板只读宿主 CSS 变量，不写死颜色）。
+
+### 界面
+
+<img width="1000" height="260" alt="面板头部：WSL 目标、守护与代理状态，以及「在此目录新建会话」" src="assets/screenshot-header.webp">
+
+深色（跟随 DSH 主题）：
+
+<img width="1280" height="900" alt="深色主题下的远程资源管理器" src="assets/screenshot-dark.webp">
+
+窄态（窗口 360；快捷目录 chips 横向滚动，完整显示、不再压字）：
+
+<img width="360" height="900" alt="360px 窄态面板：完整快捷目录 chips 与折行布局" src="assets/screenshot-narrow.webp">
 
 ### 七个工具
 
@@ -272,7 +285,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `src/fs-provider.ts`、`src/fs-rpc.ts` | WSL 执行世界的 fs provider 与 RPC |
 | `src/preset.ts`、`src/search-tool.ts` | `wsl` preset、WSL 内 `grep` / `glob` 与 `wsl_tools` |
 | `client/` | client 半 chunk（含 i18n 与全部 CSS） |
-| `assets/` | README 配图：banner 与面板截图 |
+| `assets/` | README 配图：banner、宽态 / 深色 / 窄态 / 头部截图 |
 | `docs/` | 契约、设计、评审与先例调研 |
 | `spike/verify/` | 每轮探针、原始输出与报告 |
 
