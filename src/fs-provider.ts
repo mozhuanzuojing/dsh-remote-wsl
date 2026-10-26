@@ -182,35 +182,73 @@ export function createWslFileSystem(rawConfig = {}) {
     throw fsErr(`cannot write "${targetKey}": outside the writable workspace roots`, 'FS_SANDBOX_DENIED');
   };
 
+  // ── 共享轮询观察（2026-10-26 perf）：所有 watcher 合并成**一次** `statMany` / 500ms ──
+  // 旧实现每个 watcher 各自 setTimeout + 各自 `stat` RPC ⇒ watcher 一多，RPC 数线性增长。
+  const WATCH_INTERVAL_MS = 500;
+  const watchers = new Map();
+  let watchTimer = null;
+  const watchTick = async () => {
+    if (watchers.size === 0) {
+      watchTimer = null;
+      return;
+    }
+    const paths = [...watchers.keys()];
+    try {
+      const r = await call('statMany', { paths });
+      const items = Array.isArray(r?.items) ? r.items : [];
+      for (const item of items) {
+        const set = watchers.get(item.path);
+        if (!set) continue;
+        const version = item?.exists ? item.version : 'missing';
+        for (const w of [...set]) {
+          try {
+            if (w.last !== null && version !== w.last) w.changed();
+            w.last = version;
+          } catch {
+            set.delete(w);
+          }
+        }
+      }
+    } catch (e) {
+      for (const set of [...watchers.values()]) {
+        for (const w of [...set]) {
+          try {
+            w.changed(e);
+          } catch {
+            set.delete(w);
+          }
+        }
+      }
+    }
+    if (watchers.size > 0) watchTimer = setTimeout(watchTick, WATCH_INTERVAL_MS);
+  };
+
   const impl = {
     /** 能力事实：本 provider 会按 host 的 workspace-write 策略围栏（见 assertWritable）。 */
     sandboxMode: 'workspace-write',
 
     /**
      * 轮询式观察：DSH 的文件变化观察会调它。WSL 侧没有 inotify 桥，这里每 500ms 比对一次
-     * `mtimeNs:size`；变化才回调。不是"真实时"，但比"直接报不支持"更接近宿主语义。
+     * `mtimeNs:size`；变化才回调。多个 watcher 共享同一条轮询（statMany 批量化）。
      */
     async watch(target, changed, signal) {
       signal?.throwIfAborted?.();
-      let closed = false;
-      let last = null;
-      let timer = null;
-      const tick = async () => {
-        if (closed) return;
-        try {
-          const r = await call('stat', { path: target.targetKey }, signal);
-          const version = r?.exists ? r.version : 'missing';
-          if (last !== null && version !== last) changed();
-          last = version;
-        } catch (e) {
-          changed(e instanceof Error ? e : new Error(String(e)));
-        }
-        if (!closed) timer = setTimeout(tick, 500);
-      };
-      tick();
+      const key = target.targetKey;
+      let set = watchers.get(key);
+      if (!set) {
+        set = new Set();
+        watchers.set(key, set);
+      }
+      const entry = { changed, last: null };
+      set.add(entry);
+      if (watchTimer === null) watchTimer = setTimeout(watchTick, WATCH_INTERVAL_MS);
       return () => {
-        closed = true;
-        if (timer) clearTimeout(timer);
+        set.delete(entry);
+        if (set.size === 0) watchers.delete(key);
+        if (watchers.size === 0 && watchTimer !== null) {
+          clearTimeout(watchTimer);
+          watchTimer = null;
+        }
       };
     },
 

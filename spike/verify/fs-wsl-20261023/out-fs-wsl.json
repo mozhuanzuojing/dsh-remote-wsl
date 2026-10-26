@@ -1,25 +1,25 @@
 {
   "probe": "probe-fs-wsl",
-  "generatedAt": "2026-10-23T09:00:23.999Z",
+  "generatedAt": "2026-10-26T03:05:22.657Z",
   "target": {
     "distro": "debian-u8-1",
-    "root": "/tmp/dsh-fs-probe-22932",
+    "root": "/tmp/dsh-fs-probe-36416",
     "daemonPort": 8731
   },
-  "version": "0.2.1-rc.2",
+  "version": "0.2.1-rc.3",
   "evidence": {
     "daemon": {
       "started": true,
       "reused": false,
       "port": 8731,
-      "pid": 225677
+      "pid": 203887
     }
   },
   "checks": [
     {
       "name": "A1 Linux 绝对路径解析",
       "ok": true,
-      "detail": "{\"targetKey\":\"/tmp/dsh-fs-probe-22932/a.txt\",\"displayPath\":\"/tmp/dsh-fs-probe-22932/a.txt\"}"
+      "detail": "{\"targetKey\":\"/tmp/dsh-fs-probe-36416/a.txt\",\"displayPath\":\"/tmp/dsh-fs-probe-36416/a.txt\"}"
     },
     {
       "name": "A2 UNC 反解成发行版内路径",
@@ -29,12 +29,12 @@
     {
       "name": "A3 相对路径 + UNC cwd",
       "ok": true,
-      "detail": "{\"targetKey\":\"/tmp/dsh-fs-probe-22932/sub/b.txt\",\"displayPath\":\"/tmp/dsh-fs-probe-22932/sub/b.txt\"}"
+      "detail": "{\"targetKey\":\"/tmp/dsh-fs-probe-36416/sub/b.txt\",\"displayPath\":\"/tmp/dsh-fs-probe-36416/sub/b.txt\"}"
     },
     {
       "name": "A4 processPath 回 UNC",
       "ok": true,
-      "detail": "\\\\wsl.localhost\\debian-u8-1\\tmp\\dsh-fs-probe-22932\\a.txt"
+      "detail": "\\\\wsl.localhost\\debian-u8-1\\tmp\\dsh-fs-probe-36416\\a.txt"
     },
     {
       "name": "A5 processPathFromHostPath 只认本发行版",
@@ -49,7 +49,7 @@
     {
       "name": "B1 createIfAbsent 新建（operation=create）",
       "ok": true,
-      "detail": "{\"operation\":\"create\",\"version\":\"1792746020126484893:6\",\"before\":null,\"after\":\"hello\\n\"}"
+      "detail": "{\"operation\":\"create\",\"version\":\"1792983916328487668:6\",\"before\":null,\"after\":\"hello\\n\"}"
     },
     {
       "name": "B2 readText 读到同一内容",
@@ -59,12 +59,12 @@
     {
       "name": "B3 stat 版本与写回一致",
       "ok": true,
-      "detail": "{\"version\":\"1792746020126484893:6\",\"type\":\"file\",\"size\":6}"
+      "detail": "{\"version\":\"1792983916328487668:6\",\"type\":\"file\",\"size\":6}"
     },
     {
       "name": "B4 replaceIfVersion 命中时更新、版本变化",
       "ok": true,
-      "detail": "{\"operation\":\"update\",\"version\":\"1792746020144617018:12\",\"before\":null,\"after\":\"hello world\\n\"}"
+      "detail": "{\"operation\":\"update\",\"version\":\"1792983916347555045:12\",\"before\":null,\"after\":\"hello world\\n\"}"
     },
     {
       "name": "B5 过期版本 ⇒ FS_STALE_VERSION",
@@ -84,7 +84,7 @@
     {
       "name": "C1 唯一字面量替换",
       "ok": true,
-      "detail": "{\"version\":\"1792746020176788597:12\",\"before\":\"aaa bbb aaa\\n\",\"after\":\"aaa ccc aaa\\n\"}"
+      "detail": "{\"version\":\"1792983916385476933:12\",\"before\":\"aaa bbb aaa\\n\",\"after\":\"aaa ccc aaa\\n\"}"
     },
     {
       "name": "C2 非唯一匹配且 replaceAll=false ⇒ 拒绝",
@@ -157,6 +157,11 @@
       "detail": "fired=1"
     },
     {
+      "name": "W2 多 watcher 批量轮询：只回调变化的文件",
+      "ok": true,
+      "detail": "a=1 b=0"
+    },
+    {
       "name": "G1 provider 源码不 import node:fs（字节不经宿主盘）",
       "ok": true,
       "detail": ""
@@ -167,7 +172,7 @@
       "detail": ""
     }
   ],
-  "passed": 30,
-  "total": 30,
+  "passed": 31,
+  "total": 31,
   "failures": []
 }

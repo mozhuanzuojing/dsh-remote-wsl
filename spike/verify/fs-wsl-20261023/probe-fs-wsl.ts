@@ -209,6 +209,26 @@ try {
   closeWatch();
   check('W1 watch 在文件变化后回调（轮询近似）', watchFired >= 1, `fired=${watchFired}`);
 
+  // ── W2 多个 watcher 共享一条轮询：只回发真正变化的那个 ─────────────────────
+  const wA = await impl.resolve(`${ROOT}/w-a.txt`, { cwd: '/home/g' });
+  const wB = await impl.resolve(`${ROOT}/w-b.txt`, { cwd: '/home/g' });
+  await impl.writeText(wA, 'a0\n', null);
+  await impl.writeText(wB, 'b0\n', null);
+  let firedA = 0;
+  let firedB = 0;
+  const closeA = await impl.watch(wA, () => {
+    firedA += 1;
+  });
+  const closeB = await impl.watch(wB, () => {
+    firedB += 1;
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  wsl(`echo a1 >> ${ROOT}/w-a.txt`);
+  await new Promise((r) => setTimeout(r, 1600));
+  closeA();
+  closeB();
+  check('W2 多 watcher 批量轮询：只回调变化的文件', firedA >= 1 && firedB === 0, `a=${firedA} b=${firedB}`);
+
   // ── G 架构断言：provider 不直接读宿主文件 ────────────────────────────────
   const src = fs.readFileSync(path.join(DIR, '../../../src/fs-provider.ts'), 'utf8');
   check('G1 provider 源码不 import node:fs（字节不经宿主盘）', !/from 'node:fs'/.test(src) && !/require\('node:fs'\)/.test(src), '');

@@ -151,6 +151,27 @@ export async function statOp(args, { follow = true } = {}) {  const abs = String
   };
 }
 
+/**
+ * 批量 stat：给 watch 轮询用（一次 RPC 覆盖多个目标，避免 watcher 多时 RPC 线性增长）。
+ * @param args `{paths: string[]}`
+ * @returns `{items:[{path, exists?, version?, error?}]}`（单条失败不影响其余）
+ */
+export async function statManyOp(args) {
+  const paths = Array.isArray(args?.paths) ? args.paths.map((p) => String(p)) : [];
+  const items = await Promise.all(
+    paths.map(async (p) => {
+      try {
+        const st = await fs.promises.stat(p);
+        return { path: p, exists: true, version: await versionOf(p, undefined), type: typeOf(st) };
+      } catch (e) {
+        if (codeOf(e) === 'ENOENT' || codeOf(e) === 'ENOTDIR') return { path: p, exists: false };
+        return { path: p, exists: false, error: String(e?.message ?? e) };
+      }
+    }),
+  );
+  return { items };
+}
+
 export async function listDirOp(args) {
   const abs = String(args?.path ?? '');
   assertLinuxAbsolute(abs);
@@ -253,6 +274,8 @@ export async function handleFsOp(req) {
   switch (method) {
     case 'stat':
       return statOp(args, { follow: true });
+    case 'statMany':
+      return statManyOp(args);
     case 'realpath':
       return realpathOp(args);
     case 'lstat':
