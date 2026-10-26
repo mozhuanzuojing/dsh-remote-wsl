@@ -9,7 +9,7 @@
  * 零构建纪律：只用可擦除语法；相对导入带 `.ts`；只引 `node:` 内置与同目录相对模块。
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, closeSync, mkdirSync, openSync, rmSync } from 'node:fs';
+import { chmodSync, closeSync, mkdirSync, openSync, rmSync, statSync, truncateSync } from 'node:fs';
 import { daemonScriptWsl, launchLinux, stateDirLinux, unc, wslRunScript } from './daemon-protocol.ts';
 
 // ── 原 daemon-client.ts 第 319-328 行 ──
@@ -198,6 +198,13 @@ export function launchDaemon(cfg, port, version, log = () => {}) {
     // F31（task-8）：本目录其余文件都是 0600，只有这个文件因为 `openSync(..., 'a')` 的默认
     // 0666&~umask 变成了 0644（reliability 实测 `-rw-r--r--`）。这里创建时就给 0600；
     // 对**已存在**的旧文件再显式 chmod 一次（只改 mode，**不动内容、不动属主**）。
+    // 2026-10-26：`launch-stderr.log` 只 append、从不回卷，实测攒到 1.5MB。启动新守护前
+    // 超过 1MB 就清空（里面只有包装层 stderr 诊断，没有凭据；daemon.log 自己另有 256KB 上限）。
+    try {
+      if (statSync(stderrLogLocal).size > 1024 * 1024) truncateSync(stderrLogLocal, 0);
+    } catch {
+      /* 文件不存在或不可写：忽略，开 append 时按需创建 */
+    }
     stderrFd = openSync(stderrLogLocal, 'a', 0o600);
     try {
       chmodSync(stderrLogLocal, 0o600);
