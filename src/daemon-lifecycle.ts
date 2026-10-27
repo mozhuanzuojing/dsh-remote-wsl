@@ -9,8 +9,12 @@
  * 零构建纪律：只用可擦除语法；相对导入带 `.ts`；只引 `node:` 内置与同目录相对模块。
  */
 import { readdirSync, rmSync } from 'node:fs';
-import { callDaemon, handshake, legacyMetaLinux, legacyTokenLinux, listDaemonSlots, metaLinux, readDaemonLogTail, readDaemonRecord, scanDaemonProcesses, sleep, stateDirLinux, tokenLinux, unc } from './daemon-protocol.ts';
-import { configCompat, killWslPid, launchDaemon, removeLauncher } from './daemon-launch.ts';
+import {
+  callDaemon, handshake, legacyMetaLinux, legacyTokenLinux, listDaemonSlots, metaLinux, readDaemonLogTail, readDaemonRecord,
+  releaseEnsureLock, scanDaemonProcessesAsync, sleep, stateDirLinux, tcpProbe, tokenLinux,
+  tryAcquireEnsureLock, unc,
+} from './daemon-protocol.ts';
+import { configCompat, killWslPidAsync, launchDaemon, removeLauncher } from './daemon-launch.ts';
 
 // ── 原 daemon-client.ts 第 216-235 行 ──
 function removeMetaFiles(cfg, slot = cfg.daemonPort, legacy = false) {
@@ -35,9 +39,43 @@ function removeMetaFiles(cfg, slot = cfg.daemonPort, legacy = false) {
  */
 
 // ── 原 daemon-client.ts 第 619-624 行 ──
-function ownDaemonsOnPorts(cfg, ports) {
+/** 扫出"占着这些端口（或元数据槽位）的本插件守护"（异步版：不阻塞宿主事件循环，F-15）。 */
+async function ownDaemonsOnPorts(cfg, ports) {
   const want = new Set(ports.map(Number));
-  return scanDaemonProcesses(cfg).filter((p) => (p.port != null && want.has(p.port)) || (p.metaPort != null && want.has(p.metaPort)));
+  const procs = await scanDaemonProcessesAsync(cfg);
+  return procs.filter((p) => (p.port != null && want.has(p.port)) || (p.metaPort != null && want.has(p.metaPort)));
+}
+
+/**
+ * 轮询抢占启动锁（2026-10-27 审查 F-05）：拿不到就等，最多 `waitMs`。
+ * 为什么要等而不是直接失败：并发方只是**同一个槽位**的启动，等它起好后复用比"两个都起"安全得多。
+ */
+async function acquireEnsureLockWithWait(cfg, slot, { waitMs = 45000, log = () => {}, notes = [] } = {}) {
+  const t0 = Date.now();
+  for (;;) {
+    if (await tryAcquireEnsureLock(cfg, slot)) return true;
+    if (Date.now() - t0 >= waitMs) {
+      notes.push(`启动锁 ${slot} 在 ${waitMs}ms 内未取得（另一个宿主可能正在同一槽位启动）`);
+      return false;
+    }
+    await sleep(400);
+  }
+}
+
+/**
+ * 另一个宿主持有启动锁时，等它的守护就绪 —— 判据仍是 Windows 侧 `hello+token`（不看 listening 日志）。
+ * 返回 `{ rec, hs }`；超时返回 `null`。
+ */
+async function waitForSlotReady(cfg, slot, hsTimeout, waitMs) {
+  const deadline = Date.now() + waitMs;
+  while (Date.now() < deadline) {
+    await sleep(400);
+    const rec = readDaemonRecord(cfg, slot);
+    if (!rec) continue;
+    const hs = await handshake(cfg, rec.meta?.port ?? rec.slot, rec.token, hsTimeout);
+    if (hs.ok) return { rec, hs };
+  }
+  return null;
 }
 
 /** 元数据里记的 pid 恰好是某进程的那些记录（用于判断"占着端口的是不是一个有元数据的活守护"）。 */
@@ -96,7 +134,32 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
     const legacy = readDaemonRecord(cfg);
     if (legacy?.legacy && Number(legacy.meta?.port) === wantSlot) candidates.push(legacy);
     for (const rec of candidates) {
-      const hs = await handshake(cfg, rec.meta?.port ?? rec.slot, rec.token, hsTimeout);
+      let hs = await handshake(cfg, rec.meta?.port ?? rec.slot, rec.token, hsTimeout);
+      if (!hs.ok && hs.kind === 'timeout') {
+        // F-06（2026-10-27 审查）：单次 3s 握手超时**不等于**守护死了。守护是单线程，provision/预热
+        // 里的 `spawnSync(curl)` 能把它按住几十秒；旧实现在这里直接 kill + 删元数据 ⇒ 把"忙"当"死"，
+        // 杀掉带会话的健康守护。现在先做**二次探测**（更长超时）；仍然超时就如实报错、**不杀不重启**，
+        // 让用户决定（稍后重试，或显式 `wsl_daemon action=stop`）。
+        notes.push(`自己槽位 ${rec.slot} 第一次握手超时（${hs.ms}ms）⇒ 二次探测（${hsTimeout * 2}ms，不立即杀）`);
+        hs = await handshake(cfg, rec.meta?.port ?? rec.slot, rec.token, hsTimeout * 2);
+        if (!hs.ok && hs.kind === 'timeout') {
+          const port = Number(rec.meta?.port ?? rec.slot);
+          const probe = await tcpProbe(port, 800);
+          const busy = probe.open === true;
+          return {
+            ok: false,
+            notes,
+            tried: [rec.slot],
+            mode: null,
+            warning: null,
+            error:
+              `远端守护（槽位 ${rec.slot} / 端口 ${port}）在 ${hsTimeout * 3}ms 内没有应答` +
+              `${busy ? '，但端口仍可连接 ⇒ 它可能正在安装工具/预热，属于「忙」而不是「死」' : '，端口也不可连接'}` +
+              `。为避免杀掉带会话的守护，本次**不杀、不重启、也不另起一个**。请稍后重试；` +
+              `确需强制结束请用 wsl_daemon action=stop（会丢弃会话上下文）。`,
+          };
+        }
+      }
       if (hs.ok) {
         const compat = configCompat(cfg, hs.info, version);
         if (compat.hard.length) {
@@ -119,7 +182,8 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
       const why = hs.kind === 'timeout' ? `握手 ${hs.ms}ms 超时（该端口可能被 Windows 侧别的属主占用）` : hs.kind === 'refused' ? '连接被拒（守护已死，元数据是陈的）' : `握手失败(${hs.kind}: ${hs.error})`;
       notes.push(`自己槽位 ${rec.slot} 复用失败：${why}`);
       log(`daemon reuse failed on own slot ${rec.slot}: ${why}`);
-      if (rec.meta?.pid) killWslPid(cfg, rec.meta.pid);
+      // 只有"确证不是我们的守护/已死"才清理；走到这里说明二次探测也没超时（timeout 已提前返回）。
+      if (rec.meta?.pid) await killWslPidAsync(cfg, rec.meta.pid);
       removeMetaFiles(cfg, rec.slot, rec.legacy);
     }
     // 2) 别的槽位的活守护：**只报告、绝不复用**（否则等于静默忽略调用方配的端口）
@@ -131,14 +195,28 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
       if (hs.ok) {
         notes.push(`另有守护在槽位 ${slot}（端口 ${hs.info.port}）—— 不属于本次配置（daemonPort=${wantSlot}），未复用、未打扰`);
       } else {
-        killWslPid(cfg, rec.meta?.pid);
+        await killWslPidAsync(cfg, rec.meta?.pid);
         removeMetaFiles(cfg, slot, rec.legacy);
         notes.push(`清理了失联的槽位 ${slot}`);
       }
     }
   } else {
-    const stopped = await stopDaemon(cfg, { log, slot: wantSlot }).catch((e) => ({ ok: false, error: e?.message }));
-    notes.push(`restart: 已停本槽位守护（${stopped?.reaped?.length ?? 0} 个运行时被回收）`);
+    const stopped: any = await stopDaemon(cfg, { log, slot: wantSlot }).catch((e) => ({ ok: false, error: e?.message ?? String(e) }));
+    if (!stopped || stopped.ok === false) {
+      // F-19（2026-10-27 审查）：旧实现不看 stop 结果就继续起新守护 —— 旧守护变孤儿、新守护 +1 迁移、
+      // 槽位元数据被覆盖，输出里还写着"已停"。restart 必须"停干净才起"。
+      return {
+        ok: false,
+        notes,
+        tried: [wantSlot],
+        mode: null,
+        warning: null,
+        error:
+          `restart 中止：旧守护没有停干净（${stopped?.error ?? '未知原因'}）。` +
+          `继续启动会留下孤儿并覆盖元数据，所以本次不启动。请稍后重试，或先执行 wsl_daemon action=stop。`,
+      };
+    }
+    notes.push(`restart: 已停本槽位守护（${stopped.reaped?.length ?? 0} 个运行时被回收）`);
   }
 
   const tries = Math.max(1, Number(cfg.daemonPortTries) || 3);
@@ -155,12 +233,55 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
       if (removeLauncher(cfg, p)) notes.push(`回收启动脚本 launch.${p}.sh（该槽位未起来，避免残留）`);
     }
   };
+  // ★ F-05（2026-10-27 审查）：启动段必须互斥。没有锁时，两个宿主（或同一轮的两次并行工具调用）会同时
+  // 判"无守护"并各自启动 —— 槽位的 token / launch 脚本 / 元数据是三份**共享文件**，后写覆盖先写；随后
+  // "无元数据 ⇒ 先收掉"的分支会杀掉对方刚起的、带着会话的健康守护。锁只覆盖"启动"这一段（复用路径不加锁，
+  // 避免把最常用路径变慢）；崩溃残留由锁自身的 mtime 判定自愈（120s 后视为陈旧）。
+  const lockSlot = wantSlot;
+  const lockWaitMs = Math.max(0, Number(cfg.daemonLockWaitMs ?? 45000));
+  const gotLock = await acquireEnsureLockWithWait(cfg, lockSlot, { waitMs: lockWaitMs, log, notes });
+  if (!gotLock) {
+    const waited = await waitForSlotReady(cfg, lockSlot, hsTimeout, Math.max(5000, Number(cfg.daemonStartTimeoutMs ?? 20000)));
+    if (waited) {
+      notes.push(`并发启动：另一个宿主已完成槽位 ${lockSlot}（端口 ${waited.hs.info.port}）⇒ 复用，未重复启动`);
+      return adopt(waited.rec, waited.hs, true);
+    }
+    return {
+      ok: false,
+      notes,
+      tried: [lockSlot],
+      mode: null,
+      warning: null,
+      error:
+        `槽位 ${lockSlot} 的启动锁被另一个宿主持有超过 ${lockWaitMs}ms，且期间没有出现可复用的守护；` +
+        `本次**未启动**（避免两个守护互相覆盖元数据/互杀）。稍后重试，或改用另一个 config.daemonPort。`,
+    };
+  }
+  let lockReleased = false;
+  /** 释放启动锁（幂等）：所有成功/失败出口都必须调用；异常路径由锁的 mtime 自愈兜底。 */
+  const releaseOnce = async () => {
+    if (lockReleased) return;
+    lockReleased = true;
+    await releaseEnsureLock(cfg, lockSlot, log);
+  };
+  // 双检（double-checked）：拿锁期间并发方可能已经起好了 —— 绝不再起第二个。
+  {
+    const recheck = readDaemonRecord(cfg, lockSlot);
+    if (recheck) {
+      const hs = await handshake(cfg, recheck.meta?.port ?? recheck.slot, recheck.token, hsTimeout);
+      if (hs.ok) {
+        notes.push(`启动锁内复核：槽位 ${lockSlot} 的守护已由并发方就绪（端口 ${hs.info.port}）⇒ 复用，未起第二个`);
+        await releaseOnce();
+        return adopt(recheck, hs, true);
+      }
+    }
+  }
   for (let i = 0; i < tries; i++) {
     const port = wantSlot + i;
     tried.push(port);
 
     // ★ A/B 修复：起之前先看这个槽位/端口上有没有**本插件自己的**守护在跑
-    const occupants = ownDaemonsOnPorts(cfg, [port]);
+    const occupants = await ownDaemonsOnPorts(cfg, [port]);
     for (const o of occupants) {
       const rec = recordForPid(cfg, o.pid);
       if (rec) {
@@ -168,11 +289,12 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
         if (hs0.ok) {
           // 身份相符的活守护 ⇒ 复用它，**绝不起第二个**
           notes.push(`槽位 ${port} 上已有身份相符的活守护 pid=${o.pid}（端口 ${hs0.info.port}）⇒ 复用，未起第二个`);
+          await releaseOnce();
           return adopt(rec, hs0, true);
         }
       }
       notes.push(`槽位 ${port} 上发现**无元数据/失联**的本插件守护 pid=${o.pid} ⇒ 先收掉再起（不留孤儿）`);
-      killWslPid(cfg, o.pid);
+      await killWslPidAsync(cfg, o.pid);
     }
     if (occupants.length) await sleep(900); // 等它退出，让端口真的空出来（否则守护会 +1 迁移）
 
@@ -180,7 +302,7 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
     // 白等满 daemonStartTimeoutMs（实测过：进程表里没有它，但文件还在 ⇒ 20s 假等）。
     const stale = readDaemonRecord(cfg, port);
     if (stale) {
-      const livePids = new Set(scanDaemonProcesses(cfg).map((p) => p.pid));
+      const livePids = new Set((await scanDaemonProcessesAsync(cfg)).map((p) => p.pid));
       if (!livePids.has(Number(stale.meta?.pid))) {
         notes.push(`清掉槽位 ${port} 的陈旧元数据（记录里的 pid ${stale.meta?.pid} 已不在进程表）`);
         removeMetaFiles(cfg, port);
@@ -213,7 +335,7 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
       if (hs.ok) {
         if (hs.info.port !== port) {
           // 守护在 WSL 侧做了 +1 迁移：必须说清楚（并在可能时指出占用者）
-          const holder = scanDaemonProcesses(cfg).filter((p) => p.port === port);
+          const holder = (await scanDaemonProcessesAsync(cfg)).filter((p) => p.port === port);
           notes.push(
             `WSL 侧端口 ${port} 已被占（${holder.length ? `占用者 pid=${holder.map((h) => h.pid).join(',')}` : '非本插件进程'}）⇒ 守护实际监听 ${hs.info.port}`,
           );
@@ -223,29 +345,35 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
         const ready = adopt({ slot: port, meta: rec.meta, token: rec.token }, hs, false);
         ready.mode = launched.mode ?? null; // 'systemd' | 'compat-detached'
         ready.warning = launched.warning ?? null; // 回退时非空字符串；主路径为 null
+        await releaseOnce();
         return ready;
       }
       if (hs.kind === 'refused') {
         // 元数据存在但守护已死（pid 不在进程表）⇒ 清掉再等新守护写自己的，别把 20s 白等在一个死 pid 上
-        const livePids = new Set(scanDaemonProcesses(cfg).map((p) => p.pid));
+        const livePids = new Set((await scanDaemonProcessesAsync(cfg)).map((p) => p.pid));
         if (!livePids.has(Number(rec.meta?.pid))) removeMetaFiles(cfg, port);
         continue;
       }
-      if (hs.kind === 'timeout' || hs.kind === 'unauthorized' || hs.kind === 'garbage') break;
+      // F-06：超时不再立刻判定失败 —— 守护可能只是慢（冷启动 / 事件循环被按住）；继续轮询到 deadline。
+      // 只有"端口被别的属主占用/应答不是我们的协议"才立刻放弃。
+      if (hs.kind === 'unauthorized' || hs.kind === 'garbage') break;
     }
     const why = hs ? `${hs.kind}（${hs.ms}ms）` : '元数据未出现';
     notes.push(`槽位 ${port} 未通过 Windows 侧就绪判据：${why}`);
     log(`slot ${port} not ready from Windows side: ${why}`);
     const rec2 = readDaemonRecord(cfg, port);
-    if (rec2?.meta?.pid) killWslPid(cfg, rec2.meta.pid);
+    if (rec2?.meta?.pid) await killWslPidAsync(cfg, rec2.meta.pid);
     // 兜底：即使元数据没写成，也按 /proc 身份扫描把这个端口上的自家守护收掉
-    for (const o of ownDaemonsOnPorts(cfg, [port])) killWslPid(cfg, o.pid);
-    if (rec2 || ownDaemonsOnPorts(cfg, [port]).length) await sleep(700);
+    const leftovers = await ownDaemonsOnPorts(cfg, [port]);
+    for (const o of leftovers) await killWslPidAsync(cfg, o.pid);
+    if (rec2 || leftovers.length) await sleep(700);
     removeMetaFiles(cfg, port);
     // ★ F-38a：该槽位没起来 ⇒ 回收**这个槽位**的启动脚本（成功路径由守护自删，语义不变）
     reclaimLaunchers([port]);
     last = `槽位 ${port} ${why}`;
   }
+
+  await releaseOnce();
 
   const tail = readDaemonLogTail(cfg, 6);
   // ★ F-38a：整轮都失败 ⇒ **兜底回收所有尝试过的槽位**的启动脚本（它们全都"没起来"，不会自删）
@@ -282,7 +410,7 @@ async function waitForSlotGone(cfg, port, pid) {
   const deadline = Date.now() + 2000;
   let survivors = [];
   for (;;) {
-    survivors = scanDaemonProcesses(cfg).filter(
+    survivors = (await scanDaemonProcessesAsync(cfg)).filter(
       (p) => (Number.isFinite(wantPid) && p.pid === wantPid) || (p.port !== null && p.port === Number(port)),
     );
     if (survivors.length === 0) return [];
@@ -318,7 +446,7 @@ export async function stopDaemon(cfg, { log = () => {}, slot, all = false }: any
     timeoutMs: Math.max(Number(cfg.daemonHandshakeTimeoutMs ?? 3000), 5000),
   });
   log(`daemon shutdown on slot ${rec.slot} (port ${port}): ok=${r.ok} ${r.error ?? ''}`);
-  if (!r.ok) killWslPid(cfg, rec.meta?.pid); // 守护已死/端口被占 ⇒ 按 pid 兜底（验身份后）
+  if (!r.ok) await killWslPidAsync(cfg, rec.meta?.pid); // 守护已死/端口被占 ⇒ 按 pid 兜底（验身份后）
 
   // ★★ P1（task-25）：**移除元数据之前**必须复核该槽位真的没有本方守护了。
   //
@@ -375,10 +503,10 @@ export async function stopAllDaemons(cfg, { log = () => {} }: any = {}) {
   for (const slot of listDaemonSlots(cfg)) stopped.push(await stopDaemon(cfg, { log, slot }));
   const legacyRec = readDaemonRecord(cfg);
   if (legacyRec?.legacy) stopped.push(await stopDaemon(cfg, { log }));
-  const found = scanDaemonProcesses(cfg);
+  const found = await scanDaemonProcessesAsync(cfg);
   const killed = [];
   for (const p of found) {
-    killWslPid(cfg, p.pid); // 内部仍按 cmdline 验身份
+    await killWslPidAsync(cfg, p.pid); // 内部仍按 cmdline 验身份
     killed.push(p);
   }
   if (killed.length) await sleep(900);
@@ -396,7 +524,7 @@ export async function stopAllDaemons(cfg, { log = () => {} }: any = {}) {
   } catch {
     /* ignore */
   }
-  const remaining = scanDaemonProcesses(cfg);
+  const remaining = await scanDaemonProcessesAsync(cfg);
   return { ok: remaining.length === 0, stopped, killed, remaining };
 }
 
@@ -411,10 +539,12 @@ export async function daemonSnapshot(cfg) {
   const records = (slots.length ? slots.map((s) => readDaemonRecord(cfg, s)) : [readDaemonRecord(cfg)]).filter(Boolean);
   const live: any[] = [];
   const dead: any[] = [];
+  const busy: any[] = [];
   const livePids = new Set<number>();
   for (const rec of records) {
+    const port = rec.meta?.port ?? rec.slot;
     const r = await callDaemon(cfg, {
-      port: rec.meta?.port ?? rec.slot,
+      port,
       token: rec.token,
       req: { op: 'status', id: 1 },
       timeoutMs: hsTimeout,
@@ -422,13 +552,25 @@ export async function daemonSnapshot(cfg) {
     if (r.msg?.ok) {
       live.push({ slot: rec.slot, legacy: rec.legacy, meta: rec.meta, token: rec.token, info: r.msg, ms: r.ms });
       if (r.msg.daemonPid) livePids.add(Number(r.msg.daemonPid));
+      continue;
+    }
+    // F-18（2026-10-27 审查）：一次 3s 的 status 超时**不等于死**。守护是单线程，provision/预热里的
+    // 同步 curl 会把它按住几十秒；旧实现据此把 pid 归进 orphans，`wsl_status` 再建议 `stop all=true`，
+    // 用户照做就杀掉带会话的健康守护。TCP 还能连上 ⇒ 进程活着，只是忙 ⇒ 单列 busy，绝不算孤儿。
+    let probe = { open: false, kind: 'skipped' };
+    if (r.kind === 'timeout' || r.kind === 'error' || r.kind === 'closed') {
+      probe = await tcpProbe(port, 800);
+    }
+    if (probe.open) {
+      busy.push({ slot: rec.slot, legacy: rec.legacy, meta: rec.meta, kind: r.kind, error: r.error, ms: r.ms });
+      if (rec.meta?.pid) livePids.add(Number(rec.meta.pid));
     } else {
       dead.push({ slot: rec.slot, legacy: rec.legacy, meta: rec.meta, kind: r.kind, error: r.error, ms: r.ms });
     }
   }
-  const procs = scanDaemonProcesses(cfg);
+  const procs = await scanDaemonProcessesAsync(cfg);
   const orphans = procs.filter((p) => !livePids.has(p.pid));
-  return { slots, records, live, dead, livePids, procs, orphans };
+  return { slots, records, live, dead, busy, livePids, procs, orphans };
 }
 
 /** 读守护状态（read-only，用于 wsl_status / wsl_daemon status；不触发启动；多守护并存 + 正确孤儿口径）。 */
@@ -436,7 +578,7 @@ export async function daemonSnapshot(cfg) {
 // ── 原 daemon-client.ts 第 1040-1068 行 ──
 export async function daemonStatus(cfg) {
   const snap = await daemonSnapshot(cfg);
-  const { orphans, slots, live, dead, records } = snap;
+  const { orphans, slots, live, dead, busy, records } = snap;
   if (live.length) {
     const first = live[0]; // listDaemonSlots 已把 cfg.daemonPort 排最前 ⇒ 优先报调用方自己槽位
     return {
@@ -448,7 +590,26 @@ export async function daemonStatus(cfg) {
       ms: first.ms,
       slots,
       live,
+      busy: snap.busy,
       orphans,
+    };
+  }
+  if (busy.length) {
+    // F-18：端口可连但没应答 ⇒ 忙，不是死。不要提示 stop all（那会杀掉带会话的守护）。
+    const first = busy[0];
+    const hsTimeout = Number(cfg.daemonHandshakeTimeoutMs ?? 3000);
+    return {
+      ok: false,
+      kind: 'busy',
+      error:
+        `守护在槽位 ${first.slot}（端口 ${first.meta?.port ?? first.slot}）**端口可连接但 ${hsTimeout}ms 内没有应答** ⇒` +
+        `判定为「忙」（单线程守护可能正在安装工具/预热），**不是死**；本次不把它算作孤儿，也不要据此执行 stop all。` +
+        `稍后重试 wsl_status 即可。`,
+      meta: first.meta,
+      slot: first.slot,
+      busy,
+      orphans,
+      live: [],
     };
   }
   if (!records.length && !orphans.length) return { ok: false, kind: 'absent', error: '没有守护元数据（守护未运行）' };

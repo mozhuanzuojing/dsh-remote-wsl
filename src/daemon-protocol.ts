@@ -8,7 +8,7 @@
  *
  * 零构建纪律：只用可擦除语法；相对导入带 `.ts`；只引 `node:` 内置与同目录相对模块。
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
@@ -170,8 +170,33 @@ export function readDaemonLogTail(cfg, lines = 8) {
 
 // ── 原 daemon-client.ts 第 150-195 行 ──
 export function scanDaemonProcesses(cfg) {
+  let stdout = '';
+  try {
+    stdout = wslRunScript(cfg, scanDaemonProcessesScript(cfg), 20000).stdout;
+  } catch {
+    return [];
+  }
+  return parseScanOutput(stdout);
+}
+
+/**
+ * 异步版的进程扫描（2026-10-27 审查 F-15）：控制面（status / stop / ensure / snapshot）原先全走
+ * `spawnSync('wsl.exe')`，单次 0.3–1s、超时 20s ⇒ **同步阻塞宿主事件循环**，表现为整个 DSH GUI 卡顿。
+ * 这里提供等价的异步实现，调用方（daemon-lifecycle 的 async 函数）应优先用它。
+ */
+export async function scanDaemonProcessesAsync(cfg) {
+  try {
+    const r = await wslRunScriptAsync(cfg, scanDaemonProcessesScript(cfg), 20000);
+    return parseScanOutput(r.stdout);
+  } catch {
+    return [];
+  }
+}
+
+/** 扫描脚本（同步/异步共用，避免两份判据漂移）。 */
+export function scanDaemonProcessesScript(cfg) {
   const state = stateDirLinux(cfg).replace(/'/g, `'\\''`);
-  const script = [
+  return [
     `S='${state}'`,
     'for d in /proc/[0-9]*; do',
     '  [ -r "$d/cmdline" ] || continue',
@@ -184,14 +209,12 @@ export function scanDaemonProcesses(cfg) {
     'done',
     'true',
   ].join('\n');
-  let stdout = '';
-  try {
-    stdout = wslRunScript(cfg, script, 20000).stdout;
-  } catch {
-    return [];
-  }
-  const out: Array<{ pid: number; port: number | null; metaPort: number | null }> = [];
-  for (const line of String(stdout).split('\n')) {
+}
+
+/** 扫描输出解析（同步/异步共用）。 */
+export function parseScanOutput(stdout) {
+  const out = [];
+  for (const line of String(stdout ?? '').split('\n')) {
     const t = line.trim();
     if (!t) continue;
     const [pid, port, metaPort] = t.split('|');
@@ -233,6 +256,145 @@ export function wslRunScript(cfg, script, timeoutMs = 20000) {
     };
   } catch (e) {
     return { ok: false, status: -1, stdout: '', stderr: e?.message ?? String(e) };
+  }
+}
+
+/**
+ * `wslRunScript` 的**异步版**（2026-10-27 审查 F-15）：控制面（status / stop / ensure / snapshot）
+ * 原先全走 `spawnSync('wsl.exe')`，单次 0.3–1s、超时 20s ⇒ 同步阻塞宿主事件循环，整个 GUI 卡顿。
+ * 语义保持一致（base64 → bash，stdout/stderr 全收）；超时按 `status: 124` 返回。
+ */
+export function wslRunScriptAsync(cfg, script, timeoutMs = 20000) {
+  const b64 = Buffer.from(script, 'utf8').toString('base64');
+  return new Promise((resolve) => {
+    let child;
+    try {
+      child = spawn('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', '-c', `echo ${b64} | base64 -d | bash`], {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (e) {
+      resolve({ ok: false, status: -1, stdout: '', stderr: e?.message ?? String(e) });
+      return;
+    }
+    const out = [];
+    const err = [];
+    let done = false;
+    const finish = (status) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve({
+        ok: status === 0,
+        status,
+        stdout: Buffer.concat(out).toString('utf8'),
+        stderr: Buffer.concat(err).toString('utf8'),
+      });
+    };
+    const timer = setTimeout(() => {
+      try {
+        child.kill();
+      } catch {
+        /* 已退出 */
+      }
+      finish(124);
+    }, timeoutMs);
+    child.stdout.on('data', (c) => out.push(c));
+    child.stderr.on('data', (c) => err.push(c));
+    child.on('error', (e) => {
+      err.push(Buffer.from(String(e?.message ?? e)));
+      finish(-1);
+    });
+    child.on('close', (code) => finish(code == null ? -1 : code));
+  });
+}
+
+/**
+ * 「端口上有没有人在听」的最小探针（2026-10-27 审查 F-18）。
+ *
+ * 判活不能只看 3s 的 status 应答：守护是单线程，provision/预热里 `spawnSync(curl)` 会把它按住
+ * 几十秒 —— 于是"忙"被当成"死"，`daemonSnapshot` 把 pid 归进 orphans，`wsl_status` 再建议
+ * `stop all=true`，用户照做就杀掉带会话的健康守护。连接能不能建立才是"进程还活着"的硬证据。
+ */
+export function tcpProbe(port, timeoutMs = 800) {
+  return new Promise((resolve) => {
+    let socket;
+    let done = false;
+    const finish = (open, kind, error) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try {
+        socket?.destroy();
+      } catch {
+        /* ignore */
+      }
+      resolve({ open, kind, error });
+    };
+    const timer = setTimeout(() => finish(false, 'timeout', `probe timeout after ${timeoutMs}ms`), timeoutMs);
+    try {
+      socket = net.connect({ host: '127.0.0.1', port });
+    } catch (e) {
+      finish(false, 'refused', e?.message ?? String(e));
+      return;
+    }
+    socket.once('connect', () => finish(true, 'open'));
+    socket.once('error', (e) => finish(false, e?.code === 'ECONNREFUSED' ? 'refused' : 'error', e?.message ?? String(e)));
+  });
+}
+
+// ── 并发启动锁（2026-10-27 审查 F-05）──────────────────────────────────────
+//
+// 为什么需要：`ensureDaemon` 没有互斥。两个宿主（或同一轮的两次并行工具调用）会同时判定
+// "槽位无守护"，然后各自启动 —— 槽位的 token / launch 脚本 / 元数据是**三份共享文件**，后写者
+// 覆盖先写者；接着"无元数据 ⇒ 先收掉"的分支会把另一个宿主刚起的、带着会话的健康守护杀掉。
+//
+// 为什么用**目录**（mkdir 原子）：EEXIST 就是原子的抢占判据，不需要额外时间戳比较；陈旧锁按
+// mtime 判定（ensure 正常耗时远小于阈值），崩溃残留能自愈。
+
+export const ensureLockLinux = (cfg, slot = cfg.daemonPort) => `${stateDirLinux(cfg)}/ensure.${slot}.lock`;
+
+/** 抢占脚本（纯构造函数，便于用 bash 单测）：成功输出 `LOCKED`，否则 `BUSY`。 */
+export function acquireEnsureLockScript(lockLinux, staleSeconds = 120) {
+  const d = `'${String(lockLinux).replace(/'/g, `'\\''`)}'`;
+  const mins = Math.max(1, Math.ceil(Number(staleSeconds) / 60));
+  return [
+    `d=${d}`,
+    'if mkdir "$d" 2>/dev/null; then',
+    '  date +%s > "$d/ts" 2>/dev/null || true',
+    '  echo LOCKED',
+    'else',
+    `  if [ -n "$(find "$d" -maxdepth 0 -mmin +${mins} 2>/dev/null)" ]; then`,
+    '    rm -rf "$d"',
+    '    if mkdir "$d" 2>/dev/null; then date +%s > "$d/ts" 2>/dev/null || true; echo LOCKED; else echo BUSY; fi',
+    '  else',
+    '    echo BUSY',
+    '  fi',
+    'fi',
+  ].join('\n');
+}
+
+/** 释放脚本（纯构造）。 */
+export function releaseEnsureLockScript(lockLinux) {
+  return `rm -rf -- '${String(lockLinux).replace(/'/g, `'\\''`)}'\ntrue`;
+}
+
+/** 尝试抢占一次（不等待）。 */
+export async function tryAcquireEnsureLock(cfg, slot, { staleSeconds = 120 } = {}) {
+  try {
+    const r = await wslRunScriptAsync(cfg, acquireEnsureLockScript(ensureLockLinux(cfg, slot), staleSeconds), 15000);
+    return /^LOCKED$/m.test(r.stdout);
+  } catch {
+    return false;
+  }
+}
+
+/** 释放锁（幂等；失败只记不抛）。 */
+export async function releaseEnsureLock(cfg, slot, log = () => {}) {
+  try {
+    await wslRunScriptAsync(cfg, releaseEnsureLockScript(ensureLockLinux(cfg, slot)), 15000);
+  } catch (e) {
+    log(`释放启动锁失败（忽略）: ${e?.message ?? String(e)}`);
   }
 }
 

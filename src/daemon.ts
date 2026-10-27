@@ -70,6 +70,15 @@ const PROXY_PORT = Number(arg('proxy-port', '9910'));
 const PROMPT_TIMEOUT_MS = Number(arg('prompt-timeout-ms', '300000'));
 const QUIET_MS = Number(arg('quiet-ms', '3000'));
 const SHELL_ENV = !flag('no-shell-env');
+/**
+ * 协议硬上限（2026-10-27 审查 F-02）：帧在**鉴权之前**就开始累积，旧实现没有上限 ⇒ 任一能连到
+ * `127.0.0.1:<port>` 的进程持续发不含换行的数据就能把守护撑到 OOM，而守护一死，它持有的
+ * detached 运行时全部变成不可达孤儿（远端会话上下文对用户就是丢的）。这里给三道上限：
+ * 单帧大小、连接数、连接空闲时长；hello 之前尤其只允许一个短帧。
+ */
+const MAX_FRAME_BYTES = Math.max(64 * 1024, Number(arg('max-frame-bytes', String(1024 * 1024))));
+const MAX_CONNS = Math.max(1, Number(arg('max-conns', '64')));
+const SOCKET_IDLE_MS = Math.max(5000, Number(arg('socket-idle-ms', '120000')));
 const STATE_DIR = arg('state-dir', path.join(HOME, '.dsh', 'remote-wsl'));
 const LAUNCHER = arg('launcher', '');
 /**
@@ -381,6 +390,50 @@ let shuttingDown = false;
 let activeConns = 0;
 let lingerTimer = null;
 
+// ── 搜索工具安装 / 代理探测（2026-10-27 审查 F-12、F-30）──────────────────────────
+//
+// F-12：安装**不能**挡在搜索请求路径上 —— host 侧只等 60s，而 GitHub API(150s)/下载(320s)/解压(120s)
+// 的上界远超它：首次搜索必然超时失败（而发行版自带的 GNU grep 本来就能用），用户重试还会再起一份安装。
+// 现在改为「先按现有后端搜、安装在后台跑」；进度经 `provision` 字段如实带回（installing=true）。
+let searchProvisionInFlight = null;
+let lastSearchProvision = null;
+function kickSearchProvision(autoInstall, proxy) {
+  if (searchProvisionInFlight) {
+    return { installing: true, ...(lastSearchProvision ?? { rg: 'installing', fd: 'installing', notes: [] }) };
+  }
+  searchProvisionInFlight = (async () => {
+    try {
+      const p = await ensureSearchTools({ autoInstall, proxy });
+      setSearchToolPaths(toolPaths());
+      lastSearchProvision = { rg: p.rg?.source ?? 'missing', fd: p.fd?.source ?? 'missing', notes: p.notes ?? [] };
+      for (const note of lastSearchProvision.notes) process.stderr.write(`[daemon] tool provision: ${note}\n`);
+    } catch (e) {
+      const msg = (e && e.message) || String(e);
+      lastSearchProvision = { rg: 'unknown', fd: 'unknown', notes: [`安装失败（本次搜索使用已有后端）：${msg}`] };
+      process.stderr.write(`[daemon] tool provision failed: ${msg}\n`);
+    } finally {
+      searchProvisionInFlight = null;
+    }
+  })();
+  return { installing: true, ...(lastSearchProvision ?? { rg: 'installing', fd: 'installing', notes: [] }) };
+}
+
+// F-30：每次搜索都重新探活代理（最多 1–2s）没有意义 —— 结果带 TTL 缓存。
+let proxyCacheForSearch = null;
+async function proxyForSearch() {
+  const ttlMs = 60000;
+  if (proxyCacheForSearch && Date.now() - proxyCacheForSearch.at < ttlMs) return proxyCacheForSearch.host;
+  let host = null;
+  try {
+    const resolved = await resolveProxyHost(PROXY_PORT);
+    if (resolved.host) host = `http://${resolved.host}:${PROXY_PORT}`;
+  } catch {
+    /* 探活失败 ⇒ 直连（与旧行为一致） */
+  }
+  proxyCacheForSearch = { at: Date.now(), host };
+  return host;
+}
+
 /** 有客户端连着 / 还有 key ⇒ 取消闸门；两者都空才重新计时。 */
 function clearLinger() {
   if (lingerTimer) clearTimeout(lingerTimer);
@@ -405,6 +458,13 @@ async function reapAllAndExit(reason) {
   if (shuttingDown) return [];
   shuttingDown = true;
   clearLinger();
+  // F-04（2026-10-27 审查）：收尾必须有**总时限** —— 多个运行时串行 close 可能超过 systemd 的
+  // TimeoutStopSec，那时会被 SIGKILL 且什么都不清（元数据/令牌/运行时全留下）。20s 后强制退出，
+  // 并在日志里留证；元数据保留 ⇒ 残留仍可被下一次 status/stop 发现。
+  setTimeout(() => {
+    log(`${reason} ⇒ 收尾超过 20s，强制退出（残留仍可被发现）`);
+    process.exit(1);
+  }, 20_000).unref?.();
   const reaped = publicKeys();
   log(`${reason} ⇒ 回收全部运行时并退出（${reaped.length} 个 key）`);
   for (const e of keys.values()) {
@@ -459,9 +519,19 @@ function getEntry(key, cwd) {
 
 function armIdle(entry) {
   if (entry.idleTimer) clearTimeout(entry.idleTimer);
+  entry.idleTimer = null;
   if (!(IDLE_MS > 0)) return;
   entry.idleTimer = setTimeout(async () => {
+    entry.idleTimer = null;
     if (shuttingDown || !keys.has(entry.id)) return;
+    // F-07（2026-10-27 审查）：正在跑的轮次或还有排队 ⇒ **重新计时**，绝不回收在跑的运行时。
+    // 旧实现只在 pump 的 finally 里重置定时器，于是「上一轮结束后 29 分钟时开始新一轮」会在
+    // 30 分钟边界被回收 —— 调用方拿到 retryable、上下文丢失，而 README 只写了"到期回收"。
+    if (entry.running || entry.queue.length > 0) {
+      log(`key=${entry.key} cwd=${entry.cwd} 空闲到期但仍有在跑/排队的轮次 ⇒ 延后回收`);
+      armIdle(entry);
+      return;
+    }
     const rt = entry.runtime;
     keys.delete(entry.id);
     log(`key=${entry.key} cwd=${entry.cwd} 空闲 ${IDLE_MS}ms ⇒ 回收运行时（上下文随之丢失）`);
@@ -496,6 +566,12 @@ async function ensureRuntime(entry) {
 
 /** 同一 key 的并发 prompt：**FIFO 串行**，等待位超过上限就明确拒绝（SDK 无 cancel，不许变长尾）。 */
 function enqueuePrompt(entry, text) {
+  // F-07（2026-10-27 审查）：新请求到达 ⇒ 立刻取消 idle 计时（否则可能在轮次进行中触发回收）。
+  if (entry.idleTimer) {
+    clearTimeout(entry.idleTimer);
+    entry.idleTimer = null;
+  }
+  entry.lastUsedAt = Date.now();
   if (entry.queue.length >= QUEUE_LIMIT) {
     return Promise.resolve({
       ok: false,
@@ -635,21 +711,10 @@ async function handle(req) {
   // 并把原因/手动安装命令带给调用方（不许静默降级）。
   if (op === 'search') {
     try {
-      const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
-      const provision = await ensureSearchTools({
-        autoInstall: req?.autoInstall !== false,
-        proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null,
-      });
-      setSearchToolPaths(toolPaths());
+      // F-12（2026-10-27 审查）：安装不再阻塞本次搜索 —— 先用现有后端返回结果，安装在后台进行。
+      const provision = kickSearchProvision(req?.autoInstall !== false, await proxyForSearch());
       const result = await handleSearchOp(req);
-      return {
-        ok: true,
-        id,
-        result: {
-          ...result,
-          provision: { rg: provision.rg?.source ?? 'missing', fd: provision.fd?.source ?? 'missing', notes: provision.notes ?? [] },
-        },
-      };
+      return { ok: true, id, result: { ...result, provision } };
     } catch (e) {
       return { ok: false, id, code: (e && e.code) || 'FS_IO_ERROR', error: (e && e.message) || String(e) };
     }
@@ -669,6 +734,11 @@ async function handle(req) {
 
 const server = net.createServer((socket) => {
   socket.setEncoding('utf8');
+  // 连接级兜底（F-02）：半开连接不能永久占 fd，也不能永久阻止寿命闸门。
+  socket.setTimeout(SOCKET_IDLE_MS, () => {
+    log(`连接空闲 ${SOCKET_IDLE_MS}ms ⇒ 断开（实际使用不会这么久）`);
+    socket.destroy();
+  });
   // 有客户端连着 ⇒ 寿命闸门不计时（正在用的守护绝不自己退出）
   activeConns += 1;
   clearLinger();
@@ -682,6 +752,7 @@ const server = net.createServer((socket) => {
   socket.on('close', release);
   let buf = '';
   let authed = false;
+  let rejected = false; // 已判定拒绝（超大帧/鉴权失败）⇒ 后续数据直接丢弃，不再尝试写回
   let peer = 'unknown';
   const write = (obj) => {
     if (socket.destroyed) return;
@@ -692,7 +763,17 @@ const server = net.createServer((socket) => {
     }
   };
   socket.on('data', (chunk) => {
+    if (rejected) return;
     buf += chunk;
+    // F-02：鉴权之前就开始累积 ⇒ 必须在累积当下判定上限（拿不到换行符也要能拒绝）。
+    if (buf.length > MAX_FRAME_BYTES) {
+      rejected = true;
+      buf = '';
+      log(`拒绝超大帧（已收 ${chunk.length}B 追加后超 ${MAX_FRAME_BYTES}B，authed=${authed}）⇒ 断开`);
+      write({ ok: false, error: `frame too large (>${MAX_FRAME_BYTES} bytes)` });
+      socket.end();
+      return;
+    }
     let nl;
     while ((nl = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, nl).trim();
@@ -708,12 +789,14 @@ const server = net.createServer((socket) => {
       if (!authed) {
         // 第一帧必须是 hello + 正确 token —— 本机任意进程都不能偷 prompt/shutdown
         if (req?.op !== 'hello') {
+          rejected = true;
           log(`拒绝未握手连接（op=${String(req?.op)}）`);
           write({ ok: false, error: 'hello required as first frame' });
           socket.end();
           return;
         }
         if (req.token !== token) {
+          rejected = true;
           log('拒绝 token 不符的连接');
           write({ ok: false, error: 'unauthorized' });
           socket.end();
@@ -744,6 +827,10 @@ const server = net.createServer((socket) => {
   socket.on('end', () => log(`客户端断开（运行时保持存活）peer=${peer}`));
   socket.on('error', (e) => log(`socket 错误: ${e.message}`));
 });
+
+// F-02：连接数上限（超出由 Node 直接丢弃，不进入上面的 handler）。
+server.maxConnections = MAX_CONNS;
+server.on('drop', (data) => log(`连接数已达上限 ${MAX_CONNS} ⇒ 丢弃新连接（${JSON.stringify(data).slice(0, 160)}）`));
 
 let PORT = PORT_REQ;
 
@@ -810,9 +897,21 @@ async function main() {
   }
 }
 
+/**
+ * F-04（2026-10-27 审查）：第二次信号**不再**"立即 `return []` 然后 `process.exit(0)`" ——
+ * 那会跳过 `rt.close()` 与 `cleanupFiles()`，把 detached 运行时变成永久孤儿（不在 /proc 身份扫描
+ * 口径内、继续占模型配额），元数据/令牌也残留。现在：第一次信号走完整清理；第二次只增加一个
+ * 10s 的强制退出兜底，清理照旧进行（有界，不会无限挂住）。
+ */
+let shutdownPromise = null;
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
-    void reapAllAndExit(`收到 ${sig}`).then(() => process.exit(0));
+    if (shutdownPromise) {
+      log(`收到 ${sig}（第 2 次）：收尾仍在进行 —— 保留清理，10s 后仍未退出才硬退`);
+      setTimeout(() => process.exit(1), 10_000).unref?.();
+      return;
+    }
+    shutdownPromise = reapAllAndExit(`收到 ${sig}`);
   });
 }
 

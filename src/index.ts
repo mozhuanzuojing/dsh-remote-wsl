@@ -173,33 +173,59 @@ export function apply(ctx, rawConfig = {}) {
   /**
    * 确保"Windows 侧真实可达"的守护存在（幂等：已有就复用，绝不每次调用都起一个）。
    * 就绪判据来自 daemon-client 的 hello+token —— 守护自己打印的 `listening` 不算数（缺陷 #11）。
+   *
+   * F-05（2026-10-27 审查）：**同进程内必须单飞**。旧实现每次工具调用都直接 `await ensureDaemon`，
+   * 同一轮的两个并行调用会同时进入"没有守护 ⇒ 启动"分支、各自起一个（跨进程那侧由
+   * daemon-lifecycle 的启动锁兜住）。`restart` 不走单飞：先等在飞的那次结束，再显式重启。
    */
+  let ensureInFlight: Promise<any> | null = null;
   async function ensureDaemonReady({ restart = false } = {}) {
-    if (!version.version) {
-      throw new Error('remote-wsl: 无法确定 dsh 版本（桌面 runtime.json 不可读且未配 dshVersion）');
+    if (restart) {
+      const prior = ensureInFlight;
+      ensureInFlight = null;
+      if (prior) {
+        try {
+          await prior;
+        } catch {
+          /* 旧的那次失败与本次 restart 无关 */
+        }
+      }
+    } else if (ensureInFlight) {
+      return ensureInFlight;
     }
-    warmInBackground(version); // 漂移时后台预热，不阻塞本次启动
-    const r = await ensureDaemon(config, { version: version.version, restart, log: logDaemon });
-    daemonState.notes = r.notes ?? [];
-    if (daemonState.notes.some((n) => /未通过|影子|占用|被拒|超时/.test(n))) daemonState.collisions = daemonState.notes;
-    // task-22：上游 `r.error` 在组合条件下已含 `remote-wsl:`（落在句中）⇒ 用 `withModulePrefix` 守卫，
-    // 不再无条件拼前缀（否则会得到两份 `remote-wsl:`）。非标记文案仍会被补上恰好一份。
-    if (!r.ok) throw new Error(withModulePrefix(r.error));
-    daemonState.info = r.info;
-    daemonState.port = r.port;
-    return r;
+    const run = (async () => {
+      if (!version.version) {
+        throw new Error('remote-wsl: 无法确定 dsh 版本（桌面 runtime.json 不可读且未配 dshVersion）');
+      }
+      warmInBackground(version); // 漂移时后台预热，不阻塞本次启动
+      const r = await ensureDaemon(config, { version: version.version, restart, log: logDaemon });
+      daemonState.notes = r.notes ?? [];
+      if (daemonState.notes.some((n) => /未通过|影子|占用|被拒|超时/.test(n))) daemonState.collisions = daemonState.notes;
+      // task-22：上游 `r.error` 在组合条件下已含 `remote-wsl:`（落在句中）⇒ 用 `withModulePrefix` 守卫，
+      // 不再无条件拼前缀（否则会得到两份 `remote-wsl:`）。非标记文案仍会被补上恰好一份。
+      if (!r.ok) throw new Error(withModulePrefix(r.error));
+      daemonState.info = r.info;
+      daemonState.port = r.port;
+      return r;
+    })();
+    ensureInFlight = run;
+    try {
+      return await run;
+    } finally {
+      if (ensureInFlight === run) ensureInFlight = null;
+    }
   }
 
   /**
    * 传输层失败（守护不在 / 半死不活）—— 与"op 返回 ok:false"必须分开：
    * 后者运行时还活着，语义 #6 明令**不许**重启（重启 = 换 sessionId = 毁上下文）。
+   *
+   * F-10（2026-10-27 审查）：`timeout` **不算**传输失败。请求可能已经送达并在守护里跑（单轮上限
+   * 300s、排队更久），此时"自动重发同一个 prompt"会**重复执行**同一个有副作用的操作，而守护
+   * 没有幂等键。只有"连不上 / 连接在拿到应答前就断了"才重试一次（此时请求大概率没被处理）。
    */
   function isTransportFailure(r: { ok?: boolean; queueFull?: boolean; kind?: string }) {
-    return (
-      !r?.ok &&
-      !r?.queueFull &&
-      (r?.kind === 'refused' || r?.kind === 'closed' || r?.kind === 'error' || r?.kind === 'timeout')
-    );
+    return !r?.ok && !r?.queueFull && (r?.kind === 'refused' || r?.kind === 'closed');
   }
 
   /**
@@ -261,7 +287,7 @@ export function apply(ctx, rawConfig = {}) {
 
   registerTools({
     ctx, config, version, resolveVersion, daemonState, logDaemon, machineLine, ensureDaemonReady,
-    isTransportFailure, priorSessionFor, listDistros, getRuntime: inHost.getRuntime, runtimes, webHosts,
+    isTransportFailure, priorSessionFor, listDistros, listDistrosAsync, getRuntime: inHost.getRuntime, runtimes, webHosts,
     ensureSwept, warmInBackground, lifecycle,
   });
 

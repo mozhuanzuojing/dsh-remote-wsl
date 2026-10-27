@@ -10,7 +10,7 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, closeSync, mkdirSync, openSync, rmSync, statSync, truncateSync } from 'node:fs';
-import { daemonScriptWsl, launchLinux, stateDirLinux, unc, wslRunScript } from './daemon-protocol.ts';
+import { daemonScriptWsl, launchLinux, stateDirLinux, unc, wslRunScript, wslRunScriptAsync } from './daemon-protocol.ts';
 
 // ── 原 daemon-client.ts 第 319-328 行 ──
 export function killWslPid(cfg, pid) {
@@ -20,6 +20,19 @@ export function killWslPid(cfg, pid) {
     `if [ -r /proc/${p}/cmdline ] && tr '\\0' ' ' < /proc/${p}/cmdline | grep -q 'daemon\\.ts'; then ` +
     `kill -TERM ${p} 2>/dev/null || true; fi`;
   wslRunScript(cfg, script, 10000);
+}
+
+/**
+ * `killWslPid` 的异步版（2026-10-27 审查 F-15）：控制面不再同步阻塞宿主事件循环。
+ * 身份判据保持一致（cmdline 里必须有 `daemon.ts`；见 F-09 的说明，`ensure` 路径也只用它兜底）。
+ */
+export async function killWslPidAsync(cfg, pid) {
+  if (!Number.isFinite(Number(pid))) return;
+  const p = Number(pid);
+  const script =
+    `if [ -r /proc/${p}/cmdline ] && tr '\\0' ' ' < /proc/${p}/cmdline | grep -q 'daemon\\.ts'; then ` +
+    `kill -TERM ${p} 2>/dev/null || true; fi`;
+  await wslRunScriptAsync(cfg, script, 10000);
 }
 
 /** 启动脚本（落 state 目录，0600；守护起来后会自己删掉）——绝不落 /tmp。 */

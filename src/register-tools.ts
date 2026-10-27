@@ -235,8 +235,20 @@ export function openAppWindow(url) {
 export function registerTools(deps) {
   const {
     ctx, config, version, resolveVersion, daemonState, logDaemon, machineLine, ensureDaemonReady,
-    isTransportFailure, priorSessionFor, listDistros, getRuntime, runtimes, webHosts, ensureSwept, warmInBackground,
+    isTransportFailure, priorSessionFor, listDistros, listDistrosAsync, getRuntime, runtimes, webHosts, ensureSwept, warmInBackground,
   } = deps;
+
+  /**
+   * 插件自身版本（2026-10-27 审查 F-42）：`wsl_status` 必须能回答"装的是哪一版" —— 否则升级后
+   * 行为变化无法定位到提交。版本取自本仓 package.json（`link:` 安装时就是工作树那一份）。
+   */
+  const PLUGIN_VERSION = (() => {
+    try {
+      return String(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))?.version ?? 'unknown');
+    } catch {
+      return 'unknown';
+    }
+  })();
 
   ctx.inject(['tools'], (toolsCtx) => {
     const tools = toolsCtx.get('tools');
@@ -249,7 +261,10 @@ export function registerTools(deps) {
       parameters: { type: 'object', properties: {} },
       output: { schema: { type: 'string' }, render: renderText },
       execute: async (_args, exec) => {
-        const distros = listDistros();
+        // F-15（2026-10-27 审查）：状态查询不再用同步 spawnSync（会阻塞宿主事件循环）；异步版失败
+        // 时返回空数组，这里如实标成「读不到」而不是"没有发行版"。
+        const distros = listDistrosAsync ? await listDistrosAsync() : listDistros();
+        const distrosReadFailed = Array.isArray(distros) && distros.length === 0;
         const v = resolveVersion(config);
         // 孤儿运行时诊断（只数，不杀；真正的清理在首次有副作用的调用上做）。
         // F4：**不走内联 `wsl.exe … -- bash -lc "<串>"`** —— 那条路不是 argv-exec，串会先经过发行版的
@@ -345,6 +360,10 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
               `守护持有的 dsh@${info.version} 与 ${bad.map((b) => b.label).join(' / ')} 不一致 —— ` +
               `不自动重启（避免无声中断正在进行的会话）；要换版本请显式执行 wsl_daemon action=restart（配合 backgroundWarm 很快）`;
           }
+        } else if (dstat.kind === 'busy') {
+          // F-18（2026-10-27 审查）：端口可连但 3s 内没应答 ⇒ 「忙」，不是「死」。绝不能提示 stop all，
+          // 那会杀掉带会话的健康守护（守护是单线程，安装工具/预热时会长时间不应答）。
+          daemonLine = `busy（端口可连接但 ${config.daemonHandshakeTimeoutMs}ms 内没有应答；可能正在安装工具/预热）—— **不是死**，稍后重试即可；不要据此执行 stop all`;
         } else {
           daemonLine = `not running（${dstat.kind}: ${dstat.error}）`;
         }
@@ -362,7 +381,8 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
                   ? '注册中'
                   : '未初始化（插件未加载？）';
         return [
-          `distros: ${distros.join(', ') || '(none)'}`,
+          `plugin: dsh-remote-wsl@${PLUGIN_VERSION}（版本 = 本仓 package.json；升级/回滚见 README）`,
+          `distros: ${distros.join(', ') || (distrosReadFailed ? '(读不到：wsl.exe -l -q 失败，不等于“没有发行版”)' : '(none)')}`,
           `target: ${config.distro}  wslHome=${config.wslHome}  cwd=${config.cwd}`,
           `wsl ip: ${ip}`,
           `shell env injection (useShellEnvironment): ${config.useShellEnvironment === false ? 'off' : 'on'}（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）`,
@@ -532,6 +552,13 @@ ${command}
             : '';
 
         if (!last?.ok) {
+          // F-10（2026-10-27 审查）：超时**不自动重发** —— 请求可能已经送达并在守护里继续执行，
+          // 重发会让同一个有副作用的操作跑两遍（守护无幂等键）。如实告知，让调用方先核实再决定。
+          if (last?.kind === 'timeout') {
+            return `${resetNotice}${cwdNotice}[remote-wsl: 本轮**没有拿到结果**（守护在 ${config.timeoutMs}ms 内未回包）。` +
+              `请求可能已经送达并仍在守护里执行 —— **未自动重发**（避免同一个有副作用的操作被执行两遍）。` +
+              `请先确认远端是否已经产生效果（文件/命令输出），再决定是否重试。]`;
+          }
           // 语义 #6：守护形态下**不换运行时**（换了就毁上下文），如实回报可重试
           const why = last?.queueFull ? '并发超出队列上限' : last?.retryable ? '本轮没有产出正文' : '本轮失败';
           return `${resetNotice}${cwdNotice}[remote-wsl: ${why}；运行时保持不动，可直接重试 retryable=${last?.retryable === true}] ${last?.error ?? '(no error)'}`;
@@ -584,6 +611,17 @@ ${command}
           const ks0: any[] = Array.isArray(info0.keys) ? info0.keys : [];
           const orphans0: any[] = Array.isArray(s.orphans) ? s.orphans : [];
           if (!s.ok) {
+            // F-18：`busy` 是「端口可连但没应答」，与「没在跑」必须分开 —— 前者的正确动作是"稍后重试"，
+            // 而不是 stop all（那会杀掉带会话的守护）。
+            const busyList: any[] = Array.isArray(s.busy) ? s.busy : [];
+            if (s.kind === 'busy') {
+              return [
+                `daemon: busy（${busyList.map((b) => `slot=${b.slot} port=${b.meta?.port ?? b.slot} pid=${b.meta?.pid ?? '?'}`).join(', ') || '端口可连接'}）`,
+                machineLine({ extra: `busy=${busyList.length} orphans=${orphans0.length}` }),
+                `含义: 守护进程活着、端口可连接，但 ${config.daemonHandshakeTimeoutMs}ms 内没有应答（单线程守护可能正在安装工具/预热）。**不是死**，不要执行 stop all；稍后重试 wsl_status 即可。`,
+                `state dir (WSL): ${stateDirLinux(config)}（元数据按槽位 daemon.<slot>.json / daemon.<slot>.token，0600）`,
+              ].join('\n');
+            }
             return [
               `daemon: not running（${s.kind}: ${s.error}）`,
               machineLine({ extra: `orphans=${orphans0.length}` }),
