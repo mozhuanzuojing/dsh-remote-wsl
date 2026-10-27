@@ -27,6 +27,7 @@ import { buildGatewayShellLines, buildProxyEnvBlock } from './wsl-proxy.ts';
 import { desktopRuntimeCandidates, pickDesktopVersion } from './version.ts';
 import { stateDirLinux, unc } from './daemon-client.ts';
 import { activeLifecycle } from './lifecycle.ts';
+import { killIfOwnedScript, shq } from './shell-quote.ts';
 
 /**
  * **最后兜底**候选：老实现写死的那个用户路径。
@@ -46,6 +47,7 @@ export const renderText = (_args, value) => [{ type: 'text', text: String(value 
 // 只靠探针断言行为一致 —— 那是重复实现）。这里 import 供本模块使用，并 re-export 保持导出面不变。
 
 import { WSL_EXEC_MAX_BUFFER, decodeWslOutput, normalizeWslOutput, readWslOutput } from './wsl-output.ts';
+
 export { WSL_EXEC_MAX_BUFFER, decodeWslOutput, normalizeWslOutput, readWslOutput };
 
 /**
@@ -124,15 +126,18 @@ export async function reapWsl(cfg, scriptLinux) {
   if (!scriptLinux) return;
   try {
     const pidFile = scriptLinux.replace(/\.sh$/, '.pid');
+    // 2026-10-27 审查 F-09：pid 是从文件读回来的，可能已被复用（运行时就绪前就崩溃/重启过）。
+    // 判据与 `sweepStaleRuntimes` 同源（`killIfOwnedScript`）：环境里的唯一标记优先，旧脚本退回
+    // 「cmdline 含 @deepseek-ai/dsh」；两者都不符就**只删残留文件、绝不发信号**。
+    const mark = String(scriptLinux).replace(/^.*\//, '').replace(/\.sh$/, '');
     await runWsl(
       cfg,
-      `if [ -f ${pidFile} ]; then
-  PID=$(cat ${pidFile} 2>/dev/null || true)
+      `if [ -f ${shq(pidFile)} ]; then
+  PID=$(cat ${shq(pidFile)} 2>/dev/null || true)
   if [ -n "\${PID:-}" ]; then
-    pkill -TERM -P "$PID" 2>/dev/null || true
-    kill -TERM "$PID" 2>/dev/null || true
+${killIfOwnedScript('$PID', mark)}
   fi
-  rm -f ${pidFile}
+  rm -f ${shq(pidFile)}
 fi
 true
 `,

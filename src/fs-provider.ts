@@ -118,6 +118,38 @@ export function createWslRpc(rawConfig = {}) {
 }
 
 /**
+ * 把路径解析成真实路径：`realpath` 对**不存在的叶子**会 ENOENT，此时向上找**最近已存在的祖先**
+ * 再把缺失的后缀拼回去。
+ *
+ * 为什么必须这样（P0，2026-10-27 审查 F-01）：沙箱围栏比较的是真实路径，而**新建文件的叶子必然
+ * 不存在**。旧实现此刻回退到未解析路径 ⇒ 一个指向工作区外的目录符号链接就能把写入带出围栏。
+ * 上游 `dsh-fs-local` 的 `resolveLocalTarget()` 正是「realpath 最近已存在祖先 + 拼接缺失后缀」。
+ *
+ * @param linuxPath 绝对 Linux 路径（调用方已 normalize）
+ * @param realpathOf 返回真实路径；`null` 表示不存在（ENOENT）。其它错误应**抛出**（fail-closed）
+ * @returns 真实路径（可能含不存在的后缀）；`null` = 连 `/` 都解析不出（调用方必须按失败处理）
+ */
+export async function resolveDeepestAncestor(linuxPath, realpathOf) {
+  const raw = String(linuxPath ?? '');
+  if (!raw.startsWith('/')) return raw;
+  const segments = raw.split('/').filter((s) => s.length > 0);
+  const suffix = [];
+  let current = `/${segments.join('/')}`;
+  for (;;) {
+    const real = await realpathOf(current);
+    if (real) {
+      const base = String(real).replace(/\/+$/, '');
+      if (!suffix.length) return base || '/';
+      return `${base}/${suffix.join('/')}`;
+    }
+    const cut = current.lastIndexOf('/');
+    if (cut <= 0) return null; // 连 `/` 都解析不出来 ⇒ 围栏无法验证，调用方必须失败（绝不静默放行）
+    suffix.unshift(current.slice(cut + 1));
+    current = cut === 0 ? '/' : current.slice(0, cut);
+  }
+}
+
+/**
  * 造一个 WSL 执行世界的 FileSystem 实现（**普通对象**：不 import `@deepseek-ai/dsh-fs`，
  * 因为本插件以 `link:` 安装，拿不到宿主包的解析路径 —— 见 README「零运行时依赖」）。
  *
@@ -156,17 +188,36 @@ export function createWslFileSystem(rawConfig = {}) {
     return { targetKey: linuxPath, displayPath: linuxPath };
   };
 
-  /** 沙箱围栏：把 host 的 writable roots 映射到发行版内，再比真实路径（防符号链接逃逸）。 */
+  /**
+   * 沙箱围栏：把 host 的 writable roots 映射到发行版内，再比**真实路径**（防符号链接逃逸）。
+   *
+   * P0 修复（2026-10-27 审查 F-01）：`realpath` 对**不存在的叶子**必然 ENOENT，旧实现在此刻
+   * 回退到**未解析路径** ⇒「工作区内有指向外部的目录符号链接 + 写该链接下的新文件」时词法前缀
+   * 通过、实际写到工作区外（fail-open）。现改为「realpath 最近存在的祖先 + 拼接缺失后缀」
+   * （与上游 `dsh-fs-local` 的 `resolveLocalTarget()` 同义），并且**不再吞异常**：传输/权限错误
+   * 必须让写入失败，不允许静默按词法放行。
+   */
   const canonical = async (linuxPath) => {
-    const r = await call('realpath', { path: linuxPath }).catch(() => null);
-    return r?.realpath ?? linuxPath;
+    const resolved = await resolveDeepestAncestor(linuxPath, async (p) => {
+      const r = await call('realpath', { path: p });
+      return r?.realpath ?? null; // ENOENT（realpathOp 已映射成 realpath:null）⇒ 继续向父目录找
+    });
+    if (resolved === null) {
+      // fail-closed：围栏无法验证真实路径时，宁可直接拒绝写，也不按词法放行（P0 F-01）。
+      throw fsErr(`cannot resolve "${linuxPath}" against the WSL filesystem: sandbox fence cannot be verified`, 'FS_IO_ERROR');
+    }
+    return resolved;
   };
+  /**
+   * 校验可写并返回**应当写入的路径**（解析后的真实路径）；不围栏时返回 `null`（调用方用原始路径）。
+   * P0 修复（F-01）：检查的 identity 必须就是被修改的 identity（check-here-write-there 同源）。
+   */
   const assertWritable = async (targetKey, policy) => {
-    if (!policy || typeof policy.mode !== 'string') return; // 部署没有策略服务：与宿主一致，不围栏
+    if (!policy || typeof policy.mode !== 'string') return null; // 部署没有策略服务：与宿主一致，不围栏
     if (policy.mode === 'read-only') {
       throw fsErr(`cannot write "${targetKey}": read-only sandbox mode`, 'FS_SANDBOX_DENIED');
     }
-    if (policy.mode !== 'workspace-write') return;
+    if (policy.mode !== 'workspace-write') return null;
     const roots = [];
     if (typeof policy.workspaceRoot === 'string' && policy.workspaceRoot.length > 0) {
       const unc = parseUnc(policy.workspaceRoot);
@@ -177,7 +228,7 @@ export function createWslFileSystem(rawConfig = {}) {
     const realTarget = await canonical(targetKey);
     for (const root of roots) {
       const realRoot = await canonical(root);
-      if (realTarget === realRoot || realTarget.startsWith(realRoot.endsWith('/') ? realRoot : `${realRoot}/`)) return;
+      if (realTarget === realRoot || realTarget.startsWith(realRoot.endsWith('/') ? realRoot : `${realRoot}/`)) return realTarget;
     }
     throw fsErr(`cannot write "${targetKey}": outside the writable workspace roots`, 'FS_SANDBOX_DENIED');
   };
@@ -323,21 +374,22 @@ export function createWslFileSystem(rawConfig = {}) {
     },
 
     async writeText(target, content, expected, signal, sandboxPolicy) {
-      await assertWritable(target.targetKey, sandboxPolicy);
+      // P0（F-01）：围栏检查与写入使用**同一个**解析后路径（别名/符号链接不再有机会换目标）。
+      const writePath = (await assertWritable(target.targetKey, sandboxPolicy)) ?? target.targetKey;
       const r = await call(
         'writeText',
-        { path: target.targetKey, content, expected: expected ? { kind: expected.kind, version: expected.version } : null },
+        { path: writePath, content, expected: expected ? { kind: expected.kind, version: expected.version } : null },
         signal,
       );
       return { operation: r.operation, version: r.version, before: null, after: String(content) };
     },
 
     async editText(target, edit, expected, signal, sandboxPolicy) {
-      await assertWritable(target.targetKey, sandboxPolicy);
+      const writePath = (await assertWritable(target.targetKey, sandboxPolicy)) ?? target.targetKey;
       const r = await call(
         'editText',
         {
-          path: target.targetKey,
+          path: writePath,
           oldString: edit?.oldString,
           newString: edit?.newString,
           replaceAll: edit?.replaceAll === true,

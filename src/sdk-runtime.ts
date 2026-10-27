@@ -34,6 +34,7 @@
  */
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { cdPreamble, shq } from './shell-quote.ts';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -48,8 +49,13 @@ export const ALLOW_BUILDS = [
 
 export const allowBuildFlags = () => ALLOW_BUILDS.map((p) => `--allow-build=${p}`).join(' ');
 
-/** 单引号转义，供 `bash -c` 里安全内联路径。 */
-export const shq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+/**
+ * 单引号转义，供 `bash -c` 里安全内联路径。
+ *
+ * 2026-10-27 审查 F-08：实现移到 `shell-quote.ts`（与 `cdPreamble`/`killIfOwnedScript` 同源），
+ * 这里保留同名 re-export，既有 import（in-host-runtime / register-tools）不用改。
+ */
+export { shq };
 
 /** 从 `assistant/message` 事件里取纯文本（reasoning 块必须丢掉，否则答案里会混思维链）。 */
 export function textOfAssistantEvent(ev) {
@@ -194,7 +200,8 @@ export class SdkRuntime {
   /** 守护形态的内置启动脚本（宿主形态由 adapter.scriptFor 提供）。 */
   #defaultScript() {
     return [
-      `cd ${shq(this.cwd)} || { echo "remote-wsl: cwd 不存在: ${this.cwd}" >&2; exit 2; }`,
+      // 2026-10-27 审查 F-08：cwd 走 cdPreamble（单引号转义 + 失败立即 exit 2，不再裸插值）。
+      cdPreamble(this.cwd),
       `exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version} --profile ${this.profile}`,
       '',
     ].join('\n');

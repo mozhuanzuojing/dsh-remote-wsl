@@ -195,7 +195,9 @@ if (cmd === 'stop') {
   }
   const r: any = await stopDaemon(cfg, { log });
   say('# stopDaemon:', JSON.stringify(r));
-  process.exit(0);
+  // 2026-10-27 审查 F-20：stopDaemon 在「守护仍在」时会返回 ok:false + alivePids（并保留元数据）。
+  // 这里以前恒 exit 0 ⇒ 验收输出「停止通过」不可信。按真实结果退出。
+  process.exit(r.ok ? 0 : 1);
 }
 
 if (cmd === 'race') {

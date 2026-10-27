@@ -24,6 +24,7 @@ import { presetStatus } from './preset.ts';
 // 从 index.ts 拆到本文件时**漏了这一行 import** ⇒ 零构建 TS **import 期不报错**，真调 `wsl_open_ui`
 // 的启动路径才抛 `ReferenceError: allowBuildFlags is not defined`（同型第三次：T3 的 `spawn`、T5 的 `wsl-io.ts`）。
 import { allowBuildFlags } from './sdk-runtime.ts';
+import { cdPreamble, killIfOwnedScript, shq } from './shell-quote.ts';
 // T47：`reapWsl` 是 `WebHost.stop()` 用的（杀包装层后必须收回 WSL 侧的 `dsh web`，否则它变孤儿继续占端口）。
 // 与上一行同型：T5 拆分时漏了 import，`{stop:true}` 真调（**已起过一个 web host** 之后）才炸 ReferenceError。
 import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble, writeScript, removeScript, reapWsl, sleep, renderText, resolveVersion, readPin, writePin } from './wsl-io.ts';
@@ -50,8 +51,12 @@ export class WebHost {
     if (this.child) await this.#discardFailedAttempt();
     if (this.lifecycle) this.lifecycle.assertAlive(); // 关停开始后拒绝起新 web host
     // 同 SdkRuntime：常驻进程才注入登录 shell 环境
-    const script = `${shellPreamble(this.cfg, { withShellEnv: true })}cd "${this.cfg.wslHome}" || exit 2
+    // 2026-10-27 审查 F-09：写唯一的 `DSH_RWSL_MARK`（= 脚本基名，带随机后缀），供 `reapWsl` /
+    // `sweepStaleRuntimes` 在发信号之前核对「这个 pid 确实是本插件起的那个进程」，避免 pid 复用误杀。
+    // cwd 走 shq：配置值也不裸插值（纵深防御）。
+    const script = `${shellPreamble(this.cfg, { withShellEnv: true })}${cdPreamble(this.cfg.wslHome)}
 echo $$ > "\${0%.sh}.pid"
+export DSH_RWSL_MARK="$(basename "\${0%.sh}" .sh)"
 exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${this.version} web --port ${this.cfg.webPort} --no-open
 `;
     this.script = writeScript(this.cfg.distro, script);
@@ -191,12 +196,18 @@ true
     f.winPid === process.pid ? !alive.has(f.linuxPid) : !hostAlive(f.winPid),
   );
   if (!stale.length) return 0;
+  // 身份闸（2026-10-27 审查 F-09）：pid 可能已被复用（宿主崩溃 + WSL 重启/长时间运行），旧实现
+  // 直接 `kill -TERM <pid>` 并连带 `pkill -P`（还完全不引号）⇒ 会误杀无关进程，文件名还能注入命令。
+  // 现在：① 先核对进程环境里的唯一标记 `DSH_RWSL_MARK`（启动脚本写入，跨重启不重合）；
+  //       ② 旧脚本（本提交之前起的）没有该标记时，退回「cmdline 含 @deepseek-ai/dsh」的弱判据；
+  //       ③ 都不符就**只删残留文件、不发信号**；所有路径单引号转义。
   const script = stale
-    .map(
-      (s) => `pkill -TERM -P ${s.linuxPid} 2>/dev/null || true
-kill -TERM ${s.linuxPid} 2>/dev/null || true
-rm -f ${s.pidFile} ${s.pidFile.replace(/\.pid$/, '.sh')} ${s.pidFile.replace(/\.pid$/, '.mjs')}`,
-    )
+    .map((s) => {
+      const mark = s.pidFile.replace(/^.*\//, '').replace(/\.pid$/, '');
+      const sh = s.pidFile.replace(/\.pid$/, '.sh');
+      const mjs = s.pidFile.replace(/\.pid$/, '.mjs');
+      return [`p=${s.linuxPid}`, killIfOwnedScript('$p', mark), `rm -f ${shq(s.pidFile)} ${shq(sh)} ${shq(mjs)}`].join('\n');
+    })
     .join('\n');
   await runWsl(cfg, `${script}
 true
@@ -401,9 +412,11 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
         if (!command) throw new Error('remote-wsl: wsl_exec 需要非空 command');
         await ensureSwept();
         const cwd = args?.cwd ? String(args.cwd) : config.cwd;
+        // 2026-10-27 审查 F-08：cwd 是**数据**，不是脚本文本 —— 旧实现裸插值（`cd "${cwd}"`）会被
+        // 引号闭合/`$()` 注入，且 `cd` 失败后仍可能 exit 0、命令静默跑在错误目录。统一走 cdPreamble。
         const res = await runWsl(
           config,
-          `${shellPreamble(config)}cd "${cwd}" || { echo "remote-wsl: cwd 不存在: ${cwd}" >&2; exit 2; }
+          `${shellPreamble(config)}${cdPreamble(cwd)}
 ${command}
 `,
           { timeoutMs: (Number(args?.timeoutSec) || 120) * 1000, signal: exec?.signal },
@@ -615,6 +628,25 @@ ${command}
         if (action === 'stop') {
           const all = args?.all === true;
           const r: any = await stopDaemon(config, { log: logDaemon, all });
+          // 2026-10-27 审查 F-03：`stopDaemon` 在「守护仍在」时返回 ok:false + alivePids 并**保留**
+          // 元数据；旧实现完全不看它，照样打印 `daemon stopped` 还清空会话记忆 ⇒ 伪成功，而且之后
+          // 连旧 sessionId 都拿不到（contextReset 也提示不了）。失败必须如实返回、**不动**会话记忆。
+          const alivePids: number[] = Array.isArray(r.alivePids) ? r.alivePids : [];
+          if (r.ok === false) {
+            return [
+              `daemon stop 未完成（transport=${r.transport ?? 'none'}）：守护仍在运行` +
+                (alivePids.length ? `（pid ${alivePids.join('、')}）` : '') +
+                `；元数据已保留 ⇒ 它仍是可发现的，可再次 stop 或 action=stop all=true。`,
+              machineLine({
+                slot: r.slot,
+                pid: r.pid,
+                port: r.port,
+                version: r.version,
+                extra: `stopped=false alive=${alivePids.length ? alivePids.join('|') : '-'}`,
+              }),
+              ...(r.error ? [`detail: ${String(r.error)}`] : []),
+            ].join('\n');
+          }
           daemonState.info = null;
           daemonState.port = null;
           daemonState.lastSessionByKey.clear();

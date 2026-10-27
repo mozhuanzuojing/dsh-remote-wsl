@@ -12,6 +12,7 @@
  */
 import { spawn } from 'node:child_process';
 import { SdkRuntime, allowBuildFlags, runtimeAdapter } from './sdk-runtime.ts';
+import { cdPreamble } from './shell-quote.ts';
 import { readLogViaWsl, reapWsl, removeScript, shellPreamble, writeScript } from './wsl-io.ts';
 
 /**
@@ -42,9 +43,12 @@ function inHostAdapter(cfg, lifecycle) {
     killMode: 'wrapper',
     closeResult: 'void',
     idleTimeoutMs: cfg.idleTimeoutMs,
-    scriptFor: ({ cwd, version, profile }) => `${shellPreamble(cfg, { withShellEnv: true })}cd "${cwd}" || { echo "remote-wsl: cwd 不存在: ${cwd}" >&2; exit 2; }
+    // 2026-10-27 审查 F-08：cwd 走 cdPreamble（单引号转义 + 失败立即 exit 2，旧实现裸插值可注入）。
+    // 2026-10-27 审查 F-09：写唯一标记 `DSH_RWSL_MARK`（= 脚本基名），供 reapWsl 杀进程前验身份。
+    scriptFor: ({ cwd, version, profile }) => `${shellPreamble(cfg, { withShellEnv: true })}${cdPreamble(cwd)}
 # 记下 PID：exec 之后它就是 pnpm/node 主进程的 PID，供 reapWsl 主动回收
 echo $$ > "\${0%.sh}.pid"
+export DSH_RWSL_MARK="$(basename "\${0%.sh}" .sh)"
 # 凭据走 ~/.dsh/.credentials.yaml 的 credentials seam，无需 export API key
 exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${version} --profile ${profile}
 `,
