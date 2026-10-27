@@ -56,60 +56,66 @@ window.__ModuleLoader__.load({
 						React.createElement(
 							"div",
 							{ role: "list" },
-							targetRows.map((row) => {
-								const active = row.name === currentDistro;
-								const recents = (recent && (recent[row.name] || recent["*"])) || [];
-								const rowNode = React.createElement(
-									"div",
-									{
-										key: "target:" + row.name,
-										role: "listitem",
-										className: "dsh-rw-target" + (active ? " dsh-rw-target--on" : "") + (row.version === 1 ? " dsh-rw-target--unsupported" : ""),
-										"aria-current": active ? "true" : undefined,
-										"aria-label": t(active ? "targets.currentAria" : "targets.switchAria", { distro: row.name }),
-										title: active ? t("targets.currentTitle") : t("targets.switchTitle", { distro: row.name }),
-									},
-									React.createElement(StatusDot, { kind: row.reachable === true ? "running" : "stopped" }),
-									React.createElement("span", { className: "dsh-rw-targetname", dir: "ltr" }, row.name),
-									row.version === 1 || row.version === 2 ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.wslVersion", { version: row.version })) : null,
-									row.version === 1 ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--warn" }, t("targets.wsl1Only")) : null,
-									row.default === true ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.default")) : null,
-									active ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--on" }, t("targets.current")) : null,
-									React.createElement("span", { className: "dsh-rw-targetstate" }, row.reachable === true ? t("targets.running") : t("targets.stopped")),
-									row.version === 1 ? null : React.createElement(
-										"span",
-										{ className: "dsh-rw-targetacts" },
-										!active ? React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onDistroChange === "function") onDistroChange(row.name); } }, t("targets.switch")) : null,
-						row.default === true ? null : React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: (event) => { event.stopPropagation(); if (typeof onSetDefault === "function") onSetDefault(row.name); } }, t("targets.setDefault")),
-										React.createElement("button", { type: "button", className: "dsh-rw-link dsh-rw-link--danger", onClick: (event) => { event.stopPropagation(); if (typeof onStopTarget === "function") onStopTarget(row.name); } }, t("targets.stop")),
-									),
-								);
-								const children = [rowNode];
-								if (recents.length) {
-									children.push(
+							targetRows.length === 0
+								? // ★ F-39：空态 —— `empty.noDistros*` 两条文案此前是**死键**（从未渲染）
+									React.createElement("div", { className: "dsh-rw-hint" }, t(Array.isArray(snapshot.distros) ? "empty.noDistros" : "empty.noDistrosField"))
+								: targetRows.map((row) => {
+									const active = row.name === currentDistro;
+									const recents = (recent && (recent[row.name] || recent["*"])) || [];
+									const switchTo = () => { if (!active && row.version !== 1 && typeof onDistroChange === "function") onDistroChange(row.name); };
+									const rowNode = React.createElement(
+										"div",
+										{ key: "target:" + row.name, role: "listitem", className: "dsh-rw-target" + (active ? " dsh-rw-target--on" : "") + (row.version === 1 ? " dsh-rw-target--unsupported" : ""), "aria-current": active ? "true" : undefined },
+										// ★ F-35（task-8，P1）：行内**主操作改成原生 button** ——
+										//   · 鼠标：整行（除行尾两个小动作）可点；改前行根本没有 onClick，点了没反应；
+										//   · 键盘：Tab 可达 + Enter/Space 原生激活（改前行无 tabIndex ⇒ 键盘完全切不了发行版）；
+										//   · `aria-pressed` 表达"这是当前目标"；行本身仍是 listitem —— 里面还有"设为默认/停止"
+										//     两个按钮，不能把整行做成 button（按钮里嵌按钮是非法 ARIA，也是原来死锁的根因）。
 										React.createElement(
-											"div",
-											{ key: "rec:" + row.name, className: "dsh-rw-folders" },
-											recents.slice(0, 3).map((path) =>
-												React.createElement(
-													"button",
-													{
-														key: "f:" + path,
-														type: "button",
-														className: "dsh-rw-folder",
-														title: path,
-														"aria-label": t("browser.crumbJump", { path }),
-														onClick: (event) => { event.stopPropagation(); if (active) jumpTo(path); else if (typeof onDistroChange === "function") onDistroChange(row.name); },
-													},
-													icon("folder"),
-													React.createElement("span", { className: "dsh-rw-folder-name", dir: "ltr" }, String(path)),
-												),
-											),
+											"button",
+											{
+												type: "button",
+												className: "dsh-rw-targetmain",
+												disabled: row.version === 1,
+												"aria-pressed": String(active),
+												"aria-label": t(active ? "targets.currentAria" : "targets.switchAria", { distro: row.name }),
+												title: active ? t("targets.currentTitle") : t("targets.switchTitle", { distro: row.name }),
+												onClick: switchTo,
+											},
+											React.createElement(StatusDot, { kind: row.reachable === true ? "running" : "stopped" }),
+											React.createElement("span", { className: "dsh-rw-targetname", dir: "ltr" }, row.name),
+											row.version === 1 || row.version === 2 ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.wslVersion", { version: row.version })) : null,
+											row.version === 1 ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--warn" }, t("targets.wsl1Only")) : null,
+											row.default === true ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.default")) : null,
+											active ? React.createElement("span", { className: "dsh-rw-badge dsh-rw-badge--on" }, t("targets.current")) : null,
+											React.createElement("span", { className: "dsh-rw-targetstate" }, row.reachable === true ? t("targets.running") : t("targets.stopped")),
+										),
+										row.version === 1 ? null : React.createElement(
+											"span",
+											{ className: "dsh-rw-targetacts" },
+											row.default === true ? null : React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: () => { if (typeof onSetDefault === "function") onSetDefault(row.name); } }, t("targets.setDefault")),
+											React.createElement("button", { type: "button", className: "dsh-rw-link dsh-rw-link--danger", onClick: () => { if (typeof onStopTarget === "function") onStopTarget(row.name); } }, t("targets.stop")),
 										),
 									);
-								}
-								return React.createElement(React.Fragment, { key: "targetwrap:" + row.name }, children);
-							}),
+									const children = [rowNode];
+									if (recents.length) {
+										children.push(
+											React.createElement(
+												"div",
+												{ key: "rec:" + row.name, className: "dsh-rw-folders" },
+												recents.slice(0, 3).map((path) =>
+													React.createElement(
+														"button",
+														{ key: "f:" + path, type: "button", className: "dsh-rw-folder", title: path, "aria-label": t("browser.crumbJump", { path }), onClick: () => (active ? jumpTo(path) : switchTo()) },
+														icon("folder"),
+														React.createElement("span", { className: "dsh-rw-folder-name", dir: "ltr" }, String(path)),
+													),
+												),
+											),
+										);
+									}
+									return React.createElement(React.Fragment, { key: "targetwrap:" + row.name }, children);
+								}),
 						),
 					),
 				);
@@ -215,17 +221,7 @@ window.__ModuleLoader__.load({
 
 				const upButton = React.createElement(
 					"button",
-					{
-						type: "button",
-						className: "dsh-rw-iconbtn dsh-rw-up",
-						disabled: cwd === null || cwd === "/",
-						"aria-label": t("browser.up"),
-						title: t("browser.upTitle"),
-						onClick: function () {
-							if (cwd === null || cwd === "/") return;
-							jumpTo(cwd.replace(/\/[^/]+$/, "") || "/");
-						},
-					},
+					{ type: "button", className: "dsh-rw-iconbtn dsh-rw-up", disabled: cwd === null || cwd === "/", "aria-label": t("browser.up"), title: t("browser.upTitle"), onClick: () => { if (cwd !== null && cwd !== "/") jumpTo(cwd.replace(/\/[^/]+$/, "") || "/"); } },
 					icon("arrowLeft"),
 				);
 

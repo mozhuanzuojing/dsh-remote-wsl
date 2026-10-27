@@ -67,7 +67,7 @@ flowchart LR
   - 文件工具经 `{op:'fs'}` RPC 交给 WSL 侧守护用原生 `node:fs` 执行，**不走 9P**（绕开 `write` 在 `\\wsl.localhost\…` 上的原子写失败）。
   - WSL 内 `grep` / `glob` 优先用 ripgrep / fd，没有再回落 ugrep / GNU grep / find。
   - 18 个常用 Rust CLI（ripgrep、fd、ast-grep、sd、bat、tokei 等）的安装目录：核心 8 个在守护启动时后台预热，`grep` / `glob` 缺 rg / fd 时按需装，任意项可用 `wsl_tools action=install` 装到 `~/.local/bin`。
-  - 文件工具按 host 的 `workspace-write` 策略做真实路径围栏（越界返回 `FS_SANDBOX_DENIED`）；`watch` 是 500ms 轮询近似，不做跨 OS 文件事件。
+  - 文件工具按 host 的 `workspace-write` 策略做真实路径围栏（符号链接祖先也被解析后再判定，越界返回 `FS_SANDBOX_DENIED`）；`watch` 在 host 契约里没有入口，插件保留实现但不依赖它。
 - **版本对齐**：桌面版本从 `primary-runtime/runtime.json` 读；WSL pin 落 `~/.dsh/.desktop-version-pin`。`wsl_status` 报漂移，`wsl_sync_version` 修复，`backgroundWarm` 负责后台预热。守护不会因版本不一致被自动杀掉——要换版本走显式 `wsl_daemon action=restart`。
 - **路径互转**：`wsl_path` 只做字符串转换，不创建目录、不改文件；路径走 argv 位置参数，含空格/引号/`$(...)` 也保持字面量。
 - **主题**：跟随 DSH 的浅色 / 深色（面板只读宿主 CSS 变量，不写死颜色）。
@@ -222,7 +222,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `daemonIdleMs` | `1800000` | 空闲回收，到期即丢上下文 |
 | `daemonLingerMs` | `600000` | 无 key 且无客户端时的自退闸门；有会话不触发 |
 | `daemonQueueLimit` | `4` | 同 key 并发 prompt 的等待位上限，超出明确拒绝 |
-| `useShellEnvironment` | `true` | 把 WSL 登录 shell 环境注入 `wsl_open_ui` / `in-host` 运行时；一次性 `wsl_exec` 不注入。默认 `daemon` 后端的 `wsl_agent` 目前恒注入（该开关尚未接到守护启动参数） |
+| `useShellEnvironment` | `true` | 把 WSL 登录 shell 环境注入**常驻进程**（`wsl_agent` 的守护后端 / `wsl_open_ui` / in-host）；一次性 `wsl_exec` 不注入。改了它需要 `wsl_daemon action=restart` 才对已运行的守护生效 |
 | `backgroundWarm` | `true` | 版本漂移时后台预热，不阻塞当前调用 |
 | `webPort` | `3082` | `wsl_open_ui` 在 WSL 里起的 web 端口 |
 | `proxyPort` | `9910` | 宿主代理探测端口 |
@@ -304,7 +304,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 - **SDK 没有 cancel、没有 per-prompt 结果**：放弃一轮 = 结束运行时 = 丢上下文；同 key 并发只能 FIFO + 上限拒绝。
 - **9P / UNC 只适合读**：用 Windows 的 `git` / `pnpm` 等写型工具改 WSL 里的 ext4 文件，可能写坏属主/权限；跑工具或改文件请走 `wsl_exec` / `wsl_agent`，或用 WSL 执行世界的文件工具。跨 OS 文件事件不可靠，插件不监听。
 - **WSL 执行世界只服务配置的一个发行版**；面板可以浏览多个发行版，但文件世界不会跟着切。
-- **`watch` 是 500ms 轮询**，不是 inotify。
+- **`watch` 目前没有消费方**：DSH 0.2.1-rc.3 的 `FileSystem` 契约没有 `watch`，插件里保留了 500ms 轮询实现但宿主不会调用；跨 OS 文件事件本就不支持，别依赖它。
 - **自动装工具依赖网络**：从 GitHub Releases 选包，限流时走固定地址兜底；失败会把原因和手动安装命令附在结果里，不静默降级。
 - **版本兼容有两条线**：宿主只看 `engines.dsh`（不满足会拒绝加载，并在 `skippedBundles` / 启动日志里留痕）；
   `dsh.compatibility.dshReleases` 只是给人看的声明，宿主不读。

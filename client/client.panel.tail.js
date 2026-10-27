@@ -34,6 +34,8 @@ function renderTail(props) {
 	menuRef, moreRef, mounts, mountsCache,
 	mountsProbed, narrow, newAbortController, normalizeWslPath,
 	onMenuKey, openSessionNote, others, pathError,
+	// F-39：键盘/可访问性原语来自 client.panel.a11y.js（menu 键盘模型 / alertdialog 焦点陷阱 / details 开合）
+	trapTab, menuKeyNav, closeChipMenu,
 	pathInput, pending, pendingFrom, primaryBusyKey,
 	primaryIsSession, proxyBadge, pushRecent, readAbort, readRecent,
 	readSeq, recent, recentOk, rootRef,
@@ -46,6 +48,8 @@ function renderTail(props) {
 	submitPath, t, target, visibleEntries,
 	width,
 			} = props;
+			/** 诊断文本的统一脱敏出口（F-37）：优先用 api.redactSecrets；缺省退化为原样（老 api stub 也能渲染）。 */
+			const redact = (text) => (typeof api.redactSecrets === "function" ? api.redactSecrets(text) : String(text === null || text === undefined ? "" : text));
 
 
 				// —— 折叠区：高级 / 诊断（默认收起；收起时内部完全不渲染 ⇒ 不可 Tab 到达） ——
@@ -93,7 +97,8 @@ function renderTail(props) {
 								driftKnown && drift.drifted === true ? React.createElement("div", { className: "dsh-rw-hint" }, t("advanced.drift")) : null,
 							),
 						);
-						children.push(React.createElement("pre", { key: "raw", className: "dsh-rw-pre" }, JSON.stringify(snapshot, null, 2)));
+						// ★ F-37：渲染出口也脱敏（host 已脱敏一次；这里保证任何来源的 URL 字段都不会把 token 带进 DOM）
+						children.push(React.createElement("pre", { key: "raw", className: "dsh-rw-pre" }, redact(JSON.stringify(snapshot, null, 2))));
 					}
 					body.push(
 						React.createElement(
@@ -111,9 +116,9 @@ function renderTail(props) {
 					body.push(
 						React.createElement(
 							"div",
-							{ key: "confirm", className: "dsh-rw-confirm", role: "alertdialog", "aria-modal": "true", "aria-label": isStop ? t("confirm.stopTitle") : t("confirm.restartTitle") },
+							{ key: "confirm", className: "dsh-rw-confirm", role: "alertdialog", "aria-modal": "true", "aria-label": t("confirm.dialogAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }), "aria-describedby": "dsh-rw-confirm-body", onKeyDown: trapTab },
 							React.createElement("div", { className: "dsh-rw-confirm-title" }, icon("error"), isStop ? t("confirm.stopTitle") : t("confirm.restartTitle")),
-							React.createElement("div", { className: "dsh-rw-confirm-body" }, t("confirm.body", {
+							React.createElement("div", { className: "dsh-rw-confirm-body", id: "dsh-rw-confirm-body" }, t("confirm.body", {
 								distro: typeof pending.distro === "string" && pending.distro.length > 0 ? pending.distro : activeDistro === null ? "?" : activeDistro,
 								count: typeof pending.distro === "string" && pending.distro.length > 0 && pending.distro !== activeDistro ? "?" : pending.sessions,
 								consequence: isStop ? t("confirm.stopConsequence") : t("confirm.restartConsequence"),
@@ -126,6 +131,7 @@ function renderTail(props) {
 									{
 										ref: cancelRef,
 										type: "button",
+										"aria-label": t("confirm.cancelAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }),
 										className: "dsh-rw-btn",
 										onClick: () => {
 											setPending(null);
@@ -237,7 +243,7 @@ function renderTail(props) {
 									"copyDiag",
 									() =>
 										typeof navigator !== "undefined" && navigator.clipboard
-											? navigator.clipboard.writeText(JSON.stringify(state.snapshot === null ? {} : state.snapshot, null, 2))
+											? navigator.clipboard.writeText(redact(JSON.stringify(state.snapshot === null ? {} : state.snapshot, null, 2)))
 											: Promise.reject(new Error(t("row.copyNoClipboard"))),
 									{ describe: () => t("menu.copied") },
 								);
@@ -252,7 +258,7 @@ function renderTail(props) {
 					// 路径行折成两行（否则「显示隐藏」开关被推出卡片、被 overflow:hidden 裁掉）、
 					// 目标行允许换行（多发行版徽标把行挤爆）、头部元信息行折行（守护药丸 + 代理徽标）。
 					// 为什么不纯靠 @media：面板宽度 ≠ 视口宽度（rail 占 56px），媒体查询量不到面板实宽。
-					{ className: "dsh-rw-root" + (narrow ? " dsh-rw-root--narrow" : ""), "data-dsh-remote-wsl": "panel", ref: rootRef },
+					{ className: "dsh-rw-root" + (narrow ? " dsh-rw-root--narrow" : ""), "data-dsh-remote-wsl": "panel", ref: rootRef, "aria-label": t("panel.title") },
 					React.createElement(
 						"header",
 						{ className: "dsh-rw-header" },
@@ -288,7 +294,7 @@ function renderTail(props) {
 					),
 					React.createElement(
 						"footer",
-						{ className: "dsh-rw-status", role: "status", "aria-live": "polite" },
+						{ className: "dsh-rw-status" },
 						/** 底栏「WSL: 发行版」chip：对位 VS Code 的状态栏远程指示器（点开 = 同一组目标动作）。 */
 					React.createElement(
 						"details",
@@ -307,14 +313,15 @@ function renderTail(props) {
 						),
 						React.createElement(
 							"div",
-							{ className: "dsh-rw-menu dsh-rw-menu--up", role: "menu", "aria-label": t("targets.title") },
-							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: () => runDaemon("ensure", undefined, { distro: activeDistro }) }, t("status.start")),
-							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: () => runDaemon("stop", undefined, { distro: activeDistro }) }, t("targets.stop")),
-							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: () => onSetDefault(activeDistro) }, t("targets.setDefault")),
+							// ★ F-39：此前这个菜单 only-mouse（role=menu 却没有键盘模型）；Esc 收起并回焦 summary
+							{ className: "dsh-rw-menu dsh-rw-menu--up", role: "menu", "aria-label": t("targets.title"), onKeyDown: (event) => (event.key === "Escape" ? (event.preventDefault(), closeChipMenu(event.currentTarget)) : menuKeyNav(event, event.currentTarget)) },
+							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: (event) => { closeChipMenu(event.currentTarget); runDaemon("ensure", undefined, { distro: activeDistro }); } }, t("status.start")),
+							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: (event) => { closeChipMenu(event.currentTarget); runDaemon("stop", undefined, { distro: activeDistro }); } }, t("targets.stop")),
+							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: (event) => { closeChipMenu(event.currentTarget); onSetDefault(activeDistro); } }, t("targets.setDefault")),
 						),
 					),
 					React.createElement(StatusDot, { kind: stateKind }),
-						React.createElement("span", { className: "dsh-rw-statusword" }, statusWord),
+						React.createElement("span", { className: "dsh-rw-statusword", role: "status", "aria-live": "polite" }, statusWord),
 						// 2026-10-22 B2：漂移提示在窄态只留 ⚠ 图标（16px，title/aria-label 带「配置已漂移」）——
 						// 「配置已漂移」65px + 图标 16px 在 264px 面板里放不进底栏；文字版在宽态保持原样。
 						drifted

@@ -81,9 +81,15 @@ exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@${version} --pr
  */
 export function createInHostPool({ config, version, warmInBackground, lifecycle }) {
   const runtimes = new Map(); // key -> SdkRuntime
+  const starting = new Map(); // key -> Promise<SdkRuntime>（F-21：并发 getRuntime 单飞）
   const getRuntime = async (key, cwdOverride) => {
     const existing = runtimes.get(key);
     if (existing && !existing.closed) return existing;
+    // F-21（2026-10-27 审查）：旧实现"先查 map、未命中就 await start() 再 set"，两个并发调用会各建
+    // 一个运行时，后者覆盖 map、前者失去跟踪 ⇒ dispose 只关后一个，WSL 侧泄漏一个常驻进程。
+    // 这里把**在飞的启动**也放进 map（Promise 占位），并发调用共享同一次启动。
+    const inFlight = starting.get(key);
+    if (inFlight) return inFlight;
     if (lifecycle) lifecycle.assertAlive(); // 关停开始后不再新建（否则新进程落在快照外）
     if (!version.version) {
       throw new Error('remote-wsl: 无法确定 dsh 版本（桌面 runtime.json 不可读且未配 dshVersion）');
@@ -91,24 +97,35 @@ export function createInHostPool({ config, version, warmInBackground, lifecycle 
     warmInBackground(version); // 漂移时后台预热，不阻塞本次启动
     // cwd 在**运行时创建时**生效（它决定会话 cwd 与启动工作目录）；同一 key 复用时不重建
     const effCfg = cwdOverride ? { ...config, cwd: cwdOverride } : config;
-    const rt = new SdkRuntime({
-      key,
-      version: version.version,
-      cwd: effCfg.cwd,
-      profile: effCfg.profile,
-      provider: effCfg.provider,
-      model: effCfg.model,
-      // 宿主形态原来拿 `cfg.timeoutMs` 当请求/单轮的默认超时（守护形态是 promptTimeoutMs=300000）
-      promptTimeoutMs: effCfg.timeoutMs,
-      quietMs: 3000,
-      graceMs: 20000,
-      // 逃生舱的兜底：事件流没有正文时停稳运行时、读持久化日志（守护形态**不**走这条 —— 语义 #6）
-      fallbackText: ({ sessionId }) => readLogViaWsl(effCfg, sessionId, effCfg.cwd),
-      adapter: inHostAdapter(effCfg, lifecycle),
+    const promise = (async () => {
+      const rt = new SdkRuntime({
+        key,
+        version: version.version,
+        cwd: effCfg.cwd,
+        profile: effCfg.profile,
+        provider: effCfg.provider,
+        model: effCfg.model,
+        // 宿主形态原来拿 `cfg.timeoutMs` 当请求/单轮的默认超时（守护形态是 promptTimeoutMs=300000）
+        promptTimeoutMs: effCfg.timeoutMs,
+        quietMs: 3000,
+        graceMs: 20000,
+        // 逃生舱的兜底：事件流没有正文时停稳运行时、读持久化日志（守护形态**不**走这条 —— 语义 #6）
+        fallbackText: ({ sessionId }) => readLogViaWsl(effCfg, sessionId, effCfg.cwd),
+        adapter: inHostAdapter(effCfg, lifecycle),
+      });
+      runtimes.set(key, rt);
+      try {
+        await rt.start();
+      } catch (e) {
+        runtimes.delete(key);
+        throw e;
+      }
+      return rt;
+    })().finally(() => {
+      starting.delete(key);
     });
-    runtimes.set(key, rt);
-    await rt.start();
-    return rt;
+    starting.set(key, promise);
+    return promise;
   };
   return { runtimes, getRuntime };
 }

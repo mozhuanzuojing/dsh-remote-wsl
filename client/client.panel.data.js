@@ -36,7 +36,11 @@ window.__ModuleLoader__.load({
 				React, api, asArray, isRecord, normalizeWslPath,
 				dirCache, browseSeq, navSeq, pathInput, pushRecent, t,
 				setBrowse, setFocusIndex, setPathError, setPathInput, setRecent, setSearch,
+				browseAbort, newAbortController, signalOf,
 			} = props;
+
+			/** 当前目标发行版（`null` = host 配置缺省）；缓存键必须带上它（F-34）。 */
+			const distroNow = () => (typeof api.getDistro === "function" ? api.getDistro() : null);
 
 			/**
 			 * 列目录：**缓存优先 + 单飞 + 后台复核**（stale-while-revalidate）。
@@ -47,6 +51,12 @@ window.__ModuleLoader__.load({
 			 * · 复核失败：**保留**已显示内容并标记 \`stale\`（UI 明确提示"显示的是缓存内容"），
 			 *   不把好好的列表变成空错误页 —— 但错误对象仍带着，供"重试"用。
 			 * · 同路径并发（悬停预取 / 快速连点）：共享同一个请求（dirCache.inflight），不重复打 host。
+			 *
+			 * ★ F-34（task-8，P1）：三处一起改，缺一不可 ——
+			 *   ① 缓存键 = 发行版 + 路径（`dirCache.key`）⇒ 切发行版后旧键永不再命中；
+			 *   ② `browseAbort` 真正**赋值**并把 `signal` 传给 `listDir`（改前是"只读不写"的死引用，
+			 *      请求根本不可取消）；被取代时 abort 上一个在飞请求；
+			 *   ③ 回包写入前仍比对 `browseSeq` —— `changeDistro` 会 bump 它，旧回包一律丢弃。
 			 * @param path - WSL 绝对路径。
 			 * @param options - \`{ force: true }\` 绕过缓存（刷新按钮/显式重试用）。
 			 */
@@ -57,25 +67,31 @@ window.__ModuleLoader__.load({
 				const force = options !== undefined && options !== null && options.force === true;
 				const mySeq = browseSeq.current + 1;
 				browseSeq.current = mySeq;
+				const key = dirCache.key(distroNow(), want);
 				setFocusIndex(-1);
-				const hit = force ? null : dirCache.get(want);
+				const hit = force ? null : dirCache.get(key);
 				if (hit !== null) {
 					setBrowse({ status: "ready", cwd: want, entries: hit.entries, error: null, stale: false });
 					// 新鲜命中：不发请求（这就是"0 等待返回上一目录"）
-					if (!force && dirCache.fresh(want)) return;
+					if (!force && dirCache.fresh(key)) return;
 				} else {
 					setBrowse((prev) => ({ status: "loading", cwd: want, entries: prev.cwd === want ? prev.entries : [], error: null, stale: false }));
 				}
-				let pending = dirCache.inflight.get(want);
+				let pending = dirCache.inflight.get(key);
 				if (pending === undefined) {
-					pending = api.listDir({ path: want }).then((result) => {
+					if (browseAbort.current !== null) browseAbort.current.abort();
+					const controller = newAbortController();
+					browseAbort.current = controller;
+					pending = api.listDir({ path: want }, signalOf(controller)).then((result) => {
 						const entries = asArray(result && result.entries).filter((entry) => isRecord(entry) && typeof entry.name === "string");
-						dirCache.set(want, entries);
+						dirCache.set(key, entries);
 						return entries;
 					}).finally(() => {
-						dirCache.inflight.delete(want);
+						// 只摘掉**自己**这一条：同键可能已有更新的请求（F-34/F-40 的清理竞态）
+						if (dirCache.inflight.get(key) === pending) dirCache.inflight.delete(key);
+						if (browseAbort.current === controller) browseAbort.current = null;
 					});
-					dirCache.inflight.set(want, pending);
+					dirCache.inflight.set(key, pending);
 				}
 				pending.then(
 					(entries) => {
@@ -102,23 +118,29 @@ window.__ModuleLoader__.load({
 			 */
 			const prefetchTimer = React.useRef(null);
 			const prefetchTarget = React.useRef(null);
+			/** ★ F-40：预取的在飞请求也要能被取消（切发行版 / 卸载 / 换目标）。 */
+			const prefetchAbort = React.useRef(null);
 			const prefetchDir = React.useCallback((path) => {
 				const want = normalizeWslPath(path);
-				if (dirCache.fresh(want) || dirCache.inflight.has(want)) return;
+				const key = dirCache.key(distroNow(), want);
+				if (dirCache.fresh(key) || dirCache.inflight.has(key)) return;
 				prefetchTarget.current = want;
 				if (prefetchTimer.current !== null) clearTimeout(prefetchTimer.current);
 				prefetchTimer.current = setTimeout(() => {
 					prefetchTimer.current = null;
 					if (prefetchTarget.current !== want) return;
-					if (dirCache.fresh(want) || dirCache.inflight.has(want)) return;
-					const pending = api.listDir({ path: want }).then((result) => {
+					if (dirCache.fresh(key) || dirCache.inflight.has(key)) return;
+					const controller = newAbortController();
+					prefetchAbort.current = controller;
+					const pending = api.listDir({ path: want }, signalOf(controller)).then((result) => {
 						const entries = asArray(result && result.entries).filter((entry) => isRecord(entry) && typeof entry.name === "string");
-						dirCache.set(want, entries);
+						dirCache.set(key, entries);
 						return entries;
 					}, () => null).finally(() => {
-						dirCache.inflight.delete(want);
+						if (dirCache.inflight.get(key) === pending) dirCache.inflight.delete(key);
+						if (prefetchAbort.current === controller) prefetchAbort.current = null;
 					});
-					dirCache.inflight.set(want, pending);
+					dirCache.inflight.set(key, pending);
 				}, 140);
 			}, []);
 			const cancelPrefetch = React.useCallback(() => {
@@ -127,7 +149,24 @@ window.__ModuleLoader__.load({
 					clearTimeout(prefetchTimer.current);
 					prefetchTimer.current = null;
 				}
+				// ★ F-40：已发出的预取也要停（否则卸载后仍打 host、回包仍写缓存）
+				if (prefetchAbort.current !== null) {
+					prefetchAbort.current.abort();
+					prefetchAbort.current = null;
+				}
 			}, []);
+
+			// ★ F-40：卸载时清掉本 hook 拥有的全部定时器/在飞请求（改前只有 onMouseLeave 清预取）
+			React.useEffect(
+				() => () => {
+					cancelPrefetch();
+					if (browseAbort.current !== null) {
+						browseAbort.current.abort();
+						browseAbort.current = null;
+					}
+				},
+				[],
+			);
 
 			const jumpTo = React.useCallback(
 				(path) => {

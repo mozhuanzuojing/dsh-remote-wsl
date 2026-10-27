@@ -109,8 +109,26 @@ window.__ModuleLoader__.load({
 			"api.protocol": (p) => `${p.route} 返回了非 JSON 响应（HTTP ${p.status}）：${p.text}`,
 			"api.hostFailed": (p) => `explorer 调用失败（HTTP ${p.status}）`,
 			"api.argument": (p) => `explorer 调用缺少必填字段 ${p.field}`,
+			"api.daemonAction": (p) => `explorer.daemon 不接受动作 ${p.action}（只允许 ${p.allowed}）`,
 		};
 		const fallbackTranslate = (key, params) => (FALLBACK_TEXT[key] ? FALLBACK_TEXT[key](params || {}) : key);
+
+		/**
+		 * 文本里的 **URL 凭据脱敏**（F-37，安全级）：`?token=` / `&access_token=` 的值换成 `***`，
+		 * 保留 host:port 与其余参数。
+		 *
+		 * 为什么 client 侧还要做一遍：host 的 `snapshot.webHosts[].url` 已经脱敏（第一道），
+		 * 但面板"复制诊断"复制的是**整份 JSON**，任何未来新增的 URL 字段/历史缓存/其它来源都可能
+		 * 再带出凭据 ⇒ 在**渲染与复制这两个出口**统一过一遍，避免"又有人加了字段就漏"。
+		 * 纯函数（不碰 DOM/网络），可在脚本里直接断言。
+		 *
+		 * @param text 任意文本（JSON 串/URL）
+		 * @returns 脱敏后的文本（非字符串输入先 String()，null/undefined ⇒ 空串）
+		 */
+		function redactSecrets(text) {
+			if (text === null || text === undefined) return "";
+			return String(text).replace(/([?&][A-Za-z0-9_-]*token=)[^&#\s"']*/gi, "$1***");
+		}
 
 		/**
 		 * 发一次请求并归一化结果。
@@ -229,6 +247,8 @@ window.__ModuleLoader__.load({
 				methods: METHODS,
 				daemonActions: DAEMON_ACTIONS,
 				timeoutMs: REQUEST_TIMEOUT_MS,
+				/** 诊断/剪贴板出口的凭据脱敏（F-37）：面板渲染 `<pre>` 与"复制诊断"都用同一个实现。 */
+				redactSecrets,
 
 				/** 设置/清除目标发行版（null/空串 = 回到 host 配置缺省）。 */
 				setDistro(name) {
@@ -283,7 +303,9 @@ window.__ModuleLoader__.load({
 				 * 否则 `sessionId: null` + note，界面必须如实显示（不许假装开好了）。
 				 */
 				openSession(input, options) {
-					const distro = requireString(input && input.distro, "distro");
+					// ★ F-39：`distro` 这条必填校验**漏传 t** ⇒ 英文界面会弹出中文 fallback 文案
+					// （FALLBACK_TEXT 是"没有 i18n 时"的兜底，不该在这条路径生效）。
+					const distro = requireString(input && input.distro, "distro", t);
 					const path = requireString(input && input.path, "path", t);
 					return call(METHODS.openSession, { distro, path }, options);
 				},
@@ -292,7 +314,8 @@ window.__ModuleLoader__.load({
 				daemon(input, options) {
 					const action = input && input.action;
 					if (DAEMON_ACTIONS.indexOf(action) < 0) {
-						throw new ExplorerApiError(`explorer.daemon 不接受动作 ${JSON.stringify(action)}（只允许 ${DAEMON_ACTIONS.join("/")}）`, "argument");
+						// ★ F-39：这句原本是硬编码中文（英文界面照样出中文）。走 i18n，detail 里带原值。
+						throw new ExplorerApiError(t("api.daemonAction", { action: JSON.stringify(action), allowed: DAEMON_ACTIONS.join("/") }), "argument");
 					}
 					const args = { action };
 					if (input && typeof input.slot === "number") args.slot = input.slot;
@@ -333,6 +356,7 @@ window.__ModuleLoader__.load({
 		exports.EXPLORER_METHODS = METHODS;
 		exports.METHOD_NAMES = METHOD_NAMES;
 		exports.createExplorerApi = createExplorerApi;
+		exports.redactSecrets = redactSecrets;
 		return module.exports;
 	},
 });

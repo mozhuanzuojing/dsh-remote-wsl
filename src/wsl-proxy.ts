@@ -103,16 +103,22 @@ export function parseGatewayOutput(output) {
  */
 export function buildProxyEnvBlock(port, timeoutSec = PROXY_PROBE_TIMEOUT_SEC) {
   const loop = '127.0.0.1:' + port;
-  const gw = '$GATEWAY:' + port;
   return [
+    // F-56（2026-10-27 审查）：IPv6 网关在 bash 的 `/dev/tcp` 与 URL 里**都必须加方括号**。
+    // 旧实现只对"编译期已知的字面量"加括号，`$GATEWAY` 这种运行期变量永远裸着 ⇒ 纯 IPv6 网关下
+    // 探活必然失败、代理被判"不可达"而静默直连。这里在运行期归一成 GW_HOST，后续统一用它。
+    'GW_HOST=""',
+    'if [ -n "${GATEWAY:-}" ]; then',
+    '  case "$GATEWAY" in *:*) GW_HOST="[$GATEWAY]" ;; *) GW_HOST="$GATEWAY" ;; esac',
+    'fi',
     'if ' + buildProxyProbeCommand('127.0.0.1', port, timeoutSec) + ' 2>/dev/null; then',
     '  export NODE_USE_ENV_PROXY=1',
     '  export HTTPS_PROXY="http://' + loop + '"',
     '  export HTTP_PROXY="http://' + loop + '"',
-    'elif [ -n "${GATEWAY:-}" ] && ' + buildProxyProbeCommand('$GATEWAY', port, timeoutSec) + ' 2>/dev/null; then',
+    'elif [ -n "$GW_HOST" ] && ' + buildProxyProbeCommand('$GW_HOST', port, timeoutSec) + ' 2>/dev/null; then',
     '  export NODE_USE_ENV_PROXY=1',
-    '  export HTTPS_PROXY="http://' + gw + '"',
-    '  export HTTP_PROXY="http://' + gw + '"',
+    '  export HTTPS_PROXY="http://$GW_HOST:' + port + '"',
+    '  export HTTP_PROXY="http://$GW_HOST:' + port + '"',
     'else',
     '  echo "remote-wsl: 主机代理 ' + loop + ' 与 ${GATEWAY:-<网关未知>}:' + port + ' 都不可达 ⇒ 本次直连" >&2',
     'fi',
@@ -124,9 +130,13 @@ export function buildProxyEnvBlock(port, timeoutSec = PROXY_PROBE_TIMEOUT_SEC) {
 export function buildProxyProbeScript(port, timeoutSec = PROXY_PROBE_TIMEOUT_SEC) {
   return [
     buildGatewayShellLines(),
+    'GW_HOST=""',
+    'if [ -n "\${GATEWAY:-}" ]; then',
+    '  case "$GATEWAY" in *:*) GW_HOST="[$GATEWAY]" ;; *) GW_HOST="$GATEWAY" ;; esac',
+    'fi',
     'if ' + buildProxyProbeCommand('127.0.0.1', port, timeoutSec) + ' 2>/dev/null; then',
     '  printf "reachable %s" "127.0.0.1"',
-    'elif [ -n "\${GATEWAY:-}" ] && ' + buildProxyProbeCommand('$GATEWAY', port, timeoutSec) + ' 2>/dev/null; then',
+    'elif [ -n "$GW_HOST" ] && ' + buildProxyProbeCommand('$GW_HOST', port, timeoutSec) + ' 2>/dev/null; then',
     '  printf "reachable %s" "$GATEWAY"',
     'else',
     '  printf "unreachable %s" "\${GATEWAY:-}"',

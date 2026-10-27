@@ -34,8 +34,20 @@ export function isWslUncPath(value) {
   return parseWslUncPath(value) !== null;
 }
 
-/** 正向拼 UNC（wsl.localhost 形式）。与 daemon-protocol.unc() 的产物一致。 */
+/**
+ * 正向拼 UNC（wsl.localhost 形式）。与 daemon-protocol.unc() 的产物一致。
+ *
+ * 为什么含 `\` 的路径必须拒绝（2026-10-27 审查 F-23）：Linux 文件名允许反斜杠，Windows 把它当**路径
+ * 分隔符**；拼进 UNC 后 `/home/g/a\..\..\etc/passwd` 会在 Windows 侧解析成完全不同的文件。
+ * UNC 语法没有表达文件名内 `\` 的转义手段，所以只能报错 —— 宁可不给路径，也不给一条错路径。
+ */
 export function wslUncPath(distro, linuxPath) {
-  const tail = String(linuxPath ?? '').split('/').filter(Boolean).join(BACKSLASH);
+  const raw = String(linuxPath ?? '');
+  if (raw.includes(BACKSLASH)) {
+    throw new Error(
+      `cannot build a UNC path for "${raw}": a backslash inside a Linux file name would be parsed as a path separator on Windows`,
+    );
+  }
+  const tail = raw.split('/').filter(Boolean).join(BACKSLASH);
   return '\\\\wsl.localhost\\' + distro + '\\' + tail;
 }

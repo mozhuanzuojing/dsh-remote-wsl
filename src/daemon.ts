@@ -50,25 +50,38 @@ const arg = (name, dflt) => {
 };
 const flag = (name) => argv.includes(`--${name}`);
 
+/**
+ * 数值参数解析（2026-10-27 审查 F-53）：旧实现直接 `Number(...)`，`--port-tries abc` 会得到 NaN，
+ * 于是 listen 循环一次都不跑、却照样打印 `listening …` 并写元数据（伪 listening）。参数非法必须
+ * startup 失败并说清是哪个参数 —— 静默伪启动比崩溃更难查。
+ */
+const numArg = (name, dflt, min = 0) => {
+  const raw = arg(name, String(dflt));
+  const n = Number(raw);
+  if (!Number.isFinite(n)) throw new Error(`remote-wsl daemon: --${name} 需要数字，收到 ${JSON.stringify(raw)}`);
+  if (n < min) throw new Error(`remote-wsl daemon: --${name} 必须 ≥ ${min}，收到 ${n}`);
+  return n;
+};
+
 const HOME = process.env.HOME && !/[:\\]/.test(process.env.HOME) ? process.env.HOME : '/home/g';
-const PORT_REQ = Number(arg('port', '8731'));
-const PORT_TRIES = Math.max(1, Number(arg('port-tries', '10')));
+const PORT_REQ = numArg('port', 8731, 1);
+const PORT_TRIES = numArg('port-tries', 10, 1);
 const VERSION = arg('version', '0.2.0-rc.2');
 const CWD = arg('cwd', HOME);
 const PROFILE = arg('profile', 'sdk');
 const PROVIDER = arg('provider', 'deepseek-official');
 const MODEL = arg('model', 'deepseek-flash');
-const IDLE_MS = Number(arg('idle-ms', '1800000'));
+const IDLE_MS = numArg('idle-ms', 1800000, 0);
 /**
  * **寿命闸门**：无 key（没有会话要保）且无客户端连接，持续 `--linger-ms` 就自退。
  * 为什么与 idle 分开：idle 管"某个 key 的运行时"，闸门管"**守护自己**别永久赖着"。
  * 只在 `keys.size === 0` 时计时 ⇒ 永远不会因为闸门丢掉还活着的会话。0 = 关闭闸门。
  */
-const LINGER_MS = Number(arg('linger-ms', '600000'));
-const QUEUE_LIMIT = Math.max(1, Number(arg('queue-limit', '4')));
-const PROXY_PORT = Number(arg('proxy-port', '9910'));
-const PROMPT_TIMEOUT_MS = Number(arg('prompt-timeout-ms', '300000'));
-const QUIET_MS = Number(arg('quiet-ms', '3000'));
+const LINGER_MS = numArg('linger-ms', 600000, 0);
+const QUEUE_LIMIT = numArg('queue-limit', 4, 1);
+const PROXY_PORT = numArg('proxy-port', 9910, 1);
+const PROMPT_TIMEOUT_MS = numArg('prompt-timeout-ms', 300000, 1000);
+const QUIET_MS = numArg('quiet-ms', 3000, 100);
 const SHELL_ENV = !flag('no-shell-env');
 /**
  * 协议硬上限（2026-10-27 审查 F-02）：帧在**鉴权之前**就开始累积，旧实现没有上限 ⇒ 任一能连到
@@ -76,9 +89,9 @@ const SHELL_ENV = !flag('no-shell-env');
  * detached 运行时全部变成不可达孤儿（远端会话上下文对用户就是丢的）。这里给三道上限：
  * 单帧大小、连接数、连接空闲时长；hello 之前尤其只允许一个短帧。
  */
-const MAX_FRAME_BYTES = Math.max(64 * 1024, Number(arg('max-frame-bytes', String(1024 * 1024))));
-const MAX_CONNS = Math.max(1, Number(arg('max-conns', '64')));
-const SOCKET_IDLE_MS = Math.max(5000, Number(arg('socket-idle-ms', '120000')));
+const MAX_FRAME_BYTES = numArg('max-frame-bytes', 1024 * 1024, 64 * 1024);
+const MAX_CONNS = numArg('max-conns', 64, 1);
+const SOCKET_IDLE_MS = numArg('socket-idle-ms', 120000, 5000);
 const STATE_DIR = arg('state-dir', path.join(HOME, '.dsh', 'remote-wsl'));
 const LAUNCHER = arg('launcher', '');
 /**
@@ -353,6 +366,7 @@ function writeMeta(extra = {}) {
     lingerMs: LINGER_MS,
     startedAt,
     keys: publicKeys(),
+    retired: retired.slice(),
     ...extra,
   };
   try {
@@ -364,8 +378,10 @@ function writeMeta(extra = {}) {
     } catch {
       /* drvfs */
     }
+    return true;
   } catch (e) {
     log(`写 ${metaPath()} 失败: ${e.message}`);
+    return false;
   }
 }
 
@@ -385,6 +401,18 @@ function cleanupFiles() {
 
 /** key -> { key, runtime, turns, queue: [{text,resolve}], running, lastUsedAt, idleTimer } */
 const keys = new Map();
+/**
+ * 已回收的会话（F-17，2026-10-27 审查）：idle/运行时死亡会把条目从 `keys` 删掉，`sessionId` 也随之从
+ * 元数据消失 —— 换一个宿主进程来续聊时 `knownSession=null`，于是**静默**开了新会话（连"上下文已重置"
+ * 都提示不了）。这里保留有限条数的"退役记录"，让下一次调用能判断出"本来有会话、现在没了"。
+ */
+const retired = [];
+const RETIRED_MAX = 32;
+function retireSession(entry, reason) {
+  if (!entry?.sessionId) return;
+  retired.unshift({ key: entry.key, cwd: entry.cwd, sessionId: entry.sessionId, at: Date.now(), reason });
+  if (retired.length > RETIRED_MAX) retired.length = RETIRED_MAX;
+}
 let runtimeEnv = null;
 let shuttingDown = false;
 let activeConns = 0;
@@ -426,7 +454,11 @@ async function proxyForSearch() {
   let host = null;
   try {
     const resolved = await resolveProxyHost(PROXY_PORT);
-    if (resolved.host) host = `http://${resolved.host}:${PROXY_PORT}`;
+    // IPv6 网关在 URL 里必须加方括号，否则 `http://fe80::1:9910` 不是合法 URL。
+    if (resolved.host) {
+      const h = resolved.host.includes(':') ? `[${resolved.host}]` : resolved.host;
+      host = `http://${h}:${PROXY_PORT}`;
+    }
   } catch {
     /* 探活失败 ⇒ 直连（与旧行为一致） */
   }
@@ -496,6 +528,7 @@ function getEntry(key, cwd) {
   let e = keys.get(id);
   if (e?.runtime && !e.runtime.alive) {
     log(`key=${key} cwd=${cwd} 运行时已退出(exit=${e.runtime.exitCode}) ⇒ 丢弃（上下文已重置）`);
+    retireSession(e, 'runtime-exit');
     e.runtime = null;
     e.sessionId = null;
   }
@@ -533,6 +566,8 @@ function armIdle(entry) {
       return;
     }
     const rt = entry.runtime;
+    // F-17：先记下"这个会话曾被回收"，再删条目 —— 换宿主进程续聊时才能判断出"上下文丢了"。
+    retireSession(entry, 'idle');
     keys.delete(entry.id);
     log(`key=${entry.key} cwd=${entry.cwd} 空闲 ${IDLE_MS}ms ⇒ 回收运行时（上下文随之丢失）`);
     await rt?.close().catch(() => {});
@@ -712,7 +747,10 @@ async function handle(req) {
   if (op === 'search') {
     try {
       // F-12（2026-10-27 审查）：安装不再阻塞本次搜索 —— 先用现有后端返回结果，安装在后台进行。
-      const provision = kickSearchProvision(req?.autoInstall !== false, await proxyForSearch());
+      // autoInstall 在 `req.args` 里（search-tool 把参数放在 args），不是 req 顶层。
+      const provision = kickSearchProvision(req?.args?.autoInstall !== false, await proxyForSearch());
+      // 冷启动第一次搜索前同步一次已装工具路径（否则会先用 GNU grep 兜底：结果正确但慢）。
+      setSearchToolPaths(toolPaths());
       const result = await handleSearchOp(req);
       return { ok: true, id, result: { ...result, provision } };
     } catch (e) {
@@ -882,8 +920,14 @@ async function main() {
       if (i === PORT_TRIES - 1) throw new Error(`WSL 侧 ${PORT_REQ}..${candidate} 全被占用`);
     }
   }
+  // F-52（2026-10-27 审查）：元数据写不出来 ⇒ 客户端**永远发现不了**这个守护（只能白等 20s 再判死）。
+  // 那种"listen 成功却没有元数据"的半死状态比启动失败更难查，所以直接按启动失败处理。
+  if (!writeMeta()) {
+    log('FATAL: 元数据写入失败 ⇒ 不进入服务态（客户端将无法发现本守护）');
+    cleanupFiles();
+    process.exit(2);
+  }
   log(`listening 127.0.0.1:${PORT} pid=${process.pid} dsh@${VERSION} cwd=${CWD} idleMs=${IDLE_MS} queue=${QUEUE_LIMIT} lingerMs=${LINGER_MS}`);
-  writeMeta();
   // 起完就开始计寿命闸门（armLinger 内部：有 key 或有客户端时拒绝计时）
   armLinger();
   // 启动脚本已在 bash 里打开，可以安全删掉（本守护不把任何东西落在 /tmp）

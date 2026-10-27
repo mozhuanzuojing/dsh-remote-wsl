@@ -401,6 +401,13 @@ export async function releaseEnsureLock(cfg, slot, log = () => {}) {
 /** 只有清指定槽位的元数据/token（并发守护隔离：绝不动别的槽位）。`legacy` 时清单文件那两个。 */
 
 // ── 原 daemon-client.ts 第 236-291 行 ──
+/**
+ * 一条连接发一串帧、取**第一条非 hello 帧**即返回。
+ *
+ * 显式契约（2026-10-27 审查 F-54）：**一条连接只发一个请求**。当前所有调用方每连接只发 hello + 一个
+ * 请求，所以不必按 `id` 配对；如果将来要复用连接并发多请求，必须先改成按 `id` 配对回包，否则应答
+ * 会静默错配（这个假设以前只存在于代码里，没有写下来）。
+ */
 export function tcpCall(port, frames, timeoutMs, { host = '127.0.0.1', skipHello = true } = {}) {
   return new Promise((resolve) => {
     const t0 = Date.now();

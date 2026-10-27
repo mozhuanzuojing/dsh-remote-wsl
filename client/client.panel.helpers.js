@@ -69,44 +69,48 @@ window.__ModuleLoader__.load({
 		}
 
 		/**
-		 * 客户端目录缓存 + 单飞请求。
-		 *
-		 * 以**对象**（不是裸 Map）导出 ⇒ 各 chunk 拿到同一个引用，跨面板卸载/重挂仍复用；
-		 * 语义：TTL 内命中 ⇒ 0 等待直接回显（"返回上一目录"不再吃 100ms+ 的 host 往返）；
-		 * TTL 外命中 ⇒ 先回显旧内容再后台复核（stale-while-revalidate）；同路径并发 ⇒ 共享一个请求。
-		 * 失效：TTL 到期即丢；显式刷新用 listPath(path,{force:true}) 绕缓存重新拉。
+		 * 客户端目录缓存 + 单飞请求（跨面板卸载/重挂仍复用同一引用）。
+		 * TTL 内命中 ⇒ 0 等待回显；TTL 外命中 ⇒ 先回显再后台复核（stale-while-revalidate）；
+		 * 同路径并发 ⇒ 共享一个请求；显式刷新用 listPath(path,{force:true}) 绕缓存。
+		 * ★ F-34（P1）：键 = **发行版 + 路径**（{@link dirCache.key}）—— 改前只按路径做键，
+		 *   切发行版后 30s 内可能把 A 的目录当成 B 的显示（"添加工作区/新建会话"会指错地方）。
+		 *   现在切换后旧键永不再命中；`clear()` 退化为**回收内存**，正确性不依赖它。
 		 */
 		const dirCache = {
 			ttl: DIR_CACHE_TTL_MS,
 			max: DIR_CACHE_MAX,
 			entries: new Map(),
 			inflight: new Map(),
-			get(path) {
-				const hit = this.entries.get(path);
+			/** 键：`<distro>\u0000<path>`（distro 为空记 `*`；NUL 分隔 ⇒ WSL 路径里的 `:` 不撞）。 */
+			key(distro, path) {
+				return `${typeof distro === "string" && distro.length > 0 ? distro : "*"}\u0000${path}`;
+			},
+			get(key) {
+				const hit = this.entries.get(key);
 				if (hit === undefined || hit === null) return null;
 				if (Date.now() - hit.at > this.ttl) {
-					this.entries.delete(path);
+					this.entries.delete(key);
 					return null;
 				}
 				return hit;
 			},
-			fresh(path) {
-				const hit = this.entries.get(path);
+			fresh(key) {
+				const hit = this.entries.get(key);
 				return hit !== undefined && hit !== null && Date.now() - hit.at <= this.ttl;
 			},
-			set(path, entries) {
-				this.entries.delete(path);
-				this.entries.set(path, { entries, at: Date.now() });
+			set(key, entries) {
+				this.entries.delete(key);
+				this.entries.set(key, { entries, at: Date.now() });
 				while (this.entries.size > this.max) {
 					const oldest = this.entries.keys().next();
 					if (oldest.done === true) break;
 					this.entries.delete(oldest.value);
 				}
 			},
-			invalidate(path) {
-				this.entries.delete(path);
+			invalidate(key) {
+				this.entries.delete(key);
 			},
-			/** 切换目标发行版：缓存键只有路径，不清就会把 A 的目录显示成 B 的。 */
+			/** 切换目标发行版：回收内存（正确性已由键里的 distro 保证，不依赖这次清空）。 */
 			clear() {
 				this.entries.clear();
 				this.inflight.clear();

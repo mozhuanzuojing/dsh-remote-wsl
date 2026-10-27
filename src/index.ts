@@ -236,10 +236,13 @@ export function apply(ctx, rawConfig = {}) {
     const effCwd = cwd ?? config.cwd;
     const mem = daemonState.lastSessionByKey.get(`${key}\u0000${effCwd}`);
     if (mem) return mem;
-    const rec = (readDaemonMeta(config)?.keys ?? []).find(
-      (k: any) => k.key === key && (k.cwd ?? config.cwd) === effCwd,
-    );
-    return rec?.sessionId ?? null;
+    const meta = readDaemonMeta(config);
+    const rec = (meta?.keys ?? []).find((k: any) => k.key === key && (k.cwd ?? config.cwd) === effCwd);
+    if (rec?.sessionId) return rec.sessionId;
+    // F-17（2026-10-27 审查）：条目已经被 idle 回收/运行时死亡清掉 ⇒ 读守护留下的「退役记录」，
+    // 让调用方能识别出"本来有会话、现在没了"，从而打印 contextReset，而不是静默开一个新会话。
+    const dead = (meta?.retired ?? []).find((r: any) => r.key === key && (r.cwd ?? config.cwd) === effCwd);
+    return dead?.sessionId ?? null;
   };
 
   // ── 拆分接线（架构债 T5/task-44）────────────────────────────────────────────

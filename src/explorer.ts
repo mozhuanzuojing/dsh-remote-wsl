@@ -44,8 +44,9 @@
  *   （GET 只回方法清单，是纯只读发现，同样过同源检查；lead 第 1 条要它。）
  * · (d) **不做全局副作用**：没有 `all=true` 这类会波及其他人的能力；`explorer.daemon` 的
  *   `slot` 一律经 daemon-client 的**本插件 state 目录**读写，`stop` 只停被点名的那个槽位。
- * · (e) **不泄漏凭据**：响应只含 pid/port/version/slot/notes 等面板字段，永不回传 token；
- *   错误只回 message（不回显请求体、不回显 headers）。
+ * · (e) **不泄漏凭据**：响应只含 pid/port/version/slot/notes 等面板字段；`webHosts[].url` 在透传前
+ *   **脱敏**（`?token=…` 的值打码，保留 host:port —— F-37：面板会把 snapshot 渲染进 DOM 并可复制）；
+ *   错误只回 `{code,error,detail,reason}`（不回显请求体、不回显 headers、不带栈）。
  *
  * ## 零构建纪律
  *
@@ -147,21 +148,69 @@ const str = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
  *   `E_ARG` → 400（调用方参数错）、`E_UNAVAILABLE` → 503（守护/版本这类"远端此刻不可用"）、
  *   其它/未标 → 500（真内部错）。message 已含可操作诊断（端口被占时 daemon-client 会把
  *   daemon.log 尾部一并带出来），且**不含任何凭据**。
+ *
+ * ★ F-36（task-8，统一错误体 `{code, message, detail}`）：`detail` 是**给人折叠看的技术细节**
+ *   （systemd/unit/daemon.log 尾部…），`reason` 是**给机器判的稳定短标签**（如 `unknown-distro`）。
+ *   为什么要有：面板的主句必须是用户语言（i18n），host 的中文技术文案只能进 detail；
+ *   而"记住的发行版被删/改名"这类**客户端要自动纠偏**的场景又不能靠匹配中文句子——
+ *   过去 `client.panel.js` 里那句 `message.indexOf("未知发行版")` 就是契约漂移的典型。
  */
-function explorerError(code, message) {
+function explorerError(code, message, detail = null, reason = null) {
   const e = new Error(message);
   e.code = code;
+  e.detail = detail;
+  e.reason = reason;
   return e;
 }
-const failArg = (message) => {
-  throw explorerError('E_ARG', message);
+const failArg = (message, detail = null, reason = null) => {
+  throw explorerError('E_ARG', message, detail, reason);
 };
-const failUnavailable = (message) => {
-  throw explorerError('E_UNAVAILABLE', message);
+const failUnavailable = (message, detail = null, reason = null) => {
+  throw explorerError('E_UNAVAILABLE', message, detail, reason);
 };
-const failNotFound = (message) => {
-  throw explorerError('E_NOTFOUND', message);
+const failNotFound = (message, detail = null, reason = null) => {
+  throw explorerError('E_NOTFOUND', message, detail, reason);
 };
+
+/**
+ * URL 里的凭据脱敏（F-37，安全级）。
+ *
+ * 为什么必须在 host 侧做：`deps.webHosts` 的 `url` 来自 `wsl_open_ui` 的启动 URL
+ * （register-tools 用 `/\?token=[A-Za-z0-9_-]+/` 从输出里抓的），而面板把 `snapshot` **整份**
+ * `JSON.stringify` 进 `<pre>` 并支持"复制诊断"写系统剪贴板 ⇒ 明文 token 会进 DOM、进剪贴板，
+ * 可被同源其它客户端插件读到、被剪贴板同步带出机器。webHosts 在 UI 没有别的消费者，脱敏零成本。
+ *
+ * 保留 host:port 与路径（面板仍要能区分是哪个端口），只把 `token`（含 `access_token` 这类
+ * `*token` 参数）的**值**换成 `***`。引号/空白/`&`/`#` 都算值的边界，避免吃掉 JSON 结构。
+ *
+ * @param url 原 URL（可能是空串/非字符串）
+ * @returns 脱敏后的 URL（输入为空 ⇒ 空串）
+ */
+export function redactUrlToken(url) {
+  const text = str(url);
+  if (text.length === 0) return '';
+  return text.replace(/([?&][A-Za-z0-9_-]*token=)[^&#\s"']*/gi, '$1***');
+}
+
+/**
+ * `deps.webHosts`（`Map<port, {url}>`）→ `snapshot.webHosts[]`（F-37：凭据已脱敏）。
+ *
+ * 抽成导出纯函数是为了**可单测**：不启动 web server、不碰 WSL，直接喂一个 host 对象进来
+ * 就能断言"输出里没有 token 明文、但端口还在"。
+ *
+ * @param webHosts index.ts 的 `webHosts` Map（不可迭代/缺省 ⇒ 空数组）
+ * @returns `{ port, url }[]`，`url` 已过 {@link redactUrlToken}
+ */
+export function snapshotWebHosts(webHosts) {
+  const rows = [];
+  if (!webHosts || typeof webHosts[Symbol.iterator] !== 'function') return rows;
+  for (const [port, host] of webHosts) {
+    if (host && typeof host.url === 'string' && host.url) {
+      rows.push({ port: Number(port), url: redactUrlToken(host.url) });
+    }
+  }
+  return rows;
+}
 
 /**
  * 只保留**一份** `remote-wsl: ` 模块标记。
@@ -456,8 +505,12 @@ export function createExplorerHandlers(deps) {
     const facts = await readDistroFacts();
     const names = facts.names;
     if (!Array.isArray(names) || names.indexOf(raw) < 0) {
+      // ★ F-36：带机器可读 reason（不是中文子串匹配）。面板"记住的发行版被删/改名"时就靠它
+      // 退回缺省目标重试一次（client.panel.js 的 distroResetRef），不解析文案。
       failArg(
         `remote-wsl: 未知发行版 "${raw}"（本机 wsl -l -q：${(Array.isArray(names) && names.length ? names.join('、') : '(读不到)')}）`,
+        null,
+        'unknown-distro',
       );
     }
     const versionOf = facts.flags && facts.flags.versions && typeof facts.flags.versions.get === 'function' ? facts.flags.versions.get(raw) : null;
@@ -674,12 +727,11 @@ export function createExplorerHandlers(deps) {
       ? { drifted: true, desktop: v.drift.desktop ?? null, pin: v.drift.pin ?? null }
       : { drifted: false };
 
-    const webHosts = [];
-    if (deps.webHosts && typeof deps.webHosts[Symbol.iterator] === 'function') {
-      for (const [port, host] of deps.webHosts) {
-        if (host && typeof host.url === 'string' && host.url) webHosts.push({ port: Number(port), url: host.url });
-      }
-    }
+    // ★ F-37（task-8，安全级）：**透传前脱敏**。`host.url` 由 `wsl_open_ui` 的启动 URL 抓来
+    // （含 `?token=`），而面板把这整份 snapshot 渲染进 `<pre>` 且能一键复制到剪贴板 ⇒
+    // 原样透传等于把 Web UI 的访问凭据写进 DOM 与系统剪贴板。保留 host:port，只打码 token 值。
+    // 见 {@link snapshotWebHosts} / {@link redactUrlToken}（纯函数，可单测）。
+    const webHosts = snapshotWebHosts(deps.webHosts);
 
     return {
       distros,
@@ -805,8 +857,15 @@ export function createExplorerHandlers(deps) {
       const v = deps.resolveVersion(eff);
       if (!v.version) failUnavailable('remote-wsl: 无法确定 dsh 版本（桌面 runtime.json 不可读且未配 dshVersion）');
       const r = await ensureDaemon(eff, { version: v.version, restart: action === 'restart', log });
-      // 失败原因原样带出（daemon-client 已含"端口被占/握手超时/daemon.log 尾部"这类可操作诊断）
-      if (!r.ok) failUnavailable(withModulePrefix(r.error));
+      // ★ F-36（task-8）：失败走**结构化错误体**（code+message+detail），不再只有一行 message。
+      // 面板的主句由 client 的 failKey（`note.failStart` / `note.failRestart`，用户语言）给出，
+      // host 的中文技术文案（端口被占 / 握手超时 / daemon.log 尾部）只进 detail 折叠区。
+      // 为什么不能只去掉文案：脚本与 `wsl_daemon` 工具也读 message，它必须仍然可独立读懂。
+      if (!r.ok) {
+        const why = withModulePrefix(r.error);
+        const notes = Array.isArray(r.notes) ? r.notes.filter((line) => typeof line === 'string' && line.length > 0) : [];
+        failUnavailable(why, notes.length > 0 ? notes.join('\n') : null);
+      }
       return {
         action,
         ok: true,
@@ -1163,7 +1222,7 @@ export function createExplorerHttpAdapter(webServer, handlers) {
 
       // (a) 同源门：先过，再看别的 —— 不满足时任何方法都不执行。
       if (!isSameOrigin(req)) {
-        sendJson(res, 403, { ok: false, error: '跨站请求被拒（Origin/Host 不同源）' });
+        sendJson(res, 403, { ok: false, error: '跨站请求被拒（Origin/Host 不同源）', code: 'E_ORIGIN', detail: null, reason: 'cross-origin' });
         return;
       }
 
@@ -1173,14 +1232,14 @@ export function createExplorerHttpAdapter(webServer, handlers) {
         return;
       }
       if (method0 !== 'POST') {
-        sendJson(res, 405, { ok: false, error: `只接受 GET（方法清单）与 POST（调用）；收到 ${method0}` });
+        sendJson(res, 405, { ok: false, error: `只接受 GET（方法清单）与 POST（调用）；收到 ${method0}`, code: 'E_METHOD', detail: null, reason: 'bad-verb' });
         return;
       }
 
       // (c) 类型：必须是 application/json。
       const ctype = str(req?.headers?.['content-type']).toLowerCase();
       if (!ctype.includes('application/json')) {
-        sendJson(res, 415, { ok: false, error: `POST 需要 content-type: application/json（收到 "${ctype || '(空)'}"）` });
+        sendJson(res, 415, { ok: false, error: `POST 需要 content-type: application/json（收到 "${ctype || '(空)'}"）`, code: 'E_CONTENT_TYPE', detail: null, reason: 'not-json' });
         return;
       }
 
@@ -1191,14 +1250,14 @@ export function createExplorerHttpAdapter(webServer, handlers) {
         method = str(body?.method);
         args = body?.args && typeof body.args === 'object' ? body.args : {};
       } catch (e) {
-        sendJson(res, 400, { ok: false, error: `请求体不是合法 JSON: ${e?.message ?? String(e)}` });
+        sendJson(res, 400, { ok: false, error: `请求体不是合法 JSON: ${e?.message ?? String(e)}`, code: 'E_BODY', detail: null, reason: 'bad-json' });
         return;
       }
 
       // (b) 硬编码白名单：只有方法表里这四个字符串能被执行。
       const handler = EXPLORER_METHODS.includes(method) ? handlers[method] : undefined;
       if (typeof handler !== 'function') {
-        sendJson(res, 400, { ok: false, error: `未知方法 ${method || '(空)'}`, methods: EXPLORER_METHODS });
+        sendJson(res, 400, { ok: false, error: `未知方法 ${method || '(空)'}`, methods: EXPLORER_METHODS, code: 'E_UNKNOWN_METHOD', detail: null, reason: 'unknown-method' });
         return;
       }
 
@@ -1206,9 +1265,16 @@ export function createExplorerHttpAdapter(webServer, handlers) {
         const result = await handler(args);
         sendJson(res, 200, { ok: true, result });
       } catch (e) {
-        // (e) 只回 message + 机器可读 code，不回显请求体 / headers / 任何凭据、不带栈
+        // (e) 只回 message + 机器可读 code + detail + reason，不回显请求体 / headers / 任何凭据、不带栈。
+        // ★ F-36（task-8）：**统一错误体** —— 四个字段各有唯一消费者：
+        //   `error`(message) 人读的一句话（脚本工具也靠它，必须可独立读懂）；
+        //   `code`           HTTP 状态码选择器（STATUS_BY_CODE）；
+        //   `detail`         技术细节（daemon.log 尾部 / systemd 提示），面板折叠显示；
+        //   `reason`         稳定机器标签（如 `unknown-distro`），让客户端**不必解析中文**。
         const code = str(e?.code);
-        sendJson(res, STATUS_BY_CODE[code] ?? 500, { ok: false, error: e?.message ?? String(e), code: code || 'E_UNKNOWN' });
+        const detail = typeof e?.detail === 'string' && e.detail.length > 0 ? e.detail : null;
+        const reason = typeof e?.reason === 'string' && e.reason.length > 0 ? e.reason : null;
+        sendJson(res, STATUS_BY_CODE[code] ?? 500, { ok: false, error: e?.message ?? String(e), code: code || 'E_UNKNOWN', detail, reason });
       }
     },
   });

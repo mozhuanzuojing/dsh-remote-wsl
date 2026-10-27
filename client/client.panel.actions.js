@@ -48,6 +48,7 @@ function usePanelActions(props) {
 	openSessionNote, pathError, pathInput, pending,
 	pendingFrom, pushRecent, readAbort, readRecent,
 	readSeq, recent, recentOk, rootRef,
+	menuKeyNav, trapTab, closeChipMenu,
 	setAction, setBrowse, setCollapsed, setFocusIndex,
 	setMenuOpen, setMounts, setPathError, setPathInput,
 	setPending, setRecent, setRecentOk, setShowHidden,
@@ -56,6 +57,9 @@ function usePanelActions(props) {
 	state, t, width,
 	listPath, jumpTo, submitPath, clearSearch, prefetchDir, cancelPrefetch, navSeq,
 			} = props;
+
+				/** ★ F-40：「网络较慢」提示的定时器（卸载/被取代时必须清；改前只在正常回包分支里 clear）。 */
+				const slowTimerRef = React.useRef(null);
 
 				const load = React.useCallback(
 					(options) => {
@@ -71,8 +75,17 @@ function usePanelActions(props) {
 						setState((prev) => ({ ...prev, status: "loading", error: null }));
 						setSlow(false);
 						const slowTimer = setTimeout(() => setSlow(true), 3000);
+						// ★ F-40：慢提示定时器挂在 ref 上 ⇒ 卸载/被取代时才清得掉（改前只在"正常回包"分支清）
+						slowTimerRef.current = slowTimer;
+						const clearSlow = () => {
+							clearTimeout(slowTimer);
+							if (slowTimerRef.current === slowTimer) slowTimerRef.current = null;
+						};
 						// M8：刷新同时刷"远端信息"和"当前目录列表"，两者都成功才更新戳记
 						const wanted = options && typeof options.path === "string" ? normalizeWslPath(options.path) : null;
+						// ★ F-34：缓存键含发行版（与 listPath 同一来源），且**在发起时**取样 ——
+						// 回包时目标可能已切换，用那时的 distro 做键会把 A 的结果记到 B 名下。
+						const wantedKey = wanted === null ? null : dirCache.key(typeof api.getDistro === "function" ? api.getDistro() : null, wanted);
 						const alsoList =
 							options && options.alsoList === true && wanted !== null ? api.listDir({ path: wanted }, signalOf(controller)) : Promise.resolve(null);
 						// 快照与"目录复核"**分开结算**：远端快照成功、只是列目录失败时，
@@ -80,8 +93,10 @@ function usePanelActions(props) {
 						const refresh = options && options.refresh === true;
 						Promise.allSettled([api.snapshot(signalOf(controller), { refresh }), alsoList]).then(
 							(results) => {
+								// ★ F-40：**先**清慢提示定时器，再做"已被取代"早退 —— 否则被取代的那次
+								// 永远不清，3s 后慢提示会从一个早已不存在的读取里冒出来。
+								clearSlow();
 								if (mySeq !== readSeq.current) return;
-								clearTimeout(slowTimer);
 								const [snapResult, listResult] = results;
 								if (snapResult.status === "rejected") {
 									const error = snapResult.reason;
@@ -95,7 +110,7 @@ function usePanelActions(props) {
 								if (listResult.status === "fulfilled" && listResult.value !== null && listResult.value !== undefined) {
 									const entries = asArray(listResult.value && listResult.value.entries).filter((entry) => isRecord(entry) && typeof entry.name === "string");
 									// 刷新结果同样进缓存：刷新后"返回上一目录"仍是瞬时回显
-									if (wanted !== null) dirCache.set(wanted, entries);
+									if (wantedKey !== null) dirCache.set(wantedKey, entries);
 									// ★ F2：只在此后没有发生新导航时写列表。缓存命中路径是同步 setBrowse、不会再有 promise 纠正，
 									// 若这里无条件覆盖，会把用户刚点进去的目录换回旧目录（实测 3s 后仍不自愈）。
 									if (navSeq.current === navAtStart) setBrowse({ status: "ready", cwd: wanted, entries, error: null, stale: false });
@@ -122,6 +137,11 @@ function usePanelActions(props) {
 						if (readAbort.current !== null) readAbort.current.abort();
 						if (actionAbort.current !== null) actionAbort.current.abort();
 						if (browseAbort.current !== null) browseAbort.current.abort();
+						// ★ F-40：卸载时清掉"网络较慢"提示的定时器（改前会遗留到 3s 后仍调 setSlow）
+						if (slowTimerRef.current !== null) {
+							clearTimeout(slowTimerRef.current);
+							slowTimerRef.current = null;
+						}
 					};
 				}, []);
 
@@ -153,6 +173,19 @@ function usePanelActions(props) {
 								(error) => {
 									if (controller !== null && controller.signal.aborted) return null;
 									if (error && error.kind === "aborted") return null;
+									// ★ F-36（task-8，P2）：**HTTP/传输失败也走 failKey**。
+									// 改前只有 `result.ok===false`（200 回包）才取 note.failStart/failRestart，
+									// 而 explorer 的 ensure/restart 失败是**抛错**（503/400）⇒ 该分支不可达，
+									// host 的原始中文技术文案（含 pid/slot/keys）直接当了主句。
+									// 现在：主句 = 用户语言（failKey），host 原文 + 错误体里的 detail 进折叠区。
+									const failKey = options && options.failKey;
+									if (failKey) {
+										const body = error && error.detail;
+										const lines = [errorText(error)];
+										if (body && typeof body.detail === "string" && body.detail.length > 0) lines.push(body.detail);
+										setAction({ busy: null, note: null, detail: lines.join("\n"), error: { message: t(failKey) } });
+										return null;
+									}
 									const message = options && options.describeError ? options.describeError(error) : errorText(error);
 									setAction({ busy: null, note: null, detail: null, error: { message } });
 									return null;
@@ -262,6 +295,8 @@ function usePanelActions(props) {
 					};
 				}, [pending]);
 
+				/** WAI-ARIA menu 键盘模型 / alertdialog 焦点陷阱 / details 菜单开合：见 client.panel.a11y.js。 */
+
 				const closeMenu = React.useCallback((viaEscape) => {
 					setMenuOpen(false);
 					if (viaEscape === true && moreRef.current !== null) moreRef.current.focus();
@@ -307,9 +342,11 @@ function usePanelActions(props) {
 					[setSearch],
 				);
 
+				/**
+				 * ⋯ 菜单的按键处理：Esc 关闭回焦触发按钮、Tab 关闭让焦点自然离开、
+				 * 方向键/Home/End 交给共享的 {@link menuKeyNav}（同一套模型也给 chip 菜单用）。
+				 */
 				const onMenuKey = (event) => {
-					const items = [...(menuRef.current === null ? [] : menuRef.current.querySelectorAll('[role="menuitem"]:not([disabled])'))];
-					if (items.length === 0) return;
 					if (event.key === "Escape") {
 						event.preventDefault();
 						closeMenu(true);
@@ -319,15 +356,7 @@ function usePanelActions(props) {
 						setMenuOpen(false);
 						return;
 					}
-					if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
-						event.preventDefault();
-						const current = items.indexOf(document.activeElement);
-						let next;
-						if (event.key === "Home") next = 0;
-						else if (event.key === "End") next = items.length - 1;
-						else next = (current < 0 ? 0 : current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
-						items[next].focus();
-					}
+					menuKeyNav(event, menuRef.current);
 				};
 
 				const runDaemon = (kind, fromElement, options) => {
@@ -351,6 +380,7 @@ function usePanelActions(props) {
 	others, run, runDaemon, snapshot, sessions,
 	submitPath, target, totalEntries, visibleEntries, searching,
 	cancelPrefetch, prefetchDir, searchChange,
+	closeChipMenu, menuKeyNav, trapTab,
 			};
 }
 

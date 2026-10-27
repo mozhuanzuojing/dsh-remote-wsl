@@ -81,6 +81,11 @@ window.__ModuleLoader__.load({
 			// 2026-10-21「多发行版」：目标发行版选择器（只有多个发行版时才渲染；单发行版是静态徽标）
 			".dsh-rw-targets{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;flex:none}",
 			".dsh-rw-target{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;min-height:28px;padding:4px 8px;border-radius:6px;border:none;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left;}",
+			// F-35（task-8）：行内**主操作**现在是原生 <button>（鼠标可点、Tab 可达、Enter/Space 原生激活）。
+			// 它必须"看起来仍是行的一部分"：清掉 UA 的按钮外观，吃满行内剩余宽度，故不设背景/边框/内边距；
+			// 焦点环不覆盖（走平台 :focus-visible，视觉规格 §5.2 要求不得 outline:none 而不给替代）。
+			".dsh-rw-targetmain{display:flex;align-items:center;gap:8px;flex:1;min-width:0;padding:0;border:none;background:none;color:inherit;font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;box-shadow:none}",
+			".dsh-rw-targetmain:disabled{cursor:default}",
 			".dsh-rw-target:hover{background:var(--dsw-alias-interactive-bg-hover)}",
 			".dsh-rw-target--on{background:var(--dsw-alias-interactive-bg-active)}",
 			".dsh-rw-target--unsupported{opacity:0.55}",
@@ -93,7 +98,12 @@ window.__ModuleLoader__.load({
 			".dsh-rw-tchip[open]>summary{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-tchip .dsh-rw-menu{width:200px}",
 			".dsh-rw-sessions{padding-bottom:8px}",
-			".dsh-rw-sessionmeta{color:var(--dsw-alias-label-tertiary);font-size:12px;white-space:nowrap}",
+			// F-26 收口（task-8）：会话卡元信息（轮次 · 空闲）原来用 `label-tertiary` —— 该 token
+			// **不在面板 17 token 闭集里**，且 spec §1.0/§1.1 实测 light 底上只有 **3.71:1 < 4.5**并明确
+			// 「不能承担信息文本」。按 spec 的 T2 档（元信息/计数/时间戳）改用 `label-secondary`
+			// —— 这同时让 C2（token 闭集）从 FAIL 变 PASS；`label-tertiary` 全仓 client 现在零引用。
+			// （此处不复述具体色值：C1 门禁把注释里的字面色也计入，复述会给门禁添假红。）
+			".dsh-rw-sessionmeta{color:var(--dsw-alias-label-secondary);font-size:12px;white-space:nowrap}",
 			".dsh-rw-copied{color:var(--dsw-alias-state-success-primary)}",
 			".dsh-rw-session{display:flex;align-items:center;gap:8px;min-height:28px;padding:4px 10px}",
 			".dsh-rw-sessionpath{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;unicode-bidi:isolate}",
@@ -121,8 +131,10 @@ window.__ModuleLoader__.load({
 			".dsh-rw-daemon{display:inline-flex;align-items:center;gap:5px;flex:none;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;white-space:nowrap}",
 			".dsh-rw-daemon:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			// 2026-10-23 review ①：状态 token 只用于**边框/圆点**，文字一律用 `label-primary`。
-			// 原因（实测对比度，白底）：success rgb(34,197,94)=2.28、warn rgb(245,158,11)=2.15、error 4.50 ——
+			// 原因（实测对比度，白底）：success 2.28:1、warn 2.15:1、error 4.50:1 ——
 			// 前两个连 3:1（图形/大字）都不到，更别说 4.5:1（正文）。状态语义由圆点形状 + 边框 + 文字共同承载。
+			// task-8：这里原写成色函数形式（如 success 的绿色 = 2.28:1）记录实测值，会被
+			// css-token-audit 的 C1（硬编码色 = 0）当命中 ⇒ 注释里的实测值改记成纯比值（数值不变，门禁不再假红）。
 			".dsh-rw-daemon--on{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-success-primary)}",
 			".dsh-rw-daemon--off{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-state-warn-primary)}",
 			// 2026-10-22 B1：头部「代理状态」徽标（三态）。与守护药丸同形（h22 / 12px / 圆角 999），
@@ -632,3 +644,18 @@ window.__ModuleLoader__.load({
 // stamp.lastSuccessRefreshing / stamp.failedLastSuccess / stamp.none / status.loading）—— 它们对应的
 // 「加载期把『尚未取得快照』渲染两次」与「结果条透传 host note」两条文案瑕早已在 T 系列修掉，
 // 只剩死键误导读者；当前加载期只渲染「远端守护状态未知 + 状态读取中…」一处。改的是 chunk ⇒ 刷新入口 rev。
+// 2026-10-27（task-8 客户端轮，F-34/35/36/37/38/39/40）：
+//   · F-34 切发行版状态机：dirCache 键含 distro、changeDistro bump browseSeq + abort 在飞 listDir、
+//     browseAbort 真正赋值并把 signal 传给 listDir（data chunk / helpers chunk / 本入口的接线）；
+//   · F-35 发行版行可键盘激活：行内主操作改成原生 <button>（aria-pressed / Enter / Space），
+//     删掉藏在 visibility:hidden 容器里的「切换」按钮与残留 stopPropagation；CSS 新增 .dsh-rw-targetmain；
+//   · F-36 ensure/restart 的 HTTP 失败也映射到 failKey（主句用户语言，host 原文进 detail 折叠）；
+//   · F-37 诊断区凭据脱敏：host snapshot.webHosts[].url 打码 token，client 的 <pre> 与"复制诊断"
+//     两个出口再过一遍 api.redactSecrets；
+//   · F-38 加载骨架与错误卡互斥（错误优先）；F-39 根 section 补 aria-label、alertdialog 焦点陷阱、
+//     chip 菜单补键盘模型、footer 的 role=status 不再包可聚焦控件、死键 53→0、硬编码中文 2 处转 i18n；
+//   · F-40 slow/prefetch/copy 定时器在卸载与被取代路径全部清理；
+//   · 新增第 8 个 panel chunk `client.panel.a11y.js`（menu 键盘模型 / alertdialog 焦点陷阱 / details 开合），
+//     因为 actions chunk 已贴 400 行纪律线；客户端 chunk 全量改动 ⇒ 按 docs/client-contract.md §11 刷新入口 rev。
+//   · 顺带 F-26 收口：`.dsh-rw-sessionmeta` 由 label-tertiary 改 label-secondary（该 token 不在 17 token
+//     闭集且实测 3.71:1 < 4.5）；并把注释里的实测对比度改成比值记法 ⇒ css-token-audit C1/C2 全 PASS。

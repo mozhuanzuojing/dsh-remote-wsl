@@ -26,12 +26,13 @@ export function killWslPid(cfg, pid) {
  * `killWslPid` 的异步版（2026-10-27 审查 F-15）：控制面不再同步阻塞宿主事件循环。
  * 身份判据保持一致（cmdline 里必须有 `daemon.ts`；见 F-09 的说明，`ensure` 路径也只用它兜底）。
  */
-export async function killWslPidAsync(cfg, pid) {
+export async function killWslPidAsync(cfg, pid, signal = 'TERM') {
   if (!Number.isFinite(Number(pid))) return;
   const p = Number(pid);
+  const sig = signal === 'KILL' ? 'KILL' : 'TERM'; // 白名单：只允许这两种（绝不把任意字符串拼进 shell）
   const script =
     `if [ -r /proc/${p}/cmdline ] && tr '\\0' ' ' < /proc/${p}/cmdline | grep -q 'daemon\\.ts'; then ` +
-    `kill -TERM ${p} 2>/dev/null || true; fi`;
+    `kill -${sig} ${p} 2>/dev/null || true; fi`;
   await wslRunScriptAsync(cfg, script, 10000);
 }
 
@@ -51,6 +52,9 @@ function launchScript(cfg, port, version) {
       `--idle-ms ${Number(cfg.daemonIdleMs ?? 1800000)} --queue-limit ${Number(cfg.daemonQueueLimit ?? 4)} ` +
       `--profile ${JSON.stringify(cfg.profile ?? 'sdk')} --proxy-port ${Number(cfg.proxyPort ?? 9910)} ` +
       `--linger-ms ${Number(cfg.daemonLingerMs ?? 600000)} ` +
+      // F-55（2026-10-27 审查）：把 `useShellEnvironment` 真正接到守护启动参数上。以前这个开关只在
+      // in-host / wsl_open_ui 生效，daemon 后端恒注入，而 `wsl_status` 又按配置回显 —— 配置与行为矛盾。
+      `${cfg.useShellEnvironment === false ? '--no-shell-env ' : ''}` +
       `--state-dir ${JSON.stringify(stateDirLinux(cfg))} --launcher ${JSON.stringify(launchLinux(cfg, port))}`,
     '',
   ].join('\n');

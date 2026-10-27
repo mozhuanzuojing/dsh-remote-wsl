@@ -16,20 +16,24 @@
  * 这正是 `dsh-wsl-workspace` 用的形态；我们由 `src/preset.ts` 注册 WSL 变体预设。
  *
  * ## 与 dsh-fs-local 的语义对齐（有意保留的部分）
- * · `stat` 跟随符号链接、`lstat` 不跟随；版本 = `mtimeNs:size`；
- * · 写是"同目录临时文件 + rename"（原子），保留既有 mode；
+ * · `stat` 跟随符号链接、`lstat` 不跟随；版本令牌 = `dev:ino:size:mtimeNs:ctimeNs`（bigint 统计，
+ *   与上游 `versionOf()` 同形：删除重建 / rsync 保留 mtime / chmod 都会被识别为「变了」）；
+ * · `resolve` 用 realpath 生成 targetKey（最近存在祖先 + 拼接缺失后缀）⇒ 同一文件只有一把键；
+ * · 写是"同目录临时文件 + rename"（原子），保留既有 mode；`createIfAbsent` 用硬链接**独占发布**
+ *   （并发创建恰好一个成功，另一个 FS_NOT_OBSERVED）；
  * · `expected.kind` 支持 `replaceIfVersion` / `createIfAbsent`；
- * · `readText` 拒绝二进制与超限，`readBytes`/`readByteRange` 走 base64。
+ * · `readText` 拒绝二进制与超限（上限可配，默认 16MiB），`streamText` 是**真流式**
+ *   （1MiB 分块 RPC + 跨块 UTF-8 解码），`readBytes`/`readByteRange` 走 base64。
  * **不做的**：`watch` 用 500ms 轮询近似（没有 inotify 桥）；`sandboxMode` 报 `workspace-write`，
- * 并按 host 传来的 `sandboxPolicy` 做**真实路径**围栏（`FS_SANDBOX_DENIED`），根 = 工作区（UNC→发行版内）
- * + 发行版 `/tmp`；多发行版仍只服务配置的那一个。
+ * 并按 host 传来的 `sandboxPolicy` 做**真实路径**围栏（`FS_SANDBOX_DENIED`），根 = 工作区
+ * （UNC 或 Windows 盘符路径 → 发行版内 `/mnt/<drive>/…`）+ 发行版 `/tmp`；多发行版仍只服务配置的那一个。
  *
  * @module dsh-remote-wsl/fs-provider
  */
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ensureDaemon } from './daemon-client.ts';
-import { callDaemon, readDaemonRecord } from './daemon-protocol.ts';
+import { callDaemon, readDaemonRecord, winToWsl } from './daemon-protocol.ts';
 import { resolveVersion } from './wsl-io.ts';
 
 export const name = 'dsh-remote-wsl-fs';
@@ -52,6 +56,12 @@ const DEFAULTS = {
   daemonHandshakeTimeoutMs: 3000,
   daemonStartTimeoutMs: 20000,
   timeoutMs: 60000,
+  // readText 的字节上限（2026-10-27 审查 F-11）：上游 readText 无上限，但我们要把整段文本塞进**一个
+  // JSON 帧**回传，不能无界。宿主 `dsh-tool-fs` 在 `size >= 10MiB` 时改走 streamText（STREAM_MIN_SIZE），
+  // 所以 16MiB 足够覆盖 readText 区间并留余量；更大的文件走真流式。
+  // 可用 rawConfig.readTextMaxBytes 覆盖。注意：`src/preset.ts` 目前只转发 distro/wslHome/cwd/daemonPort，
+  // 要让部署真正可调需在那里补一行（本次写面只含 fs 三个文件，未改 preset）。
+  readTextMaxBytes: 16 * 1024 * 1024,
 };
 
 const fsErr = (message, code) => {
@@ -60,8 +70,25 @@ const fsErr = (message, code) => {
   return error;
 };
 
-const uncPath = (distro, linuxPath) =>
-  `\\\\wsl.localhost\\${distro}${linuxPath.endsWith('/') ? linuxPath.slice(0, -1) : linuxPath}`.replace(/\//g, '\\');
+/**
+ * Linux 绝对路径 → Windows UNC。
+ *
+ * 为什么必须拒绝 `\`（2026-10-27 审查 F-23）：Linux 文件名允许反斜杠，而 Windows 把它当**路径分隔符**；
+ * 直接 `replace(/\//g,'\\')` 会把 `/home/g/a\..\..\etc\passwd` 拼成 `\\wsl.localhost\<d>\home\g\a\..\..\etc\passwd`
+ * —— Windows 侧解析 `..` 后指向**另一个文件**。UNC 语法没有能表达文件名内 `\` 的转义，所以只能报错
+ * （宁可让调用方拿到明确失败，也不给它一条错路径）。
+ */
+const uncPath = (distro, linuxPath) => {
+  const raw = String(linuxPath ?? '/');
+  if (raw.includes('\\')) {
+    throw fsErr(
+      `cannot map "${raw}" to a Windows UNC path: a backslash inside a Linux file name would be parsed as a path separator on Windows`,
+      'FS_IO_ERROR',
+    );
+  }
+  const tail = raw.endsWith('/') ? raw.slice(0, -1) : raw;
+  return `\\\\wsl.localhost\\${distro}${tail}`.replace(/\//g, '\\');
+};
 
 const UNC_RE = /^[\\/]{2}(?:wsl\.localhost|wsl\$)[\\/]([^\\/]+)(?:[\\/](.*))?$/i;
 
@@ -142,24 +169,117 @@ export async function resolveDeepestAncestor(linuxPath, realpathOf) {
       if (!suffix.length) return base || '/';
       return `${base}/${suffix.join('/')}`;
     }
+    // 走到 `/` 还解析不出 ⇒ 围栏/身份都无法验证，调用方必须按失败处理（绝不静默放行）。
+    // 注意：`/` 本身也要试（上游 resolveLocalTarget() 的最近存在祖先可以就是根；顶层段不存在时
+    // 应当返回 `/<缺失后缀>`，而不是失败 —— 2026-10-27 审查 F-25 的 resolve() 依赖这一点）。
+    if (current === '/') return null;
     const cut = current.lastIndexOf('/');
-    if (cut <= 0) return null; // 连 `/` 都解析不出来 ⇒ 围栏无法验证，调用方必须失败（绝不静默放行）
     suffix.unshift(current.slice(cut + 1));
     current = cut === 0 ? '/' : current.slice(0, cut);
   }
 }
 
 /**
+ * workspace-write 策略下的可写根（映射到发行版内路径）。导出以便离线验证（不需要守护）。
+ *
+ * 为什么要映射（2026-10-27 审查 F-16）：宿主传来的 `workspaceRoot` 有三种形状：
+ *   · 同发行版 UNC（`\\wsl.localhost\<d>\home\g\ws`）⇒ 取发行版内路径；
+ *   · 发行版内绝对路径（`/home/g/ws`）⇒ 原样；
+ *   · **Windows 绝对路径**（`D:\proj\ws`；用 wsl preset 打开 Windows 目录会话时就是它）⇒ 用已有
+ *     `winToWsl()` 映成 `/mnt/d/proj/ws`。
+ * 旧实现只认前两种 ⇒ roots 只剩 `/tmp`，该工作区内的写全部 FS_SANDBOX_DENIED（错误方向安全，但功能不可用）。
+ * 映射不出来的一律**不加**（少给权限，方向安全）；`/tmp` 恒在（与上游 `dsh-sandbox.writableRoots()` 同义）。
+ *
+ * @param policy 宿主每次写入传的 SandboxExecutionPolicy（这里只用 workspaceRoot）
+ * @param distro 本 provider 服务的发行版名
+ * @returns 发行版内绝对路径数组
+ */
+export function writableRootsOf(policy, distro) {
+  const roots = [];
+  if (policy && typeof policy.workspaceRoot === 'string' && policy.workspaceRoot.length > 0) {
+    const root = policy.workspaceRoot;
+    const unc = parseUnc(root);
+    if (unc !== null) {
+      // 别的发行版的 UNC 不能当成本 provider 的根（也不去猜映射）⇒ 不加，写会被围栏拒绝。
+      if (unc.distro === distro) roots.push(unc.linuxPath);
+    } else if (root.startsWith('/') && !root.startsWith('//')) {
+      roots.push(root);
+    } else if (/^[A-Za-z]:[\\/]/.test(root)) {
+      // Windows 盘符绝对路径：只认 winToWsl() 映射出的 /mnt/<drive>/…（`\\?\` 等长路径前缀映射不出来就忽略）。
+      const mapped = winToWsl(root);
+      if (mapped.startsWith('/mnt/')) roots.push(mapped);
+    }
+  }
+  roots.push('/tmp'); // workspace-write 的语义包含平台临时区（dsh-sandbox 的 writableRoots 同义）
+  return roots;
+}
+
+/**
+ * `streamText` 每块请求的字节数（与 fs-rpc 的默认块一致；跨块 UTF-8 由 TextDecoder 兜住）。
+ * 1MiB 的理由见 fs-rpc 同名常量：每块是一次 RPC + 一次守护元数据读取，块太小会放大大文件读取开销。
+ */
+export const STREAM_CHUNK_BYTES = 1024 * 1024;
+
+/**
+ * 把「按字节偏移取一块（base64）」的读取器变成 UTF-8 文本块异步迭代器。
+ *
+ * 为什么解码放在宿主这边：UTF-8 多字节字符可能正好跨块，只有用**同一个** `TextDecoder` 连续
+ * `decode(chunk, {stream:true})` 才正确（上游 `streamWholeText()` 的 decoder 同语义；按块单独 decode 会切坏字符）。
+ * 二进制判定与 readText 一致：出现 NUL 或非法 UTF-8 ⇒ FS_BINARY。
+ *
+ * 导出是为了能**离线**验证（本函数不碰 RPC：把 readChunk 换成 fs-rpc.readChunkOp 即可对真实文件跑）。
+ *
+ * @param readChunk `(offset, maxBytes) => Promise<{base64, bytes}>`；`bytes === 0` 表示文件结束
+ * @param signal 取消信号（每块之间检查）
+ * @param displayPath 报错文案里用的路径
+ * @returns 解码后的文本块（块边界无语义；空块被跳过）
+ */
+export async function* decodeTextChunks(readChunk, signal, displayPath) {
+  const where = displayPath ?? '<unknown>';
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  let offset = 0;
+  for (;;) {
+    signal?.throwIfAborted?.();
+    const r = await readChunk(offset, STREAM_CHUNK_BYTES);
+    const bytes = Number(r?.bytes) || 0;
+    if (bytes === 0) break;
+    const buf = Buffer.from(String(r?.base64 ?? ''), 'base64');
+    if (buf.length === 0) break; // 防御：bytes>0 但解码为空（协议异常）时不能原地死循环
+    if (buf.includes(0)) throw fsErr(`binary file (NUL byte): ${where}`, 'FS_BINARY');
+    let text;
+    try {
+      text = decoder.decode(buf, { stream: true });
+    } catch {
+      throw fsErr(`binary file (invalid UTF-8): ${where}`, 'FS_BINARY');
+    }
+    if (text.length > 0) yield text;
+    offset += buf.length;
+  }
+  // 冲掉解码器里可能残留的不完整序列（文件尾正好截断一个多字节字符 ⇒ 非法 UTF-8，与 readText 同判据）。
+  let tail;
+  try {
+    tail = decoder.decode();
+  } catch {
+    throw fsErr(`binary file (invalid UTF-8): ${where}`, 'FS_BINARY');
+  }
+  if (tail.length > 0) yield tail;
+}
+
+/**
  * 造一个 WSL 执行世界的 FileSystem 实现（**普通对象**：不 import `@deepseek-ai/dsh-fs`，
  * 因为本插件以 `link:` 安装，拿不到宿主包的解析路径 —— 见 README「零运行时依赖」）。
  *
- * @param rawConfig - `distro` / `daemonPort` / `wslHome` / `cwd`（缺省同插件默认）
+ * @param rawConfig - `distro` / `daemonPort` / `wslHome` / `cwd` / `readTextMaxBytes`（缺省同插件默认）
+ * @param internals - 测试缝（与 `WebHost`/`dsh-fs-local` 的 `internals` 同风格）：`fsCall` 可替换 RPC
+ *   调用器，用于**离线**验证 provider 契约（不启动守护、不写 ~/.dsh）。生产路径不传。
  * @returns 与 `FileSystem` 同形的方法集合（tool-fs 只按方法名调用）
  */
-export function createWslFileSystem(rawConfig = {}) {
+export function createWslFileSystem(rawConfig = {}, internals = {}) {
   const rpc = createWslRpc(rawConfig);
   const { config, distro } = rpc;
-  const call = (method, args, signal) => rpc.call('fs', method, args, signal);
+  const call = typeof internals.fsCall === 'function'
+    ? internals.fsCall
+    : (method, args, signal) => rpc.call('fs', method, args, signal);
 
   /** 把一个输入路径解析成 `{distro, linuxPath}`；相对路径用 cwd 兜底。 */
   const translate = (input, cwd) => {
@@ -180,13 +300,26 @@ export function createWslFileSystem(rawConfig = {}) {
       return { distro, linuxPath: path.posix.resolve(baseUnc.linuxPath, raw) };
     }
     if (String(base).startsWith('/')) return { distro, linuxPath: path.posix.resolve(String(base), raw) };
+    // 宿主把会话 cwd 原样传给 resolve（tool-fs 的 sessionResolveOptions）：用 `wsl` preset 打开一个
+    // **Windows 目录**会话时它是 `D:\…`。直接交给 path.posix.resolve 会拼出 `/home/g/D:\…` 这种伪路径，
+    // 相对路径全部失败。用已有 winToWsl() 映成 /mnt/<drive>/…（与 assertWritable 的 workspaceRoot
+    // 映射同一根因，审查 F-16）。
+    const mapped = winToWsl(String(base));
+    if (mapped.startsWith('/')) return { distro, linuxPath: path.posix.resolve(mapped, raw) };
     throw fsErr(`remote-wsl fs: 解析相对路径 "${raw}" 需要 WSL cwd（当前 cwd=${String(base)}）`, 'FS_IO_ERROR');
   };
 
-  const targetOf = (input, cwd) => {
-    const { linuxPath } = translate(input, cwd);
-    return { targetKey: linuxPath, displayPath: linuxPath };
+  /**
+   * 通过 RPC 解析真实路径：`null` = 不存在（ENOENT）；**其它错误照常抛出**（传输/权限错误不许吞）。
+   * 用闭包传 signal：解析期间被取消要能停下。
+   */
+  const realpathOf = (signal) => async (linuxPath) => {
+    const r = await call('realpath', { path: linuxPath }, signal);
+    return r?.realpath ?? null; // realpathOp 已把 ENOENT 映射成 realpath:null
   };
+
+  /** 最近存在的祖先 + 拼接缺失后缀（上游 `resolveLocalTarget()` 同义）；`null` = 解析失败，由调用方决定策略。 */
+  const resolveIdentity = (linuxPath, signal) => resolveDeepestAncestor(linuxPath, realpathOf(signal));
 
   /**
    * 沙箱围栏：把 host 的 writable roots 映射到发行版内，再比**真实路径**（防符号链接逃逸）。
@@ -198,10 +331,7 @@ export function createWslFileSystem(rawConfig = {}) {
    * 必须让写入失败，不允许静默按词法放行。
    */
   const canonical = async (linuxPath) => {
-    const resolved = await resolveDeepestAncestor(linuxPath, async (p) => {
-      const r = await call('realpath', { path: p });
-      return r?.realpath ?? null; // ENOENT（realpathOp 已映射成 realpath:null）⇒ 继续向父目录找
-    });
+    const resolved = await resolveIdentity(linuxPath);
     if (resolved === null) {
       // fail-closed：围栏无法验证真实路径时，宁可直接拒绝写，也不按词法放行（P0 F-01）。
       throw fsErr(`cannot resolve "${linuxPath}" against the WSL filesystem: sandbox fence cannot be verified`, 'FS_IO_ERROR');
@@ -218,19 +348,15 @@ export function createWslFileSystem(rawConfig = {}) {
       throw fsErr(`cannot write "${targetKey}": read-only sandbox mode`, 'FS_SANDBOX_DENIED');
     }
     if (policy.mode !== 'workspace-write') return null;
-    const roots = [];
-    if (typeof policy.workspaceRoot === 'string' && policy.workspaceRoot.length > 0) {
-      const unc = parseUnc(policy.workspaceRoot);
-      if (unc !== null && unc.distro === distro) roots.push(unc.linuxPath);
-      else if (policy.workspaceRoot.startsWith('/')) roots.push(policy.workspaceRoot);
-    }
-    roots.push('/tmp'); // workspace-write 的语义包含平台临时区（dsh-sandbox 的 writableRoots 同义）
+    const roots = writableRootsOf(policy, distro);
     const realTarget = await canonical(targetKey);
     for (const root of roots) {
       const realRoot = await canonical(root);
       if (realTarget === realRoot || realTarget.startsWith(realRoot.endsWith('/') ? realRoot : `${realRoot}/`)) return realTarget;
     }
-    throw fsErr(`cannot write "${targetKey}": outside the writable workspace roots`, 'FS_SANDBOX_DENIED');
+    // 把实际生效的 roots 写进错误：workspaceRoot 是 Windows/UNC 时，否则用户只看到 "outside the writable
+    // workspace roots"，无法判断它被映射到了哪里（审查 F-16 记录的定位成本）。
+    throw fsErr(`cannot write "${targetKey}": outside the writable workspace roots (${roots.join(', ')})`, 'FS_SANDBOX_DENIED');
   };
 
   // ── 共享轮询观察（2026-10-26 perf）：所有 watcher 合并成**一次** `statMany` / 500ms ──
@@ -280,7 +406,8 @@ export function createWslFileSystem(rawConfig = {}) {
 
     /**
      * 轮询式观察：DSH 的文件变化观察会调它。WSL 侧没有 inotify 桥，这里每 500ms 比对一次
-     * `mtimeNs:size`；变化才回调。多个 watcher 共享同一条轮询（statMany 批量化）。
+     * **版本令牌**（fs-rpc 的 `dev:ino:size:mtimeNs:ctimeNs`，与 stat 同源）；变化才回调。
+     * 多个 watcher 共享同一条轮询（statMany 批量化）。
      */
     async watch(target, changed, signal) {
       signal?.throwIfAborted?.();
@@ -303,9 +430,25 @@ export function createWslFileSystem(rawConfig = {}) {
       };
     },
 
+    /**
+     * 契约（`@deepseek-ai/dsh-fs` 的 `resolve`）：**同一文件必须得到同一个 targetKey**。
+     *
+     * 2026-10-27 审查 F-25：旧实现直接把 `path.posix.normalize/resolve` 的字符串当键 ⇒ 同一个文件经
+     * 符号链接/别名得到两把键：observation-policy 会误判「没读过」（假 FS_NOT_OBSERVED、写被拒）、
+     * `contains()` 把「工作区内链接指向外部」判成 contained、版本基线跨别名不可复用。
+     * 现与上游 `resolveLocalTarget()` 同义：realpath 最近存在的祖先 + 拼接缺失后缀
+     * （复用 resolveDeepestAncestor；新建文件的叶子不存在时也能得到稳定身份）。
+     * displayPath 保留用户给的形式（上游同样用未 realpath 的 resolve(cwd,path) 做显示）。
+     */
     async resolve(input, opts = {}) {
       opts.signal?.throwIfAborted?.();
-      return targetOf(input, opts.cwd);
+      const { linuxPath } = translate(input, opts.cwd);
+      const targetKey = await resolveIdentity(linuxPath, opts.signal);
+      if (targetKey === null) {
+        // 连 `/` 都解析不出：宿主守护/发行版层面出了问题。明确失败，不退回未解析路径（fail-closed）。
+        throw fsErr(`cannot resolve "${linuxPath}" against the WSL filesystem`, 'FS_IO_ERROR');
+      }
+      return { targetKey, displayPath: linuxPath };
     },
 
     processPath(target) {
@@ -340,12 +483,31 @@ export function createWslFileSystem(rawConfig = {}) {
     },
 
     async readText(target, signal) {
-      const r = await call('readText', { path: target.targetKey, maxBytes: 8 * 1024 * 1024 }, signal);
+      // 上限可配（默认 16MiB，见 DEFAULTS.readTextMaxBytes）：宿主 readText 的区间是 <10MiB
+      // （≥10MiB 走 streamText），所以 16MiB 覆盖该区间；超限报 FS_TOO_LARGE 且不暴露实现字节数。
+      const maxBytes = Math.max(Number(config.readTextMaxBytes) || DEFAULTS.readTextMaxBytes, 1);
+      const r = await call('readText', { path: target.targetKey, maxBytes }, signal);
       return r.text;
     },
 
+    /**
+     * 真流式（2026-10-27 审查 F-11）：契约要求 `Promise<AsyncIterable<string>>`。
+     * 旧实现 `return this.readText(...)` 返回的是 **string** —— host 侧 `for await` 逐字符迭代
+     * 「恰好不崩」，把类型违约掩盖了；同时 ≥8MiB 文件一律 FS_TOO_LARGE。
+     * 现在按 1MiB 分块向 WSL 要数据（`readChunk` RPC），宿主侧用同一个 TextDecoder 跨块解码，
+     * 内存占用与文件大小解耦（消费方可以只取前几块，例如 dsh-tool-fs 的 read 窗口）。
+     * RPC 发生在**迭代时**（与上游 async generator 一致），所以守护不可用不会在调用时同步抛错。
+     */
     streamText(target, signal) {
-      return this.readText(target, signal);
+      const targetKey = target.targetKey;
+      const displayPath = target.displayPath;
+      return Promise.resolve(
+        decodeTextChunks(
+          (offset, maxBytes) => call('readChunk', { path: targetKey, offset, maxBytes }, signal),
+          signal,
+          displayPath,
+        ),
+      );
     },
 
     async readBytes(target, signal, maxBytes) {

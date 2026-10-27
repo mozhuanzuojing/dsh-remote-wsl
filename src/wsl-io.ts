@@ -68,7 +68,9 @@ export function writeScript(distro, body, ext = '.sh') {
   const token = `${process.pid}-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
   const linuxPath = `/tmp/dsh-rwsl-${token}${ext}`;
   try {
-    writeFileSync(unc(distro, linuxPath), body, 'utf8');
+    // F-30（2026-10-27 审查）：脚本内容含**完整用户命令**与代理/PATH 前缀，默认 0644 会让同机其它
+    // WSL 用户在执行期间读到它（实测旧代码得到 -rw-r--r--）。显式 0600。
+    writeFileSync(unc(distro, linuxPath), body, { encoding: 'utf8', mode: 0o600 });
   } catch (e) {
     // 发行版名写错 / 该发行版没在跑时，裸 Node 报的是 `UNKNOWN: unknown error, open '\\wsl.localhost\<name>\tmp\...'`
     // —— 完全不可诊断（2026-10-10 对抗性审核实测）。这里换成可操作的错误。
@@ -303,7 +305,9 @@ export async function sweepOwnTempFiles(cfg, winPid = process.pid) {
   try {
     await runWsl(
       cfg,
-      `ls -1 /tmp/dsh-rwsl-${winPid}-* 2>/dev/null | xargs -r rm -f
+      // F-31（2026-10-27 审查）：旧实现 `ls -1 … | xargs -r rm -f` 按**空白分词**，文件名里有空格时
+      // 第二段会被当成另一个路径递给 rm（含相对 `..` 可以越出 /tmp）。改成 find -exec（参数是路径，不分词）。
+      `find /tmp -maxdepth 1 -name 'dsh-rwsl-${winPid}-*' -exec rm -f -- {} +
 true
 `,
       { timeoutMs: 15000, allowDuringShutdown: true }, // 收尾命令：beginShutdown 之后仍必须能跑
@@ -357,6 +361,12 @@ export function wslPathConvert(cfg, rawPath, direction) {
   const stdout = normalizeWslOutput(decodeWslOutput(res.stdout));
 
   if (res.error) {
+    // F-57（2026-10-27 审查）：`spawnSync` 超时给的是 `error.code === 'ETIMEDOUT'`，旧实现一律报
+    // "无法启动 wsl.exe" ⇒ 用户去查安装，而真实原因是 WSL 冷启动/超时。分开说清楚。
+    const code = (res.error as any).code;
+    if (code === 'ETIMEDOUT') {
+      throw new Error(`remote-wsl: wsl_path 超时（20s 内 wsl.exe 未返回；WSL 可能在冷启动或卡住）。请稍后重试，或先 wsl_status 看发行版是否在运行。`);
+    }
     throw new Error(`remote-wsl: wsl_path 无法启动 wsl.exe: ${res.error.message}`);
   }
   if (/^NOWSLPATH$/m.test(stdout) || res.status === 4) {

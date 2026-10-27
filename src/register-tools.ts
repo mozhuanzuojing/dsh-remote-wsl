@@ -265,6 +265,8 @@ export function registerTools(deps) {
         // 时返回空数组，这里如实标成「读不到」而不是"没有发行版"。
         const distros = listDistrosAsync ? await listDistrosAsync() : listDistros();
         const distrosReadFailed = Array.isArray(distros) && distros.length === 0;
+        // F-43（2026-10-27 审查）：配置的目标发行版不在列表里时，旧实现只是"调用会失败"，状态输出不标红。
+        const targetMissing = Array.isArray(distros) && distros.length > 0 && !distros.includes(config.distro);
         const v = resolveVersion(config);
         // 孤儿运行时诊断（只数，不杀；真正的清理在首次有副作用的调用上做）。
         // F4：**不走内联 `wsl.exe … -- bash -lc "<串>"`** —— 那条路不是 argv-exec，串会先经过发行版的
@@ -383,6 +385,11 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
         return [
           `plugin: dsh-remote-wsl@${PLUGIN_VERSION}（版本 = 本仓 package.json；升级/回滚见 README）`,
           `distros: ${distros.join(', ') || (distrosReadFailed ? '(读不到：wsl.exe -l -q 失败，不等于“没有发行版”)' : '(none)')}`,
+          ...(targetMissing
+            ? [
+                `target ⚠️: 配置的发行版 "${config.distro}" **不在上面的 distros 列表里** —— 所有 WSL 调用都会失败。改 cordis.patch.yml 的 distro（README「配置」一节）。`,
+              ]
+            : []),
           `target: ${config.distro}  wslHome=${config.wslHome}  cwd=${config.cwd}`,
           `wsl ip: ${ip}`,
           `shell env injection (useShellEnvironment): ${config.useShellEnvironment === false ? 'off' : 'on'}（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）`,
@@ -441,7 +448,11 @@ ${command}
 `,
           { timeoutMs: (Number(args?.timeoutSec) || 120) * 1000, signal: exec?.signal },
         );
-        return `exit ${res.exitCode}\n--- stdout ---\n${res.stdout.slice(0, 100000)}--- stderr ---\n${res.stderr.slice(0, 20000)}`;
+        // F-32（2026-10-27 审查）：截断必须**可见**。旧实现静默 slice ⇒ 调用方把被截断的输出当完整结果，
+        // 尾部的错误信息（往往是最关键的）被无声丢掉。runWsl 每流另有 200KB 上限，这里再显式标注。
+        const outTrunc = res.stdout.length >= 100000 ? `\n…[stdout 已截断：只保留前 100000 字符]\n` : '';
+        const errTrunc = res.stderr.length >= 20000 ? `\n…[stderr 已截断：只保留前 20000 字符]\n` : '';
+        return `exit ${res.exitCode}\n--- stdout ---\n${res.stdout.slice(0, 100000)}${outTrunc}--- stderr ---\n${res.stderr.slice(0, 20000)}${errTrunc}`;
       },
     });
 
@@ -486,6 +497,7 @@ ${command}
             old = await rt.prompt(t);
           }
           const oldMeta = `backend=in-host session=${rt.sessionId} cwd=${args?.cwd ? String(args.cwd) : config.cwd} completedBy=${old.completedBy} turns=${rt.turns} dsh@${version.version}` +
+            (key === 'default' ? ' key=default(⚠️ 共享默认 key：不同对话/项目请显式传 key)' : '') +
             (version.drift ? ` drift=desktop ${version.drift.desktop}/pin ${version.drift.pin}` : '');
           return `${old.text}\n\n[remote-wsl: ${oldMeta}]`;
         }
@@ -567,6 +579,8 @@ ${command}
         const meta =
           `backend=daemon session=${last.sessionId} cwd=${last.cwd ?? wantCwd ?? config.cwd} completedBy=${last.completedBy} turns=${last.turns} runtimePid=${last.runtimePid} ` +
           `daemon=${ensured.info?.daemonPid}@127.0.0.1:${ensured.port} dsh@${ensured.info?.version}` +
+          // F-16（2026-10-27 审查）：默认 key 是**共享单例** —— 不同对话都不传 key 就会共用同一条运行时与上下文。
+          (key === 'default' ? ' key=default(⚠️ 共享默认 key：不同对话/项目请显式传 key，否则会串上下文)' : '') +
           (recovered ? ' recovered=once' : '') +
           (contextReset ? ' contextReset=yes' : '') +
           (version.drift ? ` drift=desktop ${version.drift.desktop}/pin ${version.drift.pin}` : '');

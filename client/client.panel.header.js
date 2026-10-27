@@ -194,7 +194,11 @@ return api.newSession({ path: cwd }, signal);
 
 				// 首挂载/未取到：只能说"还在读"（F34）。2026-10-19：加载态给 3 条骨架行，
 				// 让"正在读"有可感知的结构与稳定高度（不是一行字忽然变成一整块内容）。
-				if (!factsVisible) {
+				// ★ F-38（task-8，P2）：加载态与错误态必须**互斥**（错误优先）。
+				// 改前是两个并列 if，读失败时"脉冲骨架 + 正在读取…"与错误卡**同屏** ⇒ 伪加载态、
+				// 骨架动画永不停，用户拿不到"已经失败了"这个结论。
+				const readFailed = state.status === "error";
+				if (!factsVisible && !readFailed) {
 					body.push(
 						React.createElement(
 							"div",
@@ -217,13 +221,18 @@ return api.newSession({ path: cwd }, signal);
 				}
 
 				// 读失败：事实全部撤下（M6）
-				if (state.status === "error") {
+				if (readFailed) {
 					body.push(
 						React.createElement(
 							"div",
 							{ key: "error", className: "dsh-rw-error", role: "alert" },
-							React.createElement("div", { className: "dsh-rw-error-title" }, icon("error"), t("error.title")),
+							// ★ F-39：把三条**本来已经能算出来**的文案从死键变成真渲染 ——
+							//   ① 超时（error.kind === "timeout"）用专门的标题，别让用户以为路由坏了；
+							//   ② 曾经成功过 ⇒ 说清"最后一次成功是什么时候"（数字已撤下，别让人以为一直没数据）；
+							//   ③ 从没成功过 ⇒ 明说"尚未成功读取过任何快照"。
+							React.createElement("div", { className: "dsh-rw-error-title" }, icon("error"), t(state.error && state.error.kind === "timeout" ? "error.titleTimeout" : "error.title")),
 							React.createElement("div", { className: "dsh-rw-error-body" }, errorText(state.error)),
+							React.createElement("div", { className: "dsh-rw-hint" }, state.lastSuccessAt === null ? t("error.never") : t("error.stale", { time: clock(state.lastSuccessAt) })),
 							React.createElement(
 								"button",
 								{ type: "button", className: "dsh-rw-btn", onClick: () => load({ alsoList: true, path: cwd }), "aria-label": t("error.retryAria"), title: t("error.retryAria") },

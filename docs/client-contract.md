@@ -9,6 +9,8 @@
 
 **引用约定**：形如 `dsh-client-modules/lib/index.js:713` 的路径，指 **app.asar 内** DSH 实现（解包方法见文末 §9）；插件自己的路径指仓库内路径。凡标注「实测」的都有原始输出留档（§8）。
 
+> **2026-10-27 增量（本文之后的契约变化）**：面板 host 错误体统一为 `{ ok:false, error, code, detail?, reason? }`（新增 `E_ORIGIN` / `E_METHOD` / `E_CONTENT_TYPE` / `E_BODY` / `E_UNKNOWN_METHOD`；`reason` 取 `cross-origin` / `bad-verb` / `not-json` / `bad-json` / `unknown-method` / `unknown-distro`）；新增 chunk `client/client.panel.a11y.js`（面板 chunk 现 8 个）；`snapshot.webHosts[].url` 已脱敏（`token=***`，保留 host:port）。细节见 [`docs/2026-10-27-fix-round.md`](2026-10-27-fix-round.md)。
+
 ---
 
 ## 1. `dsh.client` 的确切形状

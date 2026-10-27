@@ -49,7 +49,7 @@ window.__ModuleLoader__.load({
 
 
 		/** 子 chunk 装载（各自是独立 ModuleLoader 模块）。 */
-		const CHUNKS = ["client.panel.helpers.js", "client.panel.data.js", "client.panel.actions.js", "client.panel.header.js", "client.panel.list.js", "client.panel.browser.js", "client.panel.tail.js"];
+		const CHUNKS = ["client.panel.helpers.js", "client.panel.data.js", "client.panel.actions.js", "client.panel.header.js", "client.panel.list.js", "client.panel.browser.js", "client.panel.tail.js", "client.panel.a11y.js"];
 		let parts = null;
 		const ready = Promise.all(CHUNKS.map((name) => require.async("./" + name))).then((mods) => {
 			parts = {
@@ -60,6 +60,8 @@ window.__ModuleLoader__.load({
 				Entries: mods[4].Entries,
 				renderBrowser: mods[5].renderBrowser,
 				renderTail: mods[6].renderTail,
+				// keyboard/a11y 交互原语（F-39）：menu 键盘模型 / alertdialog 焦点陷阱 / details 开合
+				a11y: mods[7],
 			};
 			return parts;
 		});
@@ -140,14 +142,22 @@ window.__ModuleLoader__.load({
 				const [search, setSearch] = React.useState("");
 const [copyNote, setCopyNote] = React.useState(null);
 // 复制 sessionId（面板会话卡）：成功后短暂显示「已复制」，失败静默（不打断浏览）
+// ★ F-40：定时器存在 ref 里 ⇒ 卸载时清掉；重复复制时先清上一个（改前 setTimeout 无 id 无清理，
+//   卸载后仍会 setCopyNote ⇒ 对已卸载组件 setState）。
+const copyTimer = React.useRef(null);
 const copySession = React.useCallback((id) => {
   const done = () => {
     setCopyNote(id);
-    setTimeout(() => setCopyNote((cur) => (cur === id ? null : cur)), 1500);
+    if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => {
+      copyTimer.current = null;
+      setCopyNote((cur) => (cur === id ? null : cur));
+    }, 1500);
   };
   const clip = typeof navigator !== "undefined" ? navigator.clipboard : null;
   if (clip && typeof clip.writeText === "function") clip.writeText(id).then(done, () => {});
 }, []);
+React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(copyTimer.current); copyTimer.current = null; } }, []);
 				const [, forceLocale] = React.useReducer((n) => n + 1, 0);
 
 				const readSeq = React.useRef(0);
@@ -213,6 +223,8 @@ const copySession = React.useCallback((id) => {
 	state, t, width, i18n, copyNote, onCopySession: copySession,
 	search, setSearch, searchRef, navSeq,
 	dirCache, filterEntries, sortEntries, VIRTUAL_MIN_ROWS,
+	// 键盘/可访问性原语（F-39）：两个 role=menu 与确认层共用同一套模型
+	menuKeyNav: parts.a11y.menuKeyNav, trapTab: parts.a11y.trapTab, closeChipMenu: parts.a11y.closeChipMenu,
 					body,
 				};
 				// 目录数据层（缓存/单飞/预取/导航）先接上：actions 与 list 都依赖它
@@ -221,7 +233,14 @@ const copySession = React.useCallback((id) => {
 				scope.Entries = parts.Entries;
 				const actions = parts.usePanelActions(scope);
 				Object.assign(scope, actions);
-				/** 切换目标发行版：只改后续请求带的 distro（api.setDistro）+ 清缓存 + 重新拉快照。 */
+				/**
+				 * 切换目标发行版：改后续请求带的 distro（api.setDistro）+ 作废在飞请求 + 清缓存 + 重拉快照。
+				 *
+				 * ★ F-34（task-8，P1）：必须**三件事一起做**，否则切发行版后 30s 内会显示另一个发行版的目录：
+				 *   ① bump `browseSeq` ⇒ 旧 listDir 的回包在 `mySeq !== browseSeq.current` 处被丢弃；
+				 *   ② abort 在飞的 browse/prefetch 请求（`browseAbort` 现在真的被赋值了，见 data.js）；
+				 *   ③ `dirCache` 的键本身含 distro ⇒ 旧缓存条目永不再命中（clear 只是回收内存）。
+				 */
 				const changeDistro = (name) => {
 					const next = typeof name === "string" && name.length > 0 ? name : null;
 					try {
@@ -231,6 +250,12 @@ const copySession = React.useCallback((id) => {
 						}
 					} catch {}
 					api.setDistro(next);
+					browseSeq.current += 1;
+					if (browseAbort.current !== null) {
+						browseAbort.current.abort();
+						browseAbort.current = null;
+					}
+					if (typeof scope.cancelPrefetch === "function") scope.cancelPrefetch();
 					dirCache.clear();
 					setChosenDistro(next);
 					setBrowse({ cwd: null, status: "idle", entries: [], error: null });
@@ -258,12 +283,18 @@ const copySession = React.useCallback((id) => {
 				scope.onRescan = () => actions.load({ refresh: true });
 
 				scope.onDistroChange = changeDistro;
-				/** 记住的发行版被删/改名时：host 回"未知发行版" ⇒ 退回缺省目标重试一次（不循环）。 */
+				/**
+				 * 记住的发行版被删/改名时：host 回"未知发行版" ⇒ 退回缺省目标重试一次（不循环）。
+				 *
+				 * ★ F-39（task-8）：判据从**中文子串匹配**（`message.indexOf("未知发行版")`）改成
+				 * 错误体里的机器可读 `reason`（host explorer.ts 的 `failArg(..., 'unknown-distro')`）。
+				 * 旧写法有两个问题：英文界面/文案改动即失效；且把"文案"当契约（docs/client-contract 的漂移源）。
+				 */
 				const distroResetRef = React.useRef(false);
 				React.useEffect(() => {
 					if (state.status !== "error" || chosenDistro === null || distroResetRef.current) return;
-					const message = state.error && typeof state.error.message === "string" ? state.error.message : "";
-					if (message.indexOf("未知发行版") < 0) return;
+					const body = state.error && state.error.detail;
+					if (!body || body.reason !== "unknown-distro") return;
 					distroResetRef.current = true;
 					changeDistro(null);
 				}, [state.status, state.error, chosenDistro]);

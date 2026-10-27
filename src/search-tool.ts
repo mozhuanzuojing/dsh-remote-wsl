@@ -10,6 +10,15 @@
  * output:{schema, render: renderText}, execute})`）——不 import `@deepseek-ai/dsh-tools`
  * （link: 安装拿不到裸包，见 README「零运行时依赖」）。
  *
+ * 2026-10-27 搜索层修复（工具面）：
+ *   · F-12：daemon 现在会在后台装 rg/fd，`provision` 可能返回 `installing` / `failed`。
+ *     这里把状态翻成模型能读的提示（"本次用慢后端兜底、稍后重试更快"），失败带手动安装命令，
+ *     不再让"工具正在装/装失败"变成用户看不见的噪声。
+ *   · F-13：描述不再承诺三个后端都支持的 PCRE 语法；后端 stderr 以 `[grep warnings]` 形式回给模型，
+ *     避免 GNU grep 后端静默返回 "no matches" 的假阴性。
+ *   · F-23：描述写明 .git/node_modules 跳过、但 .gitignore **不**生效（rg/fd 加 --no-ignore，
+ *     与 GNU grep/find 对齐），别让模型以为忽略规则是稳定的。
+ *
  * @module dsh-remote-wsl/search-tool
  */
 import { parseUnc, createWslRpc } from './fs-provider.ts';
@@ -40,17 +49,82 @@ async function resolveLinuxPath(ctx, config, rawPath, exec) {
   throw new Error(`remote-wsl search: 无法解析相对路径 "${raw}"（cwd=${String(cwd)} 不是 WSL 路径）`);
 }
 
+/**
+ * daemon 返回的 provision 状态 → 给模型的提示（F-12）。
+ * 兼容两种形状：
+ *   · 新：`{rg:{status,path,source,error?,manual?}, fd:{...}, installing:[...], notes:[...]}`
+ *   · 旧：`{rg:'path'|'missing', fd:'...', notes:['已自动安装 …']}`
+ */
+export function provisionHint(provision) {
+  if (!provision || typeof provision !== 'object') return '';
+  const lines = [];
+  const installing = Array.isArray(provision.installing) ? provision.installing.filter((id) => typeof id === 'string') : [];
+  const isNewShape = Array.isArray(provision.installing) || ['rg', 'fd'].some((id) => provision[id] && typeof provision[id] === 'object');
+  if (isNewShape) {
+    for (const id of ['rg', 'fd']) {
+      const st = provision[id];
+      if (!st || typeof st !== 'object') continue;
+      if (st.status === 'failed') {
+        lines.push(
+          `[search tools] ${id} auto-install failed: ${String(st.error ?? 'unknown error')}${st.manual ? ` — manual install: ${st.manual}` : ''}`,
+        );
+      } else if (st.status === 'missing' && st.manual) {
+        lines.push(`[search tools] ${id} is not installed and auto-install is disabled — manual install: ${st.manual}`);
+      }
+    }
+    if (installing.length > 0) {
+      lines.push(
+        `[search tools] installing ${installing.join(', ')} in the background; this search used the slower fallback backend. Re-run in ~30s for faster, tool-consistent results.`,
+      );
+    }
+    return lines.length ? `\n${lines.join('\n')}` : '';
+  }
+  // 兼容 daemon 的 `kickSearchProvision` 形状（daemon.ts 2026-10-27）：
+  //   安装中：{installing:true, rg:'installing', fd:'installing', notes:[]}
+  //   完成后：{installing:true, rg:'path'|'installed'|'installed-dir'|'missing'|'failed', fd:…, notes:[…]}
+  // 注意 `installing` 布尔只表示"这次调用顺手 kick 了一次"，不能据此报"正在安装"（就绪时也会是 true）。
+  const pending = ['rg', 'fd'].filter((id) => provision[id] === 'installing');
+  if (pending.length > 0) {
+    lines.push(
+      `[search tools] installing ${pending.join(', ')} in the background; this search used the slower fallback backend. Re-run in ~30s for faster, tool-consistent results.`,
+    );
+  }
+  const notes = Array.isArray(provision.notes) ? provision.notes.filter((n) => typeof n === 'string' && n) : [];
+  if (notes.length > 0) lines.push(`[search tools] ${notes.join(' | ')}`);
+  return lines.length ? `\n${lines.join('\n')}` : '';
+}
+
+/** 后端 stderr / 模式归一化警告（F-13）：显式告诉模型"结果可能不完整"，别让它从空结果里猜。 */
+export function warningHint(result) {
+  const warnings = Array.isArray(result?.warnings) ? result.warnings.filter((w) => typeof w === 'string' && w.trim()) : [];
+  if (warnings.length === 0) return '';
+  return `\n[search warnings] backend/pattern warnings — results may be incomplete (simplify the pattern or use fixed_string if unsure):\n${warnings
+    .map((w) => `- ${w}`)
+    .join('\n')}`;
+}
+
+/** 模式被归一化（`\d`→`[0-9]`、前置 `(?i)`→ `-i`）时说明一下，便于模型理解行为差异（F-13）。 */
+function normalizedHint(result) {
+  const normalized = result?.normalized;
+  if (typeof normalized !== 'string' || !normalized) return '';
+  return `\n[grep] pattern translated for backend portability: ${normalized}`;
+}
+
+const hintsOf = (result) => `${provisionHint(result?.provision)}${normalizedHint(result)}${warningHint(result)}`;
+
 const grepDescription = [
-  'Search file contents inside the WSL distribution with GNU grep (recursive, line-numbered, skips binary files and .git/node_modules).',
+  'Search file contents inside the WSL distribution (recursive, line-numbered, skips binary files, .git and node_modules).',
   'Use this instead of a Windows-side search: paths are Linux paths and the search runs inside the distribution.',
-  '`pattern` is an extended regular expression by default (POSIX ERE: \\d, \\w, \\b, (?i) work; lookaround and backreferences do not).',
-  'Set fixed_string to search literal text. Results are capped; narrow `path` or the pattern when truncated.',
+  '`pattern` is a regular expression: POSIX ERE, plus the portable shorthands \\d \\w \\s and a leading (?i), which are translated so every backend (ripgrep / ugrep / GNU grep) behaves the same.',
+  'Other PCRE-only constructs (lookaround, (?:...), backreferences) are not portable: they are passed through, and backend warnings are reported in the result — do not assume an empty result means the pattern was valid.',
+  'Set fixed_string to search literal text (no translation). Ignore files are NOT honored: .git and node_modules are always skipped, and the result set is the same on every backend.',
+  'Results are capped; narrow `path` or the pattern when truncated.',
 ].join(' ');
 
 const globDescription = [
-  'List files inside the WSL distribution matching a glob pattern (find + glob match inside the distribution).',
-  '`*` does not cross path separators, `**` does, `?` matches one character, `[abc]` is a character class.',
-  'A pattern without "/" matches base names. .git and node_modules are skipped. Results are capped.',
+  'List files inside the WSL distribution matching a glob pattern (fd/find + glob match inside the distribution).',
+  '`*` does not cross path separators, `**` crosses directory levels (when it is a whole path segment), `?` matches one character, `[abc]` is a character class and `[!abc]`/`[^abc]` negates it.',
+  'A pattern without "/" matches base names. .git and node_modules are skipped; ignore files (.gitignore etc.) are NOT honored, so fd and find return the same set. Results are capped.',
 ].join(' ');
 
 /**
@@ -74,10 +148,10 @@ export function apply(ctx, rawConfig = {}) {
       parameters: {
         type: 'object',
         properties: {
-          pattern: { type: 'string', description: 'POSIX ERE (or literal text when fixed_string is true). Required.' },
+          pattern: { type: 'string', description: 'Regular expression (POSIX ERE; \\d \\w \\s and a leading (?i) are translated for portability). Required.' },
           path: { type: 'string', description: 'Directory or file to search (WSL path, UNC, or relative to the session cwd). Defaults to the session cwd.' },
-          fixed_string: { type: 'boolean', description: 'Treat the pattern as literal text instead of a regular expression.' },
-          ignore_case: { type: 'boolean', description: 'Case-insensitive match.' },
+          fixed_string: { type: 'boolean', description: 'Treat the pattern as literal text instead of a regular expression (no shorthand translation).' },
+          ignore_case: { type: 'boolean', description: 'Case-insensitive match (equivalent to a leading (?i)).' },
           max_matches: { type: 'integer', description: 'Cap on returned matches (default 500).' },
         },
       },
@@ -93,12 +167,12 @@ export function apply(ctx, rawConfig = {}) {
           autoInstall: config.searchAutoInstall !== false,
         }, exec?.signal);
         const matches = Array.isArray(r?.matches) ? r.matches : [];
-        const noteLines = Array.isArray(r?.provision?.notes) && r.provision.notes.length ? `\n[search tools] ${r.provision.notes.join(' | ')}` : '';
-        if (matches.length === 0) return `no matches for ${JSON.stringify(String(args.pattern ?? ''))} in ${path}${noteLines}`;
+        const hints = hintsOf(r);
+        if (matches.length === 0) return `no matches for ${JSON.stringify(String(args.pattern ?? ''))} in ${path}${hints}`;
         const lines = matches.map((m) => `${m.path}:${m.line}: ${m.text}`);
         const via = r?.backend ? ` via ${r.backend}` : '';
         const head = `${matches.length} match(es) in ${path}${via}${r?.truncated ? ' (truncated)' : ''}`;
-        return `${head}\n${lines.join('\n')}${noteLines}`;
+        return `${head}\n${lines.join('\n')}${hints}`;
       },
     });
 
@@ -123,10 +197,10 @@ export function apply(ctx, rawConfig = {}) {
           autoInstall: config.searchAutoInstall !== false,
         }, exec?.signal);
         const files = Array.isArray(r?.files) ? r.files : [];
-        const noteLines = Array.isArray(r?.provision?.notes) && r.provision.notes.length ? `\n[search tools] ${r.provision.notes.join(' | ')}` : '';
-        if (files.length === 0) return `no files match ${JSON.stringify(String(args.pattern ?? ''))} under ${path}${noteLines}`;
+        const hint = `${provisionHint(r?.provision)}${warningHint(r)}`;
+        if (files.length === 0) return `no files match ${JSON.stringify(String(args.pattern ?? ''))} under ${path}${hint}`;
         const via = r?.backend ? ` via ${r.backend}` : '';
-        return `${files.length} file(s) under ${path}${via}${r?.truncated ? ' (truncated)' : ''}\n${files.join('\n')}${noteLines}`;
+        return `${files.length} file(s) under ${path}${via}${r?.truncated ? ' (truncated)' : ''}\n${files.join('\n')}${hint}`;
       },
     });
     tools.register({

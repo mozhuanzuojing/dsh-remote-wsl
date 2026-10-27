@@ -509,7 +509,25 @@ export async function stopAllDaemons(cfg, { log = () => {} }: any = {}) {
     await killWslPidAsync(cfg, p.pid); // 内部仍按 cmdline 验身份
     killed.push(p);
   }
-  if (killed.length) await sleep(900);
+  // F-51（2026-10-27 审查）：守护收尾是**异步**的（每个运行时 close 上界约 10s），旧实现只固定
+  // sleep(900) 再扫一次 ⇒ 多会话时几乎必然报 remaining>0 且不再重试。改为有界轮询（8s），
+  // 仍在则对**验过身份**的守护升级 SIGKILL，再给 2s 收敛。
+  const deadline = Date.now() + 8000;
+  let remaining = await scanDaemonProcessesAsync(cfg);
+  while (remaining.length && Date.now() < deadline) {
+    await sleep(500);
+    remaining = await scanDaemonProcessesAsync(cfg);
+  }
+  if (remaining.length) {
+    log(`stop --all: 仍有 ${remaining.length} 个守护在 ${8000}ms 内未退出 ⇒ 升级 SIGKILL（${remaining.map((p) => p.pid).join(',')}）`);
+    for (const p of remaining) await killWslPidAsync(cfg, p.pid, 'KILL');
+    const hardDeadline = Date.now() + 2000;
+    remaining = await scanDaemonProcessesAsync(cfg);
+    while (remaining.length && Date.now() < hardDeadline) {
+      await sleep(400);
+      remaining = await scanDaemonProcessesAsync(cfg);
+    }
+  }
   // 顺手清掉遗留的启动脚本（目录是我们自己的；守护活着的话它早已自删）
   try {
     for (const n of readdirSync(unc(cfg.distro, stateDirLinux(cfg)))) {
@@ -524,7 +542,6 @@ export async function stopAllDaemons(cfg, { log = () => {} }: any = {}) {
   } catch {
     /* ignore */
   }
-  const remaining = await scanDaemonProcessesAsync(cfg);
   return { ok: remaining.length === 0, stopped, killed, remaining };
 }
 
