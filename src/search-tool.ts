@@ -24,10 +24,11 @@
 import { parseUnc, createWslRpc } from './fs-provider.ts';
 import { renderText } from './wsl-io.ts';
 
+import { normalizeConfig } from './config.ts';
 export const name = 'dsh-remote-wsl-search';
 export const inject = [];
 
-const DEFAULTS = { distro: 'debian-u8-1', wslHome: '/home/g', cwd: '/home/g', daemonPort: 8731, searchAutoInstall: true };
+
 
 /** 把模型给的路径解析成发行版内绝对路径：优先走 realm 的 ctx.fs，其次自己按 UNC/cwd 推导。 */
 async function resolveLinuxPath(ctx, config, rawPath, exec) {
@@ -133,7 +134,7 @@ const globDescription = [
  * @param rawConfig - `distro` / `daemonPort` / `wslHome` / `cwd`
  */
 export function apply(ctx, rawConfig = {}) {
-  const config = { ...DEFAULTS, ...(rawConfig ?? {}) };
+  const config = normalizeConfig(rawConfig);
   const rpc = createWslRpc(config);
   ctx.inject(['tools'], (toolsCtx) => {
     const tools = typeof toolsCtx.get === 'function' ? toolsCtx.get('tools') : undefined;

@@ -11,6 +11,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, closeSync, mkdirSync, openSync, rmSync, statSync, truncateSync } from 'node:fs';
 import { daemonScriptWsl, launchLinux, stateDirLinux, unc, wslRunScript, wslRunScriptAsync } from './daemon-protocol.ts';
+import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
 
 // ── 原 daemon-client.ts 第 319-328 行 ──
 export function killWslPid(cfg, pid) {
@@ -347,9 +348,32 @@ export function configCompat(cfg, info, wantedVersion) {
   if (info?.idleMs != null && Number(info.idleMs) !== Number(cfg.daemonIdleMs)) soft.push(`idleMs ${info.idleMs}≠${cfg.daemonIdleMs}`);
   if (info?.queueLimit != null && Number(info.queueLimit) !== Number(cfg.daemonQueueLimit)) soft.push(`queueLimit ${info.queueLimit}≠${cfg.daemonQueueLimit}`);
   if (info?.lingerMs != null && Number(info.lingerMs) !== Number(cfg.daemonLingerMs)) soft.push(`lingerMs ${info.lingerMs}≠${cfg.daemonLingerMs}`);
+
+  // 换角度评审第 1 条：插件/协议版本错配。守护是 detached 的，宿主升级后旧守护继续活着是**常态**；
+  // 旧守护不认识新 op（fs.readChunk）、也缺新 meta 字段，必须让调用方看到"restart 后生效"，
+  // 而不是让用户对着 unknown method 猜。
+  const protocolDaemon = Number.isFinite(Number(info?.protocolVersion)) ? Number(info.protocolVersion) : null;
+  const plugin = {
+    daemon: info?.pluginVersion ? String(info.pluginVersion) : null,
+    host: PLUGIN_VERSION,
+    protocolDaemon,
+    protocolHost: PROTOCOL_VERSION,
+  };
+  if (protocolDaemon != null && protocolDaemon > PROTOCOL_VERSION) {
+    // 宿主比守护旧：宿主可能读不懂守护的新字段 ⇒ 不允许静默复用。
+    hard.push(`守护协议 v${protocolDaemon} 高于宿主 v${PROTOCOL_VERSION}（宿主比守护旧，需先升级宿主或 restart 守护）`);
+  } else if (protocolDaemon == null) {
+    soft.push(`守护未上报协议版本（旧插件 pluginVersion=${plugin.daemon ?? 'unknown'}）⇒ 新功能（流式读取等）在 restart 前不可用`);
+  } else if (protocolDaemon < PROTOCOL_VERSION) {
+    soft.push(`守护协议 v${protocolDaemon} < 宿主 v${PROTOCOL_VERSION}（守护插件 ${plugin.daemon ?? 'unknown'} / 宿主 ${plugin.host}）⇒ 新功能在 restart 前不可用`);
+  } else if (plugin.daemon && plugin.daemon !== plugin.host) {
+    soft.push(`守护插件版本 ${plugin.daemon} ≠ 宿主 ${plugin.host} ⇒ 建议 wsl_daemon action=restart 对齐`);
+  }
+
   return {
     hard,
     soft,
+    plugin,
     version: wantedVersion && info?.version && info.version !== wantedVersion ? { daemon: info.version, wanted: wantedVersion } : null,
   };
 }

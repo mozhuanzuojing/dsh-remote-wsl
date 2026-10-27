@@ -37,6 +37,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 /**
  * 工具目录。`bins` 是解压后可能出现的二进制名（各仓库不同），`repo` 用于调 GitHub API。
@@ -536,6 +537,18 @@ export async function installToolById(id, { installDir, proxy = null, signal = n
         failures.set(id, { error, at: Date.now() });
         return { ok: false, error, fallback: !!asset.fallback };
       }
+      // 换角度评审第 2 条：有校验文件就**必须**匹配（不匹配直接放弃安装）；没有就标 unverified，
+      // 绝不把"没校验"伪装成"已验证"。
+      let verified = 'unavailable';
+      if (asset.checksumUrl) {
+        const cs = await verifySha256(file, asset, proxyUrl, signal);
+        if (!cs.ok) {
+          const error = `校验 ${asset.name} 失败：${cs.error}`;
+          failures.set(id, { error, at: Date.now() });
+          return { ok: false, error, fallback: !!asset.fallback, verified: 'mismatch' };
+        }
+        verified = 'ok';
+      }
       const extracted = path.join(tmp, 'x');
       const ex = await extract(file, asset.kind, extracted, signal);
       if (!ex.ok) {
@@ -555,10 +568,20 @@ export async function installToolById(id, { installDir, proxy = null, signal = n
       const target = path.join(dir, asset.kind === 'gz' ? spec.bins[0] : path.basename(found));
       fs.copyFileSync(found, target);
       fs.chmodSync(target, 0o755);
-      const entry = { path: target, source: 'installed', version: asset.tag ?? null };
+      const entry = { path: target, source: 'installed', version: asset.tag ?? null, verified };
       recordKnown(id, entry);
       failures.delete(id);
-      return { ok: true, path: target, version: asset.tag ?? null, asset: asset.name, source: 'installed', fallback: !!asset.fallback, apiError: asset.apiError };
+      return {
+        ok: true,
+        path: target,
+        version: asset.tag ?? null,
+        asset: asset.name,
+        source: 'installed',
+        fallback: !!asset.fallback,
+        apiError: asset.apiError,
+        // 'ok' = 发布页摘要匹配；'unavailable' = 上游没提供摘要（已知风险，可见）
+        verified,
+      };
     } catch (e) {
       const error = e?.message ?? String(e);
       failures.set(id, { error, at: Date.now() });
@@ -588,6 +611,58 @@ async function download(url, outFile, proxy, signal = null) {
   const r = await runAsync('curl', args, { timeoutMs: 320_000, maxBytes: 64 * 1024, signal });
   if (r.error) return { ok: false, error: r.error };
   return r.code === 0 ? { ok: true } : { ok: false, error: `curl exit ${r.code}: ${(r.stderr || '').slice(0, 200)}` };
+}
+
+/**
+ * 从校验文件正文里挑出指定文件的 sha256（纯函数，便于离线单测）。
+ * 支持两种发布形态：`<hex>  <name>` 多行清单，以及只有单个 hex 的文件。
+ * @param text 校验文件正文
+ * @param fileName 目标资产文件名（可带路径，按 basename 比）
+ * @returns 小写 hex，或 null（找不到）
+ */
+export function pickSha256(text, fileName) {
+  const base = String(fileName ?? '').split('/').pop();
+  const body = String(text ?? '');
+  let sawNamed = false;
+  for (const line of body.split(/\r?\n/)) {
+    const m = /^\s*([0-9a-fA-F]{64})\s+\*?(.+?)\s*$/.exec(line);
+    if (!m) continue;
+    sawNamed = true;
+    const name = m[2].split('/').pop();
+    if (name === base) return m[1].toLowerCase();
+  }
+  // 清单格式里没有目标文件 ⇒ **不猜**（拿别的文件的摘要顶替只会得到"恒失败"，且掩盖上游改名）。
+  if (sawNamed) return null;
+  // 只有单个摘要值的文件（有些仓库只发布 `sha256sum` 单值文件）。
+  const all = [...body.matchAll(/\b([0-9a-fA-F]{64})\b/g)].map((m) => m[1].toLowerCase());
+  return all.length === 1 ? all[0] : null;
+}
+
+/**
+ * 校验下载产物的 sha256（换角度评审第 2 条）。
+ *
+ * 为什么：插件会在用户机器上**自动下载并执行** GitHub Releases 里的二进制；旧实现把发布页上的
+ * `*.sha256` / `SHA256SUMS` 当作噪音过滤掉，安装后只验"可执行位" —— 上游资产被替换或镜像劫持时，
+ * 没有任何一层会察觉。这里用发布页自带的摘要做校验：有摘要就必须匹配，没有就如实标 `unavailable`。
+ *
+ * @returns `{ok:true}` 校验通过；`{ok:false, error}` 下载/解析/不匹配（调用方必须放弃安装）
+ */
+async function verifySha256(file, asset, proxy, signal = null) {
+  const res = await fetchText(asset.checksumUrl, proxy, { signal, timeoutMs: 60_000 });
+  if (!res.ok) return { ok: false, error: `下载校验文件失败：${res.error}` };
+  const expected = pickSha256(res.text, asset.name);
+  if (!expected) return { ok: false, error: `校验文件 ${asset.checksumName ?? ''} 里找不到 ${asset.name} 的摘要` };
+  const actual = await new Promise((resolve, reject) => {
+    const hash = createHash('sha256');
+    const stream = fs.createReadStream(file);
+    stream.on('data', (c) => hash.update(c));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+  if (String(actual).toLowerCase() !== expected) {
+    return { ok: false, error: `sha256 不匹配：期望 ${expected.slice(0, 16)}… 实际 ${String(actual).slice(0, 16)}…（拒绝安装）` };
+  }
+  return { ok: true, expected };
 }
 
 function findBinary(root, bins) {

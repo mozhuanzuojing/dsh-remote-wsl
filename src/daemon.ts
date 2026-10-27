@@ -38,6 +38,7 @@ import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { shellEnvSnippet } from './shell-env.ts';
+import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
 import { SdkRuntime } from './sdk-runtime.ts';
 import { handleFsOp } from './fs-rpc.ts';
 import { handleSearchOp, setSearchToolPaths } from './search-rpc.ts';
@@ -54,12 +55,23 @@ const flag = (name) => argv.includes(`--${name}`);
  * 数值参数解析（2026-10-27 审查 F-53）：旧实现直接 `Number(...)`，`--port-tries abc` 会得到 NaN，
  * 于是 listen 循环一次都不跑、却照样打印 `listening …` 并写元数据（伪 listening）。参数非法必须
  * startup 失败并说清是哪个参数 —— 静默伪启动比崩溃更难查。
+ *
+ * 2026-10-27 换角度评审第 6 条：这里以前直接 `throw`，在模块顶层抛错只剩一段 Node 堆栈（落在
+ * `launch-stderr.log` 里），可读性远不如 `[daemon]` 结构化日志。现在只**收集**错误，由 `main()`
+ * 统一打印并 `exit(2)`。
  */
+const configErrors: string[] = [];
 const numArg = (name, dflt, min = 0) => {
   const raw = arg(name, String(dflt));
   const n = Number(raw);
-  if (!Number.isFinite(n)) throw new Error(`remote-wsl daemon: --${name} 需要数字，收到 ${JSON.stringify(raw)}`);
-  if (n < min) throw new Error(`remote-wsl daemon: --${name} 必须 ≥ ${min}，收到 ${n}`);
+  if (!Number.isFinite(n)) {
+    configErrors.push(`--${name} 需要数字，收到 ${JSON.stringify(raw)}`);
+    return dflt;
+  }
+  if (n < min) {
+    configErrors.push(`--${name} 必须 ≥ ${min}，收到 ${n}`);
+    return min;
+  }
   return n;
 };
 
@@ -359,6 +371,9 @@ function writeMeta(extra = {}) {
     /** 实际监听端口（WSL 侧端口被占时会 +1，于是这两个值可能不同） */
     port: PORT,
     version: VERSION,
+    // 换角度评审第 1 条：元数据里也带上，宿主在"守护没起来/握手失败"时仍能从文件判断版本。
+    pluginVersion: PLUGIN_VERSION,
+    protocolVersion: PROTOCOL_VERSION,
     cwd: CWD,
     profile: PROFILE,
     idleMs: IDLE_MS,
@@ -679,6 +694,9 @@ async function handle(req) {
       host: '127.0.0.1',
       port: PORT,
       version: VERSION,
+      // 换角度评审第 1 条：宿主必须能判断"守护是哪个插件版本、哪版协议"，否则升级后的错配只能靠猜。
+      pluginVersion: PLUGIN_VERSION,
+      protocolVersion: PROTOCOL_VERSION,
       cwd: CWD,
       profile: PROFILE,
       idleMs: IDLE_MS,
@@ -849,6 +867,9 @@ const server = net.createServer((socket) => {
           host: '127.0.0.1',
           port: PORT,
           version: VERSION,
+          // 换角度评审第 1 条：hello 是宿主判断"能不能用新 op"的唯一时机。
+          pluginVersion: PLUGIN_VERSION,
+          protocolVersion: PROTOCOL_VERSION,
           cwd: CWD,
           profile: PROFILE,
           idleMs: IDLE_MS,
@@ -901,6 +922,12 @@ async function listenOn(port) {
 }
 
 async function main() {
+  // 换角度评审第 6 条：参数错误在 main() 里统一报（结构化日志 + exit 2），而不是模块顶层抛栈。
+  if (configErrors.length) {
+    for (const e of configErrors) log(`参数错误: ${e}`);
+    log('FATAL: 启动参数非法 ⇒ 退出（未进入服务态）');
+    process.exit(2);
+  }
   fs.writeFileSync(tokenPath(), token + '\n', { mode: 0o600 });
   try {
     fs.chmodSync(tokenPath(), 0o600);

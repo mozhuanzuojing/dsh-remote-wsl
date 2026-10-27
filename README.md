@@ -302,6 +302,8 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 - **没有命令沙箱**：`wsl_exec` / `wsl_agent` 的命令跑在**你自己的 WSL** 里，不受 Windows 侧 DSH 文件策略约束。要隔离请用 WSL 侧手段。
 - **桌面壳不能连远端 host**：`wsl_open_ui` 是补位，不是把桌面壳改成远端连接。
 - **SDK 没有 cancel、没有 per-prompt 结果**：放弃一轮 = 结束运行时 = 丢上下文；同 key 并发只能 FIFO + 上限拒绝。
+- **超时不会自动重试**：`wsl_agent` 超时（默认 600s）后**不会**自动重发同一个 prompt —— 请求可能已送达并在守护里继续执行，重发会让有副作用的操作跑两遍。先确认远端是否已产生效果，再决定是否重试。守护"半死"（端口可连但不应答）也不会自动重启，用 `wsl_daemon action=restart`。
+- **升级后旧守护会继续活着**：守护是 detached 的，宿主升级/重启都不会杀它。`wsl_status` 会显示守护的插件/协议版本；版本不一致时新功能（如流式读取）在 `wsl_daemon action=restart` 前不可用（状态里会明确告警）。
 - **9P / UNC 只适合读**：用 Windows 的 `git` / `pnpm` 等写型工具改 WSL 里的 ext4 文件，可能写坏属主/权限；跑工具或改文件请走 `wsl_exec` / `wsl_agent`，或用 WSL 执行世界的文件工具。跨 OS 文件事件不可靠，插件不监听。
 - **WSL 执行世界只服务配置的一个发行版**；面板可以浏览多个发行版，但文件世界不会跟着切。
 - **`watch` 目前没有消费方**：DSH 0.2.1-rc.3 的 `FileSystem` 契约没有 `watch`，插件里保留了 500ms 轮询实现但宿主不会调用；跨 OS 文件事件本就不支持，别依赖它。

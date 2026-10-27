@@ -26,6 +26,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { normalizeConfig } from './config.ts';
 export const name = 'dsh-remote-wsl-preset';
 export const inject = [];
 
@@ -36,12 +37,7 @@ export const inject = [];
 const PROVIDER_PATH = 'dsh-remote-wsl/fs-provider';
 const SEARCH_TOOL_PATH = 'dsh-remote-wsl/search-tool';
 
-const DEFAULTS = {
-  distro: 'debian-u8-1',
-  wslHome: '/home/g',
-  cwd: '/home/g',
-  daemonPort: 8731,
-};
+
 
 /**
  * 造 `wsl` preset 的子插件列表（标准 preset 的静态拷贝 + WSL 世界组）。
@@ -49,6 +45,7 @@ const DEFAULTS = {
  * @returns `agentPresets.register()` 用的 plugins 数组
  */
 export function buildWslPresetPlugins(cfg) {
+  const wslCfg = normalizeConfig(cfg);
   return [
     {
       id: 'persona',
@@ -68,24 +65,16 @@ export function buildWslPresetPlugins(cfg) {
         {
           id: 'fs-wsl',
           name: PROVIDER_PATH,
-          config: {
-            distro: String(cfg.distro ?? DEFAULTS.distro),
-            wslHome: String(cfg.wslHome ?? DEFAULTS.wslHome),
-            cwd: String(cfg.cwd ?? DEFAULTS.cwd),
-            daemonPort: Number(cfg.daemonPort ?? DEFAULTS.daemonPort),
-          },
+          // 换角度评审第 3 条：**全量转发**（旧实现只转 4 个键 ⇒ readTextMaxBytes 等配置到不了子插件）。
+          config: { ...wslCfg },
         },
         { id: 'tool-fs', name: '@deepseek-ai/dsh-tool-fs' },
         // WSL 内搜索：grep/glob 由 daemon 在发行版里执行（Windows ripgrep 对 Linux 路径不成立）。
         {
           id: 'search-wsl',
           name: SEARCH_TOOL_PATH,
-          config: {
-            distro: String(cfg.distro ?? DEFAULTS.distro),
-            wslHome: String(cfg.wslHome ?? DEFAULTS.wslHome),
-            cwd: String(cfg.cwd ?? DEFAULTS.cwd),
-            daemonPort: Number(cfg.daemonPort ?? DEFAULTS.daemonPort),
-          },
+          // 换角度评审第 3 条：**全量转发**（旧实现只转 4 个键 ⇒ readTextMaxBytes 等配置到不了子插件）。
+          config: { ...wslCfg },
         },
       ],
     },
@@ -165,7 +154,7 @@ export function presetStatus() {
 }
 
 export function apply(ctx, rawConfig = {}) {
-  const cfg = { ...DEFAULTS, ...(rawConfig ?? {}) };
+  const cfg = normalizeConfig(rawConfig);
   const plugins = buildWslPresetPlugins(cfg);
   presetState.phase = 'registering';
   presetState.plugins = plugins.length;

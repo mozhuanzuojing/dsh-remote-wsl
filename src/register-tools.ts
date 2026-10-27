@@ -25,6 +25,7 @@ import { presetStatus } from './preset.ts';
 // 的启动路径才抛 `ReferenceError: allowBuildFlags is not defined`（同型第三次：T3 的 `spawn`、T5 的 `wsl-io.ts`）。
 import { allowBuildFlags } from './sdk-runtime.ts';
 import { cdPreamble, killIfOwnedScript, shq } from './shell-quote.ts';
+import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
 // T47：`reapWsl` 是 `WebHost.stop()` 用的（杀包装层后必须收回 WSL 侧的 `dsh web`，否则它变孤儿继续占端口）。
 // 与上一行同型：T5 拆分时漏了 import，`{stop:true}` 真调（**已起过一个 web host** 之后）才炸 ReferenceError。
 import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble, writeScript, removeScript, reapWsl, sleep, renderText, resolveVersion, readPin, writePin } from './wsl-io.ts';
@@ -238,18 +239,6 @@ export function registerTools(deps) {
     isTransportFailure, priorSessionFor, listDistros, listDistrosAsync, getRuntime, runtimes, webHosts, ensureSwept, warmInBackground,
   } = deps;
 
-  /**
-   * 插件自身版本（2026-10-27 审查 F-42）：`wsl_status` 必须能回答"装的是哪一版" —— 否则升级后
-   * 行为变化无法定位到提交。版本取自本仓 package.json（`link:` 安装时就是工作树那一份）。
-   */
-  const PLUGIN_VERSION = (() => {
-    try {
-      return String(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))?.version ?? 'unknown');
-    } catch {
-      return 'unknown';
-    }
-  })();
-
   ctx.inject(['tools'], (toolsCtx) => {
     const tools = toolsCtx.get('tools');
     if (!tools) return;
@@ -340,12 +329,14 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
             : await daemonStatus(config);
         let daemonLine: string;
         let daemonAlarm: string | null = null;
+        let daemonPluginAlarm: string | null = null;
         const orphanDaemons: any[] = Array.isArray(dstat.orphans) ? dstat.orphans : [];
         if (dstat.ok) {
           const info = dstat.info ?? {};
           const ks: any[] = Array.isArray(info.keys) ? info.keys : [];
           daemonLine =
             `running pid=${info.daemonPid} actualPort=${info.port} slot=${dstat.slot} version=${info.version} ` +
+            `plugin=${info.pluginVersion ?? 'unknown'} protocol=v${info.protocolVersion ?? 0} ` +
             `uptime=${Math.round((info.uptimeMs ?? 0) / 1000)}s idleMs=${info.idleMs} lingerMs=${info.lingerMs} keys=${ks.length} ` +
             `[${ks.map((k) => `${k.key}(turn ${k.turns}${k.queued ? `,q${k.queued}` : ''}${k.runtimePid ? `,pid${k.runtimePid}` : ''})`).join(', ') || '(none)'}]`;
           // 漂移报警（task-9 #3）：**显式 config.dshVersion / 桌面版本 / wsl pin 三者都要比**。
@@ -362,10 +353,22 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
               `守护持有的 dsh@${info.version} 与 ${bad.map((b) => b.label).join(' / ')} 不一致 —— ` +
               `不自动重启（避免无声中断正在进行的会话）；要换版本请显式执行 wsl_daemon action=restart（配合 backgroundWarm 很快）`;
           }
+          // 换角度评审第 1 条：插件/协议版本错配。守护是 detached 的 ⇒ 宿主升级后旧守护仍活着是常态；
+          // 旧守护不认识 fs.readChunk、也没有 meta.retired，必须让用户看到"restart 后才生效"。
+          const daemonProtocol = Number.isFinite(Number(info.protocolVersion)) ? Number(info.protocolVersion) : null;
+          if (info.pluginVersion && info.pluginVersion !== PLUGIN_VERSION) {
+            daemonPluginAlarm =
+              `守护插件 ${info.pluginVersion}（协议 v${daemonProtocol ?? 0}）≠ 宿主 ${PLUGIN_VERSION}（协议 v${PROTOCOL_VERSION}）` +
+              ` —— 新功能（流式读取、退役会话提示等）在 restart 前不可用；执行 wsl_daemon action=restart 对齐`;
+          } else if (daemonProtocol == null || daemonProtocol < PROTOCOL_VERSION) {
+            daemonPluginAlarm =
+              `守护没有上报协议版本（旧插件）或协议更旧（v${daemonProtocol ?? 0} < v${PROTOCOL_VERSION}）` +
+              ` —— 新功能在 restart 前不可用；执行 wsl_daemon action=restart 对齐`;
+          }
         } else if (dstat.kind === 'busy') {
           // F-18（2026-10-27 审查）：端口可连但 3s 内没应答 ⇒ 「忙」，不是「死」。绝不能提示 stop all，
           // 那会杀掉带会话的健康守护（守护是单线程，安装工具/预热时会长时间不应答）。
-          daemonLine = `busy（端口可连接但 ${config.daemonHandshakeTimeoutMs}ms 内没有应答；可能正在安装工具/预热）—— **不是死**，稍后重试即可；不要据此执行 stop all`;
+          daemonLine = `busy（端口可连接但 ${config.daemonHandshakeTimeoutMs}ms 内没有应答；可能正在安装工具/预热）—— **不是死**，稍后重试即可；不要据此执行 stop all；若持续如此再 wsl_daemon action=restart`;
         } else {
           daemonLine = `not running（${dstat.kind}: ${dstat.error}）`;
         }
@@ -399,9 +402,16 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
           `wsl pin: ${v.pin ?? '(none)'}`,
           `drift: ${v.drift ? `YES (desktop ${v.drift.desktop} / pin ${v.drift.pin})` : 'no'}`,
           `dlx dsh versions in WSL: ${dlx}`,
+          // 换角度评审第 7 条：把"缓存里有几个版本/可清理"显式说出来，避免磁盘只增不减还没人知道。
+          ...(dlx && !/^\(/.test(String(dlx)) && String(dlx).split(',').filter((x) => x.trim()).length > 1
+            ? [
+                `dlx cache: WSL 里物化了 ${String(dlx).split(',').filter((x) => x.trim()).length} 个 dsh 版本（老版本可在 ~/.npm/_npx 清理；不影响插件，下次用到会重下）`,
+              ]
+            : []),
           `backend: ${config.backend === 'in-host' ? 'in-host（逃生舱：运行时由本宿主进程持有，关客户端即丢会话）' : 'daemon（默认：运行时由 WSL 侧常驻守护持有，关客户端 ≠ 会话结束）'}`,
           `daemon: ${daemonLine}`,
           ...(daemonAlarm ? [`daemon drift: ⚠️ ${daemonAlarm}`] : []),
+          ...(daemonPluginAlarm ? [`daemon plugin: ⚠️ ${daemonPluginAlarm}`] : []),
           `daemon idle/linger/queue: idleMs=${config.daemonIdleMs}（到期回收运行时 ⇒ 上下文丢失）/ lingerMs=${config.daemonLingerMs}（无 key 且无客户端持续这么久 ⇒ 守护自退）/ queueLimit=${config.daemonQueueLimit}（同 key 并发 FIFO，超出明确拒绝）`,
           `daemon ports: configured=${config.daemonPort}(+${config.daemonPortTries} 回退) actual=${dstat.ok ? dstat.info?.port : '(未运行)'}${dstat.ok && dstat.slot != null ? ` slot=${dstat.slot}` : ''}`,
           `daemon state dir (WSL): ${stateDirLinux(config)}（元数据**按槽位**：daemon.<slot>.json / daemon.<slot>.token，0600；日志 daemon.log；本插件不把守护的东西落 /tmp）`,
@@ -462,6 +472,7 @@ ${command}
         'Delegate a task to the resident WSL-side dsh agent (dsh --profile sdk over stdio JSON-RPC), held by a resident daemon inside WSL. Its tools, MCP servers, skills and file writes all happen in WSL, and it runs the same dsh version as this Desktop install. ' +
         'Closing the client does NOT end the session: the runtime lives in the daemon, so a later call — even from a different DSH host process — continues the SAME session and remembers earlier turns. ' +
         'A session ends only when (a) the daemon is stopped explicitly (wsl_daemon action=stop), (b) it has been idle for `daemonIdleMs` (default 30 minutes) and the idle reaper collected the runtime, or (c) the daemon/runtime died. In cases (b) and (c) the next turn gets a NEW sessionId and the reply says the context was reset. ' +
+        'Timeouts are NOT retried automatically: the request may already be executing in the daemon and side effects may have happened, so verify the remote state before retrying (a daemon that is unreachable but still listening will also NOT self-restart; use wsl_daemon action=restart). ' +
         'Concurrent prompts on the same `key` are serialized FIFO inside the daemon; beyond `daemonQueueLimit` (default 4) waiting turns are rejected explicitly, because upstream has no cancel. ' +
         'The per-call `cwd` really takes effect: the daemon keeps one runtime per (key, cwd) pair, so a new cwd starts its own session (its own sessionId) while the same key+cwd keeps reusing the same runtime; the reply always reports the effective `cwd=` and warns if it differs from the requested one.',
       parameters: {
@@ -651,7 +662,7 @@ ${command}
           const ks: any[] = Array.isArray(info.keys) ? info.keys : [];
           const orphans: any[] = Array.isArray(s.orphans) ? s.orphans : [];
           return [
-            `daemon: pid=${info.daemonPid} actualPort=${info.port} slot=${s.slot} version=${info.version} cwd=${info.cwd} profile=${info.profile}`,
+            `daemon: pid=${info.daemonPid} actualPort=${info.port} slot=${s.slot} version=${info.version} plugin=${info.pluginVersion ?? 'unknown'} protocol=v${info.protocolVersion ?? 0} cwd=${info.cwd} profile=${info.profile}`,
             machineLine({
               slot: s.slot,
               pid: info.daemonPid,
@@ -659,6 +670,11 @@ ${command}
               version: info.version,
               extra: `keys=${ks.length} orphans=${orphans.length}`,
             }),
+            ...(info.protocolVersion == null || Number(info.protocolVersion) < PROTOCOL_VERSION || (info.pluginVersion && info.pluginVersion !== PLUGIN_VERSION)
+              ? [
+                  `versions: ⚠️ 守护插件 ${info.pluginVersion ?? 'unknown'} / 协议 v${info.protocolVersion ?? 0}，宿主 ${PLUGIN_VERSION} / 协议 v${PROTOCOL_VERSION} —— 新功能在 restart 前不可用（wsl_daemon action=restart）`,
+                ]
+              : []),
             `uptime=${Math.round((info.uptimeMs ?? 0) / 1000)}s idleMs=${info.idleMs} lingerMs=${info.lingerMs} queueLimit=${info.queueLimit}`,
             `keys (${ks.length}): ${
               ks

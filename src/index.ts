@@ -2,7 +2,7 @@
  * dsh-remote-wsl —— Cordis 插件入口（架构债 T5/task-44 拆分后**只留 wiring**）。
  *
  * 本文件现在只有三件事：
- *  1. `DEFAULTS`（配置面）与 `name`/`inject`；
+ *  1. 配置面（默认值已收敛到 `./config.ts`）与 `name`/`inject`；
  *  2. `apply` 里**创建状态 + 组装依赖**（守护状态、版本解析、运行时池、web host 表），并把它们交给
  *     `registerTools`（七个工具）与 `registerExplorer`（面板数据面）——**"谁能起进程/动槽位"只在这里决定**；
  *  3. disposer：只回收**本宿主进程**持有的东西（in-host 运行时 + web host + 自有 /tmp 一次性文件），
@@ -28,64 +28,14 @@ import { createInHostPool } from './in-host-runtime.ts';
 import { registerTools, sweepStaleRuntimes } from './register-tools.ts';
 import { apply as applyWslPreset } from './preset.ts';
 
+import { normalizeConfig } from './config.ts';
 /** Stable Loader identity. */
 export const name = 'dsh-remote-wsl';
 
 /** 服务依赖由 `apply` 内显式 `ctx.inject(['tools'], …)` 处理，故为空（同 dsh-shadow）。 */
 export const inject = [];
 
-const DEFAULTS = {
-  distro: 'debian-u8-1',
-  /** WSL 侧家目录（版本 pin 与 session 日志都在它下面）。 */
-  wslHome: '/home/g',
-  /** 远端 agent 的工作目录（Linux 绝对路径）。 */
-  cwd: '/home/g',
-  provider: 'deepseek-official',
-  model: 'deepseek-flash',
-  profile: 'sdk',
-  /** 空 = 跟随桌面版本（读 primary-runtime/runtime.json 的 desktopVersion）。 */
-  dshVersion: '',
-  webPort: 3082,
-  /** 运行时空闲多久后回收（毫秒）。 */
-  idleTimeoutMs: 600000,
-  /** 单次工具调用的墙钟上限（毫秒）。 */
-  timeoutMs: 600000,
-  /** 桌面 runtime.json 的显式路径（留空则分层推导：见 lib/version.js 的 desktopRuntimeCandidates）。 */
-  desktopRuntimeJson: '',
-  /**
-   * 是否把 WSL 登录 shell 环境注入**常驻进程**的启动脚本（对位 VS Code `remote.WSL.useShellEnvironment`）。
-   * 默认 true（同 VS Code：`!1!==get(...)`）。只作用于 `wsl_agent` / `wsl_open_ui` 起的常驻进程，
-   * `wsl_exec` 的一次性路径不注入（理由见 shellPreamble 与 wsl_exec 的 description）。
-   */
-  useShellEnvironment: true,
-  /**
-   * 检测到版本漂移（桌面版本 !== WSL pin）时，**后台**预热 WSL 侧的该版本。
-   * 默认 true（对应 GAP-AUDIT §7 修正后的 #3：drift 自动 warm，但不得阻塞当前调用）。
-   */
-  backgroundWarm: true,
-  /** 宿主机代理端口（用于"先探测再使用"）。 */
-  proxyPort: 9910,
-  /**
-   * 远端 agent 的宿主形态：
-   *  · `'daemon'`（默认）= 运行时由 **WSL 侧常驻守护**持有 ⇒ 客户端进程可来可走，跨进程/跨宿主复用上下文；
-   *  · `'in-host'` = 旧形态（本宿主进程自己持有运行时）—— 逃生舱，保留原行为（含日志兜底）。
-   */
-  backend: 'daemon',
-  /** 守护监听端口（127.0.0.1）。WSL 侧被占则 +1 探测；Windows 侧被占则由客户端换端口重试。 */
-  daemonPort: 8731,
-  /** 端口回退次数（Windows 命名空间里被别的属主占用时逐个试）。 */
-  daemonPortTries: 3,
-  /** 守护空闲回收（毫秒，默认 30 分钟）。**到期即回收运行时 ⇒ 上下文丢失**，不是"永久保持"。 */
-  daemonIdleMs: 1800000,
-  /** **寿命闸门**：守护在"无 key 且无客户端"持续这么久后自退（默认 10 分钟；0=关）。有会话时绝不触发。 */
-  daemonLingerMs: 600000,
-  /** 同一 key 的并发 prompt：守护内 FIFO 串行，这里是**等待位上限**，超出明确拒绝（上游 SDK 无 cancel）。 */
-  daemonQueueLimit: 4,
-  /** Windows 侧握手判据的超时（毫秒）。身份不符/端口被占必须在这个量级快速失败，绝不等 timeoutMs。 */
-  daemonHandshakeTimeoutMs: 3000,
-  /** 起守护后等"Windows 侧握手确认就绪"的上限（毫秒）。 */
-  daemonStartTimeoutMs: 20000,
-};
+
 
 // ── 插件本体 ─────────────────────────────────────────────────────────────────
 
@@ -95,7 +45,7 @@ const DEFAULTS = {
  * @param rawConfig 插件行的 config（未经 schema 归一，缺失键在此补默认值）
  */
 export function apply(ctx, rawConfig = {}) {
-  const config = { ...DEFAULTS, ...(rawConfig && typeof rawConfig === 'object' ? rawConfig : {}) };
+  const config = normalizeConfig(rawConfig);
   // 防御性判断：缺任一框架接口则整个插件无从工作（同 dsh-shadow 的前置判据）
   if (typeof ctx?.inject !== 'function' || typeof ctx?.get !== 'function') {
     throw new Error('remote-wsl: 宿主缺少 ctx.inject / ctx.get，插件无法挂载');

@@ -36,33 +36,12 @@ import { ensureDaemon } from './daemon-client.ts';
 import { callDaemon, readDaemonRecord, winToWsl } from './daemon-protocol.ts';
 import { resolveVersion } from './wsl-io.ts';
 
+import { normalizeConfig } from './config.ts';
 export const name = 'dsh-remote-wsl-fs';
 export const inject = [];
 
 /** 与 index.ts 的 DEFAULTS 同形（只取 fs provider 需要的）。 */
-const DEFAULTS = {
-  distro: 'debian-u8-1',
-  wslHome: '/home/g',
-  cwd: '/home/g',
-  profile: 'sdk',
-  provider: 'deepseek-official',
-  model: 'deepseek-flash',
-  dshVersion: '',
-  daemonPort: 8731,
-  daemonPortTries: 3,
-  daemonIdleMs: 1800000,
-  daemonLingerMs: 600000,
-  daemonQueueLimit: 4,
-  daemonHandshakeTimeoutMs: 3000,
-  daemonStartTimeoutMs: 20000,
-  timeoutMs: 60000,
-  // readText 的字节上限（2026-10-27 审查 F-11）：上游 readText 无上限，但我们要把整段文本塞进**一个
-  // JSON 帧**回传，不能无界。宿主 `dsh-tool-fs` 在 `size >= 10MiB` 时改走 streamText（STREAM_MIN_SIZE），
-  // 所以 16MiB 足够覆盖 readText 区间并留余量；更大的文件走真流式。
-  // 可用 rawConfig.readTextMaxBytes 覆盖。注意：`src/preset.ts` 目前只转发 distro/wslHome/cwd/daemonPort，
-  // 要让部署真正可调需在那里补一行（本次写面只含 fs 三个文件，未改 preset）。
-  readTextMaxBytes: 16 * 1024 * 1024,
-};
+
 
 const fsErr = (message, code) => {
   const error = new Error(message);
@@ -107,8 +86,8 @@ export function parseUnc(input) {
  * @returns `{config, distro, ensure, call(op, method, args, signal)}`
  */
 export function createWslRpc(rawConfig = {}) {
-  const config = { ...DEFAULTS, ...(rawConfig ?? {}) };
-  const distro = String(config.distro || DEFAULTS.distro);
+  const config = normalizeConfig(rawConfig);
+  const distro = String(config.distro);
 
   /** 懒起守护：第一次操作时确保 WSL 侧守护在跑（失败要明确报，不许假装成功）。 */
   let daemonReady = null;
@@ -133,7 +112,7 @@ export function createWslRpc(rawConfig = {}) {
       port: rec.meta?.port ?? rec.slot,
       token: rec.token,
       req: { op, id: 1, method, args },
-      timeoutMs: Number(config.timeoutMs) || 60000,
+      timeoutMs: Number(config.fsTimeoutMs) || 60000,
     });
     signal?.throwIfAborted?.();
     if (!r?.msg) throw fsErr(`remote-wsl: 守护调用失败（${r?.kind ?? 'unknown'}）：${r?.error ?? '没有回包'}`, 'FS_IO_ERROR');
@@ -483,9 +462,9 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     },
 
     async readText(target, signal) {
-      // 上限可配（默认 16MiB，见 DEFAULTS.readTextMaxBytes）：宿主 readText 的区间是 <10MiB
+      // 上限可配（默认 16MiB，见 config.ts 的 readTextMaxBytes）：宿主 readText 的区间是 <10MiB
       // （≥10MiB 走 streamText），所以 16MiB 覆盖该区间；超限报 FS_TOO_LARGE 且不暴露实现字节数。
-      const maxBytes = Math.max(Number(config.readTextMaxBytes) || DEFAULTS.readTextMaxBytes, 1);
+      const maxBytes = Math.max(config.readTextMaxBytes, 1);
       const r = await call('readText', { path: target.targetKey, maxBytes }, signal);
       return r.text;
     },
@@ -501,13 +480,26 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     streamText(target, signal) {
       const targetKey = target.targetKey;
       const displayPath = target.displayPath;
-      return Promise.resolve(
-        decodeTextChunks(
-          (offset, maxBytes) => call('readChunk', { path: targetKey, offset, maxBytes }, signal),
-          signal,
-          displayPath,
-        ),
-      );
+      // 旧守护兼容（2026-10-27 换角度评审第 1 条）：v0.1.1 之前起的守护不认识 `readChunk`。
+      // 守护是 detached 的 —— 宿主升级后旧守护还会继续活着，所以"协议换了一版"不能变成"大文件读不出来"。
+      // 第一次拿到 unknown method/op 就退回整段 `readText`（单块），牺牲流式但保持可读。
+      let useReadText = false;
+      const readChunk = async (offset, maxBytes) => {
+        if (!useReadText) {
+          try {
+            return await call('readChunk', { path: targetKey, offset, maxBytes }, signal);
+          } catch (e) {
+            if (!/unknown (method|op)/i.test(String(e?.message ?? e))) throw e;
+            useReadText = true;
+          }
+        }
+        if (offset > 0) return { base64: '', bytes: 0 };
+        const maxBytesForText = Math.max(config.readTextMaxBytes, 1);
+        const r = await call('readText', { path: targetKey, maxBytes: maxBytesForText }, signal);
+        const text = String(r?.text ?? '');
+        return { base64: Buffer.from(text, 'utf8').toString('base64'), bytes: Buffer.byteLength(text, 'utf8') };
+      };
+      return Promise.resolve(decodeTextChunks(readChunk, signal, displayPath));
     },
 
     async readBytes(target, signal, maxBytes) {
