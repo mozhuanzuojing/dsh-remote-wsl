@@ -23,6 +23,13 @@
  */
 import { spawn, execFileSync } from 'node:child_process';
 import path from 'node:path';
+// 流收集上限的**同一份实现**（谁先改一边忘另一边就会漂 —— 2026-10-27 第三轮的教训是
+// "search-provision 与 search-rpc 各写一份同样的静默截断"）。search-provision 只 import node: 内置，
+// 不会引入宿主模块，因此 daemon 侧引用安全。
+import { capStreamAppend } from './search-provision.ts';
+
+/** stderr 收集上限（诊断信息只需要开头几百字符；给足余量但不无限吃内存）。 */
+const STDERR_MAX_BYTES = 16 * 1024;
 
 export const GREP_MAX_MATCHES = 500;
 export const GREP_MAX_BYTES = 512 * 1024;
@@ -60,9 +67,10 @@ function run(command, args, { timeoutMs = 30000, maxBytes = 2 * 1024 * 1024, okC
       reject(searchError(`cannot spawn ${command}: ${e?.message ?? String(e)}`));
       return;
     }
-    const out = [];
-    const err = [];
-    let outBytes = 0;
+    let out = { chunks: [], total: 0 };
+    let err = { chunks: [], total: 0 };
+    // 只有**真丢过字节**的流才置位（F-32：不能用"长度到上限"反推，否则正好满会被误报）
+    const truncated = { stdout: false, stderr: false };
     let done = false;
     const kill = () => {
       try {
@@ -93,21 +101,36 @@ function run(command, args, { timeoutMs = 30000, maxBytes = 2 * 1024 * 1024, okC
       /* ignore */
     }
     child.stdout.on('data', (c) => {
-      if (outBytes >= maxBytes) return;
-      out.push(c);
-      outBytes += c.length;
+      // F-32 同型缺陷（2026-10-27 第三轮）：旧写法 `if (outBytes >= maxBytes) return;` 到上限后
+      // **静默丢尾**，而 grep/glob 的尾部恰恰可能承载最后几条结果；并且 `truncated: outBytes >= maxBytes`
+      // 会把"正好等于上限（一个字节都没丢）"误报成截断。现在按字节收集 + 只在真丢过字节时置 dropped。
+      const r = capStreamAppend(out.chunks, out.total, c, maxBytes);
+      out = { chunks: r.chunks, total: r.total };
+      if (r.dropped) truncated.stdout = true;
     });
     child.stderr.on('data', (c) => {
-      if (err.length < 200) err.push(c);
+      // 旧写法 `if (err.length < 200) err.push(c)` 是按**块数**限（块大小不定 ⇒ 语义混乱）。
+      // 诊断信息只在失败时取前 300 字符用于报错，这里给一个明确的字节上限并标记截断。
+      const r = capStreamAppend(err.chunks, err.total, c, STDERR_MAX_BYTES);
+      err = { chunks: r.chunks, total: r.total };
+      if (r.dropped) truncated.stderr = true;
     });
     child.on('error', (e) => settle(reject, searchError(`cannot run ${command}: ${e?.message ?? String(e)}`)));
     child.on('close', (code) => {
-      const stderr = Buffer.concat(err).toString('utf8');
+      const stderr = Buffer.concat(err.chunks).toString('utf8');
       if (code !== null && !okCodes.includes(code)) {
         settle(reject, searchError(`${command} exited ${code}: ${stderr.slice(0, 300)}`));
         return;
       }
-      settle(resolve, { stdout: Buffer.concat(out).toString('utf8'), stderr, truncated: outBytes >= maxBytes, code });
+      settle(resolve, {
+        stdout: Buffer.concat(out.chunks).toString('utf8'),
+        stderr,
+        // `truncated` 的语义是"**结果**可能不完整"（stdout 真丢过字节），保持既有消费者契约；
+        // stderr 的截断单独给出（只影响诊断可读性，不影响结果完整性判断）。
+        truncated: truncated.stdout,
+        stderrTruncated: truncated.stderr,
+        code,
+      });
     });
   });
 }

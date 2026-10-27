@@ -210,10 +210,124 @@ export function resolveVersion(cfg) {
   };
 }
 
+// ── 流收集 / 终止原因（F-32 / F-33）：纯函数，可在 Windows 侧离线单测 ──────────
+//
+// 为什么把这两段逻辑抠出来：它们原来埋在 `runWsl` 的 spawn 闭包里 —— 要验证"截断是否被标记"
+// 与"124 到底是超时还是命令自己的退出码"，就只能真起 wsl.exe（Windows 侧还跑不了 bash）。
+// 抠成纯函数后，`test/wsl-io-termination.test.ts` 直接 import 断言，不需要任何进程。
+
+/**
+ * 单条流（stdout / stderr 各算一条）的收集上限（字节）。
+ * 超限后**保留头部、丢弃尾部**，但由 `truncated` 如实上报（F-32 之前是静默丢尾）。
+ */
+export const WSL_STREAM_MAX_BYTES = 200000;
+
+/**
+ * `exit` 之后等 stdio 真正关闭（`close`）的**静默窗口**（毫秒）：上游每来一块数据就重置一次。
+ * 为什么需要：在 `exit` 里立刻结算，会把「还没派发完的尾部输出」当成完整结果交出去（F-32 的
+ * 第二个静默丢尾口）；Node 文档明写 `exit` 触发时 stdio 流可能仍然打开。
+ * 为什么是重置式：大输出（900KB 实测）收尾本身要时间，固定窗口可能在数据还在流时就到点。
+ */
+export const WSL_STDIO_DRAIN_MS = 30;
+
+/**
+ * 静默窗口的**总上限**（毫秒，从 `exit` 起算）。
+ * 为什么必须有：用户脚本可能把后台进程留在同一个管道上（`sleep 20 & echo x`），那玩意儿不写数据
+ * 也不退出 ⇒ 静默窗口会一直重置→结算被无限拖延→最后触发 timeoutMs 变成**假超时**。
+ * 有这条上限，最坏情况是 `exit` 后再等 1s，绝不会把一次正常结束拖成超时。
+ */
+export const WSL_STDIO_DRAIN_MAX_MS = 1000;
+
+/**
+ * 把一块输出追加进收集器：**不超过上限**，并如实报告这一块是否被丢弃。
+ *
+ * 修的是 F-32 的两个面：
+ *  1. 旧写法 `if (outBytes >= 200000) return;` 到达上限后**静默丢尾** —— 调用方把截断的输出当完整
+ *     结果，最关键的尾部错误信息（报错几乎总在最后）无声消失；
+ *  2. 不能用 `total >= limit` **反推**截断：一条完整输出正好 200000 字节（一个字都没丢）会被误报成
+ *     "已截断"，于是人对"结果可信不可信"的判断直接失真。这里只在**真丢过字节**时置 `dropped`。
+ *
+ * 逐块保留：放不下整块时只留前缀，并回退到 UTF-8 字符边界（否则会解码出半个字符 → U+FFFD）。
+ *
+ * @param chunks 已收集的分片（`Buffer[]`；本函数**不改动**入参，保持纯函数）
+ * @param total 已收集字节数
+ * @param chunk 新到的分片（`Buffer` / `string`）
+ * @param limit 上限（字节）；≤0 表示一个字节都不收
+ * @returns `{ chunks, total, dropped }` —— `dropped` 为真表示**这一块**有字节被丢弃
+ */
+export function capAppend(chunks, total, chunk, limit) {
+  const list = Array.isArray(chunks) ? chunks : [];
+  const used = Math.max(Number(total) || 0, 0);
+  const cap = Math.max(Number(limit) || 0, 0);
+  const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk ?? ''), 'utf8');
+  if (buf.length === 0) return { chunks: list, total: used, dropped: false };
+  const room = cap - used;
+  // 已经满了（或上限为 0）：整块丢弃，但**必须报**
+  if (room <= 0) return { chunks: list, total: used, dropped: true };
+  if (buf.length <= room) return { chunks: [...list, buf], total: used + buf.length, dropped: false };
+  // 放不下整块 ⇒ 只留前缀；若切点落在多字节字符中间（0b10xxxxxx 续接字节），回退到字符起始字节
+  let cut = room;
+  let guard = 0;
+  while (cut > 0 && guard < 3 && (buf[cut] & 0xc0) === 0x80) {
+    cut -= 1;
+    guard += 1;
+  }
+  const kept = cut > 0 ? buf.subarray(0, cut) : null;
+  return { chunks: kept ? [...list, kept] : list, total: used + (kept ? kept.length : 0), dropped: true };
+}
+
+/**
+ * 一次执行的**终止原因**：由我们自己的标记决定，**绝不从退出码反推断**（F-33）。
+ *
+ * 为什么必须分开：旧实现用 `finish(124)` 表示超时、`finish(130)` 表示调用方中断，于是
+ * 「命令自己 exit 124」（`timeout(1)` 的既有约定）「命令自己 exit 130」（Ctrl-C）与「插件把它杀了」
+ * 在返回值里**完全一样**，调用方只能打印 `exit 124`，人和上层逻辑都判断不出到底谁的错。
+ * 现在 `timedOut` / `aborted` 是独立布尔（只有 `runWsl` 的定时器与 abort 监听能置位），退出码
+ * 只负责填 `exitCode` / `killedBySignal`。
+ *
+ * 判定优先级（`timedOut` > `aborted` > 退出码）：前两者是我们自己的动作，永远压过退出码。
+ * 两者同时为真在 `runWsl` 里不可能发生（`finish` 只结算一次），这里排序只为让结果确定可测。
+ *
+ * @param {{ code?: number|null, signalCode?: string|null, timedOut?: boolean, aborted?: boolean }} t
+ * @returns `{ exitCode, killedBy: 'timeout'|'abort'|'signal'|'exit', killedBySignal }`
+ *   - `'exit'`    进程自己结束 —— **`exitCode` 是 124/130 也仍然是我们没杀它**；
+ *   - `'timeout'` 我们的定时器到点（`exitCode` 沿用 124，老调用方按 124 判超时的路径不变）；
+ *   - `'abort'`   调用方的 AbortSignal（`exitCode` 沿用 130）；
+ *   - `'signal'`  子进程被信号结束（`killedBySignal` 给信号名；`exitCode` 沿用旧的 1 ——
+ *                 老调用方把 `null` 当成功，这是 2026-10-23 真 child 探针修过的伪成功，不能退回）。
+ */
+export function terminationOf({ code = null, signalCode = null, timedOut = false, aborted = false } = {}) {
+  // 我们的标记优先：命令自己 exit 124 且没超时 ⇒ 走到下面的 'exit' 分支（F-33 的根因就在这里）
+  if (timedOut === true) return { exitCode: 124, killedBy: 'timeout', killedBySignal: null };
+  if (aborted === true) return { exitCode: 130, killedBy: 'abort', killedBySignal: null };
+  if (code !== null && code !== undefined) return { exitCode: code, killedBy: 'exit', killedBySignal: null };
+  if (signalCode) return { exitCode: 1, killedBy: 'signal', killedBySignal: signalCode };
+  // 既无退出码也无信号（Node 文档说 exit 事件二者必有一个，这里只兜住异常形态）：旧写法给 0，保留
+  return { exitCode: 0, killedBy: 'exit', killedBySignal: null };
+}
+
+/**
+ * 「**根本没有跑起来**」的终态（关停拒绝 / 脚本落盘失败）。字段形状与真跑完**完全一致**，
+ * 免得调用方在两条提前返回路径上读到 `undefined` 再自己猜。
+ * `killedBy: null` = 没有进程存在过，谈不上终止方式（这是唯一会给出 null 的路径）。
+ */
+function notStartedResult(exitCode, stderr) {
+  return {
+    exitCode,
+    stdout: '',
+    stderr,
+    timedOut: false,
+    aborted: false,
+    truncated: { stdout: false, stderr: false },
+    killedBy: null,
+    killedBySignal: null,
+  };
+}
+
 // ── 一次性 WSL 执行（远端终端 / 状态探测 / 日志兜底读取）──────────────────────
 
 /**
- * 在 WSL 里跑一段 bash，收集 stdout/stderr/退出码。
+ * 在 WSL 里跑一段 bash，收集 stdout/stderr/退出码 **与结构化的终止原因**。
  *
  * 三条纪律（2026-10-22 对照 ZCode）：
  *  · **spawn 前双检**：进入关停态后不再新建进程（返回 127 + 可读原因；本函数契约是"永不抛"）。
@@ -221,18 +335,32 @@ export function resolveVersion(cfg) {
  *    beginShutdown 之后继续跑，否则包装层被杀、Linux 侧进程会变孤儿。
  *  · **登记**：spawn 出来的短命 wsl.exe 也进 lifecycle，settle 才会等它退出（handoff §5.3）。
  *  · **解码**：先收 Buffer，收尾时按 NUL 判码 + 去 NUL/BOM/CR（ZCode normalizeWslOutput）。
+ *
+ * 返回形状（F-32 / F-33，2026-10-27）：
+ *   `{ exitCode, stdout, stderr, timedOut, aborted, truncated:{stdout,stderr}, killedBy, killedBySignal }`
+ *   · 旧字段 `exitCode/stdout/stderr` 语义**未变** ⇒ 老调用方不用改；
+ *   · `timedOut`/`aborted` 只由**我们自己的**定时器与 abort 监听置位，不由 124/130 反推；
+ *   · `truncated.*` 只在该流**真的丢过字节**时为真（到上限但没溢出 ⇒ false）；
+ *   · `killedBy === null` 仅表示"没起进程"（关停拒绝 / 脚本落盘失败）。
  */
 export function runWsl(cfg, script, opts = {}) {
   const lifecycle = activeLifecycle();
   if (!opts.allowDuringShutdown && lifecycle && lifecycle.isShuttingDown()) {
-    return Promise.resolve({ exitCode: 127, stdout: '', stderr: shutdownRejection });
+    return Promise.resolve(notStartedResult(127, shutdownRejection));
   }
   let file;
   try {
     file = writeScript(cfg.distro, script);
   } catch (e) {
     // 不抛：让调用方（wsl_exec / 状态探测 / 回收 / 日志兜底）拿到可读诊断而不是异常
-    return Promise.resolve({ exitCode: 127, stdout: '', stderr: e.message });
+    return Promise.resolve(notStartedResult(127, e.message));
+  }
+  // F-33 的第三个形态：**进来之前**就已取消的 signal。`addEventListener('abort')` 对"事件已经发生
+  // 过的 signal"不会再触发，旧写法于是**照常 spawn 并把结果当"命令自己退出"**返回 —— 取消被静默
+  // 吞掉，与"命令自己 exit 130"混为一谈。没有进程存在过 ⇒ `killedBy: null`，但 `aborted` 必须为真。
+  if (opts.signal && opts.signal.aborted) {
+    removeScript(cfg.distro, file);
+    return Promise.resolve({ ...notStartedResult(130, ''), aborted: true });
   }
   return new Promise((resolve) => {
     const child = spawn('wsl.exe', ['-d', cfg.distro, '--exec', 'bash', file], {
@@ -241,15 +369,42 @@ export function runWsl(cfg, script, opts = {}) {
     });
     // 归属：短命子进程也登记（exit/error/close 任一会自动摘除）
     if (lifecycle) lifecycle.track(child);
-    const outChunks = [];
-    const errChunks = [];
-    let outBytes = 0;
-    let errBytes = 0;
+    // 流收集状态：`capAppend` 是纯函数，这里只持有它返回的最新快照（total 与 chunks 必须同进同退）
+    let out = { chunks: [], total: 0 };
+    let err = { chunks: [], total: 0 };
+    // F-32：截断**只按"真的丢过字节"**置位（`capAppend.dropped`），不拿 `长度 >= 上限` 反推 ——
+    // 正好 200000 字节的完整输出不能被误报成截断。
+    const truncated = { stdout: false, stderr: false };
     let done = false;
-    const finish = (code) => {
+    // F-33：这两个标记只由**我们自己**的动作置位（定时器 / abort 监听），退出码不参与推断
+    let timedOut = false;
+    let aborted = false;
+    // `exit` 之后的排空状态（理由见下面 `child.on('exit')` 处）
+    let drainTimer = null;
+    let drainDeadline = 0;
+    /** 已收到 `exit` 时的退出码/信号 —— 排空窗口到点就用它们结算（不能再用 null）。 */
+    let exitInfo = null;
+    /** 重置静默窗口：上游每来一块数据就续一次，但总时长被 `drainDeadline` 卡住。 */
+    const armDrain = () => {
+      if (!exitInfo || done) return;
+      if (drainTimer) clearTimeout(drainTimer);
+      const left = Math.max(drainDeadline - Date.now(), 0);
+      drainTimer = setTimeout(() => finish(exitInfo.code, exitInfo.signal), Math.min(WSL_STDIO_DRAIN_MS, left));
+    };
+    const onAbort = () => {
+      aborted = true;
+      finish(null, null);
+    };
+    const finish = (code, signalCode) => {
       if (done) return;
       done = true;
       if (timer) clearTimeout(timer);
+      if (drainTimer) clearTimeout(drainTimer);
+      try {
+        opts.signal?.removeEventListener?.('abort', onAbort);
+      } catch {
+        /* ignore */
+      }
       removeScript(cfg.distro, file);
       try {
         child.kill();
@@ -258,31 +413,58 @@ export function runWsl(cfg, script, opts = {}) {
       }
       // 被信号结束（settle 的 kill 分支）时 Node 给的是 `code=null + signal='SIGTERM'`：
       // 旧写法 `code ?? 0` 会把它记成**成功**（空 stdout + exitCode 0 = 伪成功，2026-10-23 真 child 探针
-      // probe-real-child-settle 实测 codes=0,0 才发现）。这里按失败记 1 —— 调用方（wsl_exec 等）
-      // 本来就在被关停，拿到"失败"比拿到"成功且空输出"诚实。
+      // probe-real-child-settle 实测 codes=0,0 才发现）。`terminationOf` 里保留"信号 ⇒ exitCode 1"。
+      const term = terminationOf({ code, signalCode, timedOut, aborted });
       resolve({
-        exitCode: code ?? (child.signalCode ? 1 : 0),
-        stdout: readWslOutput(Buffer.concat(outChunks)),
-        stderr: readWslOutput(Buffer.concat(errChunks)),
+        exitCode: term.exitCode,
+        stdout: readWslOutput(Buffer.concat(out.chunks)),
+        stderr: readWslOutput(Buffer.concat(err.chunks)),
+        timedOut,
+        aborted,
+        truncated: { stdout: truncated.stdout, stderr: truncated.stderr },
+        killedBy: term.killedBy,
+        killedBySignal: term.killedBySignal,
       });
     };
-    const timer = opts.timeoutMs ? setTimeout(() => finish(124), opts.timeoutMs) : null;
-    opts.signal?.addEventListener('abort', () => finish(130), { once: true });
+    const timer = opts.timeoutMs
+      ? setTimeout(() => {
+          timedOut = true; // 先置标记再收尾：finish 里读到的就是"我们杀它是因为超时"
+          finish(null, null);
+        }, opts.timeoutMs)
+      : null;
+    opts.signal?.addEventListener('abort', onAbort, { once: true });
     child.stdout.on('data', (c) => {
-      if (outBytes >= 200000) return;
-      outChunks.push(c);
-      outBytes += c.length;
+      const r = capAppend(out.chunks, out.total, c, WSL_STREAM_MAX_BYTES);
+      out = { chunks: r.chunks, total: r.total };
+      if (r.dropped) truncated.stdout = true;
+      armDrain(); // `exit` 之后仍在来数据 ⇒ 尾部还没收完，续静默窗口
     });
     child.stderr.on('data', (c) => {
-      if (errBytes >= 200000) return;
-      errChunks.push(c);
-      errBytes += c.length;
+      const r = capAppend(err.chunks, err.total, c, WSL_STREAM_MAX_BYTES);
+      err = { chunks: r.chunks, total: r.total };
+      if (r.dropped) truncated.stderr = true;
+      armDrain();
     });
     child.on('error', (e) => {
-      errChunks.push(Buffer.from(`\nremote-wsl: 无法启动 wsl.exe: ${e.message}`, 'utf8'));
-      finish(1);
+      // 自带诊断也走同一条收集路径（数量极少，但仍要保证 total 与 chunks 一致）
+      const note = capAppend(err.chunks, err.total, Buffer.from(`\nremote-wsl: 无法启动 wsl.exe: ${e.message}`, 'utf8'), WSL_STREAM_MAX_BYTES);
+      err = { chunks: note.chunks, total: note.total };
+      if (note.dropped) truncated.stderr = true;
+      finish(1, null);
     });
-    child.on('exit', (code) => finish(code));
+    // 为什么不在 `exit` 里立刻结算（F-32 的第二个静默丢尾口）：Node 文档明写「`exit` 触发时 stdio 流
+    // 可能仍然打开」，此时 `Buffer.concat` 拿到的是**还没派发完**的尾部 —— 与 200KB 上限同一类缺陷
+    // （最关键的尾部报错最先没），而且这次连长度都到不了上限，调用方无从察觉。`close` = 已退出且
+    // stdio 已关闭，那才是全部输出。
+    // 但 `close` 也可能**永不到来**：用户脚本把后台进程留在同一管道上（`sleep 20 & echo x`）时管道
+    // 不关。所以 `exit` 之后起一个**有界排空窗口**：默认 30ms 静默即结算，每来一块数据续一次，
+    // 总时长封顶 WSL_STDIO_DRAIN_MAX_MS —— 既把尾部收干净，又不会把正常结束拖成假超时。
+    child.on('exit', (code, signal) => {
+      exitInfo = { code, signal };
+      drainDeadline = Date.now() + WSL_STDIO_DRAIN_MAX_MS;
+      armDrain();
+    });
+    child.on('close', (code, signal) => finish(code, signal));
     try {
       child.stdin.end();
     } catch {
