@@ -13,16 +13,12 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { cdPreamble, shq } from '../src/shell-quote.ts';
+import { detectUsableBash } from './support/bash-probe.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'dsh-rw-shellq-'));
-const hasBash = (() => {
-  try {
-    execFileSync('bash', ['-c', 'true'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-})();
+// 用能真正执行脚本的探测：`bash -c true` 在 Windows 的 WSL 存根上会"静默成功"，
+// 但换成脚本文件参数就失败，于是下面的 { skip: !hasBash } 形同虚设。
+const hasBash = detectUsableBash();
 
 /** 把脚本落盘后交给 bash 跑（避免二次 shell 解析影响断言）。 */
 const runBash = (script: string) => {

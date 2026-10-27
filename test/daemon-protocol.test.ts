@@ -12,15 +12,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import net from 'node:net';
 import { acquireEnsureLockScript, parseScanOutput, releaseEnsureLockScript, tcpProbe } from '../src/daemon-protocol.ts';
+import { detectUsableBash } from './support/bash-probe.ts';
 
-const hasBash = (() => {
-  try {
-    execFileSync('bash', ['-c', 'true'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-})();
+// 用能真正执行脚本的探测：`bash -c true` 在 Windows 的 WSL 存根上会"静默成功"，
+// 但换成脚本文件参数就失败，于是下面的 { skip: !hasBash } 形同虚设。
+const hasBash = detectUsableBash();
 
 test('parseScanOutput：只接受数字 pid；端口缺失记 null（进程仍要能被发现/回收）', () => {
   const out = parseScanOutput('123|8731|8731\n456||\nbad-line\n789|9000|\n');
