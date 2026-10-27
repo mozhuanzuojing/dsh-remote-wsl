@@ -518,13 +518,21 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
 
     async listDir(target, signal) {
       const r = await call('listDir', { path: target.targetKey }, signal);
-      return (r?.entries ?? []).map((entry) => ({
-        name: entry.name,
-        type: entry.type,
-        target: { targetKey: path.posix.join(target.targetKey, entry.name), displayPath: path.posix.join(target.targetKey, entry.name) },
-        ...(entry.version !== undefined ? { version: entry.version } : {}),
-        ...(entry.size !== undefined ? { size: entry.size } : {}),
-      }));
+      // 2026-10-27 第三轮（HANDOFF 遗留项）：子项身份必须用**守护解析出的 targetKey**（链接已被 realpath），
+      // 不能再拿 `path.posix.join(parent, name)` 现拼 —— 那会让「链接到本目录外」的子项得到一个
+      // 从未被解析的键：同一文件两种身份（`contains()` 判错、observation-policy 误判没读过）。
+      // 与上游 `resolveListedChildTarget()` 的 `targetKey` 严格同义（displayPath 仍是用户视角的名字）。
+      return (r?.entries ?? []).map((entry) => {
+        const name = String(entry?.name ?? '');
+        const targetKey = String(entry?.targetKey ?? path.posix.join(target.targetKey, name));
+        return {
+          name,
+          type: entry.type,
+          target: { targetKey, displayPath: path.posix.join(target.displayPath ?? target.targetKey, name) },
+          ...(entry.version !== undefined ? { version: entry.version } : {}),
+          ...(entry.size !== undefined ? { size: entry.size } : {}),
+        };
+      });
     },
 
     async writeText(target, content, expected, signal, sandboxPolicy) {
