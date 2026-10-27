@@ -178,6 +178,8 @@ if (cmd === 'collision') {
   if (!e.ok) say('# error:', e.error);
   say('# daemon.log 尾部:', readDaemonLogTail(cfg, 4).split('\n').join(' / '));
   // 追加验收（task-9）：请求槽位就绪失败后**不得留下孤儿** —— 前后对照
+  // F-50：扫描结果是 `{ ok, procs, error? }`，**原样**打印（`ok:false` 时 procs 为空**不代表**没进程，
+  // 验收者必须能看到 error，否则会把「扫描失败」读成「干净」）。
   say(`# AFTER /proc 扫描 = ${JSON.stringify(scanDaemonProcesses(cfg))}`);
   say(
     `# AFTER listen: 占位端口=${(wslRunScript(cfg, `ss -ltn | awk '$4 ~ /:${port}$/ {n++} END {print n+0}'`).stdout || '').trim()} ` +
@@ -222,11 +224,18 @@ if (cmd === 'race') {
   const t0 = Date.now();
   const [ca, cb] = await Promise.all([run(a), run(b)]);
   const slots = listDaemonSlots(cfg);
-  const procs = scanDaemonProcesses(cfg);
+  // F-50：扫描结果可区分。这里「进程数必须恰好 2」是**判据**，所以扫描失败必须直接判 FAIL
+  // （旧实现拿空数组当"0 个守护"⇒ 报 MISMATCH，人被引去看错方向）。
+  const scan = scanDaemonProcesses(cfg);
+  const procs = scan.ok ? scan.procs : [];
   say(`# 两槽位并发启动完成 ${Date.now() - t0}ms（child exit: ${ca}/${cb}）`);
   say(`# metadata slots = ${JSON.stringify(slots)}`);
-  say(`# daemon processes = ${JSON.stringify(procs)}`);
+  say(`# daemon processes = ${JSON.stringify(scan)}`);
   let ok = true;
+  if (!scan.ok) {
+    say(`# FAIL: /proc 扫描失败（${scan.error ?? '未知原因'}）⇒ 无法验证"进程数恰好 2"，本用例结论无效`);
+    ok = false;
+  }
   for (const slot of [a, b]) {
     const rec = readDaemonRecord(cfg, slot);
     const metaPort = Number(rec?.meta?.port);
@@ -249,6 +258,8 @@ if (cmd === 'orphans') {
     `# daemonStatus: ok=${st.ok} kind=${st.kind} slot=${st.slot} pid=${st.info?.daemonPid ?? '-'} port=${st.info?.port ?? '-'}`,
   );
   say(`# status.orphans  = ${JSON.stringify(st.orphans ?? [])}`);
+  // F-50：`status.scan.ok === false` ⇒ 上面的 orphans 只是**已知部分**，不许念成"没有孤儿"。
+  say(`# status.scan     = ${JSON.stringify(st.scan ?? null)}（ok=false ⇒ orphans 未被核实）`);
   say(`# proc-scan       = ${JSON.stringify(scanDaemonProcesses(cfg))}`);
   process.exit(0);
 }
@@ -274,14 +285,24 @@ if (cmd === 'linger') {
   say(`# 起守护 pid=${pid} lingerMs=${cfg.daemonLingerMs} idleMs=${cfg.daemonIdleMs}（无 key、无客户端）`);
   const t0 = Date.now();
   let gone = false;
+  // F-50：扫描失败**不能**被当成"守护还在"（旧实现里空数组会让循环一直空转到超时，然后
+  // 报「仍在跑」—— 一个纯扫描故障被念成"寿命闸门失效"）。这里显式记录失败原因，最终判 FAIL + 说明。
+  let scanError = '';
   while (Date.now() - t0 < cfg.daemonLingerMs * 3 + 5000) {
     await new Promise((r) => setTimeout(r, 500));
-    if (!scanDaemonProcesses(cfg).some((p) => p.pid === pid)) {
+    const scan = scanDaemonProcesses(cfg);
+    if (!scan.ok) {
+      scanError = scan.error ?? '未知原因';
+      continue; // 瞬时抖动：继续观察到窗口结束
+    }
+    scanError = '';
+    if (!scan.procs.some((p) => p.pid === pid)) {
       gone = true;
       break;
     }
   }
   const elapsed = Date.now() - t0;
+  if (scanError) say(`# ⚠️ /proc 扫描失败（最后一次：${scanError}）⇒ 下面的「仍在跑」是未验证，不是证据`);
   say(`# 寿命闸门：守护${gone ? '已自退' : '仍在跑'}，耗时 ${elapsed}ms（期望 ≈${cfg.daemonLingerMs}ms）`);
   say(`# 残留进程 = ${JSON.stringify(scanDaemonProcesses(cfg))}`);
   say(`# 残留元数据 = ${JSON.stringify(listDaemonSlots(cfg))}`);
@@ -354,13 +375,20 @@ if (cmd === 'reclaim') {
 
   // 2) 正常 ensure：必须复用/收掉孤儿，并在**请求槽位**起（或复用）守护
   const e: any = await ensureDaemon(cfg, { version: VERSION, log });
-  const afterProcs = scanDaemonProcesses(cfg);
+  // F-50：下面的三条判据都建立在「扫描结果可信」上。扫描失败 ⇒ 明确判 FAIL 并打印原因，
+  // **不许**用空数组得出"孤儿已收掉 / 恰好 1 个守护"（那是把未验证当通过）。
+  const afterScan = scanDaemonProcesses(cfg);
+  const afterProcs = afterScan.ok ? afterScan.procs : [];
   say(
     `# AFTER ensureDaemon: ok=${e.ok} slot=${e.slot} port=${e.port} pid=${e.info?.daemonPid} reused=${e.reused === true}`,
   );
   for (const n of e.notes ?? []) say(`#   note: ${n}`);
   say(`# AFTER listen_${port}=${listenCount(port)}`);
-  say(`# AFTER /proc 扫描 = ${JSON.stringify(afterProcs)}`);
+  say(`# AFTER /proc 扫描 = ${JSON.stringify(afterScan)}`);
+  if (!afterScan.ok) {
+    say(`# FAIL: /proc 扫描失败（${afterScan.error ?? '未知原因'}）⇒ 无法判定孤儿是否收掉，本用例结论无效`);
+    process.exit(1);
+  }
   const okPort = e.ok && Number(e.port) === port && Number(e.slot) === port;
   const noOrphan = orphanPid ? !afterProcs.some((p) => p.pid === orphanPid) : true;
   const exactlyOne = afterProcs.filter((p) => p.port === port || p.metaPort === port).length === 1;

@@ -6,6 +6,12 @@
  * **代码逐字搬移**（由 `arch-t3/tools/apply-split.ts` 按行区间生成），未改写实现。
  * 导出：`ensureDaemon`/`stopDaemon`/`stopAllDaemons`/`daemonSnapshot`/`daemonStatus`；`removeMetaFiles`/`ownDaemonsOnPorts`/`recordForPid`/`waitForSlotGone` 保持模块内私有。
  *
+ * ★★ F-50（2026-10-27 审查）：本文件所有 `/proc` 扫描的调用点都必须区分「扫描失败」与「没有进程」——
+ * `scanDaemonProcessesAsync` 现在返回 `{ ok, procs, error? }`。纪律（违反即回归）：
+ *   · `ok:false` ⇒ **绝不**删元数据、**绝不**判死、**绝不**对任何 pid 发信号；
+ *   · 需要"结论"的地方（stop 是否停干净、stop --all 是否全清、有没有孤儿）必须把
+ *     `ok:false` 表达成「未验证 / ok:false」，不许退化成伪成功。
+ *
  * 零构建纪律：只用可擦除语法；相对导入带 `.ts`；只引 `node:` 内置与同目录相对模块。
  */
 import { readdirSync, rmSync } from 'node:fs';
@@ -39,11 +45,19 @@ function removeMetaFiles(cfg, slot = cfg.daemonPort, legacy = false) {
  */
 
 // ── 原 daemon-client.ts 第 619-624 行 ──
-/** 扫出"占着这些端口（或元数据槽位）的本插件守护"（异步版：不阻塞宿主事件循环，F-15）。 */
+/**
+ * 扫出"占着这些端口（或元数据槽位）的本插件守护"（异步版：不阻塞宿主事件循环，F-15）。
+ *
+ * ★ F-50：返回 `{ ok, procs, error? }` 而不是裸数组 —— 调用方拿到的如果只是空数组，
+ * 就分不清「端口确实空着」和「扫描失败所以什么都不知道」，后者再往下走就会变成
+ * 「又起一个、把上一个留成无元数据孤儿」或者「对未知进程发信号」。
+ */
 async function ownDaemonsOnPorts(cfg, ports) {
   const want = new Set(ports.map(Number));
-  const procs = await scanDaemonProcessesAsync(cfg);
-  return procs.filter((p) => (p.port != null && want.has(p.port)) || (p.metaPort != null && want.has(p.metaPort)));
+  const scan = await scanDaemonProcessesAsync(cfg);
+  if (!scan.ok) return { ok: false, procs: [], error: scan.error };
+  const procs = scan.procs.filter((p) => (p.port != null && want.has(p.port)) || (p.metaPort != null && want.has(p.metaPort)));
+  return { ok: true, procs };
 }
 
 /**
@@ -218,6 +232,9 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
     if (!stopped || stopped.ok === false) {
       // F-19（2026-10-27 审查）：旧实现不看 stop 结果就继续起新守护 —— 旧守护变孤儿、新守护 +1 迁移、
       // 槽位元数据被覆盖，输出里还写着"已停"。restart 必须"停干净才起"。
+      // F-50：`verified === false` 是"复核失败（无法确认是否停干净）"，与"确认还在跑"要分开说，
+      // 但**结论相同**：都不许继续启动（否则可能两个守护并存 / 覆盖元数据）。
+      const why = stopped?.verified === false ? '无法确认是否已停干净（/proc 扫描失败）' : '旧守护没有停干净';
       return {
         ok: false,
         notes,
@@ -225,7 +242,7 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
         mode: null,
         warning: null,
         error:
-          `restart 中止：旧守护没有停干净（${stopped?.error ?? '未知原因'}）。` +
+          `restart 中止：${why}（${stopped?.error ?? '未知原因'}）。` +
           `继续启动会留下孤儿并覆盖元数据，所以本次不启动。请稍后重试，或先执行 wsl_daemon action=stop。`,
       };
     }
@@ -297,7 +314,17 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
       tried.push(port);
 
       // ★ A/B 修复：起之前先看这个槽位/端口上有没有**本插件自己的**守护在跑
-      const occupants = await ownDaemonsOnPorts(cfg, [port]);
+      const occupancy = await ownDaemonsOnPorts(cfg, [port]);
+      // ★★ F-50：扫描失败时**一个都不杀**（旧实现拿空数组当"端口空着"⇒ 对未知进程发信号的风险）。
+      // 这里不改判"是否继续启动"：就绪判据始终是 Windows 侧握手，失败也只是多一次端口迁移；
+      // 但"我们没看见占用者"这件事必须留在 notes 里，不能让上层以为端口确认是空的。
+      if (!occupancy.ok) {
+        notes.push(
+          `⚠️ 无法扫描 /proc 判断端口 ${port} 的占用者（${occupancy.error ?? '未知原因'}）` +
+            ` ⇒ 未杀任何进程、未据此清理元数据；若端口确有本插件守护，新守护可能迁移到下一个端口`,
+        );
+      }
+      const occupants = occupancy.procs;
       for (const o of occupants) {
         const rec = recordForPid(cfg, o.pid);
         if (rec) {
@@ -315,10 +342,17 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
 
       // 清掉**陈旧元数据**（文件在、但上面那个 pid 已经不在进程表里）：否则下面的轮询会一直握到一个死 pid，
       // 白等满 daemonStartTimeoutMs（实测过：进程表里没有它，但文件还在 ⇒ 20s 假等）。
+      //
+      // ★★ F-50：这条清理必须**有证据**才做 —— `scan.ok === true` 且 pid 确实不在扫描结果里。
+      // 旧实现把"扫描失败"当"进程表为空"，于是每一次扫描失败都会删掉活守护的元数据（= 隐形孤儿）。
       const stale = readDaemonRecord(cfg, port);
       if (stale) {
-        const livePids = new Set((await scanDaemonProcessesAsync(cfg)).map((p) => p.pid));
-        if (!livePids.has(Number(stale.meta?.pid))) {
+        const scan = await scanDaemonProcessesAsync(cfg);
+        if (!scan.ok) {
+          notes.push(
+            `⚠️ 保留槽位 ${port} 的元数据：无法扫描 /proc 确认 pid ${stale.meta?.pid} 是否还在（${scan.error ?? '未知原因'}）`,
+          );
+        } else if (!scan.procs.some((p) => p.pid === Number(stale.meta?.pid))) {
           notes.push(`清掉槽位 ${port} 的陈旧元数据（记录里的 pid ${stale.meta?.pid} 已不在进程表）`);
           removeMetaFiles(cfg, port);
         }
@@ -349,11 +383,16 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
         hs = await handshake(cfg, rec.meta.port ?? port, rec.token, hsTimeout);
         if (hs.ok) {
           if (hs.info.port !== port) {
-            // 守护在 WSL 侧做了 +1 迁移：必须说清楚（并在可能时指出占用者）
-            const holder = (await scanDaemonProcessesAsync(cfg)).filter((p) => p.port === port);
-            notes.push(
-              `WSL 侧端口 ${port} 已被占（${holder.length ? `占用者 pid=${holder.map((h) => h.pid).join(',')}` : '非本插件进程'}）⇒ 守护实际监听 ${hs.info.port}`,
-            );
+            // 守护在 WSL 侧做了 +1 迁移：必须说清楚（并在可能时指出占用者）。
+            // ★ F-50：扫描失败 ⇒ 只能说"无法确认占用者"，不能说"非本插件进程"（那是把失败当结论）。
+            const who = await scanDaemonProcessesAsync(cfg);
+            const holder = who.ok ? who.procs.filter((p) => p.port === port) : [];
+            const holderText = !who.ok
+              ? `占用者未验证：/proc 扫描失败（${who.error ?? '未知原因'}）`
+              : holder.length
+                ? `占用者 pid=${holder.map((h) => h.pid).join(',')}`
+                : '非本插件进程';
+            notes.push(`WSL 侧端口 ${port} 已被占（${holderText}）⇒ 守护实际监听 ${hs.info.port}`);
           }
           notes.push(`槽位 ${port} 由 Windows 侧握手确认就绪（实际端口 ${hs.info.port}，${hs.ms}ms）`);
           // ★ F-38c（task-19）：`mode`/`warning` 作为**机器可读字段**随结果返回（notes 照旧保留）。
@@ -363,9 +402,13 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
           return ready;
         }
         if (hs.kind === 'refused') {
-          // 元数据存在但守护已死（pid 不在进程表）⇒ 清掉再等新守护写自己的，别把 20s 白等在一个死 pid 上
-          const livePids = new Set((await scanDaemonProcessesAsync(cfg)).map((p) => p.pid));
-          if (!livePids.has(Number(rec.meta?.pid))) removeMetaFiles(cfg, port);
+          // 元数据存在但守护已死（pid 不在进程表）⇒ 清掉再等新守护写自己的，别把 20s 白等在一个死 pid 上。
+          // ★★ F-50：`refused` 只证明"端口上没人在听"，**不证明**这个 pid 死了（守护可能还没 bind、
+          // 或 pid 被复用）。所以删元数据必须**另有证据**：扫描成功 + pid 确实不在列表里；
+          // 扫描失败 ⇒ 保留元数据（宁可多等一轮，也不制造"元数据已删、进程还在"的隐形孤儿）。
+          const scan = await scanDaemonProcessesAsync(cfg);
+          if (!scan.ok) continue;
+          if (!scan.procs.some((p) => p.pid === Number(rec.meta?.pid))) removeMetaFiles(cfg, port);
           continue;
         }
         // F-06：超时不再立刻判定失败 —— 守护可能只是慢（冷启动 / 事件循环被按住）；继续轮询到 deadline。
@@ -377,11 +420,26 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
       log(`slot ${port} not ready from Windows side: ${why}`);
       const rec2 = readDaemonRecord(cfg, port);
       if (rec2?.meta?.pid) await killWslPidAsync(cfg, rec2.meta.pid);
-      // 兜底：即使元数据没写成，也按 /proc 身份扫描把这个端口上的自家守护收掉
+      // 兜底：即使元数据没写成，也按 /proc 身份扫描把这个端口上的自家守护收掉。
+      // ★★ F-50：扫描失败时**不能**当成"扫过了、没有残留" —— 只记一条告警，不杀任何进程，
+      // 也不据此把元数据删成隐形（删元数据另走 removeMetaFiles，前提是我们已知这个槽位没起来）。
       const leftovers = await ownDaemonsOnPorts(cfg, [port]);
-      for (const o of leftovers) await killWslPidAsync(cfg, o.pid);
-      if (rec2 || leftovers.length) await sleep(700);
-      removeMetaFiles(cfg, port);
+      if (!leftovers.ok) {
+        notes.push(
+          `⚠️ 槽位 ${port} 的残留进程未验证：/proc 扫描失败（${leftovers.error ?? '未知原因'}）` +
+            ` ⇒ 未对任何进程发信号；该槽位可能仍有本插件守护在跑（可用 wsl_daemon action=status 复核）`,
+        );
+      }
+      for (const o of leftovers.procs) await killWslPidAsync(cfg, o.pid);
+      if (rec2 || leftovers.procs.length) await sleep(700);
+      // ★★ F-50：删元数据的**唯一**前提是「扫描成功且确实没有本方守护残留」。
+      // 扫描失败时保留元数据 —— 宁可让上层看到一条指向失败槽位的记录（可发现、可再 stop），
+      // 也不要制造"元数据已删、进程还在"的隐形孤儿。
+      if (leftovers.ok) {
+        removeMetaFiles(cfg, port);
+      } else {
+        notes.push(`⚠️ 槽位 ${port} 的元数据已保留（扫描失败 ⇒ 无法确认是否已无本方守护）`);
+      }
       // ★ F-38a：该槽位没起来 ⇒ 回收**这个槽位**的启动脚本（成功路径由守护自删，语义不变）
       reclaimLaunchers([port]);
       last = `槽位 ${port} ${why}`;
@@ -409,7 +467,7 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
 }
 
 /**
- * 有界等待：直到该端口/pid 上**再没有本方守护**为止；返回**仍在**的那些（空数组 = 已清干净）。
+ * 有界等待：直到该端口/pid 上**再没有本方守护**为止。
  *
  * 判据 = `scanDaemonProcesses()`（读 `/proc/<pid>/cmdline` 认 `daemon.ts` + `--state-dir` ⇒ **不依赖元数据**）。
  * 为什么必须有界：`shutdown` 成功后守护要回收运行时才退（几十~几百 ms）；兜底 `kill -TERM` 也要等它走。
@@ -417,19 +475,31 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
  *
  * 匹配口径：**同一个 pid** 或**同一个 `--port`** 都算"该槽位仍在"（守护可能已按端口 +1 迁移过，
  * 单看 pid 会漏；单看端口会把"同端口但换了 pid 的新守护"也当残留 —— 那更该报出来，不是漏报）。
+ *
+ * ★★ F-50（2026-10-27 审查）：返回值是 `{ ok, survivors, error? }`，**`ok` 的含义是「这次判定有没有证据」**：
+ *   · `ok:true, survivors:[]` ⇒ 确认已停干净；
+ *   · `ok:true, survivors:[…]` ⇒ 确认仍有本方守护；
+ *   · `ok:false` ⇒ **无法确认**（扫描失败；`survivors` 为空**不代表**已停）。
+ * 旧实现在扫描失败时返回 `[]`，于是 `stopDaemon` 认为"已停干净"⇒ 删元数据 ⇒ 活守护变成隐形孤儿。
  */
-
-// ── 原 daemon-client.ts 第 855-874 行 ──
 async function waitForSlotGone(cfg, port, pid) {
   const wantPid = Number(pid);
   const deadline = Date.now() + 2000;
-  let survivors = [];
+  let lastError = '';
   for (;;) {
-    survivors = (await scanDaemonProcessesAsync(cfg)).filter(
+    const scan = await scanDaemonProcessesAsync(cfg);
+    if (!scan.ok) {
+      // 失败不当作结论：留到 deadline 之前一直重试（可能只是一次瞬时的 wsl.exe 抖动）。
+      lastError = scan.error ?? '未知原因';
+      if (Date.now() >= deadline) return { ok: false, survivors: [], error: lastError };
+      await sleep(300);
+      continue;
+    }
+    const survivors = scan.procs.filter(
       (p) => (Number.isFinite(wantPid) && p.pid === wantPid) || (p.port !== null && p.port === Number(port)),
     );
-    if (survivors.length === 0) return [];
-    if (Date.now() >= deadline) return survivors;
+    if (survivors.length === 0) return { ok: true, survivors: [] };
+    if (Date.now() >= deadline) return { ok: true, survivors };
     await sleep(300);
   }
 }
@@ -451,7 +521,15 @@ export async function stopDaemon(cfg, { log = () => {}, slot, all = false }: any
     if (legacy?.legacy && Number(legacy.meta?.port) === wantSlot) rec = legacy; // 过渡期单文件记录，且确实是我这个端口
   }
   if (!rec) {
-    return { ok: true, alreadyStopped: true, reaped: [], slot: wantSlot, note: `自己槽位 ${wantSlot} 没有守护（未去停别的槽位）` };
+    // F-50：这里**没有**扫描过进程，所以说的是"没有元数据"，不是"确认没有守护"。
+    // 无元数据孤儿由 stop all=true（身份扫描）负责；文案必须留出这个区别，别让人以为"已确认干净"。
+    return {
+      ok: true,
+      alreadyStopped: true,
+      reaped: [],
+      slot: wantSlot,
+      note: `自己槽位 ${wantSlot} 没有守护元数据（未扫描进程、未去停别的槽位；无元数据孤儿请用 action=stop all=true）`,
+    };
   }
   const port = rec.meta?.port ?? rec.slot;
   const r = await callDaemon(cfg, {
@@ -471,7 +549,30 @@ export async function stopDaemon(cfg, { log = () => {}, slot, all = false }: any
   // ⇒ 就得到"**元数据已删、进程还在**"= 对 `wsl_status` / `snapshot.daemon` **不可见**的隐形孤儿
   // （仍占端口与运行时）。所以这里按有界等待复核（身份判据走 `scanDaemonProcesses()` 读 `/proc/<pid>/cmdline`，
   // **不依赖元数据**）；仍在 ⇒ **保留元数据**（让孤儿保持可发现）+ 可读失败，绝不把它删成隐形。
-  const survivors = await waitForSlotGone(cfg, port, rec.meta?.pid);
+  //
+  // ★★ F-50（2026-10-27 审查）：复核**失败**（扫描拿不到证据）时同理 —— 那不等于"已停干净"。
+  // 旧实现里 `[]` 同时表示"没有残留"和"扫描失败"，于是 stop 会在扫描失败时删元数据、报成功。
+  const gone = await waitForSlotGone(cfg, port, rec.meta?.pid);
+  if (!gone.ok) {
+    log(`stop 未完成：槽位 ${rec.slot}（端口 ${port}）的残留判定失败（${gone.error ?? '未知原因'}）⇒ 保留元数据`);
+    return {
+      ok: false,
+      port,
+      slot: rec.slot,
+      pid: rec.meta?.pid ?? null,
+      version: rec.meta?.version ?? null,
+      reaped: r.msg?.reaped ?? [],
+      transport: r.ok ? 'shutdown' : r.kind,
+      alivePids: [], // 未验证 —— **不是** 0，见 verified:false
+      verified: false,
+      error:
+        `remote-wsl: stop 结果未验证：槽位 ${rec.slot}（端口 ${port}）无法确认本方守护是否已退出` +
+        `（/proc 扫描失败：${gone.error ?? '未知原因'}）。已按 P1 规矩**保留元数据** daemon.${rec.slot}.json` +
+        ` ⇒ 不会制造"元数据已删、进程还在"的隐形孤儿；请稍后重试 wsl_daemon action=stop，` +
+        `或用 wsl_daemon action=status 复核（status 里 scan.ok=false 表示它也无法确认）。`,
+    };
+  }
+  const survivors = gone.survivors;
   if (survivors.length) {
     log(
       `stop 未完成：槽位 ${rec.slot}（端口 ${port}）仍有本方守护 pid=${survivors.map((s) => s.pid).join(',')} ` +
@@ -486,6 +587,7 @@ export async function stopDaemon(cfg, { log = () => {}, slot, all = false }: any
       reaped: r.msg?.reaped ?? [],
       transport: r.ok ? 'shutdown' : r.kind,
       alivePids: survivors.map((s) => s.pid),
+      verified: true, // F-50：这次"仍在跑"是**有证据**的结论（扫描成功），不是未验证
       error:
         `remote-wsl: stop 未完成：槽位 ${rec.slot}（端口 ${port}）的本方守护进程仍在（pid ${survivors
           .map((s) => s.pid)
@@ -504,44 +606,70 @@ export async function stopDaemon(cfg, { log = () => {}, slot, all = false }: any
     version: rec.meta?.version ?? null,
     reaped: r.msg?.reaped ?? [],
     transport: r.ok ? 'shutdown' : r.kind,
+    verified: true, // F-50：删除元数据前已用 /proc 扫描确认"没有本方守护残留"
   };
 }
 
 /**
  * **`stop --all`**：停掉所有槽位的守护 + 过渡期单文件记录 + **无元数据的孤儿**（身份扫描发现）。
  * 这是"工具能自己收干净"的保证：task-4 的竞态曾留下"发现不了也回收不了、只能人工按 pid 杀"的孤儿。
+ *
+ * ★★ F-50（2026-10-27 审查）：旧实现 `ok: remaining.length === 0` 里 `remaining` 来自可能失败的扫描 ——
+ * 扫描一失败就得到 `remaining: []` ⇒ `ok:true` ⇒ **伪成功**（"全都停了"），而实际上什么都没验证。
+ * 现在把"结论"和"证据"分开：
+ *   · `verified: false` ⇒ 最后一次扫描失败，`remaining` 只是**已知部分**，**不是** 0；
+ *   · `scan: { ok, error? }` ⇒ 上层可据此展示告警（扫描失败时**不许**说"已清干净"）；
+ *   · `subFailures: number` ⇒ 有槽位的 stopDaemon 自己报了 ok:false（它们的元数据被刻意保留）；
+ *   · `ok` 只在「扫描成功 + 确实没残留 + 每一步 stop 都没报失败」时为 true。
  */
-
-// ── 原 daemon-client.ts 第 944-976 行 ──
 export async function stopAllDaemons(cfg, { log = () => {} }: any = {}) {
   const stopped = [];
   for (const slot of listDaemonSlots(cfg)) stopped.push(await stopDaemon(cfg, { log, slot }));
   const legacyRec = readDaemonRecord(cfg);
   if (legacyRec?.legacy) stopped.push(await stopDaemon(cfg, { log }));
-  const found = await scanDaemonProcessesAsync(cfg);
-  const killed = [];
-  for (const p of found) {
-    await killWslPidAsync(cfg, p.pid); // 内部仍按 cmdline 验身份
-    killed.push(p);
+
+  /**
+   * 有界轮询扫描（F-51 的 8s 收敛语义保留）：返回**最后一次**扫描结果。
+   * `stopWhen(procs)` 为真即提前结束；扫描失败**不**提前结束（继续重试到 deadline）。
+   */
+  const scanRetry = async (deadline, stopWhen) => {
+    let last = await scanDaemonProcessesAsync(cfg);
+    while (Date.now() < deadline) {
+      if (last.ok && stopWhen(last.procs)) break;
+      await sleep(500);
+      last = await scanDaemonProcessesAsync(cfg);
+    }
+    return last;
+  };
+
+  // 找出无元数据的孤儿进程并回收（身份闸在 killWslPidAsync 内部）。
+  // ★ F-50：扫描失败 ⇒ **一个都不杀**（我们连"有哪些"都不知道），更不能把失败当"收完了"。
+  // 失败时先给一次短重试（可能只是 wsl.exe 抖动），仍失败就不再猜。
+  let first = await scanDaemonProcessesAsync(cfg);
+  if (!first.ok) {
+    await sleep(300);
+    first = await scanDaemonProcessesAsync(cfg);
   }
+  const killed = [];
+  if (first.ok) {
+    for (const p of first.procs) {
+      await killWslPidAsync(cfg, p.pid); // 内部仍按 cmdline 验身份
+      killed.push(p);
+    }
+  } else {
+    log(`stop --all: /proc 扫描失败（${first.error ?? '未知原因'}）⇒ 未回收孤儿进程`);
+  }
+
   // F-51（2026-10-27 审查）：守护收尾是**异步**的（每个运行时 close 上界约 10s），旧实现只固定
   // sleep(900) 再扫一次 ⇒ 多会话时几乎必然报 remaining>0 且不再重试。改为有界轮询（8s），
   // 仍在则对**验过身份**的守护升级 SIGKILL，再给 2s 收敛。
-  const deadline = Date.now() + 8000;
-  let remaining = await scanDaemonProcessesAsync(cfg);
-  while (remaining.length && Date.now() < deadline) {
-    await sleep(500);
-    remaining = await scanDaemonProcessesAsync(cfg);
-  }
-  if (remaining.length) {
-    log(`stop --all: 仍有 ${remaining.length} 个守护在 ${8000}ms 内未退出 ⇒ 升级 SIGKILL（${remaining.map((p) => p.pid).join(',')}）`);
-    for (const p of remaining) await killWslPidAsync(cfg, p.pid, 'KILL');
-    const hardDeadline = Date.now() + 2000;
-    remaining = await scanDaemonProcessesAsync(cfg);
-    while (remaining.length && Date.now() < hardDeadline) {
-      await sleep(400);
-      remaining = await scanDaemonProcessesAsync(cfg);
-    }
+  // F-50：首轮就扫不到时**没有**任何"已观察到的残留"需要等，缩短重试窗口（8s → 2s），
+  // 免得一个坏掉的 wsl.exe 把 stop --all 拖成十秒仍未验证。
+  let last = await scanRetry(Date.now() + (first.ok ? 8000 : 2000), (procs) => procs.length === 0);
+  if (last.ok && last.procs.length) {
+    log(`stop --all: 仍有 ${last.procs.length} 个守护未在收敛窗口内退出 ⇒ 升级 SIGKILL（${last.procs.map((p) => p.pid).join(',')}）`);
+    for (const p of last.procs) await killWslPidAsync(cfg, p.pid, 'KILL');
+    last = await scanRetry(Date.now() + 2000, (procs) => procs.length === 0);
   }
   // 顺手清掉遗留的启动脚本（目录是我们自己的；守护活着的话它早已自删）
   try {
@@ -557,7 +685,30 @@ export async function stopAllDaemons(cfg, { log = () => {} }: any = {}) {
   } catch {
     /* ignore */
   }
-  return { ok: remaining.length === 0, stopped, killed, remaining };
+  const remaining = last.ok ? last.procs : [];
+  const subFailures = stopped.filter((s) => s && s.ok === false).length;
+  const verified = last.ok === true;
+  return {
+    ok: verified && remaining.length === 0 && subFailures === 0,
+    verified,
+    scan: { ok: verified, error: verified ? undefined : (last.error ?? '未知原因') },
+    remaining, // F-50：`verified:false` 时这是**已知部分**（不是全集）
+    // F-50：**唯一可信的"还剩几个"**。`verified:false` ⇒ null（未知），**不要**用 remaining.length 当 0。
+    remainingCount: verified ? remaining.length : null,
+    subFailures,
+    stopped,
+    killed,
+    ...(verified && subFailures === 0
+      ? {}
+      : {
+          error:
+            `remote-wsl: stop --all 未完成：` +
+            (verified
+              ? `${subFailures} 个槽位的 stop 未完成（元数据已按 P1 保留）`
+              : `/proc 扫描失败（${last.error ?? '未知原因'}）⇒ 无法确认是否还有本方守护在跑（**剩余数量未知**，不是 0）`) +
+            `。请稍后用 wsl_daemon action=status 复核，或重试 action=stop all=true。`,
+        }),
+  };
 }
 
 /**
@@ -600,17 +751,39 @@ export async function daemonSnapshot(cfg) {
       dead.push({ slot: rec.slot, legacy: rec.legacy, meta: rec.meta, kind: r.kind, error: r.error, ms: r.ms });
     }
   }
-  const procs = await scanDaemonProcessesAsync(cfg);
-  const orphans = procs.filter((p) => !livePids.has(p.pid));
-  return { slots, records, live, dead, busy, livePids, procs, orphans };
+  // ★★ F-50（2026-10-27 审查）：`orphans` 的**权威性**取决于这一次扫描是否成功。
+  // 旧实现直接把扫描结果 filter 一下就当"孤儿全集"；扫描失败时得到空数组 ⇒ 上层（wsl_status /
+  // wsl_daemon status / 面板）报"没有孤儿"，而实际可能有活守护在跑。
+  // 现在把证据与结论分开返回：`scan.ok === false` ⇒ `orphans` 只是**已知部分**（可能是空），
+  // 上层必须显式展示告警，不许把它当"0 个孤儿"。
+  const scan = await scanDaemonProcessesAsync(cfg);
+  const procs = scan.ok ? scan.procs : [];
+  const orphans = scan.ok ? procs.filter((p) => !livePids.has(p.pid)) : [];
+  const scanOk = scan.ok === true;
+  return {
+    slots,
+    records,
+    live,
+    dead,
+    busy,
+    livePids,
+    procs,
+    orphans,
+    // 机器可读的扫描状态（F-50）：`{ ok: boolean, error?: string }`
+    scan: { ok: scanOk, ...(scanOk ? {} : { error: scan.error ?? '未知原因' }) },
+    // 语义别名：孤儿列表**是否已核实**（`orphans` 为空且 `orphansVerified:false` ⇒ 不可当作真相）。
+    orphansVerified: scanOk,
+    ...(scanOk ? {} : { scanError: scan.error ?? '未知原因' }),
+  };
 }
 
 /** 读守护状态（read-only，用于 wsl_status / wsl_daemon status；不触发启动；多守护并存 + 正确孤儿口径）。 */
-
-// ── 原 daemon-client.ts 第 1040-1068 行 ──
 export async function daemonStatus(cfg) {
   const snap = await daemonSnapshot(cfg);
   const { orphans, slots, live, dead, busy, records } = snap;
+  // ★ F-50：`scan.ok` 透传到所有返回值 —— 上层（wsl_status / wsl_daemon status）据此打印告警。
+  const scan = snap.scan ?? { ok: false, error: '快照未提供扫描状态' };
+  const orphansVerified = snap.orphansVerified === true;
   if (live.length) {
     const first = live[0]; // listDaemonSlots 已把 cfg.daemonPort 排最前 ⇒ 优先报调用方自己槽位
     return {
@@ -624,6 +797,8 @@ export async function daemonStatus(cfg) {
       live,
       busy: snap.busy,
       orphans,
+      scan,
+      orphansVerified,
     };
   }
   if (busy.length) {
@@ -641,10 +816,29 @@ export async function daemonStatus(cfg) {
       slot: first.slot,
       busy,
       orphans,
+      scan,
+      orphansVerified,
       live: [],
     };
   }
-  if (!records.length && !orphans.length) return { ok: false, kind: 'absent', error: '没有守护元数据（守护未运行）' };
+  if (!records.length && !orphans.length) {
+    // ★ F-50：以前这里无条件说"守护未运行"。可是扫描失败时 `orphans` 恒为空 ⇒ 这句话把
+    // **未验证**说成了**确定没有**。现在把失败原因写进 error，上层展示时不会误导。
+    if (scan.ok === false) {
+      return {
+        ok: false,
+        kind: 'absent',
+        error:
+          `没有守护元数据，但 /proc 扫描失败（${scan.error ?? '未知原因'}）⇒ **无法排除**存在无元数据的孤儿守护；` +
+          `本次结论仅为「没有元数据」，不是「确认没有守护在跑」。稍后重试 wsl_status，或用 wsl_daemon action=stop all=true 收尾。`,
+        orphans,
+        scan,
+        orphansVerified,
+        live: [],
+      };
+    }
+    return { ok: false, kind: 'absent', error: '没有守护元数据（守护未运行）', scan, orphansVerified, live: [], orphans: [] };
+  }
   const last = dead[dead.length - 1];
   return {
     ok: false,
@@ -653,6 +847,8 @@ export async function daemonStatus(cfg) {
     meta: last?.meta,
     slot: last?.slot,
     orphans,
+    scan,
+    orphansVerified,
     live: [],
   };
 }

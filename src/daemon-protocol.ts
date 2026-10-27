@@ -166,31 +166,73 @@ export function readDaemonLogTail(cfg, lines = 8) {
  * 判据是**双重身份**（照 task-9 要求）：cmdline 命中本插件的守护脚本（`daemon.ts` / `daemon.mjs`）
  * **且** 带 `--state-dir <本插件 state-dir>` —— 只认自己的，避免误杀别人的进程。
  * 为什么需要：元数据文件被清/没写成时，守护就成了"工具发现不了也回收不了"的孤儿（task-4 实测）。
+ *
+ * ★★ F-50（2026-10-27 审查）：返回值是**可区分的** `{ ok, procs, error? }`，不再是裸数组。
+ * 旧实现是 `catch { return [] }` —— 把「扫描失败」折叠成「没有守护进程」，于是调用方
+ * （`ensureDaemon` 清陈旧元数据、`waitForSlotGone` 判「已停干净」、`stopAllDaemons` 判「全停完」、
+ * `daemonSnapshot` 判孤儿）全都拿**失败**当**证据**，最坏情况是删掉活守护的元数据、把它变成
+ * 不可发现的隐形孤儿，甚至对它发信号。
+ * 契约：`ok:false` ⇒ `procs` 恒为空，且**不代表**「没有进程」；调用方**绝不**据此删除元数据 /
+ * 判死 / 发信号，只能如实把 `error` 报给上层。
  */
 
 // ── 原 daemon-client.ts 第 150-195 行 ──
 export function scanDaemonProcesses(cfg) {
-  let stdout = '';
+  let res;
   try {
-    stdout = wslRunScript(cfg, scanDaemonProcessesScript(cfg), 20000).stdout;
-  } catch {
-    return [];
+    res = wslRunScript(cfg, scanDaemonProcessesScript(cfg), 20000);
+  } catch (e) {
+    // 连 spawn 都失败（没有 wsl.exe / distro 名非法…）：同样是「失败」，不是「没进程」。
+    return { ok: false, procs: [], error: scanFailureText(`扫描脚本无法执行: ${e?.message ?? String(e)}`) };
   }
-  return parseScanOutput(stdout);
+  return scanResultOf(res);
 }
 
 /**
  * 异步版的进程扫描（2026-10-27 审查 F-15）：控制面（status / stop / ensure / snapshot）原先全走
  * `spawnSync('wsl.exe')`，单次 0.3–1s、超时 20s ⇒ **同步阻塞宿主事件循环**，表现为整个 DSH GUI 卡顿。
  * 这里提供等价的异步实现，调用方（daemon-lifecycle 的 async 函数）应优先用它。
+ *
+ * F-50：返回 `{ ok, procs, error? }`；并且 `run` 可注入（默认 `wslRunScriptAsync`），
+ * 让「失败 vs 真空」的判定能在**离线单测**里锁住，不需要真 WSL。
  */
-export async function scanDaemonProcessesAsync(cfg) {
+export async function scanDaemonProcessesAsync(cfg, { run = wslRunScriptAsync }: any = {}) {
+  let res;
   try {
-    const r = await wslRunScriptAsync(cfg, scanDaemonProcessesScript(cfg), 20000);
-    return parseScanOutput(r.stdout);
-  } catch {
-    return [];
+    res = await run(cfg, scanDaemonProcessesScript(cfg), 20000);
+  } catch (e) {
+    return { ok: false, procs: [], error: scanFailureText(`扫描脚本无法执行: ${e?.message ?? String(e)}`) };
   }
+  return scanResultOf(res);
+}
+
+/**
+ * **纯函数**（F-50）：把「一次脚本执行结果」映射成扫描结果。
+ *
+ * 为什么单独抽出来：这是「失败 ≠ 空」的唯一判据点，必须能被 `test/daemon-scan.test.ts`
+ * 直接喂假 runner 验证（不需要 wsl.exe、不需要 /proc）。
+ * 规则：
+ *   · `res.ok === true` ⇒ 解析 stdout，`ok:true`（输出为空 = **真的**没有进程）；
+ *   · 否则 ⇒ `ok:false, procs: []`，`error` 取 stderr **尾部**（关键信息通常在最后一句：
+ *     `wsl.exe` 的错误、bash 的 `No such file`、超时终止……），截断到 ~200 字符免得灌爆工具输出。
+ *     **超时（status 124）也必须是失败** —— 超时留下的半截 stdout 不是真相，一律不解析。
+ */
+export function scanResultOf(res) {
+  if (res?.ok !== true) {
+    const why =
+      Number(res?.status) === 124
+        ? '扫描脚本超时被终止（status=124，/proc 内容未采完 ⇒ 不能当成「没有进程」）'
+        : `扫描脚本失败（status=${res?.status ?? 'unknown'}）`;
+    const detail = scanFailureText(res?.stderr ?? '');
+    return { ok: false, procs: [], error: detail ? `${why}: ${detail}` : why };
+  }
+  return { ok: true, procs: parseScanOutput(res?.stdout) };
+}
+
+/** 失败原因文本（F-50）：只保留**尾部** ~200 字符，并把换行压成空格（一行输出才看得懂）。 */
+function scanFailureText(text) {
+  const t = String(text ?? '').replace(/\s+/g, ' ').trim();
+  return t.length > 200 ? `…${t.slice(-200)}` : t;
 }
 
 /** 扫描脚本（同步/异步共用，避免两份判据漂移）。 */
