@@ -15,8 +15,15 @@
  */
 import { readFileSync } from 'node:fs';
 
-/** 协议版本：守护与宿主之间的 op/字段集合版本。改协议记得 +1。 */
-export const PROTOCOL_VERSION = 1;
+/**
+ * 协议版本：守护与宿主之间的 op/字段集合版本。改协议记得 +1。
+ *
+ * v2（0.3.0，2026-10-27 第三轮）：`fs.listDir` 的每个 entry 增加 `targetKey`（**链接已 realpath 的
+ * 稳定身份**），`type` 改为跟随链接（`ln -s /etc d` 现在报 `directory`，旧守护报 `other`）。
+ * 这是**加法**：宿主对缺失 `targetKey` 有回退（退回 `path.posix.join`），所以新宿主 + 旧守护仍可用，
+ * 只是符号链接语义还是旧的 —— 正好由「守护协议 < 宿主 ⇒ soft，restart 后生效」表达。
+ */
+export const PROTOCOL_VERSION = 2;
 
 /**
  * 插件自身版本（取自本仓 package.json；`link:` 安装时就是工作树那一份）。
