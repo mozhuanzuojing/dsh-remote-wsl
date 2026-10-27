@@ -85,10 +85,14 @@ export function apply(ctx, rawConfig = {}) {
         const res = await runWsl(config, `${shellPreamble(config)}${warmScript({ cfg: config, version: v.version })}`, {
           timeoutMs: 300000,
         });
+        // F-33（2026-10-27 第三轮）：`exit 124` 既可能是"我们超时杀了它"，也可能是命令自己的退出码；
+        // 只有 `killedBy` 能区分。后台预热失败要能一眼看出是不是被墙钟上限掐掉的（那通常是网络慢，值得重试）。
+        const term =
+          res.killedBy && res.killedBy !== 'exit'
+            ? `${res.killedBy}${res.killedBySignal ? `(${res.killedBySignal})` : ''}`
+            : `exit ${res.exitCode}`;
         process.stderr.write(
-          `remote-wsl: 后台预热 dsh@${v.version} ${
-            res.stdout.includes('WARM-OK') ? 'ok' : `失败（exit ${res.exitCode}）`
-          }\n`,
+          `remote-wsl: 后台预热 dsh@${v.version} ${res.stdout.includes('WARM-OK') ? 'ok' : `失败（${term}）`}\n`,
         );
       } catch (e) {
         // 到这一步已经是"没人 await 的分支"：连异常都不能漏出去（预热失败绝不能影响工具）

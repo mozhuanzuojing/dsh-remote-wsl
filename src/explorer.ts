@@ -680,6 +680,10 @@ export function createExplorerHandlers(deps) {
     //     （README「仍余」② 已记录：要动 6 个工具 + selftest），本轮只落地**具名选择器**，
     //     不改字段名 —— 这样两个语义此后各有名字，不会再被"顺手回落"糊在一起。
     const ds = await daemonSnapshot(eff);
+    // F-50（2026-10-27 第三轮）：孤儿数只在扫描成功时才是权威。面板照旧显示计数，但必须同时
+    // 透传 `orphansVerified`，否则「扫描失败」会显示成「0 个孤儿」——读者会以为面板确认过。
+    const orphansVerified = ds.orphansVerified !== false;
+    const scan = ds.scan ?? { ok: orphansVerified };
     const live = discoverDaemons(Array.isArray(ds.live) ? ds.live : []);
     const configuredSlot = Number(cfg.daemonPort) || null;
     const mine = selectOwnedDaemon(live, configuredSlot);
@@ -713,6 +717,9 @@ export function createExplorerHandlers(deps) {
             idleForMs: k?.idleForMs === undefined || k?.idleForMs === null ? null : Number(k.idleForMs),
           })),
           orphans: Array.isArray(ds.orphans) ? ds.orphans.length : 0,
+          // F-50：`orphans` 只是"已知部分"；`orphansVerified:false` ⇒ 面板/诊断必须标明未核实。
+          orphansVerified,
+          scan,
           others,
         }
       : {
@@ -720,6 +727,8 @@ export function createExplorerHandlers(deps) {
           keys: [],
           sessions: [],
           orphans: Array.isArray(ds.orphans) ? ds.orphans.length : 0,
+          orphansVerified,
+          scan,
           others,
         };
 

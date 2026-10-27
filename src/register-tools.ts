@@ -230,6 +230,27 @@ export function openAppWindow(url) {
 }
 
 /**
+ * 把 `runWsl` 的**结构化**终止原因翻成一行可读事实（F-33，2026-10-27 第三轮）。
+ *
+ * 为什么不直接打印 `exit ${exitCode}`：命令自己 `exit 124`（`timeout(1)` 的既有约定）与
+ * 「插件超时把它杀了」在退出码上**完全一样**，只看码就会把责任判错。`killedBy` 由我们自己的
+ * 定时器 / 中断监听置位（见 `wsl-io.terminationOf`），是唯一可信来源。
+ *
+ * @param res `runWsl` 的返回值（老调用方可能没有 `killedBy`，按"命令自己退出"降级展示）
+ */
+function describeWslTermination(res) {
+  const code = res?.exitCode;
+  const kind = res?.killedBy;
+  if (kind === 'timeout') {
+    return `exit ${code}（**超时终止**：墙钟上限到点后由插件杀掉，不是命令自己的退出码；WSL 侧可能仍有残留进程，必要时用 wsl_exec 复核）`;
+  }
+  if (kind === 'abort') return `exit ${code}（**调用方中断**：本次调用被取消，命令是被插件杀掉的）`;
+  if (kind === 'signal') return `exit ${code}（**被信号 ${res?.killedBySignal ?? '未知'} 终止**）`;
+  if (kind === null) return `exit ${code}（**未能启动**：见 stderr）`;
+  return `exit ${code}`;
+}
+
+/**
  * 注册七个工具。`deps` 由 index.ts 的 apply 提供（拆分前它们是同一闭包里的自由变量；这里改用**同名解构**
  * ⇒ 下面七个 `tools.register` 的函数体逐字未改）。
  */
@@ -420,6 +441,14 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
                 `daemon orphans: ⚠️ ${orphanDaemons.length} 个守护在跑但无元数据（${orphanDaemons.map((o) => `pid${o.pid}@${o.port}`).join(', ')}）—— 用 wsl_daemon action=stop all=true 回收`,
               ]
             : []),
+          // F-50（2026-10-27 审查）：扫描失败 ≠ 没有孤儿。以前这里因为 orphans 恒为空而静默不打印，
+          // 读的人会把「没扫到」当成「一个都没有」，进而放心跳过 stop all（或反过来照提示乱杀）。
+          ...(dstat.scan && dstat.scan.ok === false
+            ? [
+                `daemon scan: ⚠️ /proc 进程扫描失败（${dstat.scan.error ?? '未知原因'}）⇒ 孤儿列表**未核实**` +
+                  `（上面的数量只是"已知部分"，不能读成 0）；不要据此执行 stop all，稍后重试 wsl_status`,
+              ]
+            : []),
           ...(daemonState.collisions.length ? [`daemon port notes: ${daemonState.collisions.join(' | ')}`] : []),
           `resident runtimes (in-host backend only): ${[...runtimes.entries()].filter(([, r]) => !r.closed).map(([k, r]) => `${k}(turn ${r.turns})`).join(', ') || '(none)'}`,
           `web hosts: ${[...webHosts.keys()].join(', ') || '(none)'}`,
@@ -459,10 +488,21 @@ ${command}
           { timeoutMs: (Number(args?.timeoutSec) || 120) * 1000, signal: exec?.signal },
         );
         // F-32（2026-10-27 审查）：截断必须**可见**。旧实现静默 slice ⇒ 调用方把被截断的输出当完整结果，
-        // 尾部的错误信息（往往是最关键的）被无声丢掉。runWsl 每流另有 200KB 上限，这里再显式标注。
-        const outTrunc = res.stdout.length >= 100000 ? `\n…[stdout 已截断：只保留前 100000 字符]\n` : '';
-        const errTrunc = res.stderr.length >= 20000 ? `\n…[stderr 已截断：只保留前 20000 字符]\n` : '';
-        return `exit ${res.exitCode}\n--- stdout ---\n${res.stdout.slice(0, 100000)}${outTrunc}--- stderr ---\n${res.stderr.slice(0, 20000)}${errTrunc}`;
+        // 尾部的错误信息（往往是最关键的）被无声丢掉。
+        //
+        // 第三轮（2026-10-27）把两层截断分开说，因为它们的含义完全不同：
+        //  · 流层：`runWsl` 每流 200000 字节上限，**尾部已被丢弃**（`res.truncated.*` 是真值，不再靠长度猜）；
+        //  · 展示层：为了让工具输出可读，这里再按字符数切到 100000 / 20000。
+        // 旧写法用 `res.stdout.length >= 100000` 判断展示层，同时把流层那层吞掉 —— 只有一层标注，且可能漏报。
+        const streamOutTrunc = res.truncated?.stdout
+          ? `\n…[流层截断：stdout 超过 runWsl 的 200000 字节上限，**尾部已丢弃**]\n`
+          : '';
+        const streamErrTrunc = res.truncated?.stderr
+          ? `\n…[流层截断：stderr 超过 runWsl 的 200000 字节上限，**尾部已丢弃**]\n`
+          : '';
+        const outTrunc = res.stdout.length > 100000 ? `\n…[stdout 只保留前 100000 字符]\n` : '';
+        const errTrunc = res.stderr.length > 20000 ? `\n…[stderr 只保留前 20000 字符]\n` : '';
+        return `${describeWslTermination(res)}${streamOutTrunc}${streamErrTrunc}\n--- stdout ---\n${res.stdout.slice(0, 100000)}${outTrunc}--- stderr ---\n${res.stderr.slice(0, 20000)}${errTrunc}`;
       },
     });
 
@@ -635,6 +675,13 @@ ${command}
           const info0 = s.info ?? {};
           const ks0: any[] = Array.isArray(info0.keys) ? info0.keys : [];
           const orphans0: any[] = Array.isArray(s.orphans) ? s.orphans : [];
+          // F-50（第三轮）：`scan.ok === false` ⇒ 本次**没有**进程表证据。孤儿数（可能是 0）只是
+          // "已知部分"，机器行也必须把它标成 unknown，别让脚本把 0 当成"确认没有孤儿"。
+          const scanFailed = s.scan?.ok === false;
+          const orphansCount = scanFailed ? 'unknown' : String(orphans0.length);
+          const scanWarn = scanFailed
+            ? `scan: ⚠️ /proc 进程扫描失败（${s.scan?.error ?? '未知原因'}）⇒ 孤儿列表**未核实**（不是"0 个"）；不要据此执行 stop all`
+            : null;
           if (!s.ok) {
             // F-18：`busy` 是「端口可连但没应答」，与「没在跑」必须分开 —— 前者的正确动作是"稍后重试"，
             // 而不是 stop all（那会杀掉带会话的守护）。
@@ -642,20 +689,22 @@ ${command}
             if (s.kind === 'busy') {
               return [
                 `daemon: busy（${busyList.map((b) => `slot=${b.slot} port=${b.meta?.port ?? b.slot} pid=${b.meta?.pid ?? '?'}`).join(', ') || '端口可连接'}）`,
-                machineLine({ extra: `busy=${busyList.length} orphans=${orphans0.length}` }),
+                machineLine({ extra: `busy=${busyList.length} orphans=${orphansCount} scan=${scanFailed ? 'failed' : 'ok'}` }),
                 `含义: 守护进程活着、端口可连接，但 ${config.daemonHandshakeTimeoutMs}ms 内没有应答（单线程守护可能正在安装工具/预热）。**不是死**，不要执行 stop all；稍后重试 wsl_status 即可。`,
+                ...(scanWarn ? [scanWarn] : []),
                 `state dir (WSL): ${stateDirLinux(config)}（元数据按槽位 daemon.<slot>.json / daemon.<slot>.token，0600）`,
               ].join('\n');
             }
             return [
               `daemon: not running（${s.kind}: ${s.error}）`,
-              machineLine({ extra: `orphans=${orphans0.length}` }),
+              machineLine({ extra: `orphans=${orphansCount} scan=${scanFailed ? 'failed' : 'ok'}` }),
               `state dir (WSL): ${stateDirLinux(config)}（元数据按槽位 daemon.<slot>.json / daemon.<slot>.token，0600）`,
               ...(orphans0.length
                 ? [
                     `Orphans: ⚠️ ${orphans0.map((o) => `pid${o.pid}@${o.port}`).join(', ')}（在跑但无元数据）—— 用 wsl_daemon action=stop all=true 回收`,
                   ]
                 : []),
+              ...(scanWarn ? [scanWarn] : []),
             ].join('\n');
           }
           const info = s.info ?? {};
@@ -668,7 +717,7 @@ ${command}
               pid: info.daemonPid,
               port: info.port,
               version: info.version,
-              extra: `keys=${ks.length} orphans=${orphans.length}`,
+              extra: `keys=${ks.length} orphans=${orphansCount} scan=${scanFailed ? 'failed' : 'ok'}`,
             }),
             ...(info.protocolVersion == null || Number(info.protocolVersion) < PROTOCOL_VERSION || (info.pluginVersion && info.pluginVersion !== PLUGIN_VERSION)
               ? [
@@ -689,6 +738,7 @@ ${command}
                   `Orphans: ⚠️ ${orphans.length} 个守护在跑但无元数据（${orphans.map((o) => `pid${o.pid}@${o.port}`).join(', ')}）—— 用 wsl_daemon action=stop all=true 回收`,
                 ]
               : []),
+            ...(scanWarn ? [scanWarn] : []),
             `ready 判据: 本次调用由 Windows 侧 hello+token 握手核实（${s.ms}ms），不是守护自己的 listening 日志`,
             `state (WSL): ${stateDirLinux(config)}/daemon.<slot>.json（0600）、daemon.<slot>.token（0600），slot=${s.slot}`,
           ].join('\n');
@@ -699,18 +749,62 @@ ${command}
           // 2026-10-27 审查 F-03：`stopDaemon` 在「守护仍在」时返回 ok:false + alivePids 并**保留**
           // 元数据；旧实现完全不看它，照样打印 `daemon stopped` 还清空会话记忆 ⇒ 伪成功，而且之后
           // 连旧 sessionId 都拿不到（contextReset 也提示不了）。失败必须如实返回、**不动**会话记忆。
+          //
+          // ★ F-50（第三轮）：失败有两种，**不能混成一句**：
+          //   · `verified === true` ⇒ 扫描证实守护仍在（alivePids 有值）⇒「仍在运行」；
+          //   · `verified === false` ⇒ 扫描失败、**无法确认**（alivePids 恒空，但那不是 0）
+          //     ⇒「结果未验证」。旧文案会把后者也写成"仍在运行（没有 pid）"，等于用未验证冒充结论。
           const alivePids: number[] = Array.isArray(r.alivePids) ? r.alivePids : [];
+          if (all) {
+            const killed: any[] = Array.isArray(r.killed) ? r.killed : [];
+            const remaining: any[] = Array.isArray(r.remaining) ? r.remaining : [];
+            const stoppedN = Array.isArray(r.stopped) ? r.stopped.length : 0;
+            const reapedN = (r.stopped ?? []).reduce((n: number, x: any) => n + (Array.isArray(x?.reaped) ? x.reaped.length : 0), 0);
+            const verified = r.verified !== false;
+            // F-50：只有 verified 时 `remainingCount` 才是数字；未验证时它是 null（未知，不是 0）。
+            const remainingCount = verified ? remaining.length : null;
+            const subFailures = Number(r.subFailures) || 0;
+            const lines = [
+              `daemon stop --all: slots=${stoppedN} killedOrphans=${killed.length}（${killed.map((k) => `pid${k.pid}@${k.port}`).join(', ') || '(none)'}）` +
+                `remainingOrphans=${remainingCount === null ? '未知（扫描失败）' : remainingCount}` +
+                `${subFailures ? ` subFailures=${subFailures}` : ''}`,
+              machineLine({
+                slot: 'all',
+                extra: `stopped=${stoppedN} killed=${killed.length} orphans_left=${remainingCount === null ? 'unknown' : remainingCount} reaped=${reapedN} scan=${verified ? 'ok' : 'failed'}`,
+              }),
+            ];
+            if (r.ok === false) {
+              lines.push(
+                verified
+                  ? `⚠️ 未清干净：${subFailures ? `${subFailures} 个槽位的 stop 自己失败了（元数据已按 P1 保留）` : `${remainingCount} 个本方守护仍在（收敛窗口内未退出）`}`
+                  : `⚠️ **结果未验证**：/proc 进程扫描失败（${r.scan?.error ?? '未知原因'}）⇒ 剩余守护数量**未知**（不是 0）；未回收任何孤儿进程，元数据按 P1 保留`,
+              );
+              if (r.error) lines.push(`detail: ${String(r.error)}`);
+            }
+            lines.push(`⚠️ 所有远端会话的上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。`);
+            if (r.ok !== false) {
+              daemonState.info = null;
+              daemonState.port = null;
+              daemonState.lastSessionByKey.clear();
+            }
+            return lines.join('\n');
+          }
           if (r.ok === false) {
+            const unverified = r.verified === false;
             return [
-              `daemon stop 未完成（transport=${r.transport ?? 'none'}）：守护仍在运行` +
-                (alivePids.length ? `（pid ${alivePids.join('、')}）` : '') +
-                `；元数据已保留 ⇒ 它仍是可发现的，可再次 stop 或 action=stop all=true。`,
+              unverified
+                ? `daemon stop **结果未验证**（transport=${r.transport ?? 'none'}）：拿不到 /proc 扫描证据，` +
+                  `无法确认本方守护是否已退出（alivePids 为空**不代表** 0）。` +
+                  `元数据已按 P1 保留 ⇒ 它仍是可发现的，可稍后重试 stop，或用 action=status 复核。`
+                : `daemon stop 未完成（transport=${r.transport ?? 'none'}）：守护仍在运行` +
+                  (alivePids.length ? `（pid ${alivePids.join('、')}）` : '') +
+                  `；元数据已保留 ⇒ 它仍是可发现的，可再次 stop 或 action=stop all=true。`,
               machineLine({
                 slot: r.slot,
                 pid: r.pid,
                 port: r.port,
                 version: r.version,
-                extra: `stopped=false alive=${alivePids.length ? alivePids.join('|') : '-'}`,
+                extra: `stopped=false verified=${unverified ? 'false' : 'true'} alive=${alivePids.length ? alivePids.join('|') : '-'}`,
               }),
               ...(r.error ? [`detail: ${String(r.error)}`] : []),
             ].join('\n');
@@ -718,24 +812,11 @@ ${command}
           daemonState.info = null;
           daemonState.port = null;
           daemonState.lastSessionByKey.clear();
-          if (all) {
-            const killed: any[] = Array.isArray(r.killed) ? r.killed : [];
-            const remaining: any[] = Array.isArray(r.remaining) ? r.remaining : [];
-            const stoppedN = Array.isArray(r.stopped) ? r.stopped.length : 0;
-            const reapedN = (r.stopped ?? []).reduce((n: number, x: any) => n + (Array.isArray(x?.reaped) ? x.reaped.length : 0), 0);
-            return [
-              `daemon stop --all: slots=${stoppedN} killedOrphans=${killed.length}（${killed.map((k) => `pid${k.pid}@${k.port}`).join(', ') || '(none)'}）remainingOrphans=${remaining.length}`,
-              machineLine({
-                slot: 'all',
-                extra: `stopped=${stoppedN} killed=${killed.length} orphans_left=${remaining.length} reaped=${reapedN}`,
-              }),
-              `⚠️ 所有远端会话的上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。`,
-            ].join('\n');
-          }
           const reaped: any[] = Array.isArray(r.reaped) ? r.reaped : [];
           // F1：孤儿口径与 status 完全同源（daemonSnapshot）—— 别的槽位**有元数据的健康守护不算孤儿**
           const snap: any = await daemonSnapshot(config);
           const orphansLeft: any[] = Array.isArray(snap.orphans) ? snap.orphans : [];
+          const snapVerified = snap.scan?.ok !== false;
           return [
             `daemon stopped（transport=${r.transport ?? 'none'}）; reaped ${reaped.length} runtime(s): ` +
               `${reaped.map((k) => `${k.key}(turn ${k.turns})`).join(', ') || '(none)'}`,
@@ -744,13 +825,17 @@ ${command}
               pid: r.pid,
               port: r.port,
               version: r.version,
-              extra: `reaped=${reaped.length} orphans_left=${orphansLeft.length}`,
+              extra: `reaped=${reaped.length} orphans_left=${snapVerified ? orphansLeft.length : 'unknown'}`,
             }),
-            ...(orphansLeft.length
+            ...(snapVerified && orphansLeft.length
               ? [
                   `Orphans: ⚠️ 仍有 ${orphansLeft.length} 个守护在跑但无元数据（${orphansLeft.map((o) => `pid${o.pid}@${o.port}`).join(', ')}）—— 用 action=stop all=true`,
                 ]
               : []),
+            // F-50：stop 成功只说明**本槽位**停干净了；孤儿复核失败时必须说出来，别让人以为全局干净。
+            ...(snapVerified
+              ? []
+              : [`Orphans: ⚠️ 未能核实（/proc 扫描失败：${snap.scan?.error ?? '未知原因'}）—— 不代表没有孤儿`]),
             `⚠️ 会话上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。`,
           ].join('\n');
         }
@@ -847,7 +932,7 @@ ${command}
             `warm ${v.version}: ${
               res.stdout.includes('WARM-OK')
                 ? 'ok'
-                : `failed (exit ${res.exitCode}) ${res.stderr.trim().split('\n').slice(-1)[0] ?? ''}`
+                : `failed (${res.killedBy && res.killedBy !== 'exit' ? res.killedBy : `exit ${res.exitCode}`}) ${res.stderr.trim().split('\n').slice(-1)[0] ?? ''}`
             }`,
           );
         }
