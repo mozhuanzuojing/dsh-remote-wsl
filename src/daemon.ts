@@ -91,10 +91,16 @@ const IDLE_MS = numArg('idle-ms', 1800000, 0);
  */
 const LINGER_MS = numArg('linger-ms', 600000, 0);
 const QUEUE_LIMIT = numArg('queue-limit', 4, 1);
-const PROXY_PORT = numArg('proxy-port', 9910, 1);
+const PROXY_PORT = numArg('proxy-port', 9910, 0);
 const PROMPT_TIMEOUT_MS = numArg('prompt-timeout-ms', 300000, 1000);
 const QUIET_MS = numArg('quiet-ms', 3000, 100);
 const SHELL_ENV = !flag('no-shell-env');
+/**
+ * 关掉「启动 1.5s 后后台补齐核心 CLI 工具」（见 `startBackgroundProvision()`）。
+ * 给集成测试 / CI 用：它们要在**零网络**下确定性运行；真机上线时核心工具通常已装，
+ * 少了预热只是首次搜索慢一点（按需路径 `kickSearchProvision` 仍会补）。
+ */
+const NO_PROVISION = flag('no-provision');
 /**
  * 协议硬上限（2026-10-27 审查 F-02）：帧在**鉴权之前**就开始累积，旧实现没有上限 ⇒ 任一能连到
  * `127.0.0.1:<port>` 的进程持续发不含换行的数据就能把守护撑到 OOM，而守护一死，它持有的
@@ -139,7 +145,25 @@ function log(...parts) {
   } catch {
     /* 日志失败不能影响守护 */
   }
-  process.stderr.write(line);
+  // ★ 2026-10-27 第三轮（集成测试实测）：`process.stderr.write` 原来**不在 try/catch 里**，
+  // 也没有 `error` 监听 —— 启动它的包装层/父进程关掉 stderr 管道后，下一次写日志会抛 EPIPE，
+  // 进程当场 exit 1：跳过 cleanupFiles，元数据与 token 留在状态目录（对用户就是"守护死了还留垃圾"），
+  // 而且与「关客户端 ≠ 会话结束」的卖点直接冲突（只要读者消失就死，不需要任何人 stop）。
+  // 日志本来就是诊断附属品 ⇒ 写不出就只写文件，绝不能因此结束会话。
+  try {
+    process.stderr.write(line);
+  } catch {
+    /* stderr 已关闭（EPIPE）：文件日志仍写到了，吞掉即可 */
+  }
+}
+
+// 同一个根因的另一半：EPIPE 也可能以 `error` 事件的形式出现（异步 flush 失败）。
+// 没有监听器时 Node 会把它升级成未捕获异常 ⇒ 进程退出。这里降级为"忽略"。
+try {
+  process.stderr.on('error', () => {});
+  process.stdout.on('error', () => {});
+} catch {
+  /* 极老的 Node 可能没有 on()：无所谓，上面的 try/catch 已兜住同步写 */
 }
 
 // ── 环境只捕获一次（语义 #9）──────────────────────────────────────────────────
@@ -907,16 +931,46 @@ async function listenOn(port) {
     server.once('listening', onOk);
     server.listen(port, '127.0.0.1');
   });
-  // 体验优先：守护一起来就在后台补齐核心 CLI 工具（rg/fd/ast-grep/sd/bat/tokei/dust/procs 缺就装，
-  // 静态二进制到 ~/.local/bin），用户第一次搜索/调用时通常已就绪；失败只记日志，不阻塞也不伪装成功。
+}
+
+/**
+ * 守护一起来就在后台补齐核心 CLI 工具（rg/fd/ast-grep/sd/bat/tokei/dust/procs 缺就装，静态二进制到
+ * `~/.local/bin`），用户第一次搜索/调用时通常已就绪；失败只记日志，不阻塞也不伪装成功。
+ *
+ * ★ 2026-10-27 第三轮（集成测试实测）：这段原来写在 `listenOn()` 的 `return new Promise(...)` **之后** ——
+ * JS 的函数体在 `return` 后不会执行，所以它**从未运行过**（注释与 README 都声称"守护启动时后台预热"，
+ * 实际是一次都没发生）。现在由 `main()` 在 listen 成功之后调用，才是它声称的语义。
+ *
+ * `--no-provision` 关掉它：集成测试/CI 需要在**零网络**下确定性运行（真机上线时核心工具通常已装，
+ * 少了预热只是首次搜索慢一点，`kickSearchProvision` 仍会在按需路径补齐）。
+ */
+function startBackgroundProvision() {
   setTimeout(async () => {
+    const note = (line) => {
+      // 与 log() 同一条纪律：stderr 读者可能已经消失（EPIPE），诊断输出不能把守护带走
+      try {
+        process.stderr.write(line);
+      } catch {
+        /* ignore */
+      }
+    };
     try {
       const resolved = await resolveProxyHost(PROXY_PORT).catch(() => ({ host: null }));
-      const provision = await ensureTools(CORE_TOOLS, { autoInstall: true, proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null });
+      const provision = await ensureTools(CORE_TOOLS, {
+        autoInstall: true,
+        proxy: resolved.host ? `http://${resolved.host}:${PROXY_PORT}` : null,
+      });
       setSearchToolPaths(toolPaths());
-      for (const note of provision.notes ?? []) process.stderr.write(`[daemon] tool provision: ${note}\n`);
+      for (const n of provision.notes ?? []) note(`[daemon] tool provision: ${n}\n`);
+      // 让"后台补齐到底跑没跑"可观测（这段代码曾经连执行都没执行过，死代码最怕的就是没人能发现）：
+      // 一行摘要进日志文件，notes 里则是逐条的安装/校验结论。
+      const ready = Object.values(provision.tools ?? {}).filter((t: any) => t?.path).length;
+      log(
+        `后台工具补齐完成：就绪 ${ready}/${CORE_TOOLS.length}` +
+          `${provision.notes?.length ? `，${provision.notes.length} 条说明（见 daemon.log）` : ''}`,
+      );
     } catch (e) {
-      process.stderr.write(`[daemon] tool provision failed: ${(e && e.message) || String(e)}\n`);
+      log(`后台工具补齐失败（不影响搜索/会话；按需路径仍会重试）: ${(e && e.message) || String(e)}`);
     }
   }, 1500);
 }
@@ -957,6 +1011,10 @@ async function main() {
   log(`listening 127.0.0.1:${PORT} pid=${process.pid} dsh@${VERSION} cwd=${CWD} idleMs=${IDLE_MS} queue=${QUEUE_LIMIT} lingerMs=${LINGER_MS}`);
   // 起完就开始计寿命闸门（armLinger 内部：有 key 或有客户端时拒绝计时）
   armLinger();
+  // 后台补齐核心 CLI 工具（`--no-provision` 可关：集成测试/CI 要零网络确定性）。
+  // 注意位置：必须在 listen 成功之后调 —— 它原来挂在 `listenOn()` 的 `return` 之后，从未执行过。
+  if (!NO_PROVISION) startBackgroundProvision();
+  else log('--no-provision: 跳过启动时的后台工具补齐（按需安装仍可用）');
   // 启动脚本已在 bash 里打开，可以安全删掉（本守护不把任何东西落在 /tmp）
   if (LAUNCHER) {
     try {
