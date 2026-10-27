@@ -29,6 +29,19 @@
  *     它内部仍是同步 curl；**搜索/安装热路径已完全不再调用它**。daemon 若把那一行改成
  *     `await resolveAssetForAsync(...)`，这两个同步入口即可整段删除。
  *
+ * 2026-10-27 供应链修复（缺陷：**校验是死代码**）：
+ *   · 上一轮（3790880）与 `docs/2026-10-27-fix-round.md` 声称"解析发布页 *.sha256 / SHA256SUMS /
+ *     checksums.txt，下载后校验，不匹配拒绝安装"。实测是假的：`asset.checksumUrl` / `checksumName`
+ *     **全仓没有赋值处**，`if (asset.checksumUrl)` 恒假 ⇒ `verified` 永远 `'unavailable'` ⇒
+ *     每个自动下载并执行的二进制**从未被校验**，而文档把它写成了"已实现"。
+ *   · 现在 `resolveAssetAsync()` / `resolveAsset()` 真的产出校验来源：API 资产 `digest`（`sha256:<hex>`）
+ *     优先，其次同批发布里的 `<name>.sha256` / `SHA256SUMS` / `checksums.txt`（见 {@link pickChecksumAsset}）。
+ *   · `FALLBACK_X86_64`（硬编码 URL、走不到 API）补上逐个**真实下载计算**的 sha256，语义是
+ *     **TOFU pin**（见该表注释），状态记为 `'pinned'` 而不是 `'ok'`。
+ *   · `verified` 状态机细分为 `'ok' | 'pinned' | 'unavailable' | 'mismatch'`，并一并返回 `digestSource`；
+ *     `'unavailable'` 会出现在 `ensureTools` 的 notes 与 `tools[id]` 条目里（不再隐身）。
+ *   · `runAsync` 的流截断不再静默（F-32 同型缺陷）：按**字节**上限收集并如实标记 `truncated`。
+ *
  * 只依赖 `node:` 内置；运行在 WSL 侧守护里。
  *
  * @module dsh-remote-wsl/search-provision
@@ -71,26 +84,146 @@ export const CORE_TOOLS = ['rg', 'fd', 'ast-grep', 'sd', 'bat', 'tokei', 'dust',
  * API 不可用（GitHub 未认证限流 60/小时、多人共享代理 IP 时很常见）时的**固定下载地址兜底**。
  * 这些 URL 已逐个用 `curl -r 0-0` 验证过（2026-10-23）；只有 x86_64，aarch64 仍走 API。
  * 资产名不随版本变化时可直接命中；版本过旧时若 404，会回落到"给用户手动安装提示"。
+ *
+ * `sha256` 是 **TOFU pin（trust-on-first-use，首用即钉住）**，语义上**不等于**"官方已验证"：
+ *   为什么需要：兜底 URL 是硬编码的，走不到 GitHub API 的 `digest` 字段，也不一定有
+ *   `<name>.sha256` 校验资产；修这个缺陷之前（2026-10-27）这些下载**根本没有摘要可比**，
+ *   于是 `verified` 恒为 `'unavailable'` —— 插件会自动下载并执行它们，却从不校验。
+ *   值怎么来的：2026-10-27 对每个 tag 的发布资产**真实下载**并计算 sha256（不是抄来的、更不是编的）。
+ *   交叉验证见 `pinSource`（拿不到官方值就标 `'tofu'`，不冒充官方）：
+ *     - `'github-api-digest'`：与该 tag 的 API 资产 `digest` 字段逐字相等（rg/ast-grep/sd/bat/difft 之外的 5 项已核对）；
+ *     - `'release-sha256-file'`：与该 tag 发布的 `<name>.sha256` 文件逐字相等（rg 已核对）；
+ *     - `'tofu'`：该 tag 上游**没有**发布任何摘要，此值只有本地计算记录 —— 只保证"与本次钉住的
+ *       那一份一致"，**不证明上游未被入侵/未被替换**。
+ *   所以安装结果把这种情况记为 `verified:'pinned'`（不是 `'ok'`），调用方不得把它说成"官方校验通过"。
  */
 const FALLBACK_X86_64 = {
-  rg: { url: 'https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: '14.1.1' },
-  fd: { url: 'https://github.com/sharkdp/fd/releases/download/v10.2.0/fd-v10.2.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v10.2.0' },
-  'ast-grep': { url: 'https://github.com/ast-grep/ast-grep/releases/download/0.51.0/app-x86_64-unknown-linux-gnu.zip', kind: 'zip', tag: '0.51.0' },
-  sd: { url: 'https://github.com/chmln/sd/releases/download/v1.1.0/sd-v1.1.0-x86_64-unknown-linux-gnu.tar.gz', kind: 'tar.gz', tag: 'v1.1.0' },
-  bat: { url: 'https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v0.26.1' },
-  tokei: { url: 'https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v12.1.2' },
-  dust: { url: 'https://github.com/bootandy/dust/releases/download/v1.1.1/dust-v1.1.1-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v1.1.1' },
-  procs: { url: 'https://github.com/dalance/procs/releases/download/v0.14.5/procs-v0.14.5-x86_64-linux.zip', kind: 'zip', tag: 'v0.14.5' },
-  xh: { url: 'https://github.com/ducaale/xh/releases/download/v0.23.0/xh-v0.23.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v0.23.0' },
-  hexyl: { url: 'https://github.com/sharkdp/hexyl/releases/download/v0.16.0/hexyl-v0.16.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v0.16.0' },
-  difft: { url: 'https://github.com/Wilfred/difftastic/releases/download/0.65.0/difft-x86_64-unknown-linux-gnu.tar.gz', kind: 'tar.gz', tag: '0.65.0' },
-  rga: { url: 'https://github.com/phiresky/ripgrep-all/releases/download/v0.10.6/ripgrep_all-v0.10.6-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v0.10.6' },
-  taplo: { url: 'https://github.com/tamasfe/taplo/releases/download/0.9.3/taplo-linux-x86_64.gz', kind: 'gz', tag: '0.9.3' },
-  qsv: { url: 'https://github.com/dathere/qsv/releases/download/0.135.0/qsv-0.135.0-x86_64-unknown-linux-musl.zip', kind: 'zip', tag: '0.135.0' },
-  typos: { url: 'https://github.com/crate-ci/typos/releases/download/v1.29.7/typos-v1.29.7-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v1.29.7' },
-  just: { url: 'https://github.com/casey/just/releases/download/1.38.0/just-1.38.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: '1.38.0' },
-  delta: { url: 'https://github.com/dandavison/delta/releases/download/0.18.2/delta-0.18.2-x86_64-unknown-linux-gnu.tar.gz', kind: 'tar.gz', tag: '0.18.2' },
-  hyperfine: { url: 'https://github.com/sharkdp/hyperfine/releases/download/v1.19.0/hyperfine-v1.19.0-x86_64-unknown-linux-musl.tar.gz', kind: 'tar.gz', tag: 'v1.19.0' },
+  rg: {
+    url: 'https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: '14.1.1',
+    sha256: '4cf9f2741e6c465ffdb7c26f38056a59e2a2544b51f7cc128ef28337eeae4d8e',
+    pinSource: 'release-sha256-file',
+  },
+  fd: {
+    url: 'https://github.com/sharkdp/fd/releases/download/v10.2.0/fd-v10.2.0-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v10.2.0',
+    sha256: 'd9bfa25ec28624545c222992e1b00673b7c9ca5eb15393c40369f10b28f9c932',
+    pinSource: 'tofu',
+  },
+  'ast-grep': {
+    url: 'https://github.com/ast-grep/ast-grep/releases/download/0.51.0/app-x86_64-unknown-linux-gnu.zip',
+    kind: 'zip',
+    tag: '0.51.0',
+    sha256: 'a7eead5552d3a8daad70f5d50d935da44bd0c138e946b5b0a96b1d38169fa639',
+    pinSource: 'github-api-digest',
+  },
+  sd: {
+    url: 'https://github.com/chmln/sd/releases/download/v1.1.0/sd-v1.1.0-x86_64-unknown-linux-gnu.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v1.1.0',
+    sha256: '3613eca74cd686739bb5a6d68319aa56c747e7315274d02323a2ca2b1c5d82d2',
+    pinSource: 'github-api-digest',
+  },
+  bat: {
+    url: 'https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v0.26.1',
+    sha256: '0dcd8ac79732c0d5b136f11f4ee00e581440e16a44eab5b3105b611bbf2cf191',
+    pinSource: 'github-api-digest',
+  },
+  tokei: {
+    url: 'https://github.com/XAMPPRocky/tokei/releases/download/v12.1.2/tokei-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v12.1.2',
+    sha256: '331e77046935d655dce8d97ebb943fcc7e9684586dadf3d197f3df5e760cd31b',
+    pinSource: 'tofu',
+  },
+  dust: {
+    url: 'https://github.com/bootandy/dust/releases/download/v1.1.1/dust-v1.1.1-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v1.1.1',
+    sha256: '4d0e7f3e39ce85e98cc69260ab6f40e460a455cd8575af1ba70d14a2940ae553',
+    pinSource: 'tofu',
+  },
+  procs: {
+    url: 'https://github.com/dalance/procs/releases/download/v0.14.5/procs-v0.14.5-x86_64-linux.zip',
+    kind: 'zip',
+    tag: 'v0.14.5',
+    sha256: '2c3f2b8aa03c0eaaad827a2699556590ebf20a9a3eef32f3a09c19b0248afba5',
+    pinSource: 'tofu',
+  },
+  xh: {
+    url: 'https://github.com/ducaale/xh/releases/download/v0.23.0/xh-v0.23.0-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v0.23.0',
+    sha256: '79fb00506a53ae2bbc490e4690c75d488ff029e06f8e7835095d1c680103488a',
+    pinSource: 'tofu',
+  },
+  hexyl: {
+    url: 'https://github.com/sharkdp/hexyl/releases/download/v0.16.0/hexyl-v0.16.0-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v0.16.0',
+    sha256: '62ae62a5e5fdd67a587e45ba19acdbe0099a6e60961ccd4db9fe2ac1f3f29528',
+    pinSource: 'tofu',
+  },
+  difft: {
+    url: 'https://github.com/Wilfred/difftastic/releases/download/0.65.0/difft-x86_64-unknown-linux-gnu.tar.gz',
+    kind: 'tar.gz',
+    tag: '0.65.0',
+    sha256: '7196d3fb8c0c24afcc396085c42c74fcf4e4da1e63e27f5b3cfcaef4b72a844f',
+    pinSource: 'github-api-digest',
+  },
+  rga: {
+    url: 'https://github.com/phiresky/ripgrep-all/releases/download/v0.10.6/ripgrep_all-v0.10.6-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v0.10.6',
+    sha256: 'aa7b201078aab21d3c53de671ab448ac5a7c1b445fcf3474c27264ceae03b3ef',
+    pinSource: 'tofu',
+  },
+  taplo: {
+    url: 'https://github.com/tamasfe/taplo/releases/download/0.9.3/taplo-linux-x86_64.gz',
+    kind: 'gz',
+    tag: '0.9.3',
+    sha256: '889efcfa067b179fda488427d3b13ce2d679537da8b9ed8138ba415db7da2a5e',
+    pinSource: 'tofu',
+  },
+  qsv: {
+    url: 'https://github.com/dathere/qsv/releases/download/0.135.0/qsv-0.135.0-x86_64-unknown-linux-musl.zip',
+    kind: 'zip',
+    tag: '0.135.0',
+    sha256: '147076cf85b10d1d873db9eba09ff7ca4cbb46ac566580e3ca64f0921f5a8960',
+    pinSource: 'tofu',
+  },
+  typos: {
+    url: 'https://github.com/crate-ci/typos/releases/download/v1.29.7/typos-v1.29.7-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v1.29.7',
+    sha256: '27e96ea40ce90c1c81e0c761b3c3161e8b0a0184f89cc938f101e1719754e6e6',
+    pinSource: 'tofu',
+  },
+  just: {
+    url: 'https://github.com/casey/just/releases/download/1.38.0/just-1.38.0-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: '1.38.0',
+    sha256: 'c803e67fd7b0af01667bd537197bc3df319938eacf9e8d51a441c71d03035bb5',
+    pinSource: 'tofu',
+  },
+  delta: {
+    url: 'https://github.com/dandavison/delta/releases/download/0.18.2/delta-0.18.2-x86_64-unknown-linux-gnu.tar.gz',
+    kind: 'tar.gz',
+    tag: '0.18.2',
+    sha256: '99607c43238e11a77fe90a914d8c2d64961aff84b60b8186c1b5691b39955b0f',
+    pinSource: 'tofu',
+  },
+  hyperfine: {
+    url: 'https://github.com/sharkdp/hyperfine/releases/download/v1.19.0/hyperfine-v1.19.0-x86_64-unknown-linux-musl.tar.gz',
+    kind: 'tar.gz',
+    tag: 'v1.19.0',
+    sha256: '825287143f397774093539ca2458854ab3735c0e8a1aaf075c22edce7d261556',
+    pinSource: 'tofu',
+  },
 };
 
 const MANUAL = {
@@ -138,14 +271,80 @@ const execOk = (p) => {
 
 const defaultBinDir = () => path.join(os.homedir(), '.local', 'bin');
 
-/** 一条命令的结果（异步实现，见 {@link runAsync}）。 */
-const emptyRun = (error, timedOut = false) => ({ code: null, stdout: '', stderr: '', error, timedOut, truncated: false });
+/** stderr 每条流最多收多少字节（旧实现按"块数 < 200"限，语义混乱：一块可能是 1B 也可能是 64KB）。 */
+const STDERR_MAX_BYTES = 16 * 1024;
+
+/**
+ * 一条命令的结果（异步实现，见 {@link runAsync}）。**所有分支共用这一个形状**：
+ * 旧实现里 `emptyRun()` 只有 `truncated:false`、`close` 分支却是 `truncated: outBytes>=maxBytes`、
+ * 超时分支还只回填 stdout（stderr 直接丢了）—— 同一个函数三种形状，调用方只能瞎猜。
+ */
+const emptyRun = (error, timedOut = false) => ({
+  code: null,
+  stdout: '',
+  stderr: '',
+  error,
+  timedOut,
+  aborted: false,
+  truncated: { stdout: false, stderr: false },
+});
+
+/**
+ * 把一块输出追加进收集器：**不超过上限**，并如实报告这一块是否被丢弃（F-32 同型缺陷）。
+ *
+ * 旧写法 `if (outBytes >= maxBytes) return;` 在到达上限后**静默丢尾**：curl 的报错、tar/unzip 的
+ * 失败原因几乎总在输出的最后，被无声吞掉后调用方会把"被截断的输出"当成完整结果。
+ * 另外不能用 `total >= limit` 反推截断 —— 一条输出**正好**等于上限（一个字节都没丢）会被误报成
+ * "已截断"，于是"结果可不可信"的判断直接失真。这里只在**真丢过字节**时置 `dropped`。
+ *
+ * 与 `wsl-io.ts` 的 `capAppend`（F-32 的正式修复）语义一致但**故意不复用**：本模块的契约是
+ * "只依赖 node: 内置"（见文件头），import wsl-io 会顺着它牵入 daemon-client/lifecycle 一整条依赖链。
+ * 两处都是十几行纯逻辑，各自单测；改名以避免与那边混淆。
+ *
+ * @param chunks 已收集的分片（`Buffer[]`）；不修改入参，保持纯函数
+ * @param total 已收集字节数
+ * @param chunk 新到的分片
+ * @param limit 上限（字节）；≤0 表示一个字节都不收
+ * @returns `{chunks, total, dropped}` —— `dropped` 为真表示**这一块**有字节被丢弃
+ */
+export function capStreamAppend(chunks, total, chunk, limit) {
+  const list = Array.isArray(chunks) ? chunks : [];
+  const used = Math.max(Number(total) || 0, 0);
+  const cap = Math.max(Number(limit) || 0, 0);
+  const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk ?? ''), 'utf8');
+  if (buf.length === 0) return { chunks: list, total: used, dropped: false };
+  const room = cap - used;
+  if (room <= 0) return { chunks: list, total: used, dropped: true };
+  if (buf.length <= room) return { chunks: [...list, buf], total: used + buf.length, dropped: false };
+  // 放不下整块 ⇒ 只留前缀；切点若落在多字节 UTF-8 字符中间，回退到字符起始字节（否则解码出 U+FFFD）
+  let cut = room;
+  let guard = 0;
+  while (cut > 0 && guard < 3 && (buf[cut] & 0xc0) === 0x80) {
+    cut -= 1;
+    guard += 1;
+  }
+  const kept = cut > 0 ? buf.subarray(0, cut) : null;
+  return { chunks: kept ? [...list, kept] : list, total: used + (kept ? kept.length : 0), dropped: true };
+}
+
+/** 收集器 → 字符串。 */
+const textOf = (chunks) => Buffer.concat(chunks).toString('utf8');
+
+/** 给错误信息带上"这条流被截断过"的标记（截断必须可见，不能静默丢尾）。 */
+function withTruncMark(text, truncated) {
+  return truncated ? `${text}\n[输出超过上限，尾部已截断]` : text;
+}
 
 /**
  * 异步跑一条命令（探测/解析/下载/解压）。**不能用 spawnSync**：守护是单进程，同步等待会把整个
  * 事件循环卡住——首次搜索/面板刷新会和几分钟的下载一起排队（2026-10-26 UX 复查 / F-14）。
  * 超时或 AbortSignal 取消时 SIGKILL 子进程，避免留下悬挂的 curl/tar。
- * @returns `Promise<{code, stdout, stderr, error, timedOut, truncated}>`
+ *
+ * 返回形状（与 `wsl-io.runWsl` 的 F-32 修复对齐）：
+ * `{code, stdout, stderr, error, timedOut, aborted, truncated:{stdout,stderr}}`
+ *   · `timedOut` / `aborted` 由**我们自己的定时器/信号**置位，不靠退出码推断；
+ *   · `truncated.*` 只在该流**真的丢过字节**时为真；超时/取消时也保留已经收到的 stdout+stderr，
+ *     不再像旧实现那样只回填 stdout、把 stderr 整个丢掉。
  */
 function runAsync(command, args, { timeoutMs = 120_000, maxBytes = 1024 * 1024, signal = null } = {}) {
   return new Promise((resolve) => {
@@ -160,9 +359,10 @@ function runAsync(command, args, { timeoutMs = 120_000, maxBytes = 1024 * 1024, 
       resolve(emptyRun(e?.message ?? String(e)));
       return;
     }
-    const out = [];
-    const err = [];
-    let outBytes = 0;
+    let out = { chunks: [], total: 0 };
+    let err = { chunks: [], total: 0 };
+    let outDropped = false;
+    let errDropped = false;
     let settled = false;
     let aborted = false;
     let timer = null;
@@ -188,9 +388,20 @@ function runAsync(command, args, { timeoutMs = 120_000, maxBytes = 1024 * 1024, 
       }
       resolve(value);
     };
+    /** 当前已收到的部分结果（超时/中断/取消都要交回去，别让关键错误信息随进程一起消失）。 */
+    const partial = (extra) => ({
+      code: null,
+      stdout: textOf(out.chunks),
+      stderr: textOf(err.chunks),
+      error: null,
+      timedOut: false,
+      aborted,
+      truncated: { stdout: outDropped, stderr: errDropped },
+      ...extra,
+    });
     timer = setTimeout(() => {
       kill();
-      finish({ ...emptyRun(`timed out after ${timeoutMs}ms`, true), stdout: Buffer.concat(out).toString('utf8') });
+      finish(partial({ timedOut: true, error: `timed out after ${timeoutMs}ms` }));
     }, timeoutMs);
     try {
       signal?.addEventListener?.('abort', onAbort, { once: true });
@@ -198,23 +409,18 @@ function runAsync(command, args, { timeoutMs = 120_000, maxBytes = 1024 * 1024, 
       /* ignore */
     }
     child.stdout.on('data', (c) => {
-      if (outBytes >= maxBytes) return;
-      out.push(c);
-      outBytes += c.length;
+      const r = capStreamAppend(out.chunks, out.total, c, maxBytes);
+      out = { chunks: r.chunks, total: r.total };
+      if (r.dropped) outDropped = true;
     });
     child.stderr.on('data', (c) => {
-      if (err.length < 200) err.push(c);
+      const r = capStreamAppend(err.chunks, err.total, c, STDERR_MAX_BYTES);
+      err = { chunks: r.chunks, total: r.total };
+      if (r.dropped) errDropped = true;
     });
     child.on('error', (e) => finish(emptyRun(e?.message ?? String(e))));
     child.on('close', (code) => {
-      finish({
-        code,
-        stdout: Buffer.concat(out).toString('utf8'),
-        stderr: Buffer.concat(err).toString('utf8'),
-        error: aborted ? 'aborted by caller' : null,
-        timedOut: false,
-        truncated: outBytes >= maxBytes,
-      });
+      finish(partial({ code, error: aborted ? 'aborted by caller' : null }));
     });
   });
 }
@@ -280,11 +486,18 @@ async function fetchText(url, proxy, { signal = null, timeoutMs = 150_000 } = {}
   args.push(url);
   const r = await runAsync('curl', args, { timeoutMs, maxBytes: FETCH_MAX_BYTES, signal });
   if (r.error) return { ok: false, error: `curl ${r.error}` };
+  // 响应体被上限截断时 `-w '\n%{http_code}'` 的尾巴也一起丢了 ⇒ 既解析不出状态码，也解析不出完整
+  // JSON/校验清单。必须当成错误上报（旧实现会继续用半截 body 去 JSON.parse，得到莫名其妙的语法错）。
+  if (r.truncated?.stdout) {
+    return { ok: false, error: `响应超过 ${Math.round(FETCH_MAX_BYTES / 1024 / 1024)}MB 上限被截断，无法完整解析` };
+  }
   const out = r.stdout ?? '';
   const cut = out.lastIndexOf('\n');
   const code = cut >= 0 ? out.slice(cut + 1).trim() : '';
   const body = cut >= 0 ? out.slice(0, cut) : out;
-  if (r.code !== 0) return { ok: false, error: `curl exit ${r.code}: ${(r.stderr || '').slice(0, 200)}` };
+  if (r.code !== 0) {
+    return { ok: false, error: `curl exit ${r.code}: ${withTruncMark(String(r.stderr || '').slice(0, 200), r.truncated?.stderr)}` };
+  }
   if (code !== '200') return { ok: false, error: `HTTP ${code}: ${body.slice(0, 160)}` };
   return { ok: true, text: body };
 }
@@ -307,6 +520,149 @@ function scoreAsset(name, arch) {
   return score;
 }
 
+/** 资产名 → 解压方式（tar.gz / zip / 单文件 gz）。两个解析入口共用，避免各写一份判错。 */
+function kindOfAssetName(name) {
+  const n = String(name ?? '');
+  if (n.endsWith('.zip')) return 'zip';
+  if (n.endsWith('.tar.gz') || n.endsWith('.tgz')) return 'tar.gz';
+  return 'gz';
+}
+
+/**
+ * 解析 GitHub API 资产上的 `digest` 字段（`sha256:<hex>`）。
+ *
+ * 为什么单列一个纯函数：这是**最权威**的校验来源（GitHub 在服务端算好随 API 返回，不依赖仓库
+ * 是否额外发布校验文件）。旧实现根本没读这个字段，导致 `asset.checksumUrl` 永远为空。
+ * 只认 sha256：其它算法（sha512 等）本模块没有对应实现，宁可返回 null 由调用方降级，
+ * 也不拿"不认识的算法"当校验过。
+ *
+ * @returns `{algo:'sha256', hex}`（hex 已小写）或 null（非 sha256 / 空 / 垃圾）
+ */
+export function parseGithubDigest(digest) {
+  if (typeof digest !== 'string') return null;
+  const m = /^\s*sha256:([0-9a-fA-F]{64})\s*$/.exec(digest);
+  if (!m) return null;
+  return { algo: 'sha256', hex: m[1].toLowerCase() };
+}
+
+/** 把 `'<64 hex>'` 或 `{hex}` 归一化成小写 hex；不合法返回 null（**不猜**）。 */
+function normalizeSha256(value) {
+  const raw = typeof value === 'string' ? value : value && typeof value === 'object' ? value.hex : null;
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim().toLowerCase();
+  return /^[0-9a-f]{64}$/.test(t) ? t : null;
+}
+
+/** 发布页上"通用清单"类校验资产的名字（大小写不敏感，允许 .txt 后缀）。 */
+const CHECKSUM_LIST_ASSET_RE = /^(sha256sums|sha256sums\.txt|sha256sum|checksums|checksums\.txt)$/i;
+
+/**
+ * 从同一次 API 响应的 assets 数组里挑出**能校验目标资产**的校验文件（纯函数）。
+ *
+ * 命中顺序（宁缺勿错，错配会让好资产被判 mismatch）：
+ *   1. 与目标资产**同名 + 后缀**：`x.tar.gz.sha256` / `x.tar.gz.sha256sum`（每资产一个，最精确）；
+ *   2. 通用清单：`SHA256SUMS` / `SHA256SUMS.txt` / `sha256sums.txt` / `checksums.txt` / `sha256sum`。
+ * 别的资产的 `.sha256`（如 `y.tar.gz.sha256`）**必须不命中** —— 那是另一个文件的摘要，
+ * 拿它来校验只会得到"恒 mismatch"，还会掩盖上游改名。
+ *
+ * @param assets GitHub API 的 `assets` 数组（元素至少有 name / browser_download_url）
+ * @param assetName 已选定的目标资产名（可带路径，按 basename 比）
+ * @returns `{url, name}` 或 null
+ */
+export function pickChecksumAsset(assets, assetName) {
+  const list = Array.isArray(assets) ? assets : [];
+  const base = String(assetName ?? '').split('/').pop();
+  if (!base) return null;
+  const exact = [base + '.sha256', base + '.sha256sum'];
+  for (const a of list) {
+    const name = String(a?.name ?? '');
+    const url = typeof a?.browser_download_url === 'string' ? a.browser_download_url : '';
+    if (url && exact.includes(name)) return { url, name };
+  }
+  for (const a of list) {
+    const name = String(a?.name ?? '');
+    const url = typeof a?.browser_download_url === 'string' ? a.browser_download_url : '';
+    if (url && CHECKSUM_LIST_ASSET_RE.test(name)) return { url, name };
+  }
+  return null;
+}
+
+/**
+ * 校验状态机的**唯一决策点**（纯函数）：给出真实摘要来源的优先级。
+ *
+ * 修这个缺陷的关键契约：**"没跑校验"绝不能返回 `'ok'`**。旧实现里 verified 只有
+ * `'ok' | 'unavailable' | 'mismatch'`，但 `'ok'` 的赋值分支永远进不去，于是所有下载都落在
+ * `'unavailable'`；同时文档/提交信息把这件事写成了"已实现校验" —— 伪成功。
+ * 现在把来源一起返回（`digestSource`），让调用方和用户都能分辨：
+ *   - `'ok'`          官方摘要（API `digest` 或发布页校验文件，运行时**真正取到**的）
+ *   - `'pinned'`      只有内置 TOFU 摘要（硬编码 pin）且匹配
+ *   - `'unavailable'` 三样都没有 ⇒ 必然 `digestSource: null`
+ *
+ * 优先级：API digest > 发布校验文件 > 内置 pin。前两者是"能追到上游"的官方摘要，
+ * 内置 pin 追不到本次上游，所以排在最后且只算 `'pinned'`。
+ *
+ * @param input.digest     API 资产 `digest` 原值（`sha256:<hex>` 或 null）
+ * @param input.checksumFile 发布页校验文件 `{url, name}`（来自 {@link pickChecksumAsset}）
+ * @param input.builtin   内置 pin `{hex, source?}`（`source` 仅用于说明这个值当初怎么来的）
+ * @returns `{verified, digestSource, reason}`；`reason` 是给人和日志看的一句话
+ */
+export function decideVerification({ digest = null, checksumFile = null, builtin = null } = {}) {
+  const gh = parseGithubDigest(digest);
+  if (gh) {
+    return {
+      verified: 'ok',
+      digestSource: 'github-api',
+      reason: `GitHub API 资产 digest（sha256:${gh.hex.slice(0, 12)}…）`,
+    };
+  }
+  const csName = typeof checksumFile?.name === 'string' ? checksumFile.name : '';
+  const csUrl = typeof checksumFile?.url === 'string' ? checksumFile.url : '';
+  if (csUrl) {
+    return {
+      verified: 'ok',
+      digestSource: 'release-file',
+      reason: `发布页校验文件 ${csName || csUrl}（sha256）`,
+    };
+  }
+  const pin = normalizeSha256(builtin);
+  if (pin) {
+    // pinSource 只描述"当初这个值是怎么核对的"，**不改变**它此刻是 pins 的事实：
+    // 运行时没有再向上游取一次，所以不能算 'ok'。
+    const provenance =
+      builtin?.source === 'github-api-digest'
+        ? 'TOFU pin；钉住时与官方 API digest 逐字相等'
+        : builtin?.source === 'release-sha256-file'
+          ? 'TOFU pin；钉住时与官方 .sha256 文件逐字相等'
+          : 'TOFU pin；上游未发布摘要，仅本机实测计算';
+    return {
+      verified: 'pinned',
+      digestSource: 'builtin',
+      reason: `内置摘要 ${pin.slice(0, 12)}…（${provenance}）`,
+    };
+  }
+  return {
+    verified: 'unavailable',
+    digestSource: null,
+    reason: '上游没有提供任何可用摘要（API 无 digest、发布页无校验文件、内置表无 pin）',
+  };
+}
+
+/**
+ * 把"一个已解析资产"交给状态机（纯函数，导出便于离线锁住"内置 pin 只对兜底资产生效"）。
+ *
+ * 为什么限定 `fallback === true` 才采用 `builtin`：内置摘要对应的是**硬编码 URL 的那一个版本**。
+ * 若 API 路径解析出的是"最新版"，它的字节和 pin 本来就不一样，套用 pin 只会得到恒 mismatch。
+ * @returns 与 {@link decideVerification} 同形
+ */
+export function verificationPlanOfAsset(asset) {
+  const checksumUrl = typeof asset?.checksumUrl === 'string' ? asset.checksumUrl : '';
+  return decideVerification({
+    digest: asset?.digest ?? null,
+    checksumFile: checksumUrl ? { url: checksumUrl, name: String(asset?.checksumName ?? '') } : null,
+    builtin: asset?.fallback === true ? (asset?.builtin ?? null) : null,
+  });
+}
+
 /** 从 GitHub API 解析一个仓库的可下载资产（异步主实现）。 */
 export async function resolveAssetAsync(repo, { arch = null, proxy = null, signal = null } = {}) {
   const targetArch = arch || (await archOf({ signal }));
@@ -327,12 +683,22 @@ export async function resolveAssetAsync(repo, { arch = null, proxy = null, signa
   if (ranked.length === 0) return { ok: false, error: `没有匹配 linux/${targetArch} 的资产（共 ${assets.length} 个）` };
   const chosen = ranked[0].a;
   const name = String(chosen.name);
+  // 供应链校验接线（2026-10-27 缺陷修复）：旧实现从这里直接 return，**从不**填 checksumUrl /
+  // checksumName，于是 installToolById 里 `if (asset.checksumUrl)` 恒假、verified 恒 'unavailable'。
+  // 现在把两种官方来源都解析出来（优先 API digest，其次同批发布里的校验文件）。
+  // 注意 `digest` 原样保留（诊断用），是否压制校验文件由"能否解析成 sha256"决定：
+  // 上游若给的是 sha512 之类本模块不支持的算法，仍应继续找 `*.sha256` 校验文件，别白丢一个可用来源。
+  const digest = typeof chosen.digest === 'string' ? chosen.digest : null;
+  const checksumAsset = parseGithubDigest(digest) ? null : pickChecksumAsset(assets, name);
   return {
     ok: true,
     name,
     url: chosen.browser_download_url,
     tag: json.tag_name ?? null,
-    kind: name.endsWith('.zip') ? 'zip' : name.endsWith('.tar.gz') || name.endsWith('.tgz') ? 'tar.gz' : 'gz',
+    kind: kindOfAssetName(name),
+    digest,
+    checksumUrl: checksumAsset?.url ?? null,
+    checksumName: checksumAsset?.name ?? null,
   };
 }
 
@@ -350,7 +716,21 @@ export async function resolveAssetForAsync(id, { proxy = null, signal = null } =
   const fb = arch === 'x86_64' ? FALLBACK_X86_64[id] : null;
   if (fb) {
     const name = fb.url.split('/').pop();
-    return { ok: true, name, url: fb.url, tag: fb.tag, kind: fb.kind, fallback: true, apiError: api.error };
+    // 兜底资产是硬编码 URL ⇒ 拿不到 API digest，只能靠表里的 TOFU pin（见 FALLBACK_X86_64 注释）。
+    // 没有 pin（未来新增工具忘填）时显式给 null，由状态机如实判 'unavailable'，不猜。
+    return {
+      ok: true,
+      name,
+      url: fb.url,
+      tag: fb.tag,
+      kind: fb.kind,
+      fallback: true,
+      apiError: api.error,
+      digest: null,
+      checksumUrl: null,
+      checksumName: null,
+      builtin: fb.sha256 ? { hex: fb.sha256, source: fb.pinSource ?? null } : null,
+    };
   }
   return { ...api, fallback: false };
 }
@@ -404,12 +784,19 @@ export function resolveAsset(repo, { arch = archOfSync(), proxy = null } = {}) {
   if (ranked.length === 0) return { ok: false, error: `没有匹配 linux/${arch} 的资产（共 ${assets.length} 个）` };
   const chosen = ranked[0].a;
   const name = String(chosen.name);
+  // 与异步版保持一致（daemon 的 `provision{resolveOnly:true}` 诊断分支会展示这两个字段，
+  // 看不到来源就没法判断"这台机器上的安装会不会被校验"）。
+  const digest = typeof chosen.digest === 'string' ? chosen.digest : null;
+  const checksumAsset = parseGithubDigest(digest) ? null : pickChecksumAsset(assets, name);
   return {
     ok: true,
     name,
     url: chosen.browser_download_url,
     tag: json.tag_name ?? null,
-    kind: name.endsWith('.zip') ? 'zip' : name.endsWith('.tar.gz') || name.endsWith('.tgz') ? 'tar.gz' : 'gz',
+    kind: kindOfAssetName(name),
+    digest,
+    checksumUrl: checksumAsset?.url ?? null,
+    checksumName: checksumAsset?.name ?? null,
   };
 }
 
@@ -423,7 +810,20 @@ export function resolveAssetFor(id, { proxy = null } = {}) {
   const fb = arch === 'x86_64' ? FALLBACK_X86_64[id] : null;
   if (fb) {
     const name = fb.url.split('/').pop();
-    return { ok: true, name, url: fb.url, tag: fb.tag, kind: fb.kind, fallback: true, apiError: api.error };
+    // 同异步版的兜底分支：带出 TOFU pin，否则诊断分支会以为"这个兜底没摘要可校验"。
+    return {
+      ok: true,
+      name,
+      url: fb.url,
+      tag: fb.tag,
+      kind: fb.kind,
+      fallback: true,
+      apiError: api.error,
+      digest: null,
+      checksumUrl: null,
+      checksumName: null,
+      builtin: fb.sha256 ? { hex: fb.sha256, source: fb.pinSource ?? null } : null,
+    };
   }
   return { ...api, fallback: false };
 }
@@ -439,7 +839,20 @@ const resultCache = new Map();
 
 function recordKnown(id, entry) {
   if (!entry?.path) return;
-  known.set(id, { path: entry.path, source: entry.source ?? 'unknown', version: entry.version ?? null, at: Date.now() });
+  // verified / digestSource 必须一起留下来：它们是"这个二进制到底校验过没有"的唯一凭据，
+  // 只放安装返回值里会随调用结束丢掉（verificationSummary/toolPaths 之后就说不清了）。
+  // PATH/已装目录命中（locateTool）本身不做校验，不能把已验证的结论覆盖成 null；但**路径变了**
+  // 就是另一个文件了，旧结论不再成立 —— 只在"同一条路径"上沿用上一次的结论。
+  const prev = known.get(id);
+  const sameFile = prev && prev.path === entry.path;
+  known.set(id, {
+    path: entry.path,
+    source: entry.source ?? 'unknown',
+    version: entry.version ?? null,
+    verified: entry.verified ?? (sameFile ? (prev.verified ?? null) : null),
+    digestSource: entry.digestSource ?? (sameFile ? (prev.digestSource ?? null) : null),
+    at: Date.now(),
+  });
 }
 
 function recordKnownFromResult(result) {
@@ -505,7 +918,14 @@ function startInstall(id, { installDir, proxy = null, signal = null } = {}) {
 /**
  * 装一个工具到 installDir（默认 `~/.local/bin`）。
  * 下载/解析/解压全异步；同一 (id, dir) 的并发调用共享一个 Promise（不会重复下载）。
- * @returns `{ok, path, version, asset, fallback?, error?}`
+ *
+ * 返回值里的供应链字段（**必须区分开，不许把没校验说成已验证**）：
+ *   · `verified`: `'ok'`（官方摘要匹配）| `'pinned'`（仅内置 TOFU pin 匹配）
+ *               | `'unavailable'`（没有任何可用摘要 ⇒ 本次下载没被校验）| `'mismatch'`（拒绝安装）
+ *               | `null`（安装目录里已有二进制，本次压根没下载）
+ *   · `digestSource`: `'github-api' | 'release-file' | 'builtin' | null`（与实际比对过的那个摘要同源）
+ *   · `verifyNote`: 给用户看的一句话说明（'unavailable'/'pinned' 时非空，'ok' 时为 null）
+ * @returns `{ok, path, version, asset, fallback?, verified, digestSource, verifyNote?, error?}`
  */
 export async function installToolById(id, { installDir, proxy = null, signal = null } = {}) {
   const spec = TOOLS.find((t) => t.id === id);
@@ -514,7 +934,9 @@ export async function installToolById(id, { installDir, proxy = null, signal = n
   const existing = spec.bins.map((b) => path.join(dir, b)).find((p) => execOk(p));
   if (existing) {
     recordKnown(id, { path: existing, source: 'installed-dir' });
-    return { ok: true, path: existing, asset: 'cached', source: 'installed-dir' };
+    // 已经躺在安装目录里的二进制：本次没有下载、也就没有校验，`verified` 必须是 null 而不是任何
+    // "看起来验过"的值（同一文件的既往结论由 recordKnown 按同路径沿用）。
+    return { ok: true, path: existing, asset: 'cached', source: 'installed-dir', verified: null, digestSource: null };
   }
   const key = `${id}|${dir}`;
   const running = installInFlight.get(key);
@@ -537,17 +959,40 @@ export async function installToolById(id, { installDir, proxy = null, signal = n
         failures.set(id, { error, at: Date.now() });
         return { ok: false, error, fallback: !!asset.fallback };
       }
-      // 换角度评审第 2 条：有校验文件就**必须**匹配（不匹配直接放弃安装）；没有就标 unverified，
-      // 绝不把"没校验"伪装成"已验证"。
+      // 供应链校验（2026-10-27 缺陷修复）：这里过去是 `if (asset.checksumUrl)` + `verified='ok'`，
+      // 但 checksumUrl 从来没有赋值处 ⇒ 恒假 ⇒ 每个自动下载并执行的二进制从未被校验，而且
+      // 提交信息/文档还声称"已实现校验"（伪成功）。现在：
+      //   · verificationPlanOfAsset 给出**来源优先级**（官方 digest > 发布校验文件 > 内置 TOFU pin）；
+      //   · 每个来源都真的去取摘要并比对；取不到摘要（下载/解析失败）**不算通过**——降级为
+      //     'unavailable' 并写进返回值和 note，绝不静默当成已验证；
+      //   · 摘要不匹配 ⇒ 拒绝安装（保持原有安全语义）。
+      const plan = verificationPlanOfAsset(asset);
       let verified = 'unavailable';
-      if (asset.checksumUrl) {
+      let digestSource = null;
+      let verifyNote = null;
+      if (plan.verified === 'unavailable') {
+        verifyNote = `未校验 ${id}：${plan.reason}`;
+      } else {
         const cs = await verifySha256(file, asset, proxyUrl, signal);
         if (!cs.ok) {
-          const error = `校验 ${asset.name} 失败：${cs.error}`;
-          failures.set(id, { error, at: Date.now() });
-          return { ok: false, error, fallback: !!asset.fallback, verified: 'mismatch' };
+          if (cs.unavailable === true) {
+            // 有来源但**取不到摘要**（限流/网络/文件里没有该资产的条目）：如实降级，仍然安装，
+            // 但状态必须是 'unavailable' 且 notes 可见 —— 这是"降级但不撒谎"。
+            verified = 'unavailable';
+            verifyNote = `未校验 ${id}：${cs.error}`;
+          } else {
+            const error = `校验 ${asset.name} 失败：${cs.error}`;
+            failures.set(id, { error, at: Date.now() });
+            return { ok: false, error, fallback: !!asset.fallback, verified: 'mismatch', digestSource: plan.digestSource };
+          }
+        } else {
+          verified = plan.verified;
+          digestSource = plan.digestSource;
+          verifyNote =
+            verified === 'pinned'
+              ? `${id} 使用内置摘要校验通过（TOFU pin，不是官方实时校验）：${plan.reason}`
+              : null;
         }
-        verified = 'ok';
       }
       const extracted = path.join(tmp, 'x');
       const ex = await extract(file, asset.kind, extracted, signal);
@@ -571,6 +1016,8 @@ export async function installToolById(id, { installDir, proxy = null, signal = n
       const entry = { path: target, source: 'installed', version: asset.tag ?? null, verified };
       recordKnown(id, entry);
       failures.delete(id);
+      // 校验结论必须跟着安装结果一起回家（不只在返回值深处）：ensureToolReady 会把它拼进 note。
+      known.set(id, { ...known.get(id), verifyNote, digestSource });
       return {
         ok: true,
         path: target,
@@ -579,8 +1026,10 @@ export async function installToolById(id, { installDir, proxy = null, signal = n
         source: 'installed',
         fallback: !!asset.fallback,
         apiError: asset.apiError,
-        // 'ok' = 发布页摘要匹配；'unavailable' = 上游没提供摘要（已知风险，可见）
+        // 'ok' = 官方摘要匹配；'pinned' = 仅内置 TOFU pin 匹配；'unavailable' = 根本没摘要（已知风险，可见）
         verified,
+        digestSource,
+        verifyNote,
       };
     } catch (e) {
       const error = e?.message ?? String(e);
@@ -610,7 +1059,9 @@ async function download(url, outFile, proxy, signal = null) {
   args.push(url);
   const r = await runAsync('curl', args, { timeoutMs: 320_000, maxBytes: 64 * 1024, signal });
   if (r.error) return { ok: false, error: r.error };
-  return r.code === 0 ? { ok: true } : { ok: false, error: `curl exit ${r.code}: ${(r.stderr || '').slice(0, 200)}` };
+  if (r.code === 0) return { ok: true };
+  // curl 的失败原因几乎总在 stderr 尾部：截断时必须标出来，否则用户看到的是被切断的半句
+  return { ok: false, error: `curl exit ${r.code}: ${withTruncMark(String(r.stderr || '').slice(0, 200), r.truncated?.stderr)}` };
 }
 
 /**
@@ -639,19 +1090,61 @@ export function pickSha256(text, fileName) {
 }
 
 /**
- * 校验下载产物的 sha256（换角度评审第 2 条）。
+ * 比对"期望摘要 vs 实算摘要"（纯函数，**fail-closed**：任何一边不合法都判不匹配）。
+ *
+ * 为什么单独抽出来：`mismatch ⇒ 拒绝安装` 是这条供应链里唯一真正的安全闸门，
+ * 必须能在离线单测里锁死"不相等就绝不通过""摘要格式不对也绝不通过"，
+ * 而不是只能靠联网安装碰运气。旧实现把比对写死在下载流程里，连"有没有真的比过"都看不出来。
+ * @returns `{match:boolean, reason?}`
+ */
+export function judgeSha256(expected, actual) {
+  const e = normalizeSha256(expected);
+  const a = normalizeSha256(actual);
+  if (!e) return { match: false, reason: '期望摘要不是合法 sha256（按不匹配处理，拒绝安装）' };
+  if (!a) return { match: false, reason: '实际摘要不是合法 sha256（按不匹配处理，拒绝安装）' };
+  if (e === a) return { match: true };
+  return { match: false, reason: `期望 ${e.slice(0, 16)}… 实际 ${a.slice(0, 16)}…` };
+}
+
+/**
+ * 取"期望摘要"并校验下载产物的 sha256。期望摘要的来源按 {@link verificationPlanOfAsset} 的优先级：
+ *   · `digestSource === 'github-api'`  ⇒ 直接用 API 的 `digest`（不用联网再取一次）；
+ *   · `digestSource === 'release-file'` ⇒ 下载 `checksumUrl` 再 {@link pickSha256}；
+ *   · `digestSource === 'builtin'`      ⇒ 用内置 TOFU pin。
  *
  * 为什么：插件会在用户机器上**自动下载并执行** GitHub Releases 里的二进制；旧实现把发布页上的
  * `*.sha256` / `SHA256SUMS` 当作噪音过滤掉，安装后只验"可执行位" —— 上游资产被替换或镜像劫持时，
- * 没有任何一层会察觉。这里用发布页自带的摘要做校验：有摘要就必须匹配，没有就如实标 `unavailable`。
+ * 没有任何一层会察觉。这里用摘要做校验；没有摘要就如实标 `unavailable`（调用方与 notes 都可见）。
  *
- * @returns `{ok:true}` 校验通过；`{ok:false, error}` 下载/解析/不匹配（调用方必须放弃安装）
+ * 导出而非私有：`test/supply-chain.test.ts` 用本地 http 服务喂它假的校验文件/资产，
+ * 从而在**完全离线**的情况下锁住 release-file 来源与"不匹配就拒绝"，不依赖 GitHub 是否可达。
+ *
+ * @returns `{ok:true, expected, actual, source}` 校验通过；
+ *          `{ok:false, unavailable:true, error}` **拿不到**摘要（限流/网络/文件里没有目标条目）⇒ 调用方降级为
+ *          `'unavailable'`，不是 mismatch；
+ *          `{ok:false, error}` 摘要**不匹配** ⇒ 调用方必须放弃安装（这才是 mismatch）
  */
-async function verifySha256(file, asset, proxy, signal = null) {
-  const res = await fetchText(asset.checksumUrl, proxy, { signal, timeoutMs: 60_000 });
-  if (!res.ok) return { ok: false, error: `下载校验文件失败：${res.error}` };
-  const expected = pickSha256(res.text, asset.name);
-  if (!expected) return { ok: false, error: `校验文件 ${asset.checksumName ?? ''} 里找不到 ${asset.name} 的摘要` };
+export async function verifySha256(file, asset, proxy, signal = null) {
+  const plan = verificationPlanOfAsset(asset);
+  let expected = null;
+  if (plan.digestSource === 'github-api') {
+    expected = parseGithubDigest(asset.digest)?.hex ?? null;
+    if (!expected) return { ok: false, unavailable: true, error: `API digest 无法解析：${String(asset.digest).slice(0, 40)}` };
+  } else if (plan.digestSource === 'release-file') {
+    const res = await fetchText(asset.checksumUrl, proxy, { signal, timeoutMs: 60_000 });
+    if (!res.ok) return { ok: false, unavailable: true, error: `下载校验文件 ${asset.checksumName ?? asset.checksumUrl} 失败：${res.error}` };
+    expected = pickSha256(res.text, asset.name);
+    if (!expected) {
+      // 拿到了文件但里面没有目标资产的摘要：可能是上游改名/清单格式变了。此时**无法校验**，
+      // 不能当成 mismatch（那是"校验了且不符"），否则会误报上游资产被替换。
+      return { ok: false, unavailable: true, error: `校验文件 ${asset.checksumName ?? ''} 里找不到 ${asset.name} 的摘要` };
+    }
+  } else if (plan.digestSource === 'builtin') {
+    expected = normalizeSha256(asset.builtin);
+    if (!expected) return { ok: false, unavailable: true, error: '内置摘要表里的 pin 不是合法 sha256' };
+  } else {
+    return { ok: false, unavailable: true, error: plan.reason };
+  }
   const actual = await new Promise((resolve, reject) => {
     const hash = createHash('sha256');
     const stream = fs.createReadStream(file);
@@ -659,10 +1152,17 @@ async function verifySha256(file, asset, proxy, signal = null) {
     stream.on('error', reject);
     stream.on('end', () => resolve(hash.digest('hex')));
   });
-  if (String(actual).toLowerCase() !== expected) {
-    return { ok: false, error: `sha256 不匹配：期望 ${expected.slice(0, 16)}… 实际 ${String(actual).slice(0, 16)}…（拒绝安装）` };
+  const got = String(actual).toLowerCase();
+  const verdict = judgeSha256(expected, got);
+  if (!verdict.match) {
+    return {
+      ok: false,
+      error: `sha256 不匹配（来源 ${plan.digestSource}）：${verdict.reason}（拒绝安装）`,
+      expected,
+      actual: got,
+    };
   }
-  return { ok: true, expected };
+  return { ok: true, expected, actual: got, source: plan.digestSource };
 }
 
 function findBinary(root, bins) {
@@ -696,16 +1196,29 @@ async function extract(file, kind, dest, signal = null) {
   fs.mkdirSync(dest, { recursive: true });
   if (kind === 'tar.gz') {
     const r = await runAsync('tar', ['-xzf', file, '-C', dest], { timeoutMs: 120_000, maxBytes: 64 * 1024, signal });
-    return r.code === 0 ? { ok: true } : { ok: false, error: `tar exit ${r.code}: ${r.error ?? r.stderr.trim().slice(0, 200)}` };
+    return r.code === 0
+      ? { ok: true }
+      : { ok: false, error: `tar exit ${r.code}: ${tarDiag(r)}` };
   }
   if (kind === 'zip') {
     if (!(await commandOf('unzip', { signal }))) return { ok: false, error: '发行版里没有 unzip，无法解压 zip 资产' };
     const r = await runAsync('unzip', ['-q', '-o', file, '-d', dest], { timeoutMs: 120_000, maxBytes: 64 * 1024, signal });
-    return r.code === 0 ? { ok: true } : { ok: false, error: `unzip exit ${r.code}: ${r.error ?? r.stderr.trim().slice(0, 200)}` };
+    return r.code === 0
+      ? { ok: true }
+      : { ok: false, error: `unzip exit ${r.code}: ${tarDiag(r)}` };
   }
   const target = path.join(dest, 'payload');
   const r = await runAsync('bash', ['-c', `gzip -dc ${JSON.stringify(file)} > ${JSON.stringify(target)}`], { timeoutMs: 120_000, maxBytes: 64 * 1024, signal });
-  return r.code === 0 ? { ok: true } : { ok: false, error: `gzip exit ${r.code}: ${r.error ?? r.stderr.trim().slice(0, 200)}` };
+  return r.code === 0
+    ? { ok: true }
+    : { ok: false, error: `gzip exit ${r.code}: ${tarDiag(r)}` };
+}
+
+/** 解压类命令的诊断文本：优先 stderr，截断/超时都要标出来（F-32：别让尾部原因静默消失）。 */
+function tarDiag(r) {
+  const body = r.error ?? String(r.stderr ?? '').trim().slice(0, 200);
+  const noted = withTruncMark(body, r.truncated?.stderr);
+  return r.timedOut ? `${noted}（已超时）` : noted;
 }
 
 /** 等一次安装（ensureTools/显式安装用；搜索路径不要用这个，见 {@link ensureSearchToolsNonBlocking}）。 */
@@ -731,8 +1244,17 @@ async function ensureToolReady(id, { installDir, autoInstall = true, ignorePath 
   const installed = await startInstall(id, { installDir: dir, proxy, signal });
   if (installed.ok) {
     return {
-      entry: { path: installed.path, source: 'installed', version: installed.version ?? null },
-      note: `已自动安装 ${id}${installed.version ? `@${installed.version}` : ''} → ${installed.path}`,
+      entry: {
+        path: installed.path,
+        source: 'installed',
+        version: installed.version ?? null,
+        // 供应链结论跟着工具条目走：调用方（daemon → register-tools → 用户）不需要再翻安装返回值。
+        verified: installed.verified ?? null,
+        digestSource: installed.digestSource ?? null,
+      },
+      // 校验结论必须**可见**：旧实现只把 verified 放在安装返回值深处，没人看 ⇒ "没校验"等于隐身。
+      // 'pinned'/'unavailable' 都要在 notes 里说清楚，'ok' 不重复刷屏。
+      note: `已自动安装 ${id}${installed.version ? `@${installed.version}` : ''} → ${installed.path}${installed.verifyNote ? `；${installed.verifyNote}` : ''}`,
     };
   }
   return { entry: { path: null, source: 'failed' }, note: `${id} 自动安装失败（${installed.error}）；手动安装：${MANUAL[id] ?? '见项目文档'}` };
@@ -907,6 +1429,28 @@ export function toolPaths() {
 /** 允许工具清单读取（`wsl_tools` 用）。 */
 export function catalog() {
   return TOOLS.map((t) => ({ id: t.id, repo: t.repo, label: t.label, manual: MANUAL[t.id] ?? null }));
+}
+
+/**
+ * 已安装工具的**校验溯源快照**（只读，不探测）。给诊断/`wsl_tools` 用：
+ * 让"哪些是官方摘要校验过、哪些只是 TOFU pin、哪些根本没摘要"一眼可见，而不是埋在一次安装的返回值里。
+ *
+ * 为什么需要：修这个缺陷（2026-10-27）之前所有条目的 `verified` 都是 'unavailable' 却没人发现，
+ * 因为没有任何地方能一次看到全貌。
+ * @returns `{[id]: {path, verified, digestSource, version}}`（仅含本次进程内已确认的条目）
+ */
+export function verificationSummary() {
+  const out = {};
+  for (const [id, entry] of known.entries()) {
+    if (!entry?.path) continue;
+    out[id] = {
+      path: entry.path,
+      version: entry.version ?? null,
+      verified: entry.verified ?? null, // null = 走 instanceof PATH/已装目录命中的二进制（不是本模块下载的，来源不可考）
+      digestSource: entry.digestSource ?? null,
+    };
+  }
+  return out;
 }
 
 /** 清空模块内缓存（测试/诊断用；生产代码不需要）。 */
