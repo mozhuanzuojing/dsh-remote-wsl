@@ -1,7 +1,0 @@
-### D4  F14b：ensure 失败路径 —— `openSession` 与 `daemon` 必须**都是 503**（改前 openSession 是 500）
-诱发方式：distro=debian-u8-1-__no_such_distro__（不存在）⇒ ensureDaemon 必然失败；不占端口、不直接调 wsl.exe
-explorer.daemon{ensure} → HTTP 503 code=E_UNAVAILABLE
-  err=remote-wsl: 远端守护在 Windows 侧不可达：试过端口 8972, 8973, 8974 —— 无法创建 WSL 侧状态目录 /home/g/.dsh/remote-wsl（发行版 "debian-u8-1-__no_such_distro__" 是否在跑？）。这些端口在 Windows 命名空间里可能被别的程序占用（WSL 侧 bind 成功不代表 Windows 侧能连上）。请释放其中一个端口，或把 config.daemonPort 指到别的端口。
-explorer.openSession{path:/home/g} → HTTP 503 code=E_UNAVAILABLE
-  err=remote-wsl: 远端守护在 Windows 侧不可达：试过端口 8972, 8973, 8974 —— 无法创建 WSL 侧状态目录 /home/g/.dsh/remote-wsl（发行版 "debian-u8-1-__no_such_distro__" 是否在跑？）。这些端口在 Windows 命名空间里可能被别的程序占用（WSL 侧 bind 成功不代表 Windows 侧能连上）。请释放其中一个端口，或把 config.daemonPort 指到别的端口。
-verdict=PASS —— F14b 已修（两条路径一致 503/E_UNAVAILABLE，且失败原因确为 ensure 失败而非"无法确定版本"）

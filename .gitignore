@@ -10,3 +10,12 @@ node_modules/
 *.orig
 .DS_Store
 Thumbs.db
+
+# 一次性验证产物（2026-10-27：spike/ 已出库；历史产物留在本地但不入库）
+# 理由：spike 目录含 daemon pid/log/token 之类运行期文件，且占仓库 90% 体积；
+# 验证结论已沉淀为 test/ 下的可重跑用例，不再把一次性输出当资产。
+spike/
+*.pid
+*.token
+*.log
+*.err

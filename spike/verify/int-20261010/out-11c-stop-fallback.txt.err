@@ -1,3 +1,0 @@
-[probe] entry=D:/project/dsh1/vendor/dsh-remote-wsl/src/index.ts exists=true
-remote-wsl: daemon shutdown on slot 8757 (port 8757): ok=true 
-remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）

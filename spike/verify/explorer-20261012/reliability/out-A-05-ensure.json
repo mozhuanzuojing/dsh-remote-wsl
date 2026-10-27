@@ -1,1 +1,0 @@
-{"ok":true,"result":{"action":"ensure","ok":true,"idempotent":true,"slot":8972,"port":8972,"pid":918242,"version":"0.2.0-rc.2","reused":false,"started":true,"notes":["另有守护在槽位 8982（端口 8982）—— 不属于本次配置（daemonPort=8972），未复用、未打扰","槽位 8972 由 Windows 侧握手确认就绪（实际端口 8972，3ms）"]}}

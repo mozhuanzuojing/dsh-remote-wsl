@@ -1,5 +1,0 @@
-[probe3 pid=15368] mode=script port=8844
---- stdout ---
-MINE_LEFT=0
---- stderr ---
-

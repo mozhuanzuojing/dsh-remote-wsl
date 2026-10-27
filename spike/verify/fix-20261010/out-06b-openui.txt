@@ -1,5 +1,0 @@
-[probe2 pid=46260] mode=tool-openui port=8868 dshVersion=(desktop)
-########## wsl_open_ui ##########
-http://127.0.0.1:3082/?token=<masked>
-(opened: not-opened)
-stopped web host on port 3082

@@ -1,3 +1,0 @@
-[probe2 pid=28780] mode=iso-linger port=8863 dshVersion=(desktop)
-# linger 起守护 pid=331028 lingerMs=9000 idleMs=1800000（无 key、无客户端）
-# 结果: gone=true elapsed=9308ms（期望 ≈9000ms）procs=[] slots=[]

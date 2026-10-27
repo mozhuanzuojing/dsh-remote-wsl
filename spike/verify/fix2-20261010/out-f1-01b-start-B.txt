@@ -1,6 +1,0 @@
-[probe3 pid=4256] mode=tool-start port=8842
-########## wsl_daemon action=start ##########
-daemon start: ok port=8842 pid=406202 version=0.2.0-rc.2 reused=false
-machine: slot=8842 pid=406202 port=8842 version=0.2.0-rc.2 reused=false
-notes: 另有守护在槽位 8841（端口 8841）—— 不属于本次配置（daemonPort=8842），未复用、未打扰 | 槽位 8842 由 Windows 侧握手确认就绪（实际端口 8842，4ms）
-元数据 (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（slot=8842）

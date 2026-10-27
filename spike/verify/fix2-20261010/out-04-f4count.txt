@@ -1,5 +1,0 @@
-  BEFORE: daemon state dir (WSL): /home/g/.dsh/remote-wsl（元数据**按槽位**：daemon.<slot>.json / daemon.<slot>.token，0600；日志 daemon.log；本插件不把守护的东西落 /tmp） | pid files in WSL /tmp: 0（>0 表示可能有 in-host 孤儿运行时；首次有副作用的调用会清）
-  造 6 个（属主 winpid 999999 已死）: made6
-  AFTER+6: daemon state dir (WSL): /home/g/.dsh/remote-wsl（元数据**按槽位**：daemon.<slot>.json / daemon.<slot>.token，0600；日志 daemon.log；本插件不把守护的东西落 /tmp） | pid files in WSL /tmp: 3（>0 表示可能有 in-host 孤儿运行时；首次有副作用的调用会清）
-  POST-SWEEP: daemon state dir (WSL): /home/g/.dsh/remote-wsl（元数据**按槽位**：daemon.<slot>.json / daemon.<slot>.token，0600；日志 daemon.log；本插件不把守护的东西落 /tmp） | pid files in WSL /tmp: 0（>0 表示可能有 in-host 孤儿运行时；首次有副作用的调用会清）
-  MINE_LEFT=0

@@ -1,4 +1,0 @@
-[one-runtime] host proxy 172.30.176.1:9910 unreachable -> direct
-[one-runtime] spawning runtime key=verify-one dsh@0.2.0-rc.2 cwd=/home/g
-[one-runtime] runtime ready key=verify-one pid=156240 session=verify-alive-5544e4ea2d73
-[one-runtime] holding 180000ms so the runtime stays alive while the other process tries

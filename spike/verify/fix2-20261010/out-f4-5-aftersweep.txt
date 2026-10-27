@@ -1,5 +1,0 @@
-[probe3 pid=44356] mode=script port=8844
---- stdout ---
-after_sweep=0
---- stderr ---
-

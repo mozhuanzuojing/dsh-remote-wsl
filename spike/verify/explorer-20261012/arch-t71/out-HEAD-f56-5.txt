@@ -1,5 +1,0 @@
-== mode=f56-5 root=D:/project/dsh1/vendor/dsh-remote-wsl tag=repo ==
-F56 f56-5: start 中（真 dsh，孤立 home=/home/g/t71-home）…
-F56 f56-5: start OK 1083ms pid=41512
-F56-5 close() 耗时 = 47ms；frames=2；含 shutdown 痕迹 = true
-F56-5 close() 返回 = undefined exited字段=n/a

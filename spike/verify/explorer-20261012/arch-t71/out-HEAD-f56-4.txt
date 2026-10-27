@@ -1,7 +1,0 @@
-== mode=f56-4 root=D:/project/dsh1/vendor/dsh-remote-wsl tag=repo ==
-F56 f56-4: start 中（真 dsh，孤立 home=/home/g/t71-home）…
-F56 f56-4: start OK 2871ms pid=13592
-F56-4 prompt 后 err="Error: session/prompt timeout after 60000ms"
-F56-4 closed=true alive=false exitCode=null lastTurnError="session/prompt timeout after 60000ms"
-F56-4 状态与实际一致（closed && !alive）= true
-F56-4 close() => undefined

@@ -1,3 +1,0 @@
-/* @tag div */
-/* 夹具 pos1：**真安全** —— 一次声明到位，显式 border-box。渲染高 = 20（声明值）。 */
-.dsh-rw-safe{box-sizing:border-box;height:20px;padding:4px 6px;border-top:1px solid var(--dsw-alias-border-l1)}

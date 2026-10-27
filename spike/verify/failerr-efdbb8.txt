@@ -1,1 +1,0 @@
-[client] connected 127.0.0.1:8733 op=status

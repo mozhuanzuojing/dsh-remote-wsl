@@ -1,11 +1,15 @@
 # dsh bundle layer: mount the dsh-remote-wsl plugin via the package root export.
-# 与 dsh-shadow 同款：profile 里用 `link:` 依赖引用本包，行名用裸包名即可解析；
-# 本包**不声明任何 dsh-* peerDependencies**（跟随宿主树解析），避免宿主升级时被
-# dsh-app-boot 的 peer 版本求值判为不匹配而静默 disabled。
+# profile 里用 `link:` 依赖引用本包，行名用裸包名即可解析。
+#
+# 关于版本兼容（2026-10-27 实测修正）：宿主真正执行的兼容门是 package.json 的 **`engines.dsh`**
+# （不满足 ⇒ 该 bundle 被拒绝加载，痕迹在 `skippedBundles` 与启动日志里，不是"静默禁用"，
+# 且有版本豁免逃生口）。`dsh.compatibility.dshReleases` 与 `peerDependencies` 都不参与这个判定
+# （对宿主 app.asar 全量扫描 `dshReleases` 命中 0 次），所以这里既不声明 peer，也不靠那个矩阵挡版本。
 - insert:
     - id: remote-wsl
       name: 'dsh-remote-wsl'
       config:
+        # 作者机器上的默认值；换成你自己的（README「配置」一节）。
         distro: debian-u8-1
         # 空字符串 = 跟随桌面版本（读 primary-runtime/runtime.json 的 desktopVersion）
         dshVersion: ''

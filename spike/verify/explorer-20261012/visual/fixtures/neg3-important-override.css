@@ -1,7 +1,0 @@
-/* @tag div */
-/* 夹具 neg3：**!important 覆盖**（旧判据的盲区之二）
-   第一条把 box-sizing 定成 content-box 且 !important；第二条（后出现的普通声明）写 border-box。
-   层叠规则：!important 胜普通声明，与顺序无关 ⇒ 生效值 = content-box ⇒ 陷阱。
-   旧判据在第二条里看到 border-box ⇒ 报绿。 */
-.dsh-rw-imp{box-sizing:content-box !important;height:20px;padding:4px;border-top:1px solid var(--dsw-alias-border-l1)}
-.dsh-rw-imp{box-sizing:border-box}

@@ -1,2 +1,0 @@
-rev=9c1bfa68055a ① HTTP=200 bytes=55905 V2=True V4=False
-② 再改 chunk 后同 URL: HTTP=200 bytes=55905 V4=False ⇒ host 快照陈旧=True

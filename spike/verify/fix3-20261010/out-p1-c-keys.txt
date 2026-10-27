@@ -1,2 +1,0 @@
-[probe4 pid=32108] mode=dstatus port=8841 backend=daemon
-# daemonStatus.keys = [{"key":"p1","cwd":"/tmp","session":"remote-wsl-p1-e28e3386-fd51-4048-9595-f9d042754323","turns":2,"runtimePid":442810},{"key":"p1","cwd":"/home/g","session":"remote-wsl-p1-5cb5db4c-b5ac-4666-8303-26c5c77303ff","turns":2,"runtimePid":442885}]

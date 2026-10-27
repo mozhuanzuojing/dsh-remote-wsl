@@ -1,3 +1,0 @@
-== mode=f56-2 root=C:/Users/l/AppData/Local/Temp/t71-pre-f56-1-4 tag=repo ==
-F56-2 第1次 err="remote-wsl: initialize 超时"
-F56-2 含真因 exit 2 = false；含 exitCode/退出 = false

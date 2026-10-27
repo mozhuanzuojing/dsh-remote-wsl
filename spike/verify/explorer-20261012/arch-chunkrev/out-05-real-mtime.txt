@@ -1,6 +1,0 @@
-client-rev 门禁：PASS（模式=mtime）
-  插件根   : D:\project\dsh1\vendor\dsh-remote-wsl
-  入口     : client/index.js（来自 exports["./client"]）
-  当前 rev : 07cf221a6f42   [mtime=2026-10-13T06:32:37.108Z ctime=2026-10-13T06:32:37.117Z size=25609]
-  chunks   : 4 个  client.api.js(c3600ee5) client.i18n.js(cba40e69) client.icon.js(e9a824f5) client.panel.js(7719876a)
-  依据     : 入口 mtime 晚于所有 chunk（client.i18n.js）⇒ 入口在最后一次 chunk 改动之后被 bump 过

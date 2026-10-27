@@ -1,8 +1,0 @@
-[probe2 pid=38652] mode=iso-reclaim port=8864 dshVersion=(desktop)
-# 孤儿守护 pid=333955（元数据即将删除）
-# 删元数据后 procs = [{"pid":333955,"port":8864,"metaPort":8864}]
-# ensureDaemon = {"ok":true,"slot":8864,"port":8864,"pid":334384,"reused":false}
-#   note: 槽位 8864 上发现**无元数据/失联**的本插件守护 pid=333955 ⇒ 先收掉再起（不留孤儿）
-#   note: 槽位 8864 由 Windows 侧握手确认就绪（实际端口 8864，4ms）
-# procs after = [{"pid":334384,"port":8864,"metaPort":8864}]
-# 判据: port==slot=true orphanGone=true exactlyOne=true

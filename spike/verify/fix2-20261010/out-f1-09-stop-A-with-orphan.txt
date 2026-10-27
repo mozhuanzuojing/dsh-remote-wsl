@@ -1,6 +1,0 @@
-[probe3 pid=45848] mode=tool-stop port=8841
-########## wsl_daemon action=stop ##########
-daemon stopped（transport=shutdown）; reaped 0 runtime(s): (none)
-machine: slot=8841 pid=405630 port=8841 version=0.2.0-rc.2 reaped=0 orphans_left=1
-Orphans: ⚠️ 仍有 1 个守护在跑但无元数据（pid406800@8843）—— 用 action=stop all=true
-⚠️ 会话上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。

@@ -1,2 +1,0 @@
-remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）
-remote-wsl(explorer): explorer http route unavailable: duplicate (kind,path): exact /remote-wsl/api（面板数据面降级；6 个 agent 工具不受影响）

@@ -1,9 +1,0 @@
-PASS  A1 菜单组数量 ≥2  —— menuGroupCount=3（width=320，entered=true）
-PASS  A2 每组都是 aria-labelledby + 可见标题，且无 aria-label  —— 3 组全过
-PASS  A3 三组标注签名一致  —— group/noLabel/labelledby/targetOk/targetVisible
-PASS  A4 组标题不可聚焦  —— tabIndex 全为 -1 且 focus() 均未取得焦点（3 个）
-PASS  A5 作用域外 role=group 可区分（豁免有判据）  —— dsh-rw-toolbar[role=group,aria-label="快捷目录",text="Home / /mnt"] → 非菜单组，不计入 A2/A3
-PASS  A6 菜单不遮底栏状态词/底栏  —— overlapsStatusWord=false overlapsFooter=false footerH=47
-PASS  A6b footerH=47（T42/R1 未回退）
-
-check-n4-menugroups: 7/7 PASS  （读数 D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\client-panel\n4-readings-320.json）

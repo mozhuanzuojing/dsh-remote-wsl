@@ -1,9 +1,0 @@
-[probe3 pid=47084] mode=tool-status port=8841
-########## wsl_daemon action=status ##########
-daemon: pid=405630 actualPort=8841 slot=8841 version=0.2.0-rc.2 cwd=/home/g profile=sdk
-machine: slot=8841 pid=405630 port=8841 version=0.2.0-rc.2 keys=0 orphans=1
-uptime=6s idleMs=1800000 lingerMs=600000 queueLimit=4
-keys (0): (none)
-Orphans: ⚠️ 1 个守护在跑但无元数据（pid406800@8843）—— 用 wsl_daemon action=stop all=true 回收
-ready 判据: 本次调用由 Windows 侧 hello+token 握手核实（4ms），不是守护自己的 listening 日志
-state (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（0600）、daemon.<slot>.token（0600），slot=8841

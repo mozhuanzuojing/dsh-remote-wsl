@@ -1,3 +1,0 @@
-记录时间：2026-10-14 15:48:04
-用户正在用的宿主：127.0.0.1:19387 pid=33688（**本验证绝不停/重启它**）
-DSH_HOME=C:\Users\l\AppData\Local\Temp\boot-testhost-home ｜ 测试 profile=remote-wsl-test-web ｜ 测试端口=8915 ｜ 守护槽位=8916

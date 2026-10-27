@@ -1,8 +1,0 @@
-[probe4 pid=21680] mode=inhost-cwd port=8842 backend=in-host
-########## in-host wsl_agent（cwd=/tmp）##########
-ACK
-
-[remote-wsl: backend=in-host session=remote-wsl-inhost-cwd-60e13b4b-8d90-49b3-a9e8-08e91f6cae33 cwd=/tmp completedBy=turn/end turns=1 dsh@0.2.0-rc.2]
-# 新增 profile sdk pid = [444261,444295]
-# pid=444261 /proc/444261/cwd=/tmp
-# pid=444295 /proc/444295/cwd=/tmp

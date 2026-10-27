@@ -1,4 +1,0 @@
-# 守护已由 systemd 托管（unit=dsh-rwsl-8912.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦
-LAUNCHED mode=fresh ok=true pid=1100385 port=8912 reused=false me=3828
-WRAPPER 
-KEEPALIVE-DONE

@@ -1,3 +1,0 @@
-# 守护已由 systemd 托管（unit=dsh-rwsl-8912.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦
-RESULT {"ok":true,"slot":8912,"port":8912,"pid":1097461,"version":"0.2.0-rc.2","reused":false,"started":true,"alreadyStopped":false,"error":null,"notes":["启动方式: systemd-run --user（unit dsh-rwsl-8912.service；包装层短命 ⇒ 无窗口，且与 Windows 侧生死解耦）","槽位 8912 由 Windows 侧握手确认就绪（实际端口 8912，5ms）"],"ms":973}
-STATE ["launch-stderr.log","daemon.log","daemon.8912.json","daemon.8912.token"]

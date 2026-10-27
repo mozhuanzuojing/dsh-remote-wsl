@@ -1,4 +1,0 @@
-# daemon shutdown on slot 8912 (port 8912): ok=true 
-LAUNCHED mode=stop ok=true pid=- port=8912 reused=false me=20908
-WRAPPER 
-KEEPALIVE-DONE

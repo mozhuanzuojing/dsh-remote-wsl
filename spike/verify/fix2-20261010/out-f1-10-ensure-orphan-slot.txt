@@ -1,4 +1,0 @@
-[probe3 pid=9252] mode=ensure-json port=8843
-# ensureDaemon = {"ok":true,"slot":8843,"port":8843,"pid":408033,"reused":false}
-#   note: 槽位 8843 上发现**无元数据/失联**的本插件守护 pid=406800 ⇒ 先收掉再起（不留孤儿）
-#   note: 槽位 8843 由 Windows 侧握手确认就绪（实际端口 8843，3ms）

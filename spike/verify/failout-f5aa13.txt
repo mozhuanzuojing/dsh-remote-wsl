@@ -1,1 +1,0 @@
-{"id":1,"ok":true,"daemonPid":137833,"daemonStartedAt":1791617810530,"uptimeMs":4139,"port":8734,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":600000,"keys":[{"key":"k1","sessionId":"remote-wsl-k1-f786600b-04e4-46c0-a1f0-a2d245d56a2b","turns":2,"runtimePid":137862,"startedAt":1791617811902,"idleForMs":64}]}

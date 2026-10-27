@@ -1,7 +1,0 @@
-baseline_profile_sdk_pids=[]
-baseline_daemon_ts_pids=[]
-baseline_cmdlines:
-baseline_profile_cmdlines:
-baseline_listeners_87xx=[]
-baseline_tmp_dsh_rwsl=0
-baseline_state_dir=[daemon.log,]

@@ -1,7 +1,0 @@
-== mode=f56-3 root=C:/Users/l/AppData/Local/Temp/t71-pre-f56-1-4 tag=repo ==
-F56-2 第1次 err="remote-wsl: initialize 超时"
-F56-2 含真因 exit 2 = false；含 exitCode/退出 = false
-F56-3 第2次（同 key）err=null rt2=object
-F56-3 prompt() 结果="Error: remote-wsl: session/prompt 超时"
-F56-3 出现裸 TypeError(reading 'stdin') = false
-F56-3 明确报错或可用 = true

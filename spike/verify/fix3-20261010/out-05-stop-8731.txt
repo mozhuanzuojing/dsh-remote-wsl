@@ -1,5 +1,0 @@
-[probe4 pid=35972] mode=tool-stop port=8731 backend=daemon
-daemon stopped（transport=shutdown）; reaped 1 runtime(s): rh-1(turn 2)
-machine: slot=8731 pid=447887 port=8731 version=0.2.0-rc.2 reaped=1 orphans_left=1
-Orphans: ⚠️ 仍有 1 个守护在跑但无元数据（pid447887@8731）—— 用 action=stop all=true
-⚠️ 会话上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。

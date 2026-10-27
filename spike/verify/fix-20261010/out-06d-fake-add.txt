@@ -1,6 +1,0 @@
-[probe2 pid=16660] mode=script port=8868 dshVersion=(desktop)
---- stdout ---
-FAKE_ADDED tmp_count=2 list=[dsh-rwsl-999999-task11.pid dsh-rwsl-999999-task11.sh ]
---- stderr ---
-
---- exit=undefined ---

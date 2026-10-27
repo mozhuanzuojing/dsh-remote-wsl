@@ -1,5 +1,0 @@
-[probe2 pid=16024] mode=tool-stop port=8865 dshVersion=(desktop)
-########## wsl_daemon action=stop all=true ##########
-daemon stop --all: slots=1 killedOrphans=1（pid335610@8865）remainingOrphans=0
-machine: daemon=all version=- reaped=0 orphans_killed=1 orphans_left=0
-⚠️ 所有远端会话的上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。

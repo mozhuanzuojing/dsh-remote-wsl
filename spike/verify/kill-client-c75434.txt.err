@@ -1,2 +1,0 @@
-[client] connected 127.0.0.1:8738 op=status
-[client] response received, exiting (daemon+runtime must outlive me)

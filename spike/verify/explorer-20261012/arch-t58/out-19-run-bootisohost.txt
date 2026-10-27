@@ -1,5 +1,0 @@
-[T73] 本脚本自带隔离，DSH_HOME=C:\Users\l\.dsh；sha(前)=69AC2EC049365EF0
-  [iso] DSH_HOME=C:\Users\l\AppData\Local\Temp\t73-iso-home  host cmd pid=40456  log=D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\out-121-t73.log
-  [iso] ready=True token=<REDACTED>
-[T73] 用户全局 workspace.json sha 前后相同 = True
-40456

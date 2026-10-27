@@ -1,3 +1,0 @@
-[p06] DSH_HOME（孤立）=C:\Users\l\AppData\Local\Temp\usab-p06-home
-[p06] wrapper pid=36820
-[p06] ready=True port=8966 owner=34900 liveHost=33688 (before 33688)

@@ -1,4 +1,0 @@
-analyze-growth 自测（强制红 A1）：3/3 PASS
-[PASS] flat: listeners=no-leak(期望 no-leak) timers=structural-zero(期望 structural-zero) overall=NO-LEAK
-[PASS] leak-+1/cycle: listeners=leak(期望 leak) timers=leak(期望 leak) overall=LEAK
-[PASS] sawtooth: listeners=no-leak(期望 no-leak) timers=structural-zero(期望 structural-zero) overall=NO-LEAK

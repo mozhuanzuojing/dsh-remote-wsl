@@ -1,4 +1,0 @@
-/* @tag div */
-/* 夹具 neg1：**真陷阱（最朴素形态）** —— 声明了 height + padding + border，完全没有 box-sizing。
-   渲染高 = 20 + 4×2 + 1 = 29。旧判据也能抓到这条（对照用）。 */
-.dsh-rw-plain{height:20px;padding:4px 6px;border-top:1px solid var(--dsw-alias-border-l1)}

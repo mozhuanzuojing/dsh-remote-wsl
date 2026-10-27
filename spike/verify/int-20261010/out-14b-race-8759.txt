@@ -1,9 +1,0 @@
-[probe pid=36136] mode=daemon port=8759 key=int-key-1 dshVersion=(desktop)
-注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
-
-########## wsl_daemon action=start ##########
-daemon start: ok port=8760 pid=178076 version=0.2.0-rc.2 reused=false
-notes: 槽位 8759 由 Windows 侧握手确认就绪（实际端口 8760，5ms）
-元数据 (WSL): /home/g/.dsh/remote-wsl/daemon.json
-
-[probe pid=36136] cleanup disposers=1

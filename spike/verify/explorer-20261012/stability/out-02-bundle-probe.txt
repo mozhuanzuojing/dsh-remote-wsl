@@ -1,5 +1,0 @@
-2026-10-12 16:34:36  testhost=http://127.0.0.1:8981
-http://127.0.0.1:8981/plugins/dsh-remote-wsl/  ->  404  (响应状态代码未指示成功: 404 (Not Found)。)
-http://127.0.0.1:8981/plugins/dsh-remote-wsl/client.api.js  ->  404  (响应状态代码未指示成功: 404 (Not Found)。)
-http://127.0.0.1:8981/plugins/dsh-remote-wsl/client.panel.js  ->  404  (响应状态代码未指示成功: 404 (Not Found)。)
-http://127.0.0.1:8981/plugins/dsh-remote-wsl/client.icon.js  ->  404  (响应状态代码未指示成功: 404 (Not Found)。)

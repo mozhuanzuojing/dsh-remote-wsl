@@ -1,4 +1,0 @@
-# daemon reuse failed on own slot 8912: 握手失败(closed: connection closed before reply)
-LAUNCHED mode=reuse ok=true pid=1071305 port=8912 reused=false me=42484
-WRAPPER 41952,45756
-KEEPALIVE-DONE

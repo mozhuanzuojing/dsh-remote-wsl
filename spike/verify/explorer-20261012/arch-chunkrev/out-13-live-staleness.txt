@@ -1,4 +1,0 @@
-2026-10-13T14:48:47.4398689+08:00  陈旧演示（副本=C:\Users\l\AppData\Local\Temp\dsrw-chunkrev-live）
-改前：client.panel.js?rev=07cf221a6f42 -> HTTP 200 bytes=55863 含标记CHUNKREV_V2=False
-改 chunk 后：rev=07cf221a6f42（与 rev0 相同=True）URL 相同；同 URL 现在的字节数=55863（改前 55863），含V2标记=False
-bump 后：旧 URL?rev=07cf221a6f42 -> HTTP 404（期望 404：平台拒绝不匹配的 rev）；新 URL?rev=9c1bfa68055a -> HTTP 200 bytes=55905 含V2=True

@@ -1,6 +1,0 @@
-### D3  F15：inject 永不回调 ⇒ 应出现一次性降级日志（接缝 300ms）；正常回调 ⇒ 不得出现
-A(不回调) 700ms 后 stderr=["remote-wsl(explorer): webServer 未就绪 ⇒ explorer.* HTTP 路由未注册（方法表仍可用）\n"]
-  ⇒ 出现"未就绪"降级日志 = true
-B(正常回调) 700ms 后 stderr=["remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin）\n"]
-  ⇒ 出现"未就绪"降级日志 = false（**期望 false**）
-verdict=PASS —— F15 已修（该日志只在永不就绪时出现一次，正常路径不打）

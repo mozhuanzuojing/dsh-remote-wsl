@@ -1,4 +1,0 @@
-# daemon shutdown on slot 8912 (port 8912): ok=false 守护调用失败(refused): connect ECONNREFUSED 127.0.0.1:8912（Windows 侧 3000ms 握手判据）
-LAUNCHED mode=restart ok=true pid=1076655 port=8912 reused=false me=17092
-WRAPPER 34844,27864
-KEEPALIVE-DONE

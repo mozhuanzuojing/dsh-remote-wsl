@@ -1,4 +1,0 @@
-(node:16996) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
-(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
-remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir）
-remote-wsl(explorer): ⚠️ 未能由 systemd 托管守护（找不到 systemd-run（发行版可能未启用 systemd））⇒ 已回退到**兼容启动**：守护仍可脱离客户端存活（约束 b 保住），但在 Win11 + Windows Terminal 下**可能弹出一个可见控制台窗口**（约束 a 不保证）。建议在发行版 /etc/wsl.conf 里打开 `[boot] systemd=true`，执行 `wsl --shutdown` 重启发行版后再用（那样既无窗、又独立）。

@@ -1,5 +1,0 @@
-# daemon reuse failed on own slot 8912: 握手失败(closed: connection closed before reply)
-LAUNCHED mode=reuse ok=true pid=1078596 port=8912 reused=false me=18744
-WRAPPER 43016,16928
-# 守护启动包装层退出 code=4294967295（详见 launch-stderr.log）
-KEEPALIVE-DONE

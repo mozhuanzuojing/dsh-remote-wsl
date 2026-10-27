@@ -1,6 +1,0 @@
-[daemon 2026-10-10T07:35:00.974Z] listening on 127.0.0.1:8732 pid=137390 dsh@0.2.0-rc.2 cwd=/home/g idleMs=600000
-[daemon 2026-10-10T07:35:01.513Z] recv op=status id=1 key=-
-[daemon 2026-10-10T07:35:01.518Z] client disconnected (runtimes kept alive)
-[daemon 2026-10-10T07:35:05.607Z] recv op=shutdown id=1 key=-
-[daemon 2026-10-10T07:35:05.607Z] shutdown requested -> reaping all runtimes
-[daemon 2026-10-10T07:35:05.612Z] client disconnected (runtimes kept alive)

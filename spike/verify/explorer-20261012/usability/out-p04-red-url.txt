@@ -1,2 +1,0 @@
-http://127.0.0.1:8963/?token=<REDACTED>
-（来源：D:\project\dsh1\vendor\dsh-remote-wsl\spike\verify\explorer-20261012\usability\out-p04-red-8963.log）

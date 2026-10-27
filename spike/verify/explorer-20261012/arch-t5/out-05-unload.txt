@@ -1,4 +1,0 @@
-remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
-UNLOAD ensure ok=true mode=systemd pid=1911752
-remote-wsl: 宿主退出；WSL 侧守护保持运行（关客户端 ≠ 会话结束）
-UNLOAD after-dispose: daemonAlive=true pidSame=true (1911752)

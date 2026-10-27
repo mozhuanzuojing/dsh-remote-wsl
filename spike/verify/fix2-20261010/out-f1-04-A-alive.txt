@@ -1,2 +1,0 @@
-[probe3 pid=37620] mode=status-json port=8841
-# daemonStatus = {"ok":true,"slot":8841,"pid":405630,"port":8841,"orphans":[]}

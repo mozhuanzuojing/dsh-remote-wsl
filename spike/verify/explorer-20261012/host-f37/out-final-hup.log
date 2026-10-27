@@ -1,4 +1,0 @@
-# daemon reuse failed on own slot 8912: 连接被拒（守护已死，元数据是陈的）
-LAUNCHED mode=reuse ok=true pid=1072675 port=8912 reused=false me=22260
-WRAPPER 31008,9544
-KEEPALIVE-DONE

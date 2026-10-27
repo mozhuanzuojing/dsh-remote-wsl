@@ -1,2 +1,0 @@
-(node:39240) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
-(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)

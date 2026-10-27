@@ -1,2 +1,0 @@
-!! 锚点不一致 —— 稳定性结论无效（前后读数不可比）：
-  CHANGED  client/client.panel.js  8f5ce575f50f -> 67d785a1e6ba

@@ -1,1 +1,0 @@
-{"ok":true,"result":{"action":"ensure","ok":true,"idempotent":true,"slot":8982,"port":8982,"pid":917590,"version":"0.2.0-rc.2","reused":false,"started":true,"notes":["槽位 8982 由 Windows 侧握手确认就绪（实际端口 8982，5ms）"]}}

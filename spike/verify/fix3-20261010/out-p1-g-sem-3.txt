@@ -1,5 +1,0 @@
-[probe4 pid=32520] mode=agent port=8841 backend=daemon
-########## wsl_agent ##########
-555
-
-[remote-wsl: backend=daemon session=remote-wsl-semk-c4d83fb7-5a0c-4923-9636-efc6a1dbdbc6 cwd=/home/g completedBy=turn/end turns=2 runtimePid=443794 daemon=442431@127.0.0.1:8841 dsh@0.2.0-rc.2]

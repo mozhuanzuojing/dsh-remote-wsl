@@ -1,5 +1,0 @@
-== mode=f56-5 root=C:/Users/l/AppData/Local/Temp/t71-pre-f56-5 tag=repo ==
-F56 f56-5: start 中（真 dsh，孤立 home=/home/g/t71-home）…
-F56 f56-5: start OK 1223ms pid=31640
-F56-5 close() 耗时 = 43ms；frames=1；含 shutdown 痕迹 = true
-F56-5 close() 返回 = undefined exited字段=n/a

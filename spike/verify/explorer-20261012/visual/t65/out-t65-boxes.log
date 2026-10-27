@@ -1,2 +1,0 @@
-boxes: .dsh-rw-btn tag=button box-sizing=border-box 声明 132.297pxx28px → 渲染 132.3x28（padding 20/8 border 2/2）
-       .dsh-rw-chip tag=button box-sizing=border-box 声明 114pxx24px → 渲染 114x24（padding 16/0 border 2/2）

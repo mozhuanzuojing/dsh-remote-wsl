@@ -1,1 +1,0 @@
-gate(G2): dsh.client=True platform=web inject=[] entry=./client/index.js 入口存在=True ⇒ pass=True  ｜ client/ 文件数=4

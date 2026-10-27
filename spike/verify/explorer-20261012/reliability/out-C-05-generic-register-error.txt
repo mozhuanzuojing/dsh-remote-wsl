@@ -1,4 +1,0 @@
-### C5 register 抛普通错误（非 duplicate，例如 EACCES/内部错）
-throw=(none) routes=0
-stderr=["remote-wsl(explorer): explorer http route unavailable: boom: register failed for an unrelated reason（面板数据面降级；6 个 agent 工具不受影响）\n"]
-verdict=PASS（catch 不只挡 duplicate；任何注册失败都降级而不打倒插件）

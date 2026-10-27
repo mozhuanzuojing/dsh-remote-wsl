@@ -1,3 +1,0 @@
-# before 对照组的自动生成副本（git archive HEAD src 导出，仅回归/基准的 --module 用）。
-# 不随产物提交；重建：git archive --format=tar HEAD src | tar -x -C .
-_before/

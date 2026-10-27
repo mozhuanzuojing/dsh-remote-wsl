@@ -1,5 +1,0 @@
-(node:50208) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
-(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
-remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir, explorer.addWorkspace）
-remote-wsl(explorer): workspaceRegistry 服务不可用 ⇒ explorer.addWorkspace 降级（无法登记 DSH 工作区；方法表其余方法不受影响）
-remote-wsl(explorer): workspaceRegistry 服务不可用 ⇒ explorer.addWorkspace 降级（无法登记 DSH 工作区；方法表其余方法不受影响）

@@ -1,6 +1,0 @@
-  src\register-tools.ts: 0 命中
-  src\wsl-io.ts: 0 命中
-  src\in-host-runtime.ts: 0 命中
-  src\index.ts: 0 命中
-
-命中合计 = 0（0 = 无同型风险）

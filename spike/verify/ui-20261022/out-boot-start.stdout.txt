@@ -1,4 +1,0 @@
-[rwui1022] wrapper pid=23768 port=8917
-[rwui1022] ready=True port=8917 owner=47264 url=http://127.0.0.1:8917/?token=<REDACTED>
-[chrome] pid=46992 cdp=9333 up=True data=C:\Users\l\AppData\Local\Temp\rwui-1022-chrome
-������ʵ�� 8917 / CDP 9333

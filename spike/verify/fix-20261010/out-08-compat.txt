@@ -1,6 +1,0 @@
-[probe2 pid=34020] mode=iso-compat port=8875 dshVersion=(desktop)
-# 1st ensure: ok=true port=8875 pid=348937 idleMs=1800000 lingerMs=undefined
-# 2nd ensure(soft idleMs=1923456): ok=true reused=true softMismatch=["idleMs 1800000≠1923456"]
-#   note: 复用自己槽位 8875 的守护：端口 8875，Windows 侧握手 4ms 通过
-#   note: 注意：守护参数与本次配置不同（idleMs 1800000≠1923456）—— 已复用，未静默忽略；要应用新值请 wsl_daemon action=restart
-# 3rd ensure(hard cwd=/tmp): ok=false error=远端守护（槽位 8875 / 端口 8875）与本次配置**结构性不兼容**：cwd /home/g≠/tmp。复用会让会话跑在错误的工作目录/插件集上。请显式执行 wsl_daemon action=restart 以新配置重启，或改用另一个 config.daemonPort。

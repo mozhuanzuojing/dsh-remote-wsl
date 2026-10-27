@@ -1,5 +1,0 @@
-remote-wsl(explorer): webServer 服务不可用 ⇒ explorer.* 的 HTTP 路由未注册（方法表仍可用）
-DSH_HOME(孤立)=C:\Users\l\AppData\Local\Temp\t47-home  port=8915  tool=object
-[②a stop:true（无害态）] OK 113ms :: stopped web host on port 8915
-[②b 真正启动（open:false）] THREW 107ms :: ReferenceError: allowBuildFlags is not defined
-[②c 收尾 stop:true] OK 119ms :: stopped web host on port 8915

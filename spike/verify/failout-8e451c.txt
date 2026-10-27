@@ -1,1 +1,0 @@
-{"id":1,"ok":true,"daemonPid":137833,"daemonStartedAt":1791617810530,"uptimeMs":543,"port":8734,"version":"0.2.0-rc.2","cwd":"/home/g","idleMs":600000,"keys":[]}

@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      # 零依赖：不跑 npm install（本仓没有运行时/构建依赖；link: 安装即可用）
+      - name: 语法门禁（TS 解析 + client JS 语法）
+        run: node --experimental-strip-types scripts/check-syntax.ts
+      - name: 单元/回归测试（Node 内置 test runner，直接跑 .ts）
+        run: node --experimental-strip-types --test test/*.test.ts

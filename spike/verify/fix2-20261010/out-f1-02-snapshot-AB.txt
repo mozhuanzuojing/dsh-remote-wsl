@@ -1,2 +1,0 @@
-[probe3 pid=8680] mode=snapshot port=8841
-# snapshot = {"slots":[8841,8842],"livePids":[405630,406202],"procs":[{"pid":405630,"port":8841,"metaPort":8841},{"pid":406202,"port":8842,"metaPort":8842}],"orphans":[],"liveSlot":null,"livePort":null,"livePid":null}

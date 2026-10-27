@@ -1,9 +1,0 @@
-
-variant      winDeltaAB hostDeltaAB terminalDelta windowAppeared
--------      ---------- ----------- ------------- --------------
-short-listv           0           0             0          False
-long-dash             1           7             5           True
-long-e                1           7             5           True
-long-nohide           0           4             2           True
-detach-inwsl          0           0             0          False
-

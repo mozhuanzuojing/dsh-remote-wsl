@@ -1,4 +1,0 @@
-(node:45548) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
-(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
-dsh: warning: 1 entry did not activate
-remote-wsl (dsh-remote-wsl): failed to import

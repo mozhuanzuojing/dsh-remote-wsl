@@ -1,8 +1,0 @@
-# task-5 可用性评估的 overlay（**不改共享 profile**，只经 dsh --patch 传入）
-# 目的：把场景钉在 /home/g/project/dsh1，把守护槽位钉在 8962（自有，不占他人）
-- id: remote-wsl
-  config:
-    distro: debian-u8-1
-    wslHome: /home/g
-    cwd: /home/g/project/dsh1
-    daemonPort: 8962

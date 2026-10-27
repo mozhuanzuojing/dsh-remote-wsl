@@ -1,3 +1,0 @@
- M docs/client-contract.md
-?? spike/verify/explorer-20261012/arch-chunkrev/
-?? spike/verify/explorer-20261012/tools/

@@ -139,7 +139,13 @@ git clone https://github.com/mozhuanzuojing/dsh-remote-wsl.git D:\tools\dsh-remo
 }
 ```
 
-> 实际使用时应保留你 profile 里已有的 base / web-app 等 bundle，不要只留这三项。`link:` 依赖不会把本包复制进 profile；若 `node_modules` 里还没有同名链接，补一个 junction：
+> 实际使用时应保留你 profile 里已有的 base / web-app 等 bundle，不要只留这三项。
+
+`link:` 依赖需要由 package manager **物化**成 profile 里的 `node_modules` 链接（profile 的 `node_modules/.pnpm/lock.yaml` 会记下这条 link）。所以正确顺序是：
+
+1. 重启 DSH Desktop，让宿主在启动时把 profile 依赖装好；
+2. 确认链接真的建出来了：`Get-Item "$env:USERPROFILE\.dsh\profiles\desktop\node_modules\dsh-remote-wsl"` 应指向你 clone 的目录；
+3. 只有第 2 步仍不存在时，才手工补一个等价的 junction 兜底：
 
 ```powershell
 $repo = 'D:\tools\dsh-remote-wsl'
@@ -149,9 +155,41 @@ if (-not (Test-Path $link)) {
 }
 ```
 
-重启 DSH Desktop，然后新开一个会话，让 agent 调一次 `wsl_status`；能返回发行版 / 版本 / 守护状态就说明插件已加载。左侧栏「插件」下应出现「远程资源管理器」。
+重启后新开会话，让 agent 调一次 `wsl_status`：返回里应有 `plugin: dsh-remote-wsl@<version>`、发行版、版本与守护状态；左侧栏「插件」下应出现「远程资源管理器」。
 
-> 不要用 `dsh --profile desktop --dump-config` 验证：`desktop` profile 由 Electron 应用独占，CLI 会直接拒绝（`profile "desktop" is managed exclusively by the Electron application`）。如果面板没出现：先确认上面的 junction 存在，再重启一次（host 半改动一定要重启，client chunk 才是刷新页面即可），并检查 DSH 启动日志里的插件加载错误。
+**装不上时按这个顺序查**（桌面 GUI 看不到 stderr，插件加载失败不会弹窗）：
+
+- `<profile>/node_modules/dsh-remote-wsl` 是否存在并指向仓库 —— `link:` 没被物化是第一位原因；
+- 宿主启动日志里的 `skippedBundles` / 插件加载错误 —— bundle 行包名写错时插件**根本不会加载**；
+- 再重启一次 DSH（host 半改动必须重启；只有 client chunk 改动可以只刷新页面）；
+- 不要用 `dsh --profile desktop --dump-config` 验证：`desktop` profile 由 Electron 独占，CLI 会直接拒绝（`profile "desktop" is managed exclusively by the Electron application`）。
+
+### 升级 / 回滚 / 卸载
+
+**版本 = 提交**：`git -C D:\tools\dsh-remote-wsl rev-parse --short HEAD`；运行时 `wsl_status` 会打印
+`plugin: dsh-remote-wsl@<package.json 版本>`（自 0.1.1 起）。出问题时先记下这两个值，否则无法定位到改动。
+
+升级：
+
+```powershell
+git -C D:\tools\dsh-remote-wsl pull --ff-only
+# 重启 DSH Desktop（host 半代码在启动时加载；client chunk 只需刷新页面）
+```
+
+回滚到任意提交（`link:` 安装意味着工作树就是运行中的代码）：
+
+```powershell
+git -C D:\tools\dsh-remote-wsl checkout <commit>
+# 重启 DSH Desktop
+```
+
+卸载：
+
+1. 先结束远端会话（可选，避免留下运行中的守护）：`wsl_daemon action=stop all=true`；
+2. 从 profile 的 `package.json` 里删掉 `dsh-remote-wsl` 依赖与 `dsh.profile.bundles` 中的那一行；
+3. 删掉 `node_modules\dsh-remote-wsl` 链接/junction，重启 DSH；
+4. 可选清理 WSL 侧状态目录 `<wslHome>/.dsh/remote-wsl`（元数据/日志）与 `/tmp/dsh-rwsl-*` 残留。
+
 
 ### 配置
 
@@ -244,11 +282,15 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 - **面板最近目录**：浏览器 `localStorage['dsh-remote-wsl.recent']`（按发行版分组，最多 8 条）。
 - **WSL 版本 pin**：`$wslHome/.dsh/.desktop-version-pin`。
 - **凭据**：WSL 的 `~/.dsh/.credentials.yaml`。Windows 的 `%USERPROFILE%\.dsh` 与它是两份独立副本，**不要跨侧复制**。
+- **插件版本**：`wsl_status` 打印 `plugin: dsh-remote-wsl@<version>`；准确版本以提交为准（`git rev-parse --short HEAD`）。
 - `wsl_open_ui` 的 access token 由工具回复返回；不要把它写进仓库或公开日志。
+- **验证产物不入库**（0.1.1 起）：历史上的 `spike/`（探针原始输出、pid/log/token、截图）已从版本库移出，
+  只保留在作者本机；可重跑的回归用例改放在 `test/`（见「开发」）。
 
 ## 兼容性
 
-- **DSH**：在本机 **0.2.1-rc.3** 上实测；`package.json` 声明 `0.2.0-rc.2` / `0.2.1-rc.3` 为 `compatible`。该字段是声明性的，宿主不校验；没实测过的版本不写。
+- **DSH**：在本机 **0.2.1-rc.3** 上实测。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.0-rc.2`；
+  rc 语义按 semver 实算，过期不会导致静默禁用）；`dsh.compatibility.dshReleases` 只是**声明**、宿主不校验。
 - **平台**：Windows + WSL2；macOS / Linux 不适用，WSL1 不支持。
 - **WSL 侧运行时**：Node ≥ 26.10（实测 26.10.0）、pnpm（实测 12.6.0）、mise（实测 2026.9.7）。Windows 侧使用 DSH 自带运行时。
 - **systemd**：推荐启用；不启用时走兼容回退，可能弹出可见控制台窗口。
@@ -264,7 +306,8 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 - **WSL 执行世界只服务配置的一个发行版**；面板可以浏览多个发行版，但文件世界不会跟着切。
 - **`watch` 是 500ms 轮询**，不是 inotify。
 - **自动装工具依赖网络**：从 GitHub Releases 选包，限流时走固定地址兜底；失败会把原因和手动安装命令附在结果里，不静默降级。
-- **版本兼容是声明的**：`dsh.compatibility.dshReleases` 不会让宿主做任何检查。
+- **版本兼容有两条线**：宿主只看 `engines.dsh`（不满足会拒绝加载，并在 `skippedBundles` / 启动日志里留痕）；
+  `dsh.compatibility.dshReleases` 只是给人看的声明，宿主不读。
 
 ## 和同类 WSL 插件怎么选
 
@@ -285,17 +328,32 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `src/fs-provider.ts`、`src/fs-rpc.ts` | WSL 执行世界的 fs provider 与 RPC |
 | `src/preset.ts`、`src/search-tool.ts` | `wsl` preset、WSL 内 `grep` / `glob` 与 `wsl_tools` |
 | `client/` | client 半 chunk（含 i18n 与全部 CSS） |
+| `test/` | 可重跑的回归用例（Node 内置 test runner，直接跑 `.ts`） |
+| `scripts/check-syntax.ts` | 零依赖语法门禁（`src` 用 Node type stripping 解析、`client` 用 `node --check`） |
 | `assets/` | README 配图：banner、宽态 / 深色 / 窄态 / 头部截图 |
 | `docs/` | 契约、设计、评审与先例调研 |
-| `spike/verify/` | 每轮探针、原始输出与报告 |
+| `spike/verify/` | 作者本机的历史探针与原始输出（**0.1.1 起不入库**，别在别处引用） |
 
-常用命令：
+常用命令（Node ≥ 22.6；本机用 DSH 自带 Node 或 WSL 里的 node 均可）：
 
 ```powershell
-# DSH 自带 Node（默认安装位置；自定义安装请改路径）
+# 语法门禁 + 回归测试（零依赖，不需要 npm install）
+node --experimental-strip-types scripts/check-syntax.ts
+node --experimental-strip-types --test test/*.test.ts
+
+# 一次性跑完（等价于上面两条）
+npm run check
+npm test
+
+# 装上 pre-push 钩子（可选：有配置 GitHub 代理时，推送前会探测代理可达性）
+npm run hooks
+```
+
+守护链路自检（status 不会启动守护；未运行时以非 0 退出是正常的）：
+
+```powershell
 $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-runtime\dependencies\node\bin\node.exe"
 
-# 守护链路自检（status 不会启动守护；未运行时以非 0 退出是正常的）
 & $node src/selftest.ts status
 
 # 跨进程重连：每次 prompt 都是新进程，同一个 key 仍复用同一运行时
@@ -304,16 +362,7 @@ $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-r
 & $node src/selftest.ts stop
 ```
 
-探针按需运行，具体用法在每个 `.ts` 文件头部：
-
-```powershell
-& $node spike/verify/fs-wsl-20261023/probe-fs-wsl.ts
-& $node spike/verify/explorer-20261012/tools/check-client-rev.ts
-```
-
-UI 探针需要先按 `spike/verify/ui-20261022/boot.ps1` 的说明起隔离实例（不要碰正在用的 desktop profile），跑完 Stop。
-
-> **改 client 的硬规则**：任何 chunk 变了，都必须同时动一下入口 `client/index.js`（平台按入口文件元数据算 `rev`，只改 chunk 不会换 URL，浏览器在 `immutable` 下会继续吃旧字节）。门禁是 `check-client-rev.ts`。
+> **改 client 的硬规则**：任何 chunk 变了，都必须同时动一下入口 `client/index.js`（平台按入口文件元数据算 `rev`，只改 chunk 不会换 URL，浏览器在 `immutable` 下会继续吃旧字节）。
 
 设计取舍：
 

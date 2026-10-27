@@ -1,4 +1,0 @@
-
-
-PASS = 46   FAIL = 0
-==> PASS

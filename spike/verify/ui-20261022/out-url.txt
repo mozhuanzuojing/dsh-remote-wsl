@@ -1,2 +1,0 @@
-http://127.0.0.1:8917/?token=<REDACTED>
-（打码：真 URL 在 C:\Users\l\AppData\Local\Temp\rwui-1022-live-url.txt；原始日志 C:\Users\l\AppData\Local\Temp\rwui-1022-instance-8917.log；DSH_HOME=C:\Users\l\AppData\Local\Temp\rwui-1022-home）

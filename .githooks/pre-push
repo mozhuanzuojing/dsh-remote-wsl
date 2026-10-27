@@ -1,17 +1,18 @@
 #!/bin/sh
-# pre-push：推送前确认「GitHub 走 geph 本地代理」这条路通；不通就先自愈，仍不通则拦下。
+# pre-push：GitHub 远程推送前，确认**已配置的** git HTTP 代理真的可达。
 #
-# 为什么需要它：本机直连 github.com:443 黑洞（DNS 只给 20.205.243.166，该 IP 的 443 不通），
-# git 的 GitHub 流量统一走 geph 本地 HTTP 代理 127.0.0.1:9910（global git config 里 7 条
-# http.https://<域名>.proxy）。geph 一关，git 会快速失败而不是闷 9 秒 —— 本钩子把这一步
-# 提前并附带自愈。背景与证据见 C:\Users\l\.agents\change-log.md 的 2026-10-12 条。
+# 为什么只检查"已配置的代理"：本机直连 github.com 的 443 不通，git 走 127.0.0.1:9910 的本地
+# 代理（见 `git config --get http.https://github.com.proxy`）。别的机器/CI 上通常**没有**这条配置，
+# 此时直接放行 —— 钩子不能把自己的环境假设强加给别人。
 #
-# 逃生口：SKIP_GEPH_CHECK=1 git push
-# 可移植性：非 GitHub 远程一律不管；helper 或 PowerShell 不存在（别的机器 / CI 上 clone）
-#           只打印一行提示并**放行**，不会把别人的推送卡死。
-# 安装：git config core.hooksPath .githooks（本仓已设）
+# 与历史版本的区别（2026-10-27 修复）：
+#   · 不再依赖 `~/.agents/scripts/geph-github-route.ps1`（那个目录已弃用，且缺失时旧实现 "exit 0"
+#     静默放行，等于门禁形同虚设）；
+#   · 不再声称"本仓已设 core.hooksPath"（要么真设，要么别写）；安装见 README「开发」一节。
+#
+# 逃生口：SKIP_PROXY_CHECK=1 git push
+# 退出码：0 放行；1 拦下（代理已配置但不可达，或探测工具缺失导致无法确认）。
 
-remote_name="$1"
 remote_url="$2"
 
 case "$remote_url" in
@@ -19,48 +20,38 @@ case "$remote_url" in
   *) exit 0 ;;
 esac
 
-if [ "$SKIP_GEPH_CHECK" = "1" ]; then
-  echo "geph-route: SKIP_GEPH_CHECK=1，跳过检查"
+if [ "${SKIP_PROXY_CHECK:-}" = "1" ]; then
+  echo "pre-push: SKIP_PROXY_CHECK=1，跳过代理检查"
   exit 0
 fi
 
-helper="${GEPH_ROUTE_HELPER:-$HOME/.agents/scripts/geph-github-route.ps1}"
-if [ ! -f "$helper" ]; then
-  echo "geph-route: 找不到 helper（$helper），跳过检查"
+proxy="$(git config --get http.https://github.com.proxy 2>/dev/null || true)"
+if [ -z "$proxy" ]; then
+  echo "pre-push: 未配置 http.https://github.com.proxy（非本机代理环境）⇒ 放行"
   exit 0
 fi
 
-runner=""
-if command -v pwsh >/dev/null 2>&1; then
-  runner=pwsh
-elif command -v powershell.exe >/dev/null 2>&1; then
-  runner=powershell.exe
-elif [ -x "/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe" ]; then
-  runner="/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
-fi
-if [ -z "$runner" ]; then
-  echo "geph-route: 找不到 pwsh / powershell，跳过检查"
-  exit 0
+# 从 http://127.0.0.1:9910 里取出 host:port（也接受 socks5://）
+authority="$(printf '%s' "$proxy" | sed -e 's#^[a-zA-Z0-9+.-]*://##' -e 's#/.*$##' -e 's#^.*@##')"
+host="${authority%%:*}"
+port="${authority##*:}"
+if [ -z "$host" ] || [ -z "$port" ] || [ "$host" = "$port" ]; then
+  echo "pre-push: 无法解析代理地址（$proxy）⇒ 拦下：请修正 git 代理配置，或 SKIP_PROXY_CHECK=1 git push"
+  exit 1
 fi
 
-echo "geph-route: 检查 GitHub 代理路由（$remote_name → $remote_url）"
-"$runner" -NoProfile -File "$helper" >/dev/null 2>&1
-if [ $? -eq 0 ]; then
-  echo "geph-route: OK（github.com 经 127.0.0.1:9910 可达）"
-  exit 0
+if ! command -v bash >/dev/null 2>&1; then
+  echo "pre-push: 找不到 bash，无法探测代理（$proxy）⇒ 拦下：SKIP_PROXY_CHECK=1 git push 可绕过"
+  exit 1
 fi
 
-echo "geph-route: 路由不可用，尝试自愈（-Repair）…"
-"$runner" -NoProfile -File "$helper" -Repair
-rc=$?
-if [ $rc -eq 0 ] || [ $rc -eq 10 ]; then
-  echo "geph-route: 自愈成功，继续推送"
+if bash -c "exec 3<>/dev/tcp/$host/$port" 2>/dev/null; then
+  echo "pre-push: 代理可达（$host:$port）⇒ 放行"
   exit 0
 fi
 
 echo ""
-echo "geph-route: 拦住这次推送 —— GitHub 代理路由仍不可用。"
-echo "  · 看诊断   : pwsh -NoProfile -File \"$helper\""
-echo "  · 临时绕过 : SKIP_GEPH_CHECK=1 git push"
-echo "  · 服务没起（需管理员）: Start-Service GephManager"
+echo "pre-push: 拦下 —— 代理 $host:$port 不可达（git 已配置它走 GitHub）。"
+echo "  · 起代理后再推；或临时绕过：SKIP_PROXY_CHECK=1 git push"
+echo "  · 查看配置：git config --get http.https://github.com.proxy"
 exit 1

@@ -1,3 +1,0 @@
-INJ-A livehost guard @ 2026-10-12T16:03:42.7691925+08:00 baseline=47564
-2026-10-12T16:03:45.6924076+08:00  [start] 19387 listener pid = 47564  baseline=47564
-2026-10-12T16:03:48.2623412+08:00  [end] 19387 listener pid = 47564  baseline=47564

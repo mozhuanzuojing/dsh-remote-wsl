@@ -1,3 +1,0 @@
-  D:\project\net1\_t47-p0\ctrl-no-allowbuildflags.ts: 0 命中
-
-命中合计 = 0（0 = 无同型风险）

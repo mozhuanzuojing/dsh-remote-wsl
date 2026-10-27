@@ -1,8 +1,0 @@
-[probe pid=26748] mode=daemon port=8755 key=int-key-1 dshVersion=(desktop)
-注册工具: wsl_status, wsl_exec, wsl_agent, wsl_daemon, wsl_open_ui, wsl_sync_version
-
-########## wsl_daemon action=stop ##########
-daemon stopped（transport=shutdown）; reaped 5 runtime(s): rv-int-1(turn 2), unit-test(turn 2), conc-b(turn 1), conc-a(turn 1), idle-test(turn 2)
-⚠️ 会话上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。
-
-[probe pid=26748] cleanup disposers=1

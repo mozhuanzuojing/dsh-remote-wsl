@@ -1,4 +1,0 @@
-(node:10304) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
-(Use `DeepSeek Harness --trace-deprecation ...` to show where the warning was created)
-remote-wsl(explorer): 面板数据面已注册: /remote-wsl/api（方法 explorer.snapshot, explorer.openSession, explorer.daemon, explorer.fixPin, explorer.listDir）
-remote-wsl(explorer): 守护已由 systemd 托管（unit=dsh-rwsl-8932.service）：Windows 侧包装层短命 ⇒ 无窗口；unit 归用户 systemd ⇒ 与 Windows 侧生死解耦

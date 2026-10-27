@@ -1,6 +1,0 @@
-[probe3 pid=6324] mode=tool-restart port=8844
-########## wsl_daemon action=restart ##########
-daemon restart: ok port=8844 pid=410089 version=0.2.0-rc.2 reused=false
-machine: slot=8844 pid=410089 port=8844 version=0.2.0-rc.2 reused=false
-notes: restart: 已停本槽位守护（0 个运行时被回收） | 槽位 8844 由 Windows 侧握手确认就绪（实际端口 8844，3ms）
-元数据 (WSL): /home/g/.dsh/remote-wsl/daemon.<slot>.json（slot=8844）

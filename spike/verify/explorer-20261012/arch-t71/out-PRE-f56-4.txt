@@ -1,7 +1,0 @@
-== mode=f56-4 root=C:/Users/l/AppData/Local/Temp/t71-pre-f56-1-4 tag=repo ==
-F56 f56-4: start 中（真 dsh，孤立 home=/home/g/t71-home）…
-F56 f56-4: start OK 1084ms pid=28868
-F56-4 prompt 后 err="Error: session/prompt timeout after 60000ms"
-F56-4 closed=false alive=false exitCode=null lastTurnError=null
-F56-4 状态与实际一致（closed && !alive）= false
-F56-4 close() => undefined

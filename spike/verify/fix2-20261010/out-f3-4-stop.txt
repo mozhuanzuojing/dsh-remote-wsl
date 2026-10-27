@@ -1,5 +1,0 @@
-[probe3 pid=5428] mode=tool-stop port=8844
-########## wsl_daemon action=stop ##########
-daemon stopped（transport=shutdown）; reaped 0 runtime(s): (none)
-machine: slot=8844 pid=410089 port=8844 version=0.2.0-rc.2 reaped=0 orphans_left=0
-⚠️ 会话上下文随之丢失 —— "显式停止"是会话结束的三种方式之一。

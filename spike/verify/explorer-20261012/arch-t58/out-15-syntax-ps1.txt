@@ -1,7 +1,0 @@
-  [OK  ] boot-testhost.ps1
-  [OK  ] boot-stabhost.ps1
-  [OK  ] inject-a-daemon-kill.ps1
-  [OK  ] p04-boot.ps1
-  [OK  ] usab-run.ps1
-  [OK  ] ux-boot.ps1
-  [OK  ] boot-iso-host.ps1

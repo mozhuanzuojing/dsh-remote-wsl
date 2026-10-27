@@ -1,1 +1,0 @@
-echo '--- is-system-running ---'; systemctl is-system-running 2>/dev/null; echo '--- failed units ---'; systemctl --failed --no-legend 2>/dev/null | head -20; echo '--- remote-wsl units ---'; systemctl list-units --all --no-legend 2>/dev/null | grep -i 'remote-wsl' | head -20; echo '--- done ---'

@@ -1,5 +1,0 @@
-  panel.title | EN="Remote Explorer" | ZH="远程资源管理器"
-  row.open | EN="Open in new session" | ZH="在新会话中打开"
-  browser.hiddenOff | EN="Hidden files: off" | ZH="隐藏文件：不显示"
-  header.noTarget | EN="No target distro configured" | ZH="尚未配置目标发行版"
-  缺键 EN="no.such.key" | 抛错服务="远程资源管理器"

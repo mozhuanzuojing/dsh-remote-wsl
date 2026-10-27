@@ -1,6 +1,0 @@
-/* @tag div */
-/* 夹具 pos2：**安全方向的追加覆盖** —— 先 content-box，后追加 border-box 覆盖掉它。
-   生效值 = border-box ⇒ 渲染高 = 20（声明值）⇒ 必须 PASS。
-   它证明"修好的判据是**按顺序taking 生效值**，而不是反过来一律报红"。 */
-.dsh-rw-late-safe{box-sizing:content-box;height:20px;padding:4px 6px;border-top:1px solid var(--dsw-alias-border-l1)}
-.dsh-rw-late-safe{box-sizing:border-box}
