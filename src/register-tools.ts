@@ -18,6 +18,7 @@ import {
 } from './daemon-client.ts';
 import { withModulePrefix } from './explorer.ts';
 import { presetStatus } from './preset.ts';
+import { targetProblem, configDetection } from './config.ts';
 // T47（P0 修复，**只加这一行 import，逻辑一行未改**）：`WebHost.start()` 的脚本里有
 // `exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@<v> web --port <p>`。
 // 根因链：T1 把 `ALLOW_BUILDS`/`allowBuildFlags` 唯一化到 `src/sdk-runtime.ts`；T5 把「七个工具的注册面」
@@ -275,15 +276,22 @@ export function registerTools(deps) {
         // 时返回空数组，这里如实标成「读不到」而不是"没有发行版"。
         const distros = listDistrosAsync ? await listDistrosAsync() : listDistros();
         const distrosReadFailed = Array.isArray(distros) && distros.length === 0;
+        // 2026-10-28（零配置）：目标现在可能是自动探测的结论。探测失败时先把根因算出来 ——
+        // 后面的 WSL 探测一律跳过（否则会在"空发行版"上白白 spawn 一串 wsl.exe，报出无关错误）。
+        const targetIssue = targetProblem(config);
+        // 读**本份配置自带**的探测结论（不是"最近一次探测"）：热重载/多份配置时不会张冠李戴。
+        const detection = configDetection(config);
         // F-43（2026-10-27 审查）：配置的目标发行版不在列表里时，旧实现只是"调用会失败"，状态输出不标红。
-        const targetMissing = Array.isArray(distros) && distros.length > 0 && !distros.includes(config.distro);
+        const targetMissing = !targetIssue && Array.isArray(distros) && distros.length > 0 && !distros.includes(config.distro);
         const v = resolveVersion(config);
         // 孤儿运行时诊断（只数，不杀；真正的清理在首次有副作用的调用上做）。
         // F4：**不走内联 `wsl.exe … -- bash -lc "<串>"`** —— 那条路不是 argv-exec，串会先经过发行版的
         // 默认登录 shell（本机 zsh）展开，`$VAR`/glob 在到达 bash 前就失真。这里走 runWsl（落文件 +
         // `bash <file>`），并用 `find … -print | wc -l` 而不是裸 glob（glob 未匹配时会给出"假 0"）。
         let pidFiles = '0';
-        {
+        if (targetIssue) {
+          pidFiles = '(跳过：目标发行版未确定)';
+        } else {
           const res = await runWsl(config, 'find /tmp -maxdepth 1 -name "dsh-rwsl-*.pid" -print | wc -l\n', {
             timeoutMs: 20000,
             signal: exec?.signal,
@@ -296,7 +304,7 @@ export function registerTools(deps) {
         const MARK = '__REMOTE_WSL_DLX_MARK__';
         let ip = '(未探测)';
         let dlx = '(未探测)';
-        if (distros.includes(config.distro)) {
+        if (!targetIssue && distros.includes(config.distro)) {
           const res = await runWsl(
             config,
             `${shellPreamble(config)}hostname -I
@@ -330,7 +338,9 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
           }
         };
         const winCfg = readCfgText(process.env.USERPROFILE ? join(process.env.USERPROFILE, '.wslconfig') : '');
-        const distroCfg = readCfgText(unc(config.distro, '/etc/wsl.conf'));
+        // 目标未确定时 `unc('', …)` 会拼出 `\\wsl.localhost\\\etc\wsl.conf` —— 那不是"读不到配置"，
+        // 而是"根本不知道读哪个发行版"，所以直接说明，不去读一个不存在的 UNC。
+        const distroCfg = config.distro ? readCfgText(unc(config.distro, '/etc/wsl.conf')) : { text: undefined, why: '目标发行版未确定' };
         const lf = parseLocalhostForwarding({ wslconfigText: winCfg.text, wslConfText: distroCfg.text });
         const readWhat = [winCfg.text !== undefined ? '.wslconfig' : null, distroCfg.text !== undefined ? '/etc/wsl.conf' : null]
           .filter(Boolean)
@@ -345,9 +355,12 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
         // 显示 pid/端口/version/keys；版本与桌面/pin 不一致时**只报警**，绝不自动杀守护
         // （自动杀 = 无声中断用户正在进行的会话）。换版本走显式 wsl_daemon action=restart。
         const dstat: any =
-          config.backend === 'in-host'
-            ? { ok: false, kind: 'in-host', error: 'in-host 后端不使用守护' }
-            : await daemonStatus(config);
+          targetIssue
+            // 目标未确定：`daemonStatus` 的"没有守护"结论会误导（它其实什么都没扫）。直接给原因。
+            ? { ok: false, kind: 'no-target', error: targetIssue }
+            : config.backend === 'in-host'
+              ? { ok: false, kind: 'in-host', error: 'in-host 后端不使用守护' }
+              : await daemonStatus(config);
         let daemonLine: string;
         let daemonAlarm: string | null = null;
         let daemonPluginAlarm: string | null = null;
@@ -386,6 +399,9 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
               `守护没有上报协议版本（旧插件）或协议更旧（v${daemonProtocol ?? 0} < v${PROTOCOL_VERSION}）` +
               ` —— 新功能在 restart 前不可用；执行 wsl_daemon action=restart 对齐`;
           }
+        } else if (dstat.kind === 'no-target') {
+          // 2026-10-28（零配置）：目标未确定 ⇒ 没扫过任何东西，不能写成 "not running"（那是结论）。
+          daemonLine = `（跳过：目标发行版未确定 ⇒ 未检查守护；${String(dstat.error ?? '').replace(/^remote-wsl: /, '')}）`;
         } else if (dstat.kind === 'busy') {
           // F-18（2026-10-27 审查）：端口可连但 3s 内没应答 ⇒ 「忙」，不是「死」。绝不能提示 stop all，
           // 那会杀掉带会话的健康守护（守护是单线程，安装工具/预热时会长时间不应答）。
@@ -409,12 +425,17 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
         return [
           `plugin: dsh-remote-wsl@${PLUGIN_VERSION}（版本 = 本仓 package.json；升级/回滚见 README）`,
           `distros: ${distros.join(', ') || (distrosReadFailed ? '(读不到：wsl.exe -l -q 失败，不等于“没有发行版”)' : '(none)')}`,
-          ...(targetMissing
-            ? [
-                `target ⚠️: 配置的发行版 "${config.distro}" **不在上面的 distros 列表里** —— 所有 WSL 调用都会失败。改 cordis.patch.yml 的 distro（README「配置」一节）。`,
-              ]
+          ...(targetIssue
+            ? [`target ⚠️: ${targetIssue}`]
+            : targetMissing
+              ? [
+                  `target ⚠️: 配置的发行版 "${config.distro}" **不在上面的 distros 列表里** —— 所有 WSL 调用都会失败。改 cordis.patch.yml 的 distro（README「配置」一节）。`,
+                ]
+              : []),
+          ...(detection && !detection.problem && detection.notes.length
+            ? [`target auto-detected: ${detection.notes.join('；')}（显式配置 distro/wslHome 可完全跳过探测）`]
             : []),
-          `target: ${config.distro}  wslHome=${config.wslHome}  cwd=${config.cwd}`,
+          `target: ${config.distro || '(未解析)'}  wslHome=${config.wslHome || '(未解析)'}  cwd=${config.cwd || '(未解析)'}`,
           `wsl ip: ${ip}`,
           `shell env injection (useShellEnvironment): ${config.useShellEnvironment === false ? 'off' : 'on'}（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）`,
           `localhost forwarding: ${lfLine}`,
@@ -753,6 +774,11 @@ ${command}
         }
         if (action === 'stop') {
           const all = args?.all === true;
+          // 2026-10-28（零配置）：目标未确定时 stop 的语义根本不成立（读不到元数据、也扫不了
+          // `/proc`）。直接回根因，不要让它落进下面的 "结果未验证 / 元数据按 P1 保留" 分支 ——
+          // 那句话会让人以为"确实有元数据、只是没验"，而实际是"连目标都不知道"。
+          const stopIssue = targetProblem(config);
+          if (stopIssue) return stopIssue;
           const r: any = await stopDaemon(config, { log: logDaemon, all });
           // 2026-10-27 审查 F-03：`stopDaemon` 在「守护仍在」时返回 ok:false + alivePids 并**保留**
           // 元数据；旧实现完全不看它，照样打印 `daemon stopped` 还清空会话记忆 ⇒ 伪成功，而且之后

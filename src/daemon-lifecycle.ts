@@ -21,6 +21,8 @@ import {
   tryAcquireEnsureLock, unc,
 } from './daemon-protocol.ts';
 import { configCompat, killWslPidAsync, launchDaemon, removeLauncher } from './daemon-launch.ts';
+import { assertConfigTarget, targetProblem } from './config.ts';
+import { asConfigText } from './target-detect.ts';
 
 // ── 原 daemon-client.ts 第 216-235 行 ──
 function removeMetaFiles(cfg, slot = cfg.daemonPort, legacy = false) {
@@ -115,6 +117,9 @@ function recordForPid(cfg, pid) {
 
 // ── 原 daemon-client.ts 第 642-854 行 ──
 export async function ensureDaemon(cfg, { version, restart = false, noReuse = false, log = () => {} }: any = {}) {
+  // 2026-10-28（零配置）：没有确定的目标发行版/家目录 ⇒ 状态目录与 `wsl -d` 都无处可去。
+  // 在**唯一入口**抛出可操作错误（而不是让 launchDaemon 在 UNC 层报 errno）。
+  assertConfigTarget(cfg);
   const notes = [];
   const hsTimeout = Number(cfg.daemonHandshakeTimeoutMs ?? 3000);
   const wantSlot = Number(cfg.daemonPort) || 8731;
@@ -513,6 +518,11 @@ async function waitForSlotGone(cfg, port, pid) {
 
 // ── 原 daemon-client.ts 第 875-943 行 ──
 export async function stopDaemon(cfg, { log = () => {}, slot, all = false }: any = {}) {
+  // 2026-10-28（零配置）：目标发行版未确定时，元数据读取与 `/proc` 身份扫描都无从谈起。
+  // 旧路径会读不到记录 ⇒ 走进"alreadyStopped: true"——那是**伪成功**（不是"没有守护"，是"读不了"）。
+  // 这里如实回 ok:false（本函数的契约是返回结果对象，不是抛错）。
+  const issue = targetProblem(cfg);
+  if (issue) return { ok: false, verified: false, error: issue, reaped: [], alivePids: [], orphansVerified: false };
   if (all) return stopAllDaemons(cfg, { log });
   const wantSlot = Number(slot ?? cfg.daemonPort) || 8731;
   let rec = readDaemonRecord(cfg, wantSlot);
@@ -717,6 +727,25 @@ export async function stopAllDaemons(cfg, { log = () => {} }: any = {}) {
 
 // ── 原 daemon-client.ts 第 1013-1039 行 ──
 export async function daemonSnapshot(cfg) {
+  // 2026-10-28（零配置）：目标发行版没解析出来时，`listDaemonSlots` 与 `/proc` 扫描都只能得到空
+  // 数组 —— 上层会把它们误读成「没有守护」。这里直接给"未扫描"的显式状态（与 F-50 同一条纪律：
+  // 扫描失败 ≠ 没有进程）。
+  if (!asConfigText(cfg?.distro)) {
+    const why = '目标发行版未确定（自动探测失败）：未执行守护扫描';
+    return {
+      slots: [],
+      records: [],
+      live: [],
+      dead: [],
+      busy: [],
+      livePids: new Set(),
+      procs: [],
+      orphans: [],
+      scan: { ok: false, error: why },
+      orphansVerified: false,
+      scanError: why,
+    };
+  }
   const hsTimeout = Number(cfg.daemonHandshakeTimeoutMs ?? 3000);
   const slots = listDaemonSlots(cfg);
   const records = (slots.length ? slots.map((s) => readDaemonRecord(cfg, s)) : [readDaemonRecord(cfg)]).filter(Boolean);

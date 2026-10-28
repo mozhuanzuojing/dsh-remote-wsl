@@ -13,8 +13,12 @@ import { PLUGIN_VERSION, PROTOCOL_VERSION } from '../src/plugin-version.ts';
 import { configCompat } from '../src/daemon-launch.ts';
 
 test('normalizeConfig：补齐默认值、调用方覆盖优先、非对象入参不炸', () => {
-  const c = normalizeConfig({ distro: 'Ubuntu-24.04', readTextMaxBytes: 1024 });
+  // 2026-10-28：`distro`/`wslHome` 缺省现在是"自动探测"（见 test/target-detect.test.ts）。
+  // 本用例只关心**合并语义**，所以两项都给显式值 —— 免得测试机装没装 WSL 影响断言。
+  const c = normalizeConfig({ distro: 'Ubuntu-24.04', wslHome: '/home/u', readTextMaxBytes: 1024 });
   assert.equal(c.distro, 'Ubuntu-24.04');
+  assert.equal(c.wslHome, '/home/u');
+  assert.equal(c.cwd, '/home/u');
   assert.equal(c.readTextMaxBytes, 1024);
   assert.equal(c.daemonPort, DEFAULTS.daemonPort);
   assert.equal(c.daemonLockWaitMs, 45000);

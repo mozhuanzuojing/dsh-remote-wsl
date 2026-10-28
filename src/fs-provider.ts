@@ -36,7 +36,7 @@ import { ensureDaemon } from './daemon-client.ts';
 import { callDaemon, readDaemonRecord, winToWsl } from './daemon-protocol.ts';
 import { resolveVersion } from './wsl-io.ts';
 
-import { normalizeConfig } from './config.ts';
+import { normalizeConfig, targetProblem } from './config.ts';
 export const name = 'dsh-remote-wsl-fs';
 export const inject = [];
 
@@ -88,10 +88,14 @@ export function parseUnc(input) {
 export function createWslRpc(rawConfig = {}) {
   const config = normalizeConfig(rawConfig);
   const distro = String(config.distro);
+  // 2026-10-28（零配置）：自动探测失败 ⇒ 这个 provider 的每一个操作都无处可去。把原因钉住，
+  // 在**首次调用**时明确拒绝（不在 apply 抛：那会让整个 WSL preset 变 broken，连别的工具都看不到）。
+  const targetIssue = targetProblem(config);
 
   /** 懒起守护：第一次操作时确保 WSL 侧守护在跑（失败要明确报，不许假装成功）。 */
   let daemonReady = null;
   const ensure = async () => {
+    if (targetIssue) throw fsErr(targetIssue, 'FS_IO_ERROR');
     if (daemonReady === null) {
       const version = resolveVersion(config);
       if (!version.version) throw fsErr('remote-wsl: 无法确定 dsh 版本（desktop runtime.json 不可读且未配 dshVersion）', 'FS_IO_ERROR');
@@ -256,12 +260,16 @@ export async function* decodeTextChunks(readChunk, signal, displayPath) {
 export function createWslFileSystem(rawConfig = {}, internals = {}) {
   const rpc = createWslRpc(rawConfig);
   const { config, distro } = rpc;
+  // 目标未确定时的同一句可操作报错（`createWslRpc` 已在 ensure() 拒绝，但**路径解析先于 RPC**，
+  // 否则 UNC 路径会先撞上「本 provider 只服务 ""」这种伪错误，根因看不见）。
+  const targetIssue = targetProblem(config);
   const call = typeof internals.fsCall === 'function'
     ? internals.fsCall
     : (method, args, signal) => rpc.call('fs', method, args, signal);
 
   /** 把一个输入路径解析成 `{distro, linuxPath}`；相对路径用 cwd 兜底。 */
   const translate = (input, cwd) => {
+    if (targetIssue) throw fsErr(targetIssue, 'FS_IO_ERROR');
     const raw = String(input ?? '').trim();
     if (raw.length === 0) throw fsErr('file_path must be a non-empty string', 'FS_NOT_FOUND');
     const unc = parseUnc(raw);

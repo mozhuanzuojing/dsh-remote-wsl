@@ -28,7 +28,7 @@ import { createInHostPool } from './in-host-runtime.ts';
 import { registerTools, sweepStaleRuntimes } from './register-tools.ts';
 import { apply as applyWslPreset } from './preset.ts';
 
-import { normalizeConfig } from './config.ts';
+import { normalizeConfig, configDetection } from './config.ts';
 /** Stable Loader identity. */
 export const name = 'dsh-remote-wsl';
 
@@ -46,6 +46,18 @@ export const inject = [];
  */
 export function apply(ctx, rawConfig = {}) {
   const config = normalizeConfig(rawConfig);
+  // 2026-10-28（零配置）：目标（distro / wslHome）现在可以是"自动探测"的结果。探测失败时**仍然**
+  // 挂载插件（`wsl_status` 要能报出全部细节），但桌面 GUI 看不见工具返回值之前，stderr 是唯一
+  // 能落进启动日志的地方 —— 所以这里必须先把"探测到了什么 / 为什么没探到"写出来。
+  // 读的是**本份配置自带**的结论（不是模块级"最近一次探测"）：热重载/多份配置时不会张冠李戴。
+  const detection = configDetection(config);
+  if (detection) {
+    process.stderr.write(
+      detection.problem
+        ? `${detection.problem}\n`
+        : `remote-wsl: 目标自动探测 distro=${config.distro} wslHome=${config.wslHome}（${detection.notes.join('；')}）\n`,
+    );
+  }
   // 防御性判断：缺任一框架接口则整个插件无从工作（同 dsh-shadow 的前置判据）
   if (typeof ctx?.inject !== 'function' || typeof ctx?.get !== 'function') {
     throw new Error('remote-wsl: 宿主缺少 ctx.inject / ctx.get，插件无法挂载');

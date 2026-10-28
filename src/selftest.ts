@@ -29,6 +29,7 @@ import {
   wslRunScript,
   stateDirLinux,
 } from './daemon-client.ts';
+import { normalizeConfig } from './config.ts';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0] ?? 'status';
@@ -37,10 +38,14 @@ const argOf = (name: string, dflt: string) => {
   return i >= 0 && i + 1 < argv.length ? argv[i + 1] : dflt;
 };
 
+// 2026-10-28（零配置）：默认目标不再写死作者机器上的 `debian-u8-1` / `/home/g` ——
+// 与插件本身同一条自动探测（只探一次，之后命中进程内缓存）；`--distro` / `--wsl-home` / `--cwd` 仍可覆盖。
+const detectedTarget = normalizeConfig({});
+
 const cfg: any = {
-  distro: argOf('distro', 'debian-u8-1'),
-  wslHome: argOf('wsl-home', '/home/g'),
-  cwd: argOf('cwd', '/home/g'),
+  distro: argOf('distro', detectedTarget.distro),
+  wslHome: argOf('wsl-home', detectedTarget.wslHome),
+  cwd: argOf('cwd', detectedTarget.cwd),
   profile: 'sdk',
   daemonPort: Number(argOf('port', '8731')),
   daemonPortTries: Number(argOf('tries', '3')),

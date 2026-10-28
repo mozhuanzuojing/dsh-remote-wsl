@@ -61,6 +61,9 @@ import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt,
 import { parseWslUncPath } from './unc-path.ts';
 import { invalidateProxyCache, resolveWslProxy } from './wsl-proxy.ts';
 import { readWslOutput } from './wsl-output.ts';
+import { parseWslDistroTable } from './distro-table.ts';
+import { targetProblem, NO_DISTRO_REASON, NO_HOME_REASON } from './config.ts';
+import { asConfigText } from './target-detect.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -295,21 +298,6 @@ function kindOf(p) {
 }
 
 /**
- * `wsl -l -v` 的 NAME/STATE/VERSION 表 → `{ defaultName, running:Set<name>, ok }`。
- *
- * 为什么**不是**逐个 `wsl -d <name> -- true` 探活：那会把**关着的发行版启动起来**（WSL 对任何
- * `wsl -d` 都会拉起该发行版）—— 面板刷一次快照不该有这种副作用。所以 `reachable` 的定义是
- * "该发行版此刻 STATE=Running"，只读、零副作用。
- *
- * 编码坑：`wsl.exe -l -v` 是 **UTF-16LE**，按 utf8 读出来每个字符前有个 `\0`（index.ts 的
- * `listDistros` 也是这么处理的）。名字列表仍以 index.ts 注入的 `listDistros()`（`wsl -l -q`）为准，
- * 这里**只**取 `*`（默认发行版）与 STATE 两个标志，按名字对齐；表里没有的名字两个标志都留 false
- * （不猜）。
- *
- * `ok` 是给短 TTL 缓存用的**可观测性标志**（不对外暴露）：只有"命令真的跑成功且有输出"才算
- * `ok:true`；失败时调用方**不得**把这份结果写进缓存（见 `DISTRO_FACTS_TTL_MS` 注释）。
- */
-/**
  * wsl.exe 输出解码：wsl -l -v 在 Windows 上常是 UTF-16LE；按 UTF-8 读会夹满 NUL。
  * 参考 ZCode 的 wsl-detect：含 NUL 字节即按 UTF-16LE 解码，同时兼容 UTF-8。
  *
@@ -319,28 +307,11 @@ function kindOf(p) {
 export const decodeWslOutput = readWslOutput;
 
 /**
- * 解析 wsl.exe -l -v 的表：列之间是两个以上空格，发行版名可以含单个空格
- * （例如 Ubuntu 22.04 LTS）；行尾是 VERSION，倒数第二列是 STATE，首个 * 表示默认。
- * 表头行（没有数字 VERSION）会被跳过。
+ * `wsl -l -v` 的表解析：实现已抽到 `src/distro-table.ts`（2026-10-28 零配置改动 ——
+ * 默认目标的探测也要用同一份解析，两处各写一份必然漂移）。**保留原名导出**，
+ * 既有调用方与探针不用改。
  */
-export function parseWslDistroTable(raw) {
-  const rows = [];
-  for (const line of String(raw ?? '').split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const parts = trimmed.split(/\s{2,}/).map((part) => part.trim()).filter(Boolean);
-    if (parts.length < 3) continue;
-    const version = Number.parseInt(parts[parts.length - 1], 10);
-    if (!Number.isFinite(version)) continue;
-    const state = parts[parts.length - 2];
-    const rawName = parts.slice(0, -2).join(' ').trim();
-    const isDefault = rawName.startsWith('*');
-    const name = rawName.replace(/^\*\s*/, '').trim();
-    if (!name) continue;
-    rows.push({ name, isDefault, state, version: version === 1 || version === 2 ? version : null });
-  }
-  return rows;
-}
+export { parseWslDistroTable };
 /** 异步执行 wsl.exe 并拿 Buffer：不阻塞 host 事件循环（只读探测专用）。 */
 function execWslBuffer(args, timeoutMs) {
   return new Promise((resolve, reject) => {
@@ -371,6 +342,18 @@ function execWslText(distro, script, timeoutMs = 10000) {
   });
 }
 
+/**
+ * 读一次 `wsl -l -v` 的发行版事实 → `{ defaultName, running:Set<name>, versions:Map<name,1|2>, ok }`。
+ *
+ * 为什么**不是**逐个 `wsl -d <name> -- true` 探活：那会把**关着的发行版启动起来**（WSL 对任何
+ * `wsl -d` 都会拉起该发行版）—— 面板刷一次快照不该有这种副作用。所以 `reachable` 的定义是
+ * "该发行版此刻 STATE=Running"，只读、零副作用。
+ *
+ * 名字列表仍以 index.ts 注入的 `listDistros()`（`wsl -l -q`）为准，这里**只**取 `*`（默认发行版）
+ * 与 STATE 两个标志，按名字对齐；表里没有的名字两个标志都留 false（不猜）。
+ * `ok` 是给短 TTL 缓存用的**可观测性标志**（不对外暴露）：只有"命令真的跑成功且有输出"才算
+ * `ok:true`；失败时调用方**不得**把这份结果写进缓存（见 `DISTRO_FACTS_TTL_MS` 注释）。
+ */
 async function probeDistroState() {
   const out = { defaultName: null, running: new Set(), versions: new Map(), ok: false };
   let buffer;
@@ -497,6 +480,11 @@ export function createExplorerHandlers(deps) {
   async function resolveDistro(args) {
     const raw = str(args?.distro).trim();
     if (!raw) {
+      // 2026-10-28（零配置）：默认目标没解析出来（自动探测失败）时必须给**机器可读**原因 ——
+      // 面板的 `distroResetRef` 与客户端提示都靠 `reason`，不许让空发行版流到 UNC/`wsl -d` 层。
+      // 显式 `args.distro` 不受此限：这类机器上，面板仍可浏览一个被点名的发行版。
+      const issue = targetProblem(cfg);
+      if (issue) failArg(issue, null, asConfigText(cfg.distro) ? NO_HOME_REASON : NO_DISTRO_REASON);
       const facts0 = await readDistroFacts();
       const v0 = facts0.flags && facts0.flags.versions && typeof facts0.flags.versions.get === 'function' ? facts0.flags.versions.get(cfg.distro) : null;
       if (v0 === 1) failArg('remote-wsl: 配置的发行版 "' + cfg.distro + '" 是 WSL1；本插件只支持 WSL2（可先执行 wsl --set-version ' + cfg.distro + ' 2 升级）');

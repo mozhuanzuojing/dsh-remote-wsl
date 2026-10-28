@@ -6,17 +6,41 @@
  * 实锤例子：`fs-provider` 的 `readTextMaxBytes` 因为 `preset.ts` 只转发四个键而**部署不可调**。
  * 现在所有宿主侧模块都从 `normalizeConfig()` 取同一份合并结果，preset 也**原样转发全部键**。
  *
- * 注意：`distro` / `wslHome` / `cwd` 的默认值是作者机器上的值 —— README「配置」一节要求改成自己的。
+ * ### 2026-10-28：`distro` / `wslHome` 改为「空 = 自动探测」
+ *
+ * 旧默认值是作者机器上的 `debian-u8-1` / `/home/g` —— 换一台机器装上插件，第一条命令就报
+ * 「未知发行版」，README 只能要求用户手改配置来掩盖。默认值本身是缺陷，所以：
+ *
+ *   · `distro: ''` ⇒ 取 `wsl.exe -l -v` 里带 `*` 的默认发行版；
+ *   · `wslHome: ''` ⇒ 问该发行版的登录用户 `$HOME`；
+ *   · `cwd: ''` ⇒ 跟随解析出来的 `wslHome`；
+ *   · 显式配置**永远优先**（此时一个 `wsl.exe` 都不会起）；探测失败**留空**并给出可操作报错，
+ *     绝不回落到作者机器的值（那正是要修掉的「静默猜」）。探测实现见 `src/target-detect.ts`。
+ *
+ * 字段含义见 README「配置」与各消费方注释。
  *
  * @module dsh-remote-wsl/config
  */
+import {
+  asConfigText,
+  noHomeMessage,
+  resolveAutoTarget,
+  NO_DISTRO_MESSAGE,
+  NO_DISTRO_REASON,
+  NO_HOME_REASON,
+} from './target-detect.ts';
 
-/** 默认配置（字段含义见 README「配置」与各消费方注释）。 */
+export { NO_DISTRO_REASON, NO_HOME_REASON, NO_DISTRO_MESSAGE, noHomeMessage, resetTargetDetection } from './target-detect.ts';
+
+/** 默认配置（`distro` / `wslHome` / `cwd` 空 = 自动探测，见文件头）。 */
 export const DEFAULTS = {
   // ── 目标发行版 ───────────────────────────────────────────────────────────────
-  distro: 'debian-u8-1',
-  wslHome: '/home/g',
-  cwd: '/home/g',
+  /** 空（或 `auto`）= 取 `wsl -l -v` 里带 `*` 的默认发行版；显式配置永远优先。 */
+  distro: '',
+  /** 空（或 `auto`）= 问 `distro` 里登录用户的 `$HOME`。 */
+  wslHome: '',
+  /** 空（或 `auto`）= 跟随解析出来的 `wslHome`。 */
+  cwd: '',
 
   // ── 远端 agent ──────────────────────────────────────────────────────────────
   provider: 'deepseek-official',
@@ -71,9 +95,92 @@ export const DEFAULTS = {
 };
 
 /**
- * 合并默认值与调用方配置（浅合并；`raw` 非对象时忽略）。
- * @param raw 插件行 config / preset 子插件 config
+ * 探测结论挂在**配置对象自己身上**的键（Symbol ⇒ 不参与 `JSON.stringify`，也不会污染配置面；
+ * 但 `{...cfg}` 展开会照常带上它 —— preset 把解析好的配置转发给子插件时，结论跟着走）。
+ *
+ * 为什么不用模块级"最近一次探测"：同一个进程里可能先后 `apply()` 多份配置（热重载、预设子插件、
+ * 单测），模块级状态会把**上一份配置**的结论当成这一份的 —— 实测出现过「显式配置
+ * `distro: no-such-distro-xyz`，日志却打印自动探测到的 `debian-u8-1`」这种误导。
+ */
+const TARGET_DETECTION = Symbol('dsh-remote-wsl/target-detection');
+
+/**
+ * 取这份配置自带的探测结论（不是它探测出来的 ⇒ `null`）。
+ * @param config `normalizeConfig()` 的返回值（其它来源的普通对象返回 `null`）
+ */
+export function configDetection(config) {
+  const value = config && typeof config === 'object' ? config[TARGET_DETECTION] : null;
+  return value ?? null;
+}
+
+/**
+ * 合并默认值与调用方配置，并**解析目标**（`distro` / `wslHome` / `cwd`）。
+ *
+ * @param raw 插件行 config / preset 子插件 config（`raw` 非对象时忽略）
+ * @returns 归一后的配置：`distro`/`wslHome`/`cwd` 已尽量填好；探测失败时可能是 `''`
+ *          （调用方用 `targetProblem()` 拿到可操作报错，**不要自己拼提示**）
  */
 export function normalizeConfig(raw) {
-  return { ...DEFAULTS, ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) };
+  const merged = { ...DEFAULTS, ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) };
+  const autoNeeded = !asConfigText(merged.distro) || !asConfigText(merged.wslHome);
+  const resolved = resolveAutoTarget(merged);
+  const config = {
+    ...merged,
+    distro: resolved.distro,
+    wslHome: resolved.wslHome,
+    // 显式 cwd 优先；否则跟随解析出来的家目录（旧默认值是 `'/home/g'` —— 同样是作者机器的值）。
+    cwd: asConfigText(merged.cwd) || resolved.wslHome,
+  };
+  // 显式配置 ⇒ 显式写 `null`：`merged` 里可能带着上一手转发来的结论（preset 展开），不能沿用。
+  config[TARGET_DETECTION] = autoNeeded ? { ...resolved, at: Date.now() } : null;
+  return config;
+}
+
+/**
+ * 目标是否可用的**唯一判据**（探测失败的可操作说明都在这里，别的模块不要另写一份）。
+ *
+ * 两个消费面的分工：
+ *   · 抛错型（`assertConfigTarget`）：工具/守护/provider 这类"没有目标就什么也做不了"的入口；
+ *   · 报告型（返回字符串）：`wsl_status`、`index.ts` 的启动日志、面板的 `failArg(...)` 错误。
+ *
+ * @param config 归一后的配置
+ * @returns `null` = 可用；否则是可读的、已含 `remote-wsl: ` 前缀的说明
+ */
+export function targetProblem(config) {
+  return targetProblemFrom(config, configDetection(config));
+}
+
+/**
+ * `targetProblem()` 的**纯函数**内核（探测结论由调用方传入）—— 单测可直接驱动，不依赖本机 WSL 状态。
+ *
+ * 为什么要把探测结论作为参数：只有"这份配置确实来自那次探测"时才能用更精确的文案
+ * （例如"默认发行版是 WSL1"）。结论与配置对不上（陈旧/来自别的 distro）就退回通用文案，
+ * 不把上一次的残影当成当前事实。
+ *
+ * @param config 归一后的配置
+ * @param detection `configDetection(config)` 形状的结论，或 `null`
+ */
+export function targetProblemFrom(config, detection) {
+  const distro = asConfigText(config?.distro);
+  const home = asConfigText(config?.wslHome);
+  if (!distro) {
+    if (detection && !asConfigText(detection.distro) && detection.problem) return detection.problem;
+    return NO_DISTRO_MESSAGE;
+  }
+  if (!home) {
+    if (detection && asConfigText(detection.distro) === distro && detection.problem) return detection.problem;
+    return noHomeMessage(distro);
+  }
+  return null;
+}
+
+/**
+ * 抛错型判据：目标不可用时抛**可操作**错误（`targetProblem()` 的字符串）。
+ * @param config 归一后的配置
+ * @returns 原样的 `config`（便于链式使用）
+ */
+export function assertConfigTarget(config) {
+  const problem = targetProblem(config);
+  if (problem) throw new Error(problem);
+  return config;
 }

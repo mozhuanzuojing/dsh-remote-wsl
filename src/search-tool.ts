@@ -24,7 +24,7 @@
 import { parseUnc, createWslRpc } from './fs-provider.ts';
 import { renderText } from './wsl-io.ts';
 
-import { normalizeConfig } from './config.ts';
+import { normalizeConfig, targetProblem } from './config.ts';
 export const name = 'dsh-remote-wsl-search';
 export const inject = [];
 
@@ -32,6 +32,9 @@ export const inject = [];
 
 /** 把模型给的路径解析成发行版内绝对路径：优先走 realm 的 ctx.fs，其次自己按 UNC/cwd 推导。 */
 async function resolveLinuxPath(ctx, config, rawPath, exec) {
+  // 2026-10-28（零配置）：目标未确定时先给根因 —— 否则 UNC 路径会先撞上「只服务 ""」的伪错误。
+  const issue = targetProblem(config);
+  if (issue) throw new Error(issue);
   const cwd = exec?.agent?.session?.header?.cwd ?? config.cwd;
   const fsSvc = typeof ctx?.get === 'function' ? ctx.get('fs') : undefined;
   if (fsSvc && typeof fsSvc.resolve === 'function') {

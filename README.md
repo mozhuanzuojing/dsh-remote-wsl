@@ -195,7 +195,15 @@ git -C D:\tools\dsh-remote-wsl checkout <commit>
 
 ### 配置
 
-默认值 `distro: debian-u8-1`、`wslHome: /home/g` 是作者机器上的值，**必须改成你自己的**：
+**默认就是零配置**：`distro` / `wslHome` / `cwd` 的默认值都是空 = **自动探测**（0.3.3 起；旧版本默认写死作者机器的 `debian-u8-1` / `/home/g`，换机器就报「未知发行版」）：
+
+1. `distro` ← `wsl -l -v` 里 NAME 列带 `*` 的**默认发行版**（没有 `*` 行就留空，**不会**拿"唯一那个"猜）；
+2. `wslHome` ← 该发行版登录用户的 `$HOME`（`wsl -d <distro> --exec sh -c 'printf %s "$HOME"'`，`sh` 不行再试 `bash`）；
+3. `cwd` ← 跟随 `wslHome`。
+
+探测只在**没有显式配置**时发生（一次 `wsl -l -v` + 一次 `$HOME`，实测本机 ~156ms；两次各有 8s / 10s 上限 —— WSL 卡死时启动最多多等 18s，不会无限挂），结论按进程缓存（改 `wsl --set-default` 后重启 DSH，或显式配置）。注意第 2 步在发行版**未运行**时会被 WSL 拉起（WSL 自身行为：任何 `wsl -d` 都会）—— 想连这一步都避免，就显式配置。
+
+显式配置**永远优先**（此时一个 `wsl.exe` 都不会起）。要显式指定，先查本机的值：
 
 ```powershell
 wsl -l -q
@@ -203,8 +211,7 @@ $distro = 'Ubuntu-24.04'   # 换成 wsl -l -q 里的名字
 wsl -d $distro --exec bash -lc 'echo $HOME'
 ```
 
-在 `%USERPROFILE%\.dsh\profiles\desktop\cordis.patch.yml` 里覆盖（保留该文件已有内容）：
-
+然后写进 `%USERPROFILE%\.dsh\profiles\desktop\cordis.patch.yml`（保留该文件已有内容）：
 ```yaml
 - id: remote-wsl
   config:
@@ -214,11 +221,13 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
     dshVersion: ''         # 空 = 跟随桌面版本
 ```
 
+探测失败时**不猜、不回落到作者机器的值**：工具会直接返回可操作报错，`wsl_status` 也会把它标成 `target ⚠️: remote-wsl: 未能自动探测到 WSL 默认发行版…请在 cordis.patch.yml 里显式配置 distro`。
+
 常用配置键：
 
 | 键 | 默认 | 作用 |
 |---|---|---|
-| `distro` / `wslHome` / `cwd` | `debian-u8-1` / `/home/g` / `/home/g` | 目标发行版、WSL 家目录、远端 agent 的默认工作目录 |
+| `distro` / `wslHome` / `cwd` | 空 = **自动探测** | 目标发行版、WSL 家目录、远端 agent 的默认工作目录 |
 | `backend` | `daemon` | `daemon` = 运行时由 WSL 常驻守护持有；`in-host` = 旧形态逃生舱（关客户端即丢会话） |
 | `daemonPort` | `8731` | 守护槽位/端口；WSL 侧被占则 +1，Windows 侧被占则换端口重试 |
 | `daemonIdleMs` | `1800000` | 空闲回收，到期即丢上下文 |
@@ -325,7 +334,10 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 | 路径 | 作用 |
 |---|---|
-| `src/index.ts` | 插件入口：默认配置、注册七个工具 / 面板数据面 / preset |
+| `src/index.ts` | 插件入口：注册七个工具 / 面板数据面 / preset（默认值已收敛到 `src/config.ts`） |
+| `src/config.ts` | **唯一一份**默认配置 + `normalizeConfig()` + 目标可用性判据（`targetProblem()`） |
+| `src/target-detect.ts` | 零配置目标探测：`wsl -l -v` 的默认发行版 + 它的 `$HOME`（纯函数 + 注入式 probe） |
+| `src/distro-table.ts` | `wsl -l -v` 表解析（面板与探测共用一份） |
 | `src/register-tools.ts` | 七个工具的实现 |
 | `src/daemon.ts`、`src/daemon-*.ts` | WSL 侧常驻守护、协议、launcher 与生命周期 |
 | `src/explorer.ts` | 面板数据面 `POST /remote-wsl/api`（同源 + 硬白名单） |

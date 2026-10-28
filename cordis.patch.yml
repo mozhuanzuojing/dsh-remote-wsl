@@ -9,7 +9,14 @@
     - id: remote-wsl
       name: 'dsh-remote-wsl'
       config:
-        # 作者机器上的默认值；换成你自己的（README「配置」一节）。
-        distro: debian-u8-1
+        # 目标（distro / wslHome / cwd）**默认留空 = 自动探测**（0.3.3 起，见 README「配置」）：
+        #   distro  ← `wsl -l -v` 里带 * 的默认发行版
+        #   wslHome ← 该发行版登录用户的 $HOME
+        #   cwd     ← 跟随 wslHome
+        # 探测失败不会猜默认值：工具与 wsl_status 会明确提示"请在 cordis.patch.yml 里显式配置 distro"。
+        # 想完全跳过探测（也避免探测时把未运行的发行版拉起），取消下面三行注释并改成自己的值：
+        # distro: Ubuntu-24.04
+        # wslHome: /home/you
+        # cwd: /home/you
         # 空字符串 = 跟随桌面版本（读 primary-runtime/runtime.json 的 desktopVersion）
         dshVersion: ''

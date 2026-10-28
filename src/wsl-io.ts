@@ -28,6 +28,8 @@ import { desktopRuntimeCandidates, pickDesktopVersion } from './version.ts';
 import { stateDirLinux, unc } from './daemon-client.ts';
 import { activeLifecycle } from './lifecycle.ts';
 import { killIfOwnedScript, shq } from './shell-quote.ts';
+import { targetProblem } from './config.ts';
+import { NO_DISTRO_MESSAGE } from './target-detect.ts';
 
 /**
  * **最后兜底**候选：老实现写死的那个用户路径。
@@ -65,6 +67,9 @@ export const shutdownRejection = 'remote-wsl: 插件正在关停，拒绝新建 
  * （SDK 协议要从 stdin 读）。写成文件则两者都躲开。
  */
 export function writeScript(distro, body, ext = '.sh') {
+  // 2026-10-28（零配置）：自动探测失败时 `cfg.distro` 是空串 —— 此时 UNC 会变成
+  // `\\wsl.localhost\\\tmp\…`，裸 Node 报 `UNKNOWN: unknown error`。这里先把根因说清楚。
+  if (!String(distro ?? '').trim()) throw new Error(NO_DISTRO_MESSAGE);
   const token = `${process.pid}-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
   const linuxPath = `/tmp/dsh-rwsl-${token}${ext}`;
   try {
@@ -348,6 +353,11 @@ export function runWsl(cfg, script, opts = {}) {
   if (!opts.allowDuringShutdown && lifecycle && lifecycle.isShuttingDown()) {
     return Promise.resolve(notStartedResult(127, shutdownRejection));
   }
+  // 2026-10-28（零配置）：目标没解析出来（自动探测失败）时先给可读根因，不要走到
+  // `wsl.exe -d ""` 那一步 —— 那时的报错只会在 UNC/spawn 层变成不可诊断的 errno。
+  // 本函数契约是"永不抛"，所以照样用 127 + 可读原因，让每个工具都能把它原样回给调用方。
+  const targetIssue = targetProblem(cfg);
+  if (targetIssue) return Promise.resolve(notStartedResult(127, targetIssue));
   let file;
   try {
     file = writeScript(cfg.distro, script);
@@ -525,6 +535,9 @@ export function wslPathConvert(cfg, rawPath, direction) {
   const path = typeof rawPath === 'string' ? rawPath : rawPath == null ? '' : String(rawPath);
   if (!path.trim()) throw new Error('remote-wsl: wsl_path 需要非空 path（Windows 路径或 WSL 路径）');
   if (path.includes('\0')) throw new Error('remote-wsl: wsl_path 的 path 含 NUL 字符，拒绝执行');
+  // 2026-10-28（零配置）：目标解析失败时直接说根因；否则 `wsl.exe -d ""` 的报错不可诊断。
+  const targetIssue = targetProblem(cfg);
+  if (targetIssue) throw new Error(targetIssue);
   // 关停屏障（ZCode 的 spawn 前双检）：dispose 之后进来的工具调用不再起新的 wsl.exe。
   const lifecycle = activeLifecycle();
   if (lifecycle) lifecycle.assertAlive();
