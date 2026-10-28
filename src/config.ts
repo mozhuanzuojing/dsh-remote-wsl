@@ -110,13 +110,16 @@ export function configDetection(config) {
  * 合并默认值与调用方配置，并**解析目标**（`distro` / `wslHome` / `cwd`）。
  *
  * @param raw 插件行 config / preset 子插件 config（`raw` 非对象时忽略）
+ * @param opts.probe **测试缝**（同 `resolveAutoTarget`）：给了就用它探测、不碰真实 `wsl.exe`、
+ *                   也不用进程内缓存。生产路径（index/preset/子插件/工具）**都不传**。
  * @returns 归一后的配置：`distro`/`wslHome`/`cwd` 已尽量填好；探测失败时可能是 `''`
  *          （调用方用 `targetProblem()` 拿到可操作报错，**不要自己拼提示**）
  */
-export function normalizeConfig(raw) {
+export function normalizeConfig(raw, opts = {}) {
   const merged = { ...DEFAULTS, ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) };
   const autoNeeded = !asConfigText(merged.distro) || !asConfigText(merged.wslHome);
-  const resolved = resolveAutoTarget(merged);
+  const probe = typeof opts?.probe === 'function' ? opts.probe : null;
+  const resolved = resolveAutoTarget(merged, probe ? { probe } : {});
   const config = {
     ...merged,
     distro: resolved.distro,

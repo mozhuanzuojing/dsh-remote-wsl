@@ -206,18 +206,26 @@ test('normalizeConfig：显式配置原样保留、cwd 跟随 wslHome、且不�
 });
 
 test('normalizeConfig：显式配置不继承别的配置的探测结论（回归：启动日志/状态张冠李戴）', () => {
-  // 先自动探测一次（本机有 WSL ⇒ 成功；CI 没有 wsl.exe ⇒ 失败，两种都不影响下面的断言）
-  normalizeConfig({});
+  // 先自动探测一次（用假 probe ⇒ CI/本机行为一致；探测成不成功都不影响下面的断言）
+  normalizeConfig({}, { probe: wslProbe().probe });
   const explicit = normalizeConfig({ distro: 'no-such-distro-xyz', wslHome: '/home/nope' });
   assert.equal(configDetection(explicit), null, '显式配置必须没有"自动探测"的结论');
   assert.equal(targetProblem(explicit), null, '显式配齐两项 ⇒ 目标判据必须说"可用"');
 });
 
 test('探测结论跟着 {...cfg} 转发，但子插件重算时不会被当成自己的（preset 那条路）', () => {
-  const auto = normalizeConfig({});
+  // 这条**必须**用假 probe：真探测在 CI（没有 wsl.exe）会失败、在本机会成功，
+  // 断言就会随机器变 —— 2026-10-28 的 CI 红就是这么来的。
+  const { probe } = wslProbe();
+  const auto = normalizeConfig({}, { probe });
+  assert.equal(auto.distro, 'Ubuntu-24.04');
+  assert.equal(auto.wslHome, '/home/alice');
   assert.ok(configDetection(auto), '自动探测路径必须带结论（wsl_status 靠它说明来源）');
+  // preset 把解析好的配置 `{...cfg}` 转发给子插件；子插件重算时两项都已显式 ⇒ 不探测、不带结论
   const sub = normalizeConfig({ ...auto });
   assert.equal(configDetection(sub), null, '转发来的配置已经解析过 ⇒ 不算"自动探测"');
+  assert.equal(sub.distro, 'Ubuntu-24.04');
+  assert.equal(sub.wslHome, '/home/alice');
 });
 
 test('normalizeConfig：显式 cwd 不被覆盖', () => {
@@ -225,20 +233,29 @@ test('normalizeConfig：显式 cwd 不被覆盖', () => {
   assert.equal(c.cwd, '/work');
 });
 
-test('normalizeConfig：自动探测路径要么给齐目标，要么给出可操作报错（不依赖本机装没装 WSL）', () => {
-  const c = normalizeConfig({});
-  assert.equal(typeof c.distro, 'string');
-  assert.equal(typeof c.wslHome, 'string');
+test('normalizeConfig：探测成功 ⇒ 目标齐全、cwd 跟随 wslHome（假 probe，与本机无关）', () => {
+  const c = normalizeConfig({}, { probe: wslProbe().probe });
+  assert.equal(c.distro, 'Ubuntu-24.04');
+  assert.equal(c.wslHome, '/home/alice');
+  assert.equal(c.cwd, '/home/alice', 'cwd 空时应跟随自动探测出的 wslHome');
+  assert.equal(targetProblem(c), null);
+});
+
+test('normalizeConfig：探测失败 ⇒ 留空 + 可操作报错，绝不静默（假 probe，与本机无关）', () => {
+  const { probe } = fakeProbe(() => ({
+    status: null,
+    stdout: Buffer.alloc(0),
+    stderr: Buffer.alloc(0),
+    error: { code: 'ENOENT', message: 'no wsl.exe in this test' },
+  }));
+  const c = normalizeConfig({}, { probe });
+  assert.equal(c.distro, '');
+  assert.equal(c.wslHome, '');
+  assert.equal(c.cwd, '');
   const problem = targetProblem(c);
-  if (c.distro && c.wslHome) {
-    assert.equal(problem, null);
-    assert.ok(c.wslHome.startsWith('/'), `wslHome 必须是绝对 Linux 路径，实际 ${JSON.stringify(c.wslHome)}`);
-    assert.equal(c.cwd, c.wslHome, 'cwd 空时应跟随自动探测出的 wslHome');
-  } else {
-    assert.ok(problem, '探测失败必须给出报错，不能静默留空');
-    assert.match(problem, /^remote-wsl: /);
-    assert.match(problem, /cordis\.patch\.yml/);
-  }
+  assert.match(problem, /^remote-wsl: /);
+  assert.match(problem, /cordis\.patch\.yml/);
+  assert.ok(configDetection(c), '失败结论也要留在配置上（wsl_status/启动日志要能解释原因）');
 });
 
 test('targetProblemFrom：精确文案只在"结论与配置对得上"时使用', () => {

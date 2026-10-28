@@ -23,9 +23,18 @@ test('normalizeConfig：补齐默认值、调用方覆盖优先、非对象入�
   assert.equal(c.daemonPort, DEFAULTS.daemonPort);
   assert.equal(c.daemonLockWaitMs, 45000);
   assert.equal(typeof c.timeoutMs, 'number');
-  // 非对象/数组/undefined 都退回默认值
+  // 非对象/数组/undefined 都退回默认值。这些入参没有显式目标 ⇒ 会走自动探测：
+  // 给一个"没有 wsl.exe"的假 probe，避免测试去 spawn 真的 wsl.exe（CI 也没有它）。
+  const noWslProbe = () => ({
+    status: null,
+    stdout: Buffer.alloc(0),
+    stderr: Buffer.alloc(0),
+    error: { code: 'ENOENT', message: 'no wsl.exe in this test' },
+  });
   for (const bad of [undefined, null, 42, 'x', [], true]) {
-    assert.equal(normalizeConfig(bad).daemonPort, DEFAULTS.daemonPort);
+    const merged = normalizeConfig(bad, { probe: noWslProbe });
+    assert.equal(merged.daemonPort, DEFAULTS.daemonPort);
+    assert.equal(merged.distro, '', '探测失败 ⇒ 目标留空（不静默填作者机器的值）');
   }
 });
 
