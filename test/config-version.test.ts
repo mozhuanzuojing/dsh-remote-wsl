@@ -50,7 +50,16 @@ test('configCompat：旧守护没上报协议版本 ⇒ soft 且标 unknown', ()
 test('configCompat：守护协议比宿主新 ⇒ hard（宿主比守护旧，拒绝静默复用）', () => {
   const info = { cwd: '/home/g', profile: 'sdk', protocolVersion: PROTOCOL_VERSION + 1, pluginVersion: '9.9.9' };
   const c = configCompat({ cwd: '/home/g', profile: 'sdk' }, info, null);
+  const msg = c.hard.join(' | ');
   assert.ok(c.hard.some((s: string) => /协议/.test(s)));
+  // 2026-10-27 第三轮：这个方向的唯一出路是**升级宿主**（重启 DSH 让它加载新插件代码）。
+  // 旧文案还建议「或 restart 守护」—— 那是反的（restart 只会用同一份更新的守护脚本再起一个），
+  // 用户照做会原地打转。这里把"该往哪走"钉住，避免文案再漂回误导。
+  assert.match(msg, /重启\/升级 DSH Desktop/);
+  // 注意不能简单否定 "restart 守护"：新文案里恰有「restart 守护不解决问题」这句（正是要说明它是错方向）。
+  // 要拦的是**把 restart 当建议**的那种写法（旧版是「需先升级宿主或 restart 守护」）。
+  assert.doesNotMatch(msg, /或 restart 守护/, '宿主旧时不能把 restart 守护当作可选出路');
+  assert.match(msg, /不解决问题/, '应明确否掉 restart 守护这个方向，避免用户原地打转');
 });
 
 test('configCompat：插件版本不同但协议相同 ⇒ soft 提示对齐', () => {

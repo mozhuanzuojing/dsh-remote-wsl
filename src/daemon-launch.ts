@@ -361,7 +361,13 @@ export function configCompat(cfg, info, wantedVersion) {
   };
   if (protocolDaemon != null && protocolDaemon > PROTOCOL_VERSION) {
     // 宿主比守护旧：宿主可能读不懂守护的新字段 ⇒ 不允许静默复用。
-    hard.push(`守护协议 v${protocolDaemon} 高于宿主 v${PROTOCOL_VERSION}（宿主比守护旧，需先升级宿主或 restart 守护）`);
+    // ★ 2026-10-27 第三轮：这句原来还建议「或 restart 守护」—— 那是**反的**：restart 只会用同一个
+    // （更新的）守护脚本再起一个，协议不会因此变低，用户照做会一直在同一个错上打转。
+    // 唯一出路是让**宿主**变成新版（重装/重启 DSH Desktop，让它加载新插件代码）。
+    hard.push(
+      `守护协议 v${protocolDaemon} 高于宿主 v${PROTOCOL_VERSION}（宿主比守护旧）：请重启/升级 DSH Desktop 让宿主加载新插件代码；` +
+        `restart 守护不解决问题（它仍会用同一份更新的守护脚本）`,
+    );
   } else if (protocolDaemon == null) {
     soft.push(`守护未上报协议版本（旧插件 pluginVersion=${plugin.daemon ?? 'unknown'}）⇒ 新功能（流式读取等）在 restart 前不可用`);
   } else if (protocolDaemon < PROTOCOL_VERSION) {
