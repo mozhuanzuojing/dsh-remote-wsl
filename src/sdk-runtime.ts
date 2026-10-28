@@ -57,6 +57,23 @@ export const allowBuildFlags = () => ALLOW_BUILDS.map((p) => `--allow-build=${p}
  */
 export { shq };
 
+/**
+ * 一次 prompt 的**成败判定**（纯函数，守护用它填 `ok`）。
+ *
+ * 为什么单列：2026-10-28 真机实测踩到过一次伪成功 —— 上游 401 时 runtime 返回
+ * `{retryable:false, error:'Authentication Fails…'}`，而守护当时用 `ok: !retryable` 计算，
+ * 于是「失败」被报成「成功但答案为空」（`wsl_agent` 输出只有元信息、没有正文也没有错误）。
+ * `retryable:false` 只表示"重试没用"，**不表示成功**；带 `error` 一律算失败。
+ *
+ * @param r runtime 的 prompt 结果（含 `retryable` / `error`）
+ * @returns 真的产出了正文且没有上游错误 ⇒ true
+ */
+export function promptOkOf(r) {
+  if (r?.retryable === true) return false;
+  if (r?.error) return false;
+  return true;
+}
+
 /** 从 `assistant/message` 事件里取纯文本（reasoning 块必须丢掉，否则答案里会混思维链）。 */
 export function textOfAssistantEvent(ev) {
   const blocks = ev?.data?.message?.content;
@@ -65,6 +82,31 @@ export function textOfAssistantEvent(ev) {
     .filter((b) => b?.type === 'text' && typeof b.text === 'string')
     .map((b) => b.text)
     .join('');
+}
+
+/**
+ * 从 `turn/end` 事件里取**失败原因**（2026-10-28 真机实测补：上游 401 AUTH 被吞掉）。
+ *
+ * 为什么需要：`turn/end` 的 `data.reason` 可能是 `{kind:'error', error:{message, code, status}}`
+ * （实测：`Authentication Fails, Your api key: ****3e11 is invalid` / `code:'AUTH'` / `status:401`）。
+ * 旧实现只把 `completedBy` 记成 `'turn/end'`，随后按「没有产出正文 ⇒ 可重试」回报 —— 于是
+ * 「API key 无效」被念成「本轮没有产出正文，可直接重试」，用户会一直重试同一个**必然失败**的操作，
+ * 而真正的诊断信息就在事件里、我们却丢了。这是「错误丢失」，属禁项。
+ *
+ * 判定只看事件本身（纯函数）：`reason.kind !== 'error'` 或没有 message ⇒ null（正常结束/无信息）。
+ *
+ * @returns `{message, code, status}` 或 null
+ */
+export function turnEndErrorOf(ev) {
+  const reason = ev?.data?.reason;
+  if (!reason || reason.kind !== 'error') return null;
+  // 上游在不同版本里把细节放在 `reason.error` 或 `reason.failure`（assistant/attempt 的 finish 帧用后者）。
+  const err = reason.error ?? reason.failure ?? null;
+  const message = String(err?.message ?? reason.message ?? '').trim();
+  if (!message) return null;
+  const code = err?.code == null ? null : String(err.code);
+  const status = Number.isFinite(Number(err?.status)) ? Number(err.status) : null;
+  return { message, code, status };
 }
 
 /**
@@ -186,6 +228,8 @@ export class SdkRuntime {
     this.spawnError = null;
     /** 上一轮 `session/prompt` 的失败原因（失败后运行时状态不再"看着一切正常"）。 */
     this.lastTurnError = null;
+    /** 上一轮 `turn/end` 里上游自报的失败（如 401 AUTH）。与 lastTurnError 不同：请求本身是成功的。 */
+    this.turnEndError = null;
   }
 
   /** 运行时进程链的根 PID（`bash -c` 里 `exec mise …` ⇒ 这个 pid 就是 mise/pnpm 那层）。 */
@@ -353,6 +397,9 @@ export class SdkRuntime {
       const hasText = this.ad.sawAssistantRequiresText ? textOfAssistantEvent(ev).trim() : true;
       if (ev?.type === 'assistant/message' && hasText) this.sawAssistant = true;
       if (ev?.type === 'turn/end') {
+        // 上游可能在这一帧自报失败（401 AUTH / 429 限流 / 5xx）；**不许**只记 completedBy 就丢掉原因。
+        const failure = turnEndErrorOf(ev);
+        if (failure) this.turnEndError = failure;
         this.completedBy = this.completedBy ?? 'turn/end';
         this.resolveTurn?.();
       } else {
@@ -404,6 +451,7 @@ export class SdkRuntime {
     this.completedBy = null;
     this.graceUsed = false;
     this.statusRunning = false;
+    this.turnEndError = null;
     if (this.quietTimer) clearTimeout(this.quietTimer);
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.turnDone = new Promise((res) => {
@@ -451,9 +499,22 @@ export class SdkRuntime {
     }
     // 语义 #6：守护形态下**禁止**沿用"停稳运行时 + 读 zstd 日志换新 sessionId"的老兜底
     // （那会毁掉上下文）。这里如实回报"没有正文 + 可重试"，运行时保持不动。
+    //
+    // 2026-10-28 实测补：若上游在 `turn/end` 里**明确报了错**（如 401 AUTH），"没有正文 ⇒ 可重试"就是
+    // 误导 —— 凭据不对时重试永远失败。此时把上游原话带出来（retryable=false，避免把人往重试上推），
+    // 运行时不销毁：用户改好凭据后同一 key 仍能续上上下文。
+    const failure = finalText.trim() ? null : this.turnEndError;
     return {
       text: finalText,
-      retryable: !finalText.trim(),
+      retryable: failure ? false : !finalText.trim(),
+      ...(failure
+        ? {
+            error:
+              `远端运行时在上游侧失败${failure.code ? `（${failure.code}${failure.status ? ` ${failure.status}` : ''}）` : ''}：` +
+              `${failure.message}（运行时保持不动；修好上游条件后同一 key 可继续，无需换 sessionId）`,
+            errorCode: failure.code ?? null,
+          }
+        : {}),
       completedBy: this.completedBy ?? 'timeout',
       sessionId: this.sessionId,
       turns: this.turns,

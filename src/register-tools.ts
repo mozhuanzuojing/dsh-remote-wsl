@@ -623,8 +623,16 @@ ${command}
               `请先确认远端是否已经产生效果（文件/命令输出），再决定是否重试。]`;
           }
           // 语义 #6：守护形态下**不换运行时**（换了就毁上下文），如实回报可重试
+          //
+          // 2026-10-28 真机实测补：原来不管 retryable 是什么都写「可直接重试」，于是上游 401 那种
+          // 「重试只会再失败一次」的情况也被告知"可直接重试" —— 与人看到 errorCode 后的判断自相矛盾。
+          // 现在按 retryable 分叉：可重试就说可重试；不可重试就直说"别急着重试，先修上游条件"。
           const why = last?.queueFull ? '并发超出队列上限' : last?.retryable ? '本轮没有产出正文' : '本轮失败';
-          return `${resetNotice}${cwdNotice}[remote-wsl: ${why}；运行时保持不动，可直接重试 retryable=${last?.retryable === true}] ${last?.error ?? '(no error)'}`;
+          const retryHint =
+            last?.retryable === true
+              ? '运行时保持不动，可直接重试'
+              : '运行时保持不动，但**不要原样重试**（重试只会再失败一次）；先按下面的原因修好上游条件，同一 key 仍可续上上下文';
+          return `${resetNotice}${cwdNotice}[remote-wsl: ${why}；${retryHint} retryable=${last?.retryable === true}] ${last?.error ?? '(no error)'}`;
         }
 
         const meta =

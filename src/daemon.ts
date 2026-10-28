@@ -39,7 +39,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { shellEnvSnippet } from './shell-env.ts';
 import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
-import { SdkRuntime } from './sdk-runtime.ts';
+import { SdkRuntime, promptOkOf } from './sdk-runtime.ts';
 import { handleFsOp } from './fs-rpc.ts';
 import { handleSearchOp, setSearchToolPaths } from './search-rpc.ts';
 import { ensureSearchTools, ensureTools, catalog, resolveAssetFor, CORE_TOOLS, toolPaths } from './search-provision.ts';
@@ -677,7 +677,9 @@ async function pump(entry) {
         entry.turns = r.turns;
         entry.lastUsedAt = Date.now();
         job.resolve({
-          ok: !r.retryable,
+          // 成败判定收敛到纯函数：`retryable:false` 只表示"重试没用"，**不表示成功**；
+          // 带 error（上游 401/429 等）一律算失败，否则会变成"成功且空答案"的伪成功。
+          ok: promptOkOf(r),
           answer: r.text,
           sessionId: r.sessionId,
           cwd: entry.cwd, // P1：把**生效的** cwd 回报给调用方（绝不静默）
@@ -686,11 +688,16 @@ async function pump(entry) {
           completedBy: r.completedBy,
           eventCount: r.eventCount,
           retryable: Boolean(r.retryable),
-          // 语义 #6：没有正文时**不换**运行时、不改 sessionId，只回报"可重试"
-          error: r.retryable
+          // 语义 #6：没有正文时**不换**运行时、不改 sessionId，只回报"可重试"。
+          // 2026-10-28 实测补：上游在 `turn/end` 里明确报错（如 401 AUTH）时，runtime 会带 `error`
+          // 与 `retryable:false` —— 那种情况必须**原样转发原因**，不能用下面这句"没有产出正文"盖掉，
+          // 否则「API key 无效」被念成「可以重试」，用户会一直撞同一堵墙。
+          error: r.error ?? (r.retryable
             ? `运行时没有产出 assistant 正文（completedBy=${r.completedBy}, events=${r.eventCount}）；` +
               `运行时保持不动，可直接重试（上下文未丢）`
-            : undefined,
+            : undefined),
+          // 机器可读的上游错误码（AUTH / RATE_LIMIT / …），供上层分流。
+          ...(r.errorCode ? { errorCode: r.errorCode } : {}),
           queueDepth: entry.queue.length,
         });
       } catch (e) {
