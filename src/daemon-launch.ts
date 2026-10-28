@@ -12,6 +12,9 @@ import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, closeSync, mkdirSync, openSync, rmSync, statSync, truncateSync } from 'node:fs';
 import { daemonScriptWsl, launchLinux, stateDirLinux, unc, wslRunScript, wslRunScriptAsync } from './daemon-protocol.ts';
 import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
+// A-P2-B（2026-10-28 独立复核）：启动脚本里的**数据**必须按 shell 字面量转义。
+// `JSON.stringify` 只保证"一个 shell 词"（双引号内 `$()`/反引号仍会展开），本仓已有 shq() 就是为此。
+import { shq } from './shell-quote.ts';
 
 // ── 原 daemon-client.ts 第 319-328 行 ──
 export function killWslPid(cfg, pid) {
@@ -53,20 +56,21 @@ export function launchScript(cfg, port, version) {
     // F31（task-8）：`launch-stderr.log` 是**Windows 侧** `openSync(..., 'a', 0o600)` 建的，而经 UNC
     // （9p/drvfs）的 chmod **实测不生效**（改前 0644、改了还是 0644；同目录 daemon.log 是 0600）。
     // 所以由 **WSL 侧**在守护起来之前显式收紧：只改 mode，**不动内容、不动属主**。
-    `chmod 600 ${JSON.stringify(`${stateDirLinux(cfg)}/launch-stderr.log`)} 2>/dev/null || true`,
+    `chmod 600 ${shq(`${stateDirLinux(cfg)}/launch-stderr.log`)} 2>/dev/null || true`,
     'export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"',
-    `cd ${JSON.stringify(cfg.wslHome)} 2>/dev/null || true`,
-    `exec node ${JSON.stringify(daemonScriptWsl())} --port ${port} --meta-port ${port} --version ${version} --cwd ${JSON.stringify(cfg.cwd)} ` +
+    `cd ${shq(cfg.wslHome)} 2>/dev/null || true`,
+    `exec node ${shq(daemonScriptWsl())} --port ${port} --meta-port ${port} --version ${shq(version)} --cwd ${shq(cfg.cwd)} ` +
       `--idle-ms ${Number(cfg.daemonIdleMs ?? 1800000)} --queue-limit ${Number(cfg.daemonQueueLimit ?? 4)} ` +
-      `--profile ${JSON.stringify(cfg.profile ?? 'sdk')} --proxy-port ${Number(cfg.proxyPort ?? 9910)} ` +
+      `--profile ${shq(cfg.profile ?? 'sdk')} --proxy-port ${Number(cfg.proxyPort ?? 9910)} ` +
       // 2026-10-28：把 provider/model 真正接到 daemon 后端（载荷与 daemon.ts 的 arg('provider'|'model') 对齐）。
-      // JSON.stringify 保证带 `/` 的模型 id（如 deepseek/deepseek-v4.1-flash-fast）不被 shell 拆开。
-      `--provider ${JSON.stringify(cfg.provider ?? 'deepseek-official')} --model ${JSON.stringify(cfg.model ?? 'deepseek-flash')} ` +
+      // 2026-10-28 复核 A-P2-B：改走 shq() 单引号 —— `JSON.stringify` 的 `"…"` 里 `$()`/反引号仍会被 bash
+      // 展开（已实测），`--version` 更是裸插值。配置/自动探测的 `$HOME` 都可能是半外部输入，必须按字面量转义。
+      `--provider ${shq(cfg.provider ?? 'deepseek-official')} --model ${shq(cfg.model ?? 'deepseek-flash')} ` +
       `--linger-ms ${Number(cfg.daemonLingerMs ?? 600000)} ` +
       // F-55（2026-10-27 审查）：把 `useShellEnvironment` 真正接到守护启动参数上。以前这个开关只在
       // in-host / wsl_open_ui 生效，daemon 后端恒注入，而 `wsl_status` 又按配置回显 —— 配置与行为矛盾。
       `${cfg.useShellEnvironment === false ? '--no-shell-env ' : ''}` +
-      `--state-dir ${JSON.stringify(stateDirLinux(cfg))} --launcher ${JSON.stringify(launchLinux(cfg, port))}`,
+      `--state-dir ${shq(stateDirLinux(cfg))} --launcher ${shq(launchLinux(cfg, port))}`,
     '',
   ].join('\n');
 }
@@ -359,6 +363,37 @@ export function configCompat(cfg, info, wantedVersion) {
   if (info?.queueLimit != null && Number(info.queueLimit) !== Number(cfg.daemonQueueLimit)) soft.push(`queueLimit ${info.queueLimit}≠${cfg.daemonQueueLimit}`);
   if (info?.lingerMs != null && Number(info.lingerMs) !== Number(cfg.daemonLingerMs)) soft.push(`lingerMs ${info.lingerMs}≠${cfg.daemonLingerMs}`);
 
+  // ★ 2026-10-28 独立复核 A-P1-A：provider/model 是**结构性**的（决定这一轮会话能否打通上游）。
+  //   上一轮把它们接到了启动参数，但复用判据不看它们、守护身份也不上报 ⇒ 改完配置重启 DSH 会静默复用
+  //   旧守护、继续用旧 provider（与 401 同症状、零告警）。现在：
+  //     · 守护上报了值且与本次配置不同 ⇒ hard（明确要求 restart，不静默跑错上游）；
+  //     · 守护没上报（0.3.4 之前的旧守护）⇒ soft（无法校验，提示 restart 后可见），不硬阻塞；
+  //     · useShellEnvironment / proxyPort 只影响环境注入/代理探测 ⇒ soft。
+  const daemonProvider = typeof info?.provider === 'string' && info.provider.trim() ? info.provider.trim() : null;
+  const daemonModel = typeof info?.model === 'string' && info.model.trim() ? info.model.trim() : null;
+  const hostProvider = typeof cfg?.provider === 'string' && cfg.provider.trim() ? cfg.provider.trim() : null;
+  const hostModel = typeof cfg?.model === 'string' && cfg.model.trim() ? cfg.model.trim() : null;
+  const route = {
+    daemon: { provider: daemonProvider, model: daemonModel },
+    host: { provider: hostProvider, model: hostModel },
+  };
+  if (daemonProvider === null || daemonModel === null) {
+    soft.push(
+      `守护未上报 provider/model（插件 ${info?.pluginVersion ?? 'unknown'}，0.3.4 之前的守护）⇒ ` +
+        `本次配置 ${hostProvider ?? '?'}/${hostModel ?? '?'} 是否生效**无法校验**；` +
+        `wsl_daemon action=restart 后状态里会显示实际生效值`,
+    );
+  } else {
+    if (hostProvider && daemonProvider !== hostProvider) hard.push(`provider ${daemonProvider}≠${hostProvider}`);
+    if (hostModel && daemonModel !== hostModel) hard.push(`model ${daemonModel}≠${hostModel}`);
+  }
+  if (typeof info?.useShellEnvironment === 'boolean' && Boolean(cfg?.useShellEnvironment) !== info.useShellEnvironment) {
+    soft.push(`useShellEnvironment ${info.useShellEnvironment}≠${Boolean(cfg?.useShellEnvironment)}`);
+  }
+  if (info?.proxyPort != null && Number(info.proxyPort) !== Number(cfg?.proxyPort ?? 9910)) {
+    soft.push(`proxyPort ${info.proxyPort}≠${cfg?.proxyPort ?? 9910}`);
+  }
+
   // 换角度评审第 1 条：插件/协议版本错配。守护是 detached 的，宿主升级后旧守护继续活着是**常态**；
   // 旧守护不认识新 op（fs.readChunk）、也缺新 meta 字段，必须让调用方看到"restart 后生效"，
   // 而不是让用户对着 unknown method 猜。
@@ -390,6 +425,7 @@ export function configCompat(cfg, info, wantedVersion) {
     hard,
     soft,
     plugin,
+    route,
     version: wantedVersion && info?.version && info.version !== wantedVersion ? { daemon: info.version, wanted: wantedVersion } : null,
   };
 }

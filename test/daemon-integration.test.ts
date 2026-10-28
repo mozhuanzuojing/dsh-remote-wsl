@@ -758,3 +758,75 @@ test('shutdown op：同一条回收路径，元数据与 token 也被清理（�
     await stopDaemon(proc);
   }
 });
+
+// ── 10) A-P1-A：守护身份必须上报实际 provider/model（三处一致）───────────────
+
+test('守护身份：provider/model/useShellEnvironment/proxyPort 在 meta / hello / status 三处一致（A-P1-A）', async (t) => {
+  const proc = await startDaemon(t, { extra: ['--provider', 'test-provider', '--model', 'test/model-x'] });
+  if (!proc) return;
+  const conns: any[] = [];
+  try {
+    // 元数据：宿主在"没握手成功"时只能靠它判断守护身份
+    assert.equal(proc.meta.provider, 'test-provider');
+    assert.equal(proc.meta.model, 'test/model-x');
+    assert.equal(proc.meta.useShellEnvironment, false, '集成测试带 --no-shell-env，必须如实上报 false');
+    assert.equal(proc.meta.proxyPort, 1);
+
+    const conn = await openConn(proc.port);
+    conns.push(conn);
+    const hello = await handshake(conn, proc.token);
+    assert.equal(hello.provider, 'test-provider', 'hello 必须回报实际 provider（复用核对点）');
+    assert.equal(hello.model, 'test/model-x', 'hello 必须回报实际 model');
+    assert.equal(hello.useShellEnvironment, false);
+    assert.equal(hello.proxyPort, 1);
+
+    conn.send({ op: 'status', id: 11 });
+    const st = await conn.nextJson(5000, 'status 回包');
+    assert.equal(st.ok, true);
+    assert.equal(st.provider, 'test-provider');
+    assert.equal(st.model, 'test/model-x');
+    assert.equal(st.useShellEnvironment, false);
+    assert.equal(st.proxyPort, 1);
+  } finally {
+    for (const c of conns) c.destroy();
+    await stopDaemon(proc);
+  }
+});
+
+test('prompt op：宿主 provider/model 与守护不一致 ⇒ 明确拒绝且不创建一个 key（A-P1-A 最后一道闸门）', async (t) => {
+  const proc = await startDaemon(t);
+  if (!proc) return;
+  const conns: any[] = [];
+  try {
+    const conn = await openConn(proc.port);
+    conns.push(conn);
+    await handshake(conn, proc.token);
+    conn.send({
+      op: 'prompt',
+      id: 12,
+      key: 'route-guard',
+      text: 'hello',
+      provider: 'some-other-provider',
+      model: 'some/other-model',
+    });
+    const reply = await conn.nextJson(8000, 'prompt 拒绝回包');
+    assert.equal(reply.ok, false, 'provider 不一致必须失败，绝不能拿旧守护静默跑一轮');
+    assert.match(reply.error, /provider\/model/);
+    assert.match(reply.error, /action=restart/, '错误里必须给出可操作动作');
+    assert.equal(reply.retryable, false, '方向错误的请求不许被标成"可重试"（重试仍会打到旧守护）');
+    assert.deepEqual(reply.configMismatch, {
+      daemon: { provider: 'deepseek-official', model: 'deepseek-flash' },
+      requested: { provider: 'some-other-provider', model: 'some/other-model' },
+    });
+
+    // 拒绝发生在进队列之前：不能留下 key 条目（否则会误导后续 status/会话续聊）
+    conn.send({ op: 'status', id: 13 });
+    const st = await conn.nextJson(5000, 'status 回包');
+    assert.equal(st.ok, true);
+    assert.deepEqual(st.keys, [], '被拒绝的 prompt 不得创建 key');
+  } finally {
+    for (const c of conns) c.destroy();
+    await stopDaemon(proc);
+  }
+});
+

@@ -544,7 +544,17 @@ export async function daemonPrompt(cfg, { port, token, key, text, cwd, timeoutMs
     port,
     token,
     // P1：per-call cwd 走协议（守护按 key+cwd 分条目）——不再被静默忽略
-    req: { op: 'prompt', id: 1, key, text, ...(cwd ? { cwd } : {}) },
+    // A-P1-A（2026-10-28 复核）：带上宿主**当前**的 provider/model，守护不一致时明确拒绝。
+    // 只靠启动参数 + 复用判据还不够：宿主可能直接拿到既有连接发 prompt，这条是最后一道闸门。
+    req: {
+      op: 'prompt',
+      id: 1,
+      key,
+      text,
+      ...(cwd ? { cwd } : {}),
+      ...(typeof cfg?.provider === 'string' && cfg.provider.trim() ? { provider: cfg.provider.trim() } : {}),
+      ...(typeof cfg?.model === 'string' && cfg.model.trim() ? { model: cfg.model.trim() } : {}),
+    },
     timeoutMs: Number(timeoutMs || cfg.timeoutMs || 300000),
   });
   if (r.msg) {
@@ -560,6 +570,8 @@ export async function daemonPrompt(cfg, { port, token, key, text, cwd, timeoutMs
       retryable: r.msg.retryable,
       queueFull: r.msg.queueFull,
       error: r.msg.error,
+      // A-P1-A：守护拒绝时的机器可读原因（守护实际 provider/model vs 请求值），供上层分流。
+      ...(r.msg.configMismatch ? { configMismatch: r.msg.configMismatch } : {}),
       ms: r.ms,
     };
   }

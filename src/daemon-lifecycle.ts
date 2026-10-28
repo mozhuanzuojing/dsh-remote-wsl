@@ -201,7 +201,8 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
             notes,
             error:
               `远端守护（槽位 ${rec.slot} / 端口 ${hs.info.port}）与本次配置**结构性不兼容**：${compat.hard.join('、')}。` +
-              `复用会让会话跑在错误的工作目录/插件集上。请显式执行 wsl_daemon action=restart 以新配置重启，或改用另一个 config.daemonPort。`,
+              `复用会让会话跑在错误的工作目录/插件集，或继续用旧 provider 打上游（配置像没改、401 长驻）。` +
+              `请显式执行 wsl_daemon action=restart 以新配置重启（会丢当前会话上下文），或改用另一个 config.daemonPort。`,
           };
         }
         if (hs.info.port !== wantSlot) {

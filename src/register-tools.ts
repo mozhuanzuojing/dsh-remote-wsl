@@ -364,6 +364,8 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
         let daemonLine: string;
         let daemonAlarm: string | null = null;
         let daemonPluginAlarm: string | null = null;
+        // A-P1-A（2026-10-28 复核）：用户必须能一眼看出"守护实际在用什么 provider/model"。
+        let daemonRouteAlarm: string | null = null;
         const orphanDaemons: any[] = Array.isArray(dstat.orphans) ? dstat.orphans : [];
         if (dstat.ok) {
           const info = dstat.info ?? {};
@@ -371,8 +373,24 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
           daemonLine =
             `running pid=${info.daemonPid} actualPort=${info.port} slot=${dstat.slot} version=${info.version} ` +
             `plugin=${info.pluginVersion ?? 'unknown'} protocol=v${info.protocolVersion ?? 0} ` +
+            `provider=${info.provider ?? 'unknown'} model=${info.model ?? 'unknown'} ` +
             `uptime=${Math.round((info.uptimeMs ?? 0) / 1000)}s idleMs=${info.idleMs} lingerMs=${info.lingerMs} keys=${ks.length} ` +
             `[${ks.map((k) => `${k.key}(turn ${k.turns}${k.queued ? `,q${k.queued}` : ''}${k.runtimePid ? `,pid${k.runtimePid}` : ''})`).join(', ') || '(none)'}]`;
+          // A-P1-A：配置与守护的 provider/model 必须当场比对 —— 复用旧守护时这里就是唯一的可见面。
+          const dProvider = typeof info.provider === 'string' && info.provider.trim() ? info.provider.trim() : null;
+          const dModel = typeof info.model === 'string' && info.model.trim() ? info.model.trim() : null;
+          const wantProvider = typeof config.provider === 'string' && config.provider.trim() ? config.provider.trim() : null;
+          const wantModel = typeof config.model === 'string' && config.model.trim() ? config.model.trim() : null;
+          if (dProvider === null || dModel === null) {
+            daemonRouteAlarm =
+              `守护没有上报实际 provider/model（0.3.4 之前的旧守护）⇒ 无法校验本次配置（${wantProvider ?? '?'}/${wantModel ?? '?'}）` +
+              `是否生效；执行 wsl_daemon action=restart 后状态里会显示实际生效值`;
+          } else if ((wantProvider && dProvider !== wantProvider) || (wantModel && dModel !== wantModel)) {
+            daemonRouteAlarm =
+              `守护实际 provider/model = ${dProvider}/${dModel}，本次配置 = ${wantProvider ?? '?'}/${wantModel ?? '?'}` +
+              ` —— **配置改了但守护还是旧进程**（不自动重启，避免无声中断正在进行的会话）；执行 wsl_daemon action=restart 才会用新值` +
+              `（会丢当前会话上下文）`;
+          }
           // 漂移报警（task-9 #3）：**显式 config.dshVersion / 桌面版本 / wsl pin 三者都要比**。
           // 只比后两者会漏判：`dshVersion:'0.1.0-fake'` 而守护跑 0.2.0-rc.2 时曾完全没有报警。
           const expects: Array<{ label: string; value: string }> = [];
@@ -454,6 +472,7 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
           `daemon: ${daemonLine}`,
           ...(daemonAlarm ? [`daemon drift: ⚠️ ${daemonAlarm}`] : []),
           ...(daemonPluginAlarm ? [`daemon plugin: ⚠️ ${daemonPluginAlarm}`] : []),
+          ...(daemonRouteAlarm ? [`daemon route: ⚠️ ${daemonRouteAlarm}`] : []),
           `daemon idle/linger/queue: idleMs=${config.daemonIdleMs}（到期回收运行时 ⇒ 上下文丢失）/ lingerMs=${config.daemonLingerMs}（无 key 且无客户端持续这么久 ⇒ 守护自退）/ queueLimit=${config.daemonQueueLimit}（同 key 并发 FIFO，超出明确拒绝）`,
           `daemon ports: configured=${config.daemonPort}(+${config.daemonPortTries} 回退) actual=${dstat.ok ? dstat.info?.port : dstat.kind === 'no-target' ? '(未检查：目标未确定)' : '(未运行)'}${dstat.ok && dstat.slot != null ? ` slot=${dstat.slot}` : ''}`,
           // 2026-10-28（零配置·评审 P2-3）：`stateDirLinux({wslHome:''})` 会拼出 `/.dsh/remote-wsl`
@@ -746,8 +765,19 @@ ${command}
           const info = s.info ?? {};
           const ks: any[] = Array.isArray(info.keys) ? info.keys : [];
           const orphans: any[] = Array.isArray(s.orphans) ? s.orphans : [];
+          // A-P1-A：`wsl_daemon status` 是排障第一入口 —— 实际 provider/model 与配置必须同时出现。
+          const statusProvider = typeof info.provider === 'string' && info.provider.trim() ? info.provider.trim() : null;
+          const statusModel = typeof info.model === 'string' && info.model.trim() ? info.model.trim() : null;
+          const wantedProvider = typeof config.provider === 'string' && config.provider.trim() ? config.provider.trim() : null;
+          const wantedModel = typeof config.model === 'string' && config.model.trim() ? config.model.trim() : null;
+          const routeWarn =
+            statusProvider === null || statusModel === null
+              ? `route: ⚠️ 守护未上报 provider/model（0.3.4 之前的旧守护）⇒ 无法校验本次配置 ${wantedProvider ?? '?'}/${wantedModel ?? '?'}；wsl_daemon action=restart 后可核对`
+              : (wantedProvider && statusProvider !== wantedProvider) || (wantedModel && statusModel !== wantedModel)
+                ? `route: ⚠️ 守护实际 ${statusProvider}/${statusModel} ≠ 本次配置 ${wantedProvider ?? '?'}/${wantedModel ?? '?'} —— 配置改了但守护还是旧进程；执行 wsl_daemon action=restart 生效（会丢当前会话上下文）`
+                : null;
           return [
-            `daemon: pid=${info.daemonPid} actualPort=${info.port} slot=${s.slot} version=${info.version} plugin=${info.pluginVersion ?? 'unknown'} protocol=v${info.protocolVersion ?? 0} cwd=${info.cwd} profile=${info.profile}`,
+            `daemon: pid=${info.daemonPid} actualPort=${info.port} slot=${s.slot} version=${info.version} plugin=${info.pluginVersion ?? 'unknown'} protocol=v${info.protocolVersion ?? 0} cwd=${info.cwd} profile=${info.profile} provider=${statusProvider ?? 'unknown'} model=${statusModel ?? 'unknown'}`,
             machineLine({
               slot: s.slot,
               pid: info.daemonPid,
@@ -755,6 +785,7 @@ ${command}
               version: info.version,
               extra: `keys=${ks.length} orphans=${orphansCount} scan=${scanFailed ? 'failed' : 'ok'}`,
             }),
+            ...(routeWarn ? [routeWarn] : []),
             ...(info.protocolVersion == null || Number(info.protocolVersion) < PROTOCOL_VERSION || (info.pluginVersion && info.pluginVersion !== PLUGIN_VERSION)
               ? [
                   `versions: ⚠️ 守护插件 ${info.pluginVersion ?? 'unknown'} / 协议 v${info.protocolVersion ?? 0}，宿主 ${PLUGIN_VERSION} / 协议 v${PROTOCOL_VERSION} —— 新功能在 restart 前不可用（wsl_daemon action=restart）`,

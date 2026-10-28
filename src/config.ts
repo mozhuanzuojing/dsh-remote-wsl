@@ -117,11 +117,19 @@ export function configDetection(config) {
  */
 export function normalizeConfig(raw, opts = {}) {
   const merged = { ...DEFAULTS, ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) };
+  // A-P2-D（2026-10-28 复核）：`provider: ''` / `model: ' '` 以前会原样传到守护（`??` 对空串不生效），
+  // initialize 收到空 provider 的行为取决于上游。这里与 distro/wslHome 同一套归一：空/纯空白 ⇒ 显式回落默认值。
+  const provider = asConfigText(merged.provider) || DEFAULTS.provider;
+  const model = asConfigText(merged.model) || DEFAULTS.model;
+  const profile = asConfigText(merged.profile) || DEFAULTS.profile;
   const autoNeeded = !asConfigText(merged.distro) || !asConfigText(merged.wslHome);
   const probe = typeof opts?.probe === 'function' ? opts.probe : null;
   const resolved = resolveAutoTarget(merged, probe ? { probe } : {});
   const config = {
     ...merged,
+    provider,
+    model,
+    profile,
     distro: resolved.distro,
     wslHome: resolved.wslHome,
     // 显式 cwd 优先；否则跟随解析出来的 wslHome（旧默认值是 `'/home/g'` —— 同样是作者机器的值）。

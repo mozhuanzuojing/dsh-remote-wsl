@@ -22,8 +22,14 @@ import { readFileSync } from 'node:fs';
  * 稳定身份**），`type` 改为跟随链接（`ln -s /etc d` 现在报 `directory`，旧守护报 `other`）。
  * 这是**加法**：宿主对缺失 `targetKey` 有回退（退回 `path.posix.join`），所以新宿主 + 旧守护仍可用，
  * 只是符号链接语义还是旧的 —— 正好由「守护协议 < 宿主 ⇒ soft，restart 后生效」表达。
+ *
+ * v3（0.3.4，2026-10-28 独立复核 A-P1-A）：守护身份（meta / status / hello）统一上报
+ * `provider` / `model` / `useShellEnvironment` / `proxyPort`，`prompt` 请求可携带 `provider` / `model`
+ * 且不一致时**明确拒绝**。动机：401 那轮把 provider/model 接到了启动参数，但只对「新起守护」生效 ——
+ * 改配置后重启 DSH 会静默复用旧守护、继续用旧 provider（同症状、零告警）。旧守护缺这些字段时
+ * 宿主按「未上报」处理（soft 提示 restart），不会硬阻塞。
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /**
  * 插件自身版本（取自本仓 package.json；`link:` 安装时就是工作树那一份）。

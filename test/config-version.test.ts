@@ -81,3 +81,78 @@ test('configCompat：插件版本不同但协议相同 ⇒ soft 提示对齐', (
   assert.equal(c.hard.length, 0);
   assert.ok(c.soft.some((s: string) => /插件版本/.test(s)), JSON.stringify(c.soft));
 });
+
+// ── A-P1-A（2026-10-28 独立复核）：provider/model 必须参与复用判据 ────────────────
+
+test('configCompat：守护上报的 provider/model 与配置一致 ⇒ 无 route 告警', () => {
+  const info = {
+    cwd: '/home/g',
+    profile: 'sdk',
+    protocolVersion: PROTOCOL_VERSION,
+    pluginVersion: PLUGIN_VERSION,
+    provider: 'commandcode',
+    model: 'deepseek/x',
+  };
+  const c = configCompat({ cwd: '/home/g', profile: 'sdk', provider: 'commandcode', model: 'deepseek/x' }, info, null);
+  assert.equal(c.hard.length, 0, JSON.stringify(c));
+  assert.ok(!c.soft.some((s: string) => /provider|model/.test(s)), JSON.stringify(c.soft));
+  assert.deepEqual(c.route, {
+    daemon: { provider: 'commandcode', model: 'deepseek/x' },
+    host: { provider: 'commandcode', model: 'deepseek/x' },
+  });
+});
+
+test('configCompat：守护的 provider/model 与配置不同 ⇒ hard（不静默跑错上游）', () => {
+  const info = {
+    cwd: '/home/g',
+    profile: 'sdk',
+    protocolVersion: PROTOCOL_VERSION,
+    pluginVersion: PLUGIN_VERSION,
+    provider: 'deepseek-official',
+    model: 'deepseek-flash',
+  };
+  const c = configCompat({ cwd: '/home/g', profile: 'sdk', provider: 'commandcode', model: 'deepseek/x' }, info, null);
+  const msg = c.hard.join(' | ');
+  assert.match(msg, /provider deepseek-official≠commandcode/, msg);
+  assert.match(msg, /model deepseek-flash≠deepseek\/x/, msg);
+  assert.equal(c.route.daemon.provider, 'deepseek-official');
+  assert.equal(c.route.host.provider, 'commandcode');
+});
+
+test('configCompat：守护没上报 provider/model（0.3.4 之前的旧守护）⇒ soft 且不硬阻塞', () => {
+  const info = { cwd: '/home/g', profile: 'sdk', protocolVersion: PROTOCOL_VERSION, pluginVersion: '0.3.3' };
+  const c = configCompat({ cwd: '/home/g', profile: 'sdk', provider: 'commandcode', model: 'deepseek/x' }, info, null);
+  assert.equal(c.hard.length, 0, JSON.stringify(c));
+  assert.ok(c.soft.some((s: string) => /未上报 provider\/model/.test(s)), JSON.stringify(c.soft));
+  assert.equal(c.route.daemon.provider, null);
+  assert.equal(c.route.host.provider, 'commandcode');
+});
+
+test('configCompat：useShellEnvironment / proxyPort 不同 ⇒ soft（只提示 restart，不 hard）', () => {
+  const info = {
+    cwd: '/home/g',
+    profile: 'sdk',
+    protocolVersion: PROTOCOL_VERSION,
+    pluginVersion: PLUGIN_VERSION,
+    provider: 'p',
+    model: 'm',
+    useShellEnvironment: false,
+    proxyPort: 9999,
+  };
+  const c = configCompat(
+    { cwd: '/home/g', profile: 'sdk', provider: 'p', model: 'm', useShellEnvironment: true, proxyPort: 9910 },
+    info,
+    null,
+  );
+  assert.equal(c.hard.length, 0, JSON.stringify(c));
+  assert.ok(c.soft.some((s: string) => /useShellEnvironment/.test(s)), JSON.stringify(c.soft));
+  assert.ok(c.soft.some((s: string) => /proxyPort/.test(s)), JSON.stringify(c.soft));
+});
+
+test('normalizeConfig：provider/model/profile 空串或纯空白 ⇒ 显式回落默认值（A-P2-D）', () => {
+  const c = normalizeConfig({ distro: 'Ubuntu-24.04', wslHome: '/home/u', provider: '', model: '   ', profile: '\t' });
+  assert.equal(c.provider, DEFAULTS.provider);
+  assert.equal(c.model, DEFAULTS.model);
+  assert.equal(c.profile, DEFAULTS.profile);
+});
+

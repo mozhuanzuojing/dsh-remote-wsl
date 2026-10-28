@@ -230,10 +230,12 @@ export function apply(ctx, rawConfig = {}) {
   const runtimes = inHost.runtimes; // 宿主逃生舱持有的运行时（dispose 时回收；**不含守护**）
 
   const listDistros = () => {
-    const res = spawnSync('wsl.exe', ['-l', '-q'], { encoding: 'utf8', windowsHide: true, timeout: 8000 });
-    return (res.stdout || '')
+    // A-OBS-1（2026-10-28 复核）：`wsl.exe -l -q` 在 Windows 上常返回 UTF-16LE；旧实现按 utf8 解再手删 `\0`，
+    // 对非 ASCII 发行版名会出 U+FFFD。改成 buffer + 统一解码（与 listDistrosAsync 同一个实现）。
+    const res = spawnSync('wsl.exe', ['-l', '-q'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024, windowsHide: true, timeout: 8000 });
+    return String(decodeWslOutput(res.stdout ?? Buffer.alloc(0)))
       .split('\n')
-      .map((s) => s.replace(/\0/g, '').trim())
+      .map((s) => s.trim())
       .filter(Boolean);
   };
 

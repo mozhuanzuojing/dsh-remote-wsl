@@ -225,11 +225,15 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 > **0.3.3 升级提示（`cwd`）**：显式配了 `wslHome`、但没配 `cwd` 的用户，有效 cwd 现在**跟随 `wslHome`**（旧版固定 `/home/g`）。若旧守护报告的 cwd 与新的不同，会被判为结构性不兼容 ⇒ 需要 `wsl_daemon action=restart` 一次（该动作会丢当前会话上下文）。显式写上 `cwd` 可保持原样。
 
+> **0.3.4 升级提示（`provider` / `model`）**：守护现在会在 `meta` / `hello` / `status` 三处上报**实际生效的** `provider` / `model`，宿主复用守护前会核对：不一致 ⇒ 结构性不兼容、明确要求 `wsl_daemon action=restart`（不再静默沿用旧 provider —— 那正是上一轮"配置改了像没改 / 401"的根因）。**旧守护（0.3.4 之前）不上报这两个字段** ⇒ 宿主只能给 soft 提示（`daemon route: ⚠️ 守护没有上报实际 provider/model`），restart 一次后即可核对。`wsl_daemon status` / `wsl_status` 里的 `provider=` / `model=` 是"实际在跑的那一个"，不要凭配置文件推断。协议版本随之到 **v3**。
+
 常用配置键：
 
 | 键 | 默认 | 作用 |
 |---|---|---|
 | `distro` / `wslHome` / `cwd` | 空 = **自动探测** | 目标发行版、WSL 家目录、远端 agent 的默认工作目录 |
+| `provider` / `model` | `deepseek-official` / `deepseek-flash` | 远端 agent 用的 provider 与模型 id（以 WSL 侧 dsh 的 provider catalog 为准，例如 `commandcode` + `deepseek/deepseek-v4.1-flash-fast`）。**守护是常驻进程：改完必须 `wsl_daemon action=restart` 才生效**；0.3.4 起复用前会核对，不一致直接报错并提示 restart |
+| `profile` | `sdk` | WSL 侧 dsh 的 profile（守护据此装载插件集）。变更同样需要 `wsl_daemon action=restart` |
 | `backend` | `daemon` | `daemon` = 运行时由 WSL 常驻守护持有；`in-host` = 旧形态逃生舱（关客户端即丢会话） |
 | `daemonPort` | `8731` | 守护槽位/端口；WSL 侧被占则 +1，Windows 侧被占则换端口重试 |
 | `daemonIdleMs` | `1800000` | 空闲回收，到期即丢上下文 |

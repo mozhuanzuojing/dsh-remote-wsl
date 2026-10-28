@@ -400,6 +400,12 @@ function writeMeta(extra = {}) {
     protocolVersion: PROTOCOL_VERSION,
     cwd: CWD,
     profile: PROFILE,
+    // 2026-10-28 独立复核 A-P1-A：守护身份必须包含**实际生效的 provider/model**。
+    // 没有这两个字段时，宿主改完配置只能"假设"复用没问题 —— 旧 provider 会一直生效且零告警。
+    provider: PROVIDER,
+    model: MODEL,
+    useShellEnvironment: SHELL_ENV,
+    proxyPort: PROXY_PORT,
     idleMs: IDLE_MS,
     queueLimit: QUEUE_LIMIT,
     lingerMs: LINGER_MS,
@@ -730,6 +736,11 @@ async function handle(req) {
       protocolVersion: PROTOCOL_VERSION,
       cwd: CWD,
       profile: PROFILE,
+      // A-P1-A：status 是 `wsl_daemon status` 的唯一数据源 —— 用户必须能看见"守护在用哪个 provider"。
+      provider: PROVIDER,
+      model: MODEL,
+      useShellEnvironment: SHELL_ENV,
+      proxyPort: PROXY_PORT,
       idleMs: IDLE_MS,
       queueLimit: QUEUE_LIMIT,
       lingerMs: LINGER_MS,
@@ -746,6 +757,30 @@ async function handle(req) {
     }
     // P1：per-call cwd（可选）。缺省 = 守护启动时的 --cwd；不同 cwd ⇒ 不同运行时条目（各自 sessionId）。
     const cwd = typeof req.cwd === 'string' && req.cwd.trim() ? req.cwd.trim() : CWD;
+    // A-P1-A（复核）：调用方改了 provider/model 但复用了旧守护时，prompt 是**最后一道闸门**。
+    // 带了期望值且与守护不一致 ⇒ 明确拒绝并给出可操作动作，绝不用旧 provider 静默跑一轮。
+    // 这两个字段是可选的：旧客户端不带 ⇒ 行为不变（兼容）。
+    const wantProvider = typeof req.provider === 'string' ? req.provider.trim() : '';
+    const wantModel = typeof req.model === 'string' ? req.model.trim() : '';
+    const routeMismatch =
+      (wantProvider && wantProvider !== PROVIDER) || (wantModel && wantModel !== MODEL)
+        ? {
+            daemon: { provider: PROVIDER, model: MODEL },
+            requested: { provider: wantProvider || null, model: wantModel || null },
+          }
+        : null;
+    if (routeMismatch) {
+      return {
+        ok: false,
+        id,
+        error:
+          `守护实际生效的 provider/model 与本次请求不一致（守护 ${PROVIDER}/${MODEL}，` +
+          `请求 ${wantProvider || '未指定'}/${wantModel || '未指定'}）—— 配置改了但守护还是旧进程；` +
+          `执行 wsl_daemon action=restart 后再试（会丢当前会话上下文，所以不自动重启）`,
+        configMismatch: routeMismatch,
+        retryable: false,
+      };
+    }
     const entry = getEntry(key, cwd);
     const r = await enqueuePrompt(entry, req.text);
     return { id, cwd: entry.cwd, ...r };
@@ -903,6 +938,11 @@ const server = net.createServer((socket) => {
           protocolVersion: PROTOCOL_VERSION,
           cwd: CWD,
           profile: PROFILE,
+          // A-P1-A：hello 是宿主复用守护前的**唯一身份核对点**；缺这两个字段就没法判配置是否生效。
+          provider: PROVIDER,
+          model: MODEL,
+          useShellEnvironment: SHELL_ENV,
+          proxyPort: PROXY_PORT,
           idleMs: IDLE_MS,
           queueLimit: QUEUE_LIMIT,
           startedAt,
