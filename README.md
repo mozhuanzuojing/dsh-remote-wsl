@@ -201,7 +201,13 @@ git -C D:\tools\dsh-remote-wsl checkout <commit>
 2. `wslHome` ← 该发行版登录用户的 `$HOME`（`wsl -d <distro> --exec sh -c 'printf %s "$HOME"'`，`sh` 不行再试 `bash`）；
 3. `cwd` ← 跟随 `wslHome`。
 
-探测只在**没有显式配置**时发生（一次 `wsl -l -v` + 一次 `$HOME`，实测本机 ~156ms；两次各有 8s / 10s 上限 —— WSL 卡死时启动最多多等 18s，不会无限挂）。结论（**成功与失败都**）按进程缓存：改 `wsl --set-default`、或修好 WSL 之后需要**重启 DSH** 才会重新探测（也可以直接显式配置跳过探测）。注意第 2 步在发行版**未运行**时会被 WSL 拉起（WSL 自身行为：任何 `wsl -d` 都会）—— 想连这一步都避免，就显式配置。
+探测只在**没有显式配置**时发生（一次 `wsl -l -v` + 一次 `$HOME`，实测本机 ~156ms；两次各有 8s / 10s 上限 —— WSL 卡死时启动最多多等 18s，不会无限挂）。结论（**成功与失败都**）按进程缓存：改 `wsl --set-default`、或修好 WSL 之后，默认要**重启 DSH** 才会重新探测（也可以直接显式配置跳过探测）。
+
+> **0.3.5：探测失败可以在会话内救回来（A-P2-E）**：如果 DSH 启动那一刻 WSL 冷启动/卡住导致首次探测失败，不必重启 DSH —— 调用
+> `wsl_status({ redetect: true })` 会清掉进程内缓存、按**显式配置原值**重探一次，并**原地**写回配置（`wsl_exec` / `wsl_agent` / 面板立即生效）。
+> 显式配置的 `distro` / `wslHome` / `cwd` 永远不被覆盖。**边界（如实说）**：`wsl` agent preset 的文件/搜索子插件拿的是注册时的配置快照，
+> 它们仍要重启 DSH 才会跟随；普通 `wsl_status` 调用**不会**触发重探（保持只读/廉价），只在失败时输出提示。
+> 注意第 2 步在发行版**未运行**时会被 WSL 拉起（WSL 自身行为：任何 `wsl -d` 都会）—— 想连这一步都避免，就显式配置。
 
 显式配置**永远优先**（此时一个 `wsl.exe` 都不会起）。要显式指定，先查本机的值：
 
@@ -250,6 +256,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | 想做什么 | 怎么做 |
 |---|---|
 | 看发行版 / 版本 / 漂移 / 守护 | `wsl_status` |
+| 启动时目标探测失败（WSL 没就绪） | `wsl_status({ redetect: true })` 会话内重探一次（不用重启 DSH；`wsl` 预设子插件仍需重启才跟随） |
 | 跑一条一次性命令 | `wsl_exec`（`command`、`cwd`、`timeoutSec`） |
 | 让 WSL 里的 agent 做多轮 | `wsl_agent`（`task`、`followUps`、`key`、`cwd`） |
 | 关掉客户端后继续 | 同上；重新打开后保持 `key` 与 `cwd` |

@@ -21,7 +21,7 @@
  *
  * @module dsh-remote-wsl/config
  */
-import { asConfigText, noHomeMessage, resolveAutoTarget, NO_DISTRO_MESSAGE } from './target-detect.ts';
+import { asConfigText, noHomeMessage, resolveAutoTarget, resetTargetDetection, NO_DISTRO_MESSAGE } from './target-detect.ts';
 
 export { NO_DISTRO_REASON, NO_HOME_REASON, NO_DISTRO_MESSAGE, noHomeMessage, resetTargetDetection } from './target-detect.ts';
 
@@ -98,6 +98,15 @@ export const DEFAULTS = {
 const TARGET_DETECTION = Symbol('dsh-remote-wsl/target-detection');
 
 /**
+ * 归一化时**显式配置的原值**（探测前）。为什么必须单独记：
+ * 归一后的 `distro`/`wslHome` 已经填过探测结果，直接拿它重算会把"自动探测值"当成"显式配置"，
+ * 于是「会话内重新探测」（`refreshAutoTarget`）永远不再探测 —— 正是 A-P2-E 要修的坑。
+ *
+ * Symbol ⇒ 不参与 JSON；`{...cfg}` 展开会带上（preset 转发时原值跟着走，重算语义一致）。
+ */
+const AUTO_TARGET_SOURCE = Symbol('dsh-remote-wsl/auto-target-source');
+
+/**
  * 取这份配置自带的探测结论（不是它探测出来的 ⇒ `null`）。
  * @param config `normalizeConfig()` 的返回值（其它来源的普通对象返回 `null`）
  */
@@ -141,6 +150,12 @@ export function normalizeConfig(raw, opts = {}) {
   };
   // 显式配置 ⇒ 显式写 `null`：`merged` 里可能带着上一手转发来的结论（preset 展开），不能沿用。
   config[TARGET_DETECTION] = autoNeeded ? { ...resolved, at: Date.now() } : null;
+  // 记录**探测前**的显式原值：`refreshAutoTarget()` 只能按它重算，否则会把探测结果误当显式配置。
+  config[AUTO_TARGET_SOURCE] = {
+    distro: asConfigText(merged.distro),
+    wslHome: asConfigText(merged.wslHome),
+    cwd: asConfigText(merged.cwd),
+  };
   return config;
 }
 
@@ -191,4 +206,66 @@ export function assertConfigTarget(config) {
   const problem = targetProblem(config);
   if (problem) throw new Error(problem);
   return config;
+}
+
+/**
+ * **会话内重新探测**目标（A-P2-E，2026-10-28 独立复核补修）。
+ *
+ * ## 为什么需要它
+ *
+ * 探测结论是**进程级缓存**（成功与失败都缓存，见 `target-detect.ts` 文件头），并在启动期冻结进配置
+ * 对象。如果 DSH 启动那一刻 WSL 冷启动/卡住，首次探测失败 ⇒ 本进程所有入口都报"没有目标"，以前
+ * 只能重启 DSH。现在 `wsl_status({ redetect: true })` 可以：清掉进程缓存 → 按**显式配置原值**重算
+ * 一次 → 把结果**原地写回同一份配置对象**（所有宿主侧消费方持有同一个引用，下一次调用就读到新值）。
+ *
+ * ## 边界（如实记录）
+ *
+ * · 只影响**宿主侧**消费方（`wsl_exec` / `wsl_agent` / `wsl_status` / 面板 / daemon）；
+ *   `wsl` agent preset 的文件/搜索子插件拿的是**注册时的配置快照**，仍需重启 DSH 才会跟随 ——
+ *   工具输出里会明说，不把"部分生效"说成"全部生效"。
+ * · **显式配置永远不被覆盖**：`distro` / `wslHome` / `cwd` 里用户写死的值原样保留。
+ * · 重探是同步 `spawnSync`（最坏 8s + 10s），只在用户显式要求时发生，不在普通调用路径上加成本。
+ *
+ * @param config `normalizeConfig()` 的返回值（**原地更新**；传普通对象时按当前值当显式配置重算）
+ * @param opts.probe 测试缝（同 `normalizeConfig`）：给了就不起真的 `wsl.exe`、也不读写进程缓存
+ * @returns `{ ok, problem, notes, previous, current, changed, auto }` —— `ok:false` 时 `problem` 可操作
+ */
+export function refreshAutoTarget(config, opts = {}) {
+  const source =
+    (config && typeof config === 'object' && config[AUTO_TARGET_SOURCE]) || {
+      distro: asConfigText(config?.distro),
+      wslHome: asConfigText(config?.wslHome),
+      cwd: asConfigText(config?.cwd),
+    };
+  const probe = typeof opts?.probe === 'function' ? opts.probe : null;
+  // 关键：清掉「失败也缓存到进程结束」的结论，否则重探只会原样返回旧失败。
+  resetTargetDetection();
+  const resolved = resolveAutoTarget({ distro: source.distro, wslHome: source.wslHome }, probe ? { probe } : {});
+  const previous = {
+    distro: config?.distro ?? '',
+    wslHome: config?.wslHome ?? '',
+    cwd: config?.cwd ?? '',
+  };
+  // 显式值优先（resolveAutoTarget 已保证），`cwd` 空则跟随解析出的家目录 —— 与 normalizeConfig 同语义。
+  const current = {
+    distro: resolved.distro,
+    wslHome: resolved.wslHome,
+    cwd: source.cwd || resolved.wslHome,
+  };
+  const autoNeeded = !source.distro || !source.wslHome;
+  if (config && typeof config === 'object') {
+    config.distro = current.distro;
+    config.wslHome = current.wslHome;
+    config.cwd = current.cwd;
+    config[TARGET_DETECTION] = autoNeeded ? { ...resolved, at: Date.now() } : null;
+  }
+  return {
+    ok: !resolved.problem,
+    problem: resolved.problem,
+    notes: resolved.notes,
+    previous,
+    current,
+    changed: previous.distro !== current.distro || previous.wslHome !== current.wslHome || previous.cwd !== current.cwd,
+    auto: autoNeeded,
+  };
 }

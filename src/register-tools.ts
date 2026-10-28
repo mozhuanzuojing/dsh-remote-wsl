@@ -18,7 +18,7 @@ import {
 } from './daemon-client.ts';
 import { withModulePrefix } from './explorer.ts';
 import { presetStatus } from './preset.ts';
-import { targetProblem, configDetection } from './config.ts';
+import { targetProblem, configDetection, refreshAutoTarget } from './config.ts';
 // T47（P0 修复，**只加这一行 import，逻辑一行未改**）：`WebHost.start()` 的脚本里有
 // `exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@<v> web --port <p>`。
 // 根因链：T1 把 `ALLOW_BUILDS`/`allowBuildFlags` 唯一化到 `src/sdk-runtime.ts`；T5 把「七个工具的注册面」
@@ -260,6 +260,9 @@ export function registerTools(deps) {
     ctx, config, version, resolveVersion, daemonState, logDaemon, machineLine, ensureDaemonReady,
     isTransportFailure, priorSessionFor, listDistros, listDistrosAsync, getRuntime, runtimes, webHosts, ensureSwept, warmInBackground,
   } = deps;
+  // A-P2-E（2026-10-28 复核补修）：会话内重新探测目标。默认走 config.refreshAutoTarget（原地更新
+  // 同一个 config 对象，所有宿主侧消费方立即读到新值）；测试可注入桩替换，避免依赖本机 WSL 状态。
+  const redetectTarget = typeof deps?.redetectTarget === 'function' ? deps.redetectTarget : () => refreshAutoTarget(config);
 
   ctx.inject(['tools'], (toolsCtx) => {
     const tools = toolsCtx.get('tools');
@@ -268,10 +271,24 @@ export function registerTools(deps) {
     tools.register({
       name: 'wsl_status',
       description:
-        'Report the WSL remote-host picture: available distros, the DSH desktop version this Windows install runs, the version pinned inside WSL, any drift between them, the dsh versions already materialized in the WSL pnpm dlx cache, the shell-environment injection switch, the localhostForwarding setting that the WSL2 port forwarding depends on, and the resident remote runtimes this plugin holds. Read-only and cheap; call it before blaming the remote side.',
-      parameters: { type: 'object', properties: {} },
+        'Report the WSL remote-host picture: available distros, the DSH desktop version this Windows install runs, the version pinned inside WSL, any drift between them, the dsh versions already materialized in the WSL pnpm dlx cache, the shell-environment injection switch, the localhostForwarding setting that the WSL2 port forwarding depends on, and the resident remote runtimes this plugin holds. Read-only and cheap; call it before blaming the remote side. Pass `redetect: true` to re-run target auto-detection in-session (clears the process-wide cache and re-probes; explicit distro/wslHome are never overwritten).',
+      parameters: {
+        type: 'object',
+        properties: {
+          redetect: {
+            type: 'boolean',
+            description:
+              'Re-run target auto-detection once **in this session** and apply it (clears the process-wide detection cache, then re-probes the default distro + $HOME). ' +
+              'Use it when the target is unresolved because WSL was cold/hung at DSH startup — no DSH restart needed for host-side tools (wsl_exec / wsl_agent / wsl_status / panel). ' +
+              'Explicit distro/wslHome/cwd are never overwritten. Note: the `wsl` agent preset snapshots its config at registration, so its file/search tools still need a DSH restart.',
+          },
+        },
+      },
       output: { schema: { type: 'string' }, render: renderText },
-      execute: async (_args, exec) => {
+      execute: async (args, exec) => {
+        // A-P2-E（2026-10-28 复核补修）：显式要求时先重探一次 —— 必须发生在 targetProblem() 之前，
+        // 否则整段输出仍按旧的空目标跳过所有 WSL 探测。
+        const redetectResult = args?.redetect === true ? redetectTarget() : null;
         // F-15（2026-10-27 审查）：状态查询不再用同步 spawnSync（会阻塞宿主事件循环）；异步版失败
         // 时返回空数组，这里如实标成「读不到」而不是"没有发行版"。
         const distros = listDistrosAsync ? await listDistrosAsync() : listDistros();
@@ -454,6 +471,20 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
             ? [`target auto-detected: ${detection.notes.join('；')}（显式配置 distro/wslHome 可完全跳过探测）`]
             : []),
           `target: ${config.distro || '(未解析)'}  wslHome=${config.wslHome || '(未解析)'}  cwd=${config.cwd || '(未解析)'}`,
+          ...(redetectResult
+            ? [
+                redetectResult.ok
+                  ? `redetect: ✅ 已重新探测：distro=${config.distro} wslHome=${config.wslHome} cwd=${config.cwd}` +
+                    `${redetectResult.changed ? '（已更新配置）' : '（与之前相同）'}；宿主侧工具（wsl_exec / wsl_agent / 面板）立即生效。` +
+                    `⚠️ wsl 预设的文件/搜索子插件是**注册时快照**，需重启 DSH 才跟随新目标。`
+                  : `redetect: ⚠️ 重新探测仍失败：${redetectResult.problem ?? '未知原因'}（可稍后重试；显式配置 distro/wslHome 可完全跳过探测）`,
+              ]
+            : targetIssue
+              ? [
+                  'hint: 目标未解析时可调用 `wsl_status({ redetect: true })` 在会话内重探一次' +
+                    '（清掉进程缓存并重跑探测，宿主侧工具立刻可用；无需重启 DSH）',
+                ]
+              : []),
           `wsl ip: ${ip}`,
           `shell env injection (useShellEnvironment): ${config.useShellEnvironment === false ? 'off' : 'on'}（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）`,
           `localhost forwarding: ${lfLine}`,
@@ -725,7 +756,10 @@ ${command}
           // 「not running」这种**结论**（而实际什么都没扫），还会把 `/.dsh/remote-wsl` 这种伪造路径
           // 打给用户去复制。与 `stop` 分支同样处理：直接回根因，不做状态判断。
           const statusIssue = targetProblem(config);
-          if (statusIssue) return statusIssue;
+          // A-P2-E：把"怎么在会话内救回来"直接写在根因旁边，而不是只说"去改配置/重启"。
+          if (statusIssue) {
+            return `${statusIssue}\n提示：可调用 \`wsl_status({ redetect: true })\` 在会话内重新探测目标（清进程缓存后重跑探测，无需重启 DSH）。`;
+          }
           const s: any = await daemonStatus(config);
           const info0 = s.info ?? {};
           const ks0: any[] = Array.isArray(info0.keys) ? info0.keys : [];

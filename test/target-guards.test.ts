@@ -174,7 +174,7 @@ test('面板数据面：空目标 ⇒ E_ARG + reason=no-distro（客户端按 re
 });
 
 /** 用最小 deps 真注册七个工具（与 index.ts 的接线同形，只是把会起进程的依赖换成桩）。 */
-function toolsWith(config) {
+function toolsWith(config, overrides = {}) {
   const tools = [];
   const registry = { register: (tool) => tools.push(tool) };
   const ctx = { inject: (_deps, cb) => cb({ get: () => registry }) };
@@ -201,6 +201,7 @@ function toolsWith(config) {
     warmInBackground: () => {
       throw new Error('目标为空时不该触发后台预热');
     },
+    ...overrides,
   });
   const byName = (name) => {
     const tool = tools.find((t) => t.name === name);
@@ -247,3 +248,43 @@ test('wsl_exec：空目标 ⇒ 工具正常返回文本（exit 127 + 可读原�
   assert.match(out, EXPECT);
   assert.match(out, /127/);
 });
+
+// ── A-P2-E（2026-10-28 复核补修）：会话内重新探测的**工具接线** ─────────────────
+
+test('wsl_status({redetect:true})：触发注入的重探并如实回报；无参调用不重探、只给提示', async () => {
+  const cfg = withoutWsl(() => normalizeConfig({}));
+  let calls = 0;
+  const stubFailure = {
+    ok: false,
+    problem: 'remote-wsl: 重新探测仍失败（测试桩）：请在 cordis.patch.yml 里显式配置 distro',
+    notes: [],
+    previous: { distro: '', wslHome: '', cwd: '' },
+    current: { distro: '', wslHome: '', cwd: '' },
+    changed: false,
+    auto: true,
+  };
+  const { byName } = toolsWith(cfg, {
+    redetectTarget: () => {
+      calls++;
+      return stubFailure;
+    },
+  });
+
+  const plain = String(await byName('wsl_status').execute({}, {}));
+  assert.equal(calls, 0, '不传 redetect 时绝不许探测（状态查询必须保持只读/廉价）');
+  assert.doesNotMatch(plain, /^redetect: /m, '无参调用不许出现"已重探"的结果行');
+  assert.match(plain, /hint: 目标未解析时可调用 `wsl_status\(\{ redetect: true \}\)`/, '失败时必须给出会话内重试入口');
+
+  const out = String(await byName('wsl_status').execute({ redetect: true }, {}));
+  assert.equal(calls, 1, 'redetect:true 必须真的调用重探');
+  assert.match(out, /^redetect: ⚠️ 重新探测仍失败：remote-wsl: 重新探测仍失败（测试桩）/m);
+  assert.doesNotMatch(out, /hint: 目标未解析时/, '已经重探过就不该再重复同一条提示');
+});
+
+test('wsl_daemon status：空目标 ⇒ 根因旁直接给出会话内重试入口（A-P2-E）', async () => {
+  const { byName } = toolsWith(EMPTY);
+  const out = String(await byName('wsl_daemon').execute({ action: 'status' }, {}));
+  assert.match(out, EXPECT);
+  assert.match(out, /wsl_status\(\{ redetect: true \}\)/, '不能只说"去改配置/重启"，要给出会话内可执行的动作');
+});
+
