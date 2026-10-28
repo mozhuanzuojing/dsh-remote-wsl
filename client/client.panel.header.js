@@ -242,6 +242,28 @@ return api.newSession({ path: cwd }, signal);
 					);
 				}
 
+			// —— F-50（client 侧接线，2026-10-27 第四轮）：`/proc` 扫描失败 ⇒ 孤儿数**未核实**，不是「0 个孤儿」——
+			// 宿主 `src/explorer.ts` 已把机器可读证据 `daemon.scan = { ok, error? }` 与 `daemon.orphansVerified`
+			// 透进快照；但面板此前从未消费这两个字段 ⇒ 读者只能从原始 JSON 的 `"orphans": 0` 得出「确认没有孤儿」
+			// 的错误结论（F-50 要消灭的「失败当空」语义）。这里在事实区顶部给一条**常显、不折叠**的告警。
+			//   · 未知态：`daemon` 缺失 ⇒ `daemonKnown === false` ⇒ **不渲染** —— 既不声称"已核实"也不声称"未核实"
+			//     （面板没有证据时不许编造，沿用既有 daemonKnown 口径）；
+			//   · 文案/配色：文字只走 `label-primary`，warn 只落在**边框与圆点**（琥珀/绿在白底约 2.1–2.3:1，
+			//     不过 WCAG AA —— 见 index.js 2026-10-23 review 注释）；`role="status"` 与同区 conflict banner 同形。
+			const scanRecord = daemonKnown && isRecord(daemon.scan) ? daemon.scan : null;
+			const orphansUnverified = daemonKnown && (daemon.orphansVerified === false || (scanRecord !== null && scanRecord.ok === false));
+			if (factsVisible && orphansUnverified) {
+				const scanReason = scanRecord !== null && typeof scanRecord.error === "string" && scanRecord.error.length > 0 ? scanRecord.error : t("orphans.errorUnknown");
+				body.push(
+					React.createElement(
+						"div",
+						{ key: "orphanscan", className: "dsh-rw-scanwarn", role: "status", "data-scan-state": "unverified" },
+						React.createElement(StatusDot, { kind: "warn" }),
+						React.createElement("span", { className: "dsh-rw-scanwarn-text" }, t("orphans.unverified", { error: scanReason })),
+					),
+				);
+			}
+
 			/** 守护状态药丸：未运行时可一键启动；运行中只报状态（破坏性动作仍只在 ⋯ 菜单里）。 */
 			const daemonPill = factsVisible && daemonKnown
 				? React.createElement(

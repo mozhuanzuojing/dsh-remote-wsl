@@ -245,6 +245,13 @@ window.__ModuleLoader__.load({
 			".dsh-rw-error-body{font-size:12px;line-height:16px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-empty{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:8px 0}",
 			".dsh-rw-conflict{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);border-radius:4px;padding:6px 8px}",
+			// F-50（client 接线）：`/proc` 扫描失败 ⇒ 孤儿数量「未核实」的常显告警（header chunk 渲染）。
+			// 2026-10-23 review ① 的同一纪律：**文字只用 `label-primary`**，warn 只落在**边框与圆点**上
+			// （琥珀在白底约 2.1:1，承载不了正文）。不做填充——与上面的 conflict banner 同形，语义靠
+			// 文案 + 圆点 + 边框三层承载（N5：颜色只是第三冗余）。
+			".dsh-rw-scanwarn{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-state-warn-primary);border-radius:4px;padding:6px 8px}",
+			// 宿主原文（如异常消息）可能很长且无空格 ⇒ 允许任意断行，避免把面板撑出横向滚动。
+			".dsh-rw-scanwarn-text{min-width:0;white-space:normal;overflow-wrap:anywhere}",
 			".dsh-rw-fold{border-top:1px solid var(--dsw-alias-border-l1);padding:6px 4px}",
 			".dsh-rw-fold>summary{cursor:pointer;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);list-style:none;display:flex;align-items:center;gap:4px;min-height:24px}",
 			".dsh-rw-fold[open]>summary{font-weight:600}",
@@ -659,3 +666,10 @@ window.__ModuleLoader__.load({
 //     因为 actions chunk 已贴 400 行纪律线；客户端 chunk 全量改动 ⇒ 按 docs/client-contract.md §11 刷新入口 rev。
 //   · 顺带 F-26 收口：`.dsh-rw-sessionmeta` 由 label-tertiary 改 label-secondary（该 token 不在 17 token
 //     闭集且实测 3.71:1 < 4.5）；并把注释里的实测对比度改成比值记法 ⇒ css-token-audit C1/C2 全 PASS。
+// 2026-10-27 第四轮（F-50 client 侧接线，服务端字段 `daemon.scan` / `daemon.orphansVerified` 的消费方）：
+//   · header chunk 在事实区顶部新增**常显告警**：`orphansVerified === false` 或 `scan.ok === false` ⇒
+//     「孤儿未核实：/proc 进程扫描失败（{scan.error 原文}）」，不再把扫描失败读成「0 个孤儿」；
+//     `daemon` 缺失时按既有 `daemonKnown` 未知态**不渲染**（不编造已核实/未核实）；
+//   · i18n 新增 `orphans.unverified` / `orphans.errorUnknown`（zh/en 逐键配对）；
+//   · 本入口 CSS 新增 `.dsh-rw-scanwarn`（文字 label-primary，warn 只在边框/圆点）与 `.dsh-rw-scanwarn-text`。
+//   · 改了 `client.panel.header.js` + `client.i18n.js` + 本入口 ⇒ 按 docs/client-contract.md §11 刷新入口 rev（本行）。

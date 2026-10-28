@@ -40,6 +40,11 @@ window.__ModuleLoader__.load({
 			"advanced.proxyDown": "不可达（直连）",
 			"advanced.proxyUnknown": "未探测（发行版未运行或探测失败）",
 			"advanced.drift": "配置漂移：desktop 与 pin 不一致",
+			// —— F-50（client 接线）：`/proc` 扫描失败 ⇒ 孤儿数量**未核实**（不是 0）。宿主 explorer.ts
+			// 已在快照 `daemon.scan = { ok, error? }` / `daemon.orphansVerified` 上给出证据，这里只是它的
+			// 可见文案；`{error}` 是宿主原文（随宿主语言），不翻译、不猜。en 侧必须逐键配对。
+			"orphans.unverified": "孤儿未核实：/proc 进程扫描失败（{error}）⇒ 孤儿数量未知，不能当作「没有孤儿」",
+			"orphans.errorUnknown": "未知原因",
 			"confirm.body": "{consequence}（影响：「{distro}」上正在运行的 {count} 个会话）",
 
 			// —— 2026-10-22 B1/B2：头部代理状态徽标（三态）+ 窄态短文案（zh/en 逐键配对）——
@@ -281,6 +286,12 @@ window.__ModuleLoader__.load({
 			"advanced.proxyDown": "unreachable (direct)",
 			"advanced.proxyUnknown": "not probed (distro stopped or probe failed)",
 			"advanced.drift": "Drift: desktop and pin disagree",
+			// —— F-50 (client wiring): a failed /proc scan means the orphan count is UNVERIFIED (not 0).
+			// The host (explorer.ts) exposes the evidence as `daemon.scan = { ok, error? }` /
+			// `daemon.orphansVerified`; this is only its visible wording. `{error}` is host text
+			// (in the host's language) — never translated or invented. Must stay paired with zh.
+			"orphans.unverified": "Orphans unverified: the /proc process scan failed ({error}) — the orphan count is unknown, so this is not “no orphans”",
+			"orphans.errorUnknown": "unknown reason",
 			"confirm.body": "{consequence} (Affects: {count} running sessions on “{distro}”)",
 
 			// —— 2026-10-22 B1/B2: header proxy badge (3 states) + narrow short labels (paired with ZH) ——
