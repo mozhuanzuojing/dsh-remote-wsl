@@ -387,8 +387,15 @@ export function configCompat(cfg, info, wantedVersion) {
     if (hostProvider && daemonProvider !== hostProvider) hard.push(`provider ${daemonProvider}≠${hostProvider}`);
     if (hostModel && daemonModel !== hostModel) hard.push(`model ${daemonModel}≠${hostModel}`);
   }
-  if (typeof info?.useShellEnvironment === 'boolean' && Boolean(cfg?.useShellEnvironment) !== info.useShellEnvironment) {
-    soft.push(`useShellEnvironment ${info.useShellEnvironment}≠${Boolean(cfg?.useShellEnvironment)}`);
+  // 只有宿主**明确表达**过这个偏好才比较：缺键（例如 selftest.ts 手工构造的 cfg）不等于 false，
+  // 否则对任何开着 shell env 的守护都会多一条假的 `useShellEnvironment true≠false` 告警
+  // （2026-10-28 复核 S2-1）。
+  if (
+    typeof info?.useShellEnvironment === 'boolean' &&
+    typeof cfg?.useShellEnvironment === 'boolean' &&
+    cfg.useShellEnvironment !== info.useShellEnvironment
+  ) {
+    soft.push(`useShellEnvironment ${info.useShellEnvironment}≠${cfg.useShellEnvironment}`);
   }
   if (info?.proxyPort != null && Number(info.proxyPort) !== Number(cfg?.proxyPort ?? 9910)) {
     soft.push(`proxyPort ${info.proxyPort}≠${cfg?.proxyPort ?? 9910}`);

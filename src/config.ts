@@ -224,10 +224,12 @@ export function assertConfigTarget(config) {
  *   `wsl` agent preset 的文件/搜索子插件拿的是**注册时的配置快照**，仍需重启 DSH 才会跟随 ——
  *   工具输出里会明说，不把"部分生效"说成"全部生效"。
  * · **显式配置永远不被覆盖**：`distro` / `wslHome` / `cwd` 里用户写死的值原样保留。
+ * · **纯显式配置**（`distro` + `wslHome` 都写死）：不探测、也**不清缓存** —— 只核对现状，值原样不动。
  * · 重探是同步 `spawnSync`（最坏 8s + 10s），只在用户显式要求时发生，不在普通调用路径上加成本。
  *
  * @param config `normalizeConfig()` 的返回值（**原地更新**；传普通对象时按当前值当显式配置重算）
- * @param opts.probe 测试缝（同 `normalizeConfig`）：给了就不起真的 `wsl.exe`、也不读写进程缓存
+ * @param opts.probe 测试缝（同 `normalizeConfig`）：给了就不起真的 `wsl.exe`。注意**自动探测**时进程缓存
+ *   仍会被清（这是重探语义的一半，不清就会读到"失败也缓存到进程结束"的旧结论）；显式配置时不动缓存。
  * @returns `{ ok, problem, notes, previous, current, changed, auto }` —— `ok:false` 时 `problem` 可操作
  */
 export function refreshAutoTarget(config, opts = {}) {
@@ -238,8 +240,10 @@ export function refreshAutoTarget(config, opts = {}) {
       cwd: asConfigText(config?.cwd),
     };
   const probe = typeof opts?.probe === 'function' ? opts.probe : null;
-  // 关键：清掉「失败也缓存到进程结束」的结论，否则重探只会原样返回旧失败。
-  resetTargetDetection();
+  // 只有"真的需要探测"时才清缓存：显式配置不重探，也不该影响别处（例如 preset 再 apply）的缓存。
+  // 关键：不清就会原样读到「失败也缓存到进程结束」的旧结论 —— 这是重探语义的一半。
+  const autoNeeded = !source.distro || !source.wslHome;
+  if (autoNeeded) resetTargetDetection();
   const resolved = resolveAutoTarget({ distro: source.distro, wslHome: source.wslHome }, probe ? { probe } : {});
   const previous = {
     distro: config?.distro ?? '',
@@ -252,7 +256,6 @@ export function refreshAutoTarget(config, opts = {}) {
     wslHome: resolved.wslHome,
     cwd: source.cwd || resolved.wslHome,
   };
-  const autoNeeded = !source.distro || !source.wslHome;
   if (config && typeof config === 'object') {
     config.distro = current.distro;
     config.wslHome = current.wslHome;

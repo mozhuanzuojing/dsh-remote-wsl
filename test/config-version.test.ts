@@ -149,10 +149,26 @@ test('configCompat：useShellEnvironment / proxyPort 不同 ⇒ soft（只提示
   assert.ok(c.soft.some((s: string) => /proxyPort/.test(s)), JSON.stringify(c.soft));
 });
 
+test('configCompat：宿主没表达 useShellEnvironment（缺键）⇒ 不产生假 soft（S2-1 回归）', () => {
+  // 现实触发点：selftest.ts 手工构造 cfg 时没有这个键。缺键 ≠ 用户要 false。
+  const info = {
+    cwd: '/home/g',
+    profile: 'sdk',
+    protocolVersion: PROTOCOL_VERSION,
+    pluginVersion: PLUGIN_VERSION,
+    provider: 'p',
+    model: 'm',
+    useShellEnvironment: true, // 守护实际开着 shell env（默认）
+    proxyPort: 9910,
+  };
+  const c = configCompat({ cwd: '/home/g', profile: 'sdk', provider: 'p', model: 'm' }, info, null);
+  assert.equal(c.hard.length, 0, JSON.stringify(c));
+  assert.ok(!c.soft.some((s: string) => /useShellEnvironment/.test(s)), `缺键不该判成 false：${JSON.stringify(c.soft)}`);
+});
+
 test('normalizeConfig：provider/model/profile 空串或纯空白 ⇒ 显式回落默认值（A-P2-D）', () => {
   const c = normalizeConfig({ distro: 'Ubuntu-24.04', wslHome: '/home/u', provider: '', model: '   ', profile: '\t' });
   assert.equal(c.provider, DEFAULTS.provider);
   assert.equal(c.model, DEFAULTS.model);
   assert.equal(c.profile, DEFAULTS.profile);
 });
-

@@ -118,3 +118,25 @@ test('refreshAutoTarget：必须清掉进程级缓存（旧结论不得在重探
   assert.equal(after.distro, 'DistroD', 'refreshAutoTarget 必须清缓存（否则这里会读到旧结论 DistroA）');
   resetTargetDetection();
 });
+
+test('refreshAutoTarget：纯显式配置不探测、也不清进程缓存（S2-3 回归）', () => {
+  resetTargetDetection();
+  // 先放一个"旧缓存"进去：如果显式配置也清缓存，下面就会重新探测并返回 FreshProbe。
+  assert.equal(detectDefaultDistroCached(() => okRes(table('CachedDistro'))).distro, 'CachedDistro');
+
+  const boom = () => {
+    throw new Error('纯显式配置不该发生探测');
+  };
+  const cfg = normalizeConfig({ distro: 'Debian', wslHome: '/home/d', cwd: '/work' }, { probe: boom });
+  const r = refreshAutoTarget(cfg, { probe: boom });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.auto, false, '纯显式配置必须标成 auto:false（供输出措辞用）');
+  assert.equal(r.changed, false);
+  assert.equal(cfg.distro, 'Debian');
+  assert.equal(cfg.wslHome, '/home/d');
+  assert.equal(cfg.cwd, '/work');
+
+  const after = detectDefaultDistroCached(() => okRes(table('FreshProbe')));
+  assert.equal(after.distro, 'CachedDistro', '显式配置不该清缓存（被清的话这里会返回 FreshProbe）');
+  resetTargetDetection();
+});

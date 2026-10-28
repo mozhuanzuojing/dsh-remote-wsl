@@ -287,4 +287,3 @@ test('wsl_daemon status：空目标 ⇒ 根因旁直接给出会话内重试入�
   assert.match(out, EXPECT);
   assert.match(out, /wsl_status\(\{ redetect: true \}\)/, '不能只说"去改配置/重启"，要给出会话内可执行的动作');
 });
-
