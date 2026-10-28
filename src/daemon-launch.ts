@@ -40,7 +40,14 @@ export async function killWslPidAsync(cfg, pid, signal = 'TERM') {
 /** 启动脚本（落 state 目录，0600；守护起来后会自己删掉）——绝不落 /tmp。 */
 
 // ── 原 daemon-client.ts 第 329-361 行 ──
-function launchScript(cfg, port, version) {
+/**
+ * 导出给测试（2026-10-28）：`provider` / `model` 是**用户可见配置**（`config.ts` 的 DEFAULTS 里就有），
+ * 但 daemon 后端以前**从不把它们传给 `dsh`** —— 守护用自己的 `--provider`/`--model` 默认值
+ * （`deepseek-official` / `deepseek-flash`），于是这两个配置项在默认后端上是**死配置**，
+ * 只有 in-host 后端（`in-host-runtime.ts`）真正消费它们。后果：本机 WSL 侧没有可用的官方 key、
+ * 而另一个网关（commandcode）可用时，改 provider 也不生效，永远 401 —— 症状是"配置改了像没改"。
+ */
+export function launchScript(cfg, port, version) {
   return [
     'set -uo pipefail',
     // F31（task-8）：`launch-stderr.log` 是**Windows 侧** `openSync(..., 'a', 0o600)` 建的，而经 UNC
@@ -52,6 +59,9 @@ function launchScript(cfg, port, version) {
     `exec node ${JSON.stringify(daemonScriptWsl())} --port ${port} --meta-port ${port} --version ${version} --cwd ${JSON.stringify(cfg.cwd)} ` +
       `--idle-ms ${Number(cfg.daemonIdleMs ?? 1800000)} --queue-limit ${Number(cfg.daemonQueueLimit ?? 4)} ` +
       `--profile ${JSON.stringify(cfg.profile ?? 'sdk')} --proxy-port ${Number(cfg.proxyPort ?? 9910)} ` +
+      // 2026-10-28：把 provider/model 真正接到 daemon 后端（载荷与 daemon.ts 的 arg('provider'|'model') 对齐）。
+      // JSON.stringify 保证带 `/` 的模型 id（如 deepseek/deepseek-v4.1-flash-fast）不被 shell 拆开。
+      `--provider ${JSON.stringify(cfg.provider ?? 'deepseek-official')} --model ${JSON.stringify(cfg.model ?? 'deepseek-flash')} ` +
       `--linger-ms ${Number(cfg.daemonLingerMs ?? 600000)} ` +
       // F-55（2026-10-27 审查）：把 `useShellEnvironment` 真正接到守护启动参数上。以前这个开关只在
       // in-host / wsl_open_ui 生效，daemon 后端恒注入，而 `wsl_status` 又按配置回显 —— 配置与行为矛盾。
