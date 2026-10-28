@@ -80,7 +80,16 @@
 interface ExplorerSnapshot {
   distros: { name: string; default: boolean; reachable: boolean }[]
   target: { distro: string; wslHome: string; cwd: string }
-  daemon: { running: boolean; slot?: number; pid?: number; version?: string; keys: string[]; orphans: number }
+  // F-50（2026-10-27 第三轮；字段于 2026-10-28 补进本表）：`orphans` 只是**已知部分**。
+  // `orphansVerified:false` ⇒ 扫描失败、孤儿数**未知**（不是 0）；`scan.error` 是原因原文。
+  // 面板据此渲染常显告警（`client.panel.header.js`），`wsl_status` / `wsl_daemon status` 据此打 ⚠️。
+  daemon: {
+    running: boolean; slot?: number; pid?: number; port?: number | null; version?: string
+    keys: string[]; sessions?: unknown[]; others?: unknown[]
+    orphans: number
+    orphansVerified: boolean
+    scan: { ok: boolean; error?: string }
+  }
   drift: { drifted: boolean; desktop?: string; pin?: string }
   workspaces: { distro: string; path: string; label: string; kind: 'folder' | 'code-workspace' }[]
   webHosts: { port: number; url: string }[]
