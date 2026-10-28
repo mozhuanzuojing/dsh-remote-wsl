@@ -455,8 +455,10 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
           ...(daemonAlarm ? [`daemon drift: ⚠️ ${daemonAlarm}`] : []),
           ...(daemonPluginAlarm ? [`daemon plugin: ⚠️ ${daemonPluginAlarm}`] : []),
           `daemon idle/linger/queue: idleMs=${config.daemonIdleMs}（到期回收运行时 ⇒ 上下文丢失）/ lingerMs=${config.daemonLingerMs}（无 key 且无客户端持续这么久 ⇒ 守护自退）/ queueLimit=${config.daemonQueueLimit}（同 key 并发 FIFO，超出明确拒绝）`,
-          `daemon ports: configured=${config.daemonPort}(+${config.daemonPortTries} 回退) actual=${dstat.ok ? dstat.info?.port : '(未运行)'}${dstat.ok && dstat.slot != null ? ` slot=${dstat.slot}` : ''}`,
-          `daemon state dir (WSL): ${stateDirLinux(config)}（元数据**按槽位**：daemon.<slot>.json / daemon.<slot>.token，0600；日志 daemon.log；本插件不把守护的东西落 /tmp）`,
+          `daemon ports: configured=${config.daemonPort}(+${config.daemonPortTries} 回退) actual=${dstat.ok ? dstat.info?.port : dstat.kind === 'no-target' ? '(未检查：目标未确定)' : '(未运行)'}${dstat.ok && dstat.slot != null ? ` slot=${dstat.slot}` : ''}`,
+          // 2026-10-28（零配置·评审 P2-3）：`stateDirLinux({wslHome:''})` 会拼出 `/.dsh/remote-wsl`
+          // —— 那是**伪造路径**，用户会照着复制。目标未解析时如实说"未解析"。
+          `daemon state dir (WSL): ${config.wslHome ? stateDirLinux(config) : '(未解析：wslHome 未确定)'}（元数据**按槽位**：daemon.<slot>.json / daemon.<slot>.token，0600；日志 daemon.log；本插件不把守护的东西落 /tmp）`,
           ...(orphanDaemons.length
             ? [
                 `daemon orphans: ⚠️ ${orphanDaemons.length} 个守护在跑但无元数据（${orphanDaemons.map((o) => `pid${o.pid}@${o.port}`).join(', ')}）—— 用 wsl_daemon action=stop all=true 回收`,
@@ -489,7 +491,7 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
         type: 'object',
         properties: {
           command: { type: 'string', description: 'Bash command line to run inside WSL.' },
-          cwd: { type: 'string', description: `Linux working directory (default ${config.cwd}).` },
+          cwd: { type: 'string', description: `Linux working directory (default ${config.cwd || '(未解析：目标未确定)'}).` },
           timeoutSec: { type: 'number', description: 'Wall-clock limit in seconds (default 120).' },
         },
       },
@@ -548,7 +550,7 @@ ${command}
           key: { type: 'string', description: 'Runtime-pool key; same key = same resident runtime (default "default").' },
           cwd: {
             type: 'string',
-            description: `Linux working directory for the remote session (default ${config.cwd}). Takes effect when the runtime for this key is created; a reused runtime keeps its own cwd.`,
+            description: `Linux working directory for the remote session (default ${config.cwd || '(未解析：目标未确定)'}). Takes effect when the runtime for this key is created; a reused runtime keeps its own cwd.`,
           },
         },
       },
@@ -700,6 +702,11 @@ ${command}
       execute: async (args) => {
         const action = String(args?.action ?? 'status');
         if (action === 'status') {
+          // 2026-10-28（零配置·评审 B1）：目标未确定时 `daemonStatus` 只能扫出空数组，最后会给出
+          // 「not running」这种**结论**（而实际什么都没扫），还会把 `/.dsh/remote-wsl` 这种伪造路径
+          // 打给用户去复制。与 `stop` 分支同样处理：直接回根因，不做状态判断。
+          const statusIssue = targetProblem(config);
+          if (statusIssue) return statusIssue;
           const s: any = await daemonStatus(config);
           const info0 = s.info ?? {};
           const ks0: any[] = Array.isArray(info0.keys) ? info0.keys : [];
@@ -948,6 +955,11 @@ ${command}
       output: { schema: { type: 'string' }, render: renderText },
       execute: async (args, exec) => {
         await ensureSwept();
+        // 2026-10-28（零配置·评审 P2-1）：这是"配置 + 版本"诊断动作，没有目标时 pin 路径与预热脚本
+        // 文本都无从谈起。旧路径会把内部不变量（`cfg.wslHome 为空`）漏给用户，或把 pin 写入静默变成
+        // `(write failed)`。直接回同一条可操作报错。
+        const syncIssue = targetProblem(config);
+        if (syncIssue) return syncIssue;
         const v = resolveVersion(config);
         warmInBackground(v); // 漂移时后台预热（与下面显式 warm 相互独立：这里不阻塞、也不改 pin）
         const lines = [

@@ -382,6 +382,17 @@ async function probeDistroState() {
  * 而不是空树 —— 这个回落是本次引入的约定，已写进交付报告，等 lead/client 半确认。
  */
 function readWorkspaces(cfg) {
+  // 2026-10-28（零评审 nit）：面板显式切到 B 发行版、而 B 的 `$HOME` 读不到时，`cfgFor(B)` 的
+  // `wslHome`/`cwd` 会回落成空串 —— 那会生成 `{path:'', label:''}` 这种伪条目（点进去只会得到
+  // 一个不可诊断的错误）。这里直接说清缺什么，别让空路径流到 UI。
+  const cwd = str(cfg.cwd);
+  if (!cwd) {
+    throw explorerError(
+      'E_UNAVAILABLE',
+      `remote-wsl: 无法确定发行版 "${cfg.distro}" 的默认工作目录（读不到它的登录用户 $HOME）—— ` +
+        '请在 cordis.patch.yml 里显式配置 wslHome，或在面板里直接浏览一个具体路径。',
+    );
+  }
   const fallback = [
     { distro: cfg.distro, path: cfg.cwd, label: baseName(cfg.cwd) || cfg.cwd, kind: kindOf(cfg.cwd) },
   ];

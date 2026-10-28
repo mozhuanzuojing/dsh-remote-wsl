@@ -201,7 +201,7 @@ git -C D:\tools\dsh-remote-wsl checkout <commit>
 2. `wslHome` ← 该发行版登录用户的 `$HOME`（`wsl -d <distro> --exec sh -c 'printf %s "$HOME"'`，`sh` 不行再试 `bash`）；
 3. `cwd` ← 跟随 `wslHome`。
 
-探测只在**没有显式配置**时发生（一次 `wsl -l -v` + 一次 `$HOME`，实测本机 ~156ms；两次各有 8s / 10s 上限 —— WSL 卡死时启动最多多等 18s，不会无限挂），结论按进程缓存（改 `wsl --set-default` 后重启 DSH，或显式配置）。注意第 2 步在发行版**未运行**时会被 WSL 拉起（WSL 自身行为：任何 `wsl -d` 都会）—— 想连这一步都避免，就显式配置。
+探测只在**没有显式配置**时发生（一次 `wsl -l -v` + 一次 `$HOME`，实测本机 ~156ms；两次各有 8s / 10s 上限 —— WSL 卡死时启动最多多等 18s，不会无限挂）。结论（**成功与失败都**）按进程缓存：改 `wsl --set-default`、或修好 WSL 之后需要**重启 DSH** 才会重新探测（也可以直接显式配置跳过探测）。注意第 2 步在发行版**未运行**时会被 WSL 拉起（WSL 自身行为：任何 `wsl -d` 都会）—— 想连这一步都避免，就显式配置。
 
 显式配置**永远优先**（此时一个 `wsl.exe` 都不会起）。要显式指定，先查本机的值：
 
@@ -222,6 +222,8 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 ```
 
 探测失败时**不猜、不回落到作者机器的值**：工具会直接返回可操作报错，`wsl_status` 也会把它标成 `target ⚠️: remote-wsl: 未能自动探测到 WSL 默认发行版…请在 cordis.patch.yml 里显式配置 distro`。
+
+> **0.3.3 升级提示（`cwd`）**：显式配了 `wslHome`、但没配 `cwd` 的用户，有效 cwd 现在**跟随 `wslHome`**（旧版固定 `/home/g`）。若旧守护报告的 cwd 与新的不同，会被判为结构性不兼容 ⇒ 需要 `wsl_daemon action=restart` 一次（该动作会丢当前会话上下文）。显式写上 `cwd` 可保持原样。
 
 常用配置键：
 

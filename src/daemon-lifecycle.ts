@@ -808,6 +808,21 @@ export async function daemonSnapshot(cfg) {
 
 /** 读守护状态（read-only，用于 wsl_status / wsl_daemon status；不触发启动；多守护并存 + 正确孤儿口径）。 */
 export async function daemonStatus(cfg) {
+  // 2026-10-28（零配置·评审 B1）：目标没解析出来 ⇒ 下面的 `records/orphans` 恒为空，会走到
+  // `kind:'absent'` 那个**结论**分支（"没有守护元数据…"），而实际什么都没扫。显式回 `no-target`，
+  // 让任何调用方（工具/面板）都能把它和"确实没守护"分开。
+  if (!asConfigText(cfg?.distro)) {
+    return {
+      ok: false,
+      kind: 'no-target',
+      error: targetProblem(cfg) ?? '目标发行版未确定（自动探测失败）：未执行守护扫描',
+      live: [],
+      busy: [],
+      orphans: [],
+      orphansVerified: false,
+      scan: { ok: false, error: targetProblem(cfg) ?? '目标发行版未确定（自动探测失败）：未执行守护扫描' },
+    };
+  }
   const snap = await daemonSnapshot(cfg);
   const { orphans, slots, live, dead, busy, records } = snap;
   // ★ F-50：`scan.ok` 透传到所有返回值 —— 上层（wsl_status / wsl_daemon status）据此打印告警。

@@ -21,14 +21,7 @@
  *
  * @module dsh-remote-wsl/config
  */
-import {
-  asConfigText,
-  noHomeMessage,
-  resolveAutoTarget,
-  NO_DISTRO_MESSAGE,
-  NO_DISTRO_REASON,
-  NO_HOME_REASON,
-} from './target-detect.ts';
+import { asConfigText, noHomeMessage, resolveAutoTarget, NO_DISTRO_MESSAGE } from './target-detect.ts';
 
 export { NO_DISTRO_REASON, NO_HOME_REASON, NO_DISTRO_MESSAGE, noHomeMessage, resetTargetDetection } from './target-detect.ts';
 
@@ -128,7 +121,11 @@ export function normalizeConfig(raw) {
     ...merged,
     distro: resolved.distro,
     wslHome: resolved.wslHome,
-    // 显式 cwd 优先；否则跟随解析出来的家目录（旧默认值是 `'/home/g'` —— 同样是作者机器的值）。
+    // 显式 cwd 优先；否则跟随解析出来的 wslHome（旧默认值是 `'/home/g'` —— 同样是作者机器的值）。
+    //
+    // 行为变化（评审 P2-5，已在 README/docs §5 记录）：显式配了 `wslHome` 但没配 `cwd` 的用户，
+    // 有效 cwd 会从旧的 `/home/g` 变成自己的家目录。这是修正，但旧守护报告的 cwd 会因此不同 ⇒
+    // `configCompat` 判**结构性不兼容**，需要显式 `wsl_daemon action=restart` 一次（会丢当前会话上下文）。
     cwd: asConfigText(merged.cwd) || resolved.wslHome,
   };
   // 显式配置 ⇒ 显式写 `null`：`merged` 里可能带着上一手转发来的结论（preset 展开），不能沿用。

@@ -21,8 +21,9 @@
  *   实测本机 `wsl -l -v` ≈150ms、`$HOME` ≈150ms；只在**没有显式配置**时发生，且按进程缓存。
  * · 第 3 步在发行版**未运行**时会被 WSL 拉起（任何 `wsl -d` 都这样，WSL 自身行为）。想完全避免：
  *   把 `distro` + `wslHome` 都显式写进 `cordis.patch.yml`（README「配置」）。
- * · 成功结论**按进程缓存**（改 `wsl --setdefault` 后需重启 DSH，或显式配置）；失败只短暂缓存，
- *   用户装好发行版后无需重启即可重试成功。
+ * · 探测结论**按进程缓存（成功与失败都是）**：结论一旦解析就冻结进配置对象，短负缓存会造成
+ *   "下一轮 apply 探到了、而先前建好的工具仍报没有目标"的分裂脑。所以修好 WSL / 改
+ *   `wsl --set-default` 之后需要**重启 DSH**（或显式配置后重启）。
  *
  * @module dsh-remote-wsl/target-detect
  */
@@ -43,9 +44,6 @@ export const DISTRO_TABLE_TIMEOUT_MS = 8000;
  */
 export const HOME_PROBE_TIMEOUT_MS = 10000;
 
-/** 失败结论的短缓存（毫秒）：只挡住同一轮启动里反复探测，不把一次瞬时故障放大成长期假阴性。 */
-export const NEGATIVE_CACHE_MS = 5000;
-
 /** 面板/工具用的**机器可读**失败原因（客户端不必解析中文）。 */
 export const NO_DISTRO_REASON = 'no-distro';
 export const NO_HOME_REASON = 'no-wsl-home';
@@ -62,7 +60,8 @@ export const NO_DISTRO_MESSAGE =
 export function noHomeMessage(distro) {
   return (
     `remote-wsl: 已确定发行版 "${distro}"，但读不到它的登录用户 $HOME` +
-    `（\`wsl -d ${distro} --exec sh -c 'printf %s "$HOME"'\` 失败或输出不是绝对路径）。` +
+    `（\`wsl -d ${distro} --exec sh -c 'printf %s "$HOME"'\` 失败；输出不是绝对路径、或含空白字符的` +
+    '家目录也会被拒绝 —— 带空白的家目录拼进 bash 脚本会失真）。' +
     '请在 cordis.patch.yml 里显式配置 wslHome（README「配置」一节）。'
   );
 }
@@ -188,6 +187,8 @@ export function detectDefaultDistro(probe) {
     const problem = String(res.error.code ?? '') === 'ETIMEDOUT' ? noDistroTimeoutMessage(DISTRO_TABLE_TIMEOUT_MS) : NO_DISTRO_MESSAGE;
     return { distro: '', notes, problem };
   }
+  // 有意**不看 `res.status`**：WSL 在"有列表但没有默认标记"等情形可能给非 0，而表格本身是真证据；
+  // 结论只由 `*` 行决定（解析不出 `*` 行就是失败），所以退出码不是这里的判据。别"顺手清理"成 status 检查。
   const rows = parseWslDistroTable(readWslOutput(res.stdout ?? ''));
   const def = rows.find((row) => row.isDefault) ?? null;
   if (!def) {
@@ -258,11 +259,16 @@ export function detectDistroHome(probe, distro) {
   return { home: '', notes, problem: noHomeMessage(name) };
 }
 
-// ── 进程内缓存（只缓存**成功**结论；失败最多挡住 NEGATIVE_CACHE_MS）──────────────
+// ── 进程内缓存（成功与失败都缓存到进程结束）──────────────────────────────────
 //
 // 为什么必须缓存：`normalizeConfig()` 在启动期会被调多次（index / preset / 子插件），
 // 每次探测都是同步 spawn ⇒ 不缓存就是 2-4 次白付的 150-300ms。
-// 为什么不缓存失败到天荒地老：用户装好 WSL / `wsl --set-default` 之后，插件不该要求重启才认得。
+//
+// 为什么**失败也缓存到进程结束**（早前的 5s 负缓存已删）：`normalizeConfig()` 会把结论**冻结进
+// 配置对象**（`distro`/`wslHome` 一旦解析就跟着 cfg 走完整个进程），所以失败之后再探测成功，
+// **已经建好的那份配置**也不会变。短负缓存会让下一轮 apply 探测成功、而先前的工具仍报"没有目标"
+// —— fs provider 能用、`wsl_exec` 不能用，直到重启（分裂脑）。整进程缓存把语义钉死：
+// 探测失败 ⇒ 本进程所有入口报同一条可操作错误；修好 WSL / 改默认发行版后**重启 DSH** 即可。
 
 let distroMemo = null; // { distro, notes, problem, at }
 const homeMemos = new Map(); // distro -> { home, notes, problem, at }
@@ -272,10 +278,9 @@ const homeMemos = new Map(); // distro -> { home, notes, problem, at }
  * @param probe 运行器（生产默认 `spawnWslProbe`）
  */
 export function detectDefaultDistroCached(probe = spawnWslProbe) {
-  if (distroMemo !== null && (distroMemo.distro || Date.now() - distroMemo.at < NEGATIVE_CACHE_MS)) return distroMemo;
-  const result = { ...detectDefaultDistro(probe), at: Date.now() };
-  distroMemo = result;
-  return result;
+  if (distroMemo !== null) return distroMemo;
+  distroMemo = { ...detectDefaultDistro(probe), at: Date.now() };
+  return distroMemo;
 }
 
 /**
@@ -286,7 +291,7 @@ export function detectDefaultDistroCached(probe = spawnWslProbe) {
 export function detectDistroHomeCached(distro, probe = spawnWslProbe) {
   const key = asConfigText(distro);
   const hit = homeMemos.get(key);
-  if (hit !== undefined && (hit.home || Date.now() - hit.at < NEGATIVE_CACHE_MS)) return hit;
+  if (hit !== undefined) return hit;
   const result = { ...detectDistroHome(probe, key), at: Date.now() };
   homeMemos.set(key, result);
   return result;
