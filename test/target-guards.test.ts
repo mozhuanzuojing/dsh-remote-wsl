@@ -273,7 +273,9 @@ test('wsl_status({redetect:true})：触发注入的重探并如实回报；无�
   const plain = String(await byName('wsl_status').execute({}, {}));
   assert.equal(calls, 0, '不传 redetect 时绝不许探测（状态查询必须保持只读/廉价）');
   assert.doesNotMatch(plain, /^redetect: /m, '无参调用不许出现"已重探"的结果行');
-  assert.match(plain, /hint: 目标未解析时可调用 `wsl_status\(\{ redetect: true \}\)`/, '失败时必须给出会话内重试入口');
+  // A-P2-E / S3-1：入口由 target-detect 的文案统一携带（不再由 wsl_status 另写一行 hint），
+  // 这样 wsl_exec / wsl_agent / fs 等所有消费 targetProblem() 的面都能拿到同一条出路。
+  assert.match(plain, /target ⚠️: [^\n]*wsl_status\(\{ redetect: true \}\)/, '失败时必须给出会话内重试入口');
 
   const out = String(await byName('wsl_status').execute({ redetect: true }, {}));
   assert.equal(calls, 1, 'redetect:true 必须真的调用重探');

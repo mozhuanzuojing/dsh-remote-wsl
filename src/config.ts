@@ -23,7 +23,7 @@
  */
 import { asConfigText, noHomeMessage, resolveAutoTarget, resetTargetDetection, NO_DISTRO_MESSAGE } from './target-detect.ts';
 
-export { NO_DISTRO_REASON, NO_HOME_REASON, NO_DISTRO_MESSAGE, noHomeMessage, resetTargetDetection } from './target-detect.ts';
+export { NO_DISTRO_REASON, NO_HOME_REASON, NO_DISTRO_MESSAGE, REDETECT_HINT, noHomeMessage, resetTargetDetection } from './target-detect.ts';
 
 /** 默认配置（`distro` / `wslHome` / `cwd` 空 = 自动探测，见文件头）。 */
 export const DEFAULTS = {
@@ -107,6 +107,23 @@ const TARGET_DETECTION = Symbol('dsh-remote-wsl/target-detection');
 const AUTO_TARGET_SOURCE = Symbol('dsh-remote-wsl/auto-target-source');
 
 /**
+ * 归一化时**修正过**的配置项（例如 `provider: ''` 被回落默认值）。
+ *
+ * 为什么单独记（A-P2-D / 复核 S3-8）：回落本身是对的（不让空串流进守护），但**静默**回落会让用户
+ * 以为配置生效了。挂在配置对象上，由 `wsl_status` 显式打印；Symbol ⇒ 不参与 JSON。
+ */
+const CONFIG_WARNINGS = Symbol('dsh-remote-wsl/config-warnings');
+
+/**
+ * 取归一化时修正过的项（没有 ⇒ `[]`）。
+ * @param config `normalizeConfig()` 的返回值
+ */
+export function configWarnings(config) {
+  const value = config && typeof config === 'object' ? config[CONFIG_WARNINGS] : null;
+  return Array.isArray(value) ? value.slice() : [];
+}
+
+/**
  * 取这份配置自带的探测结论（不是它探测出来的 ⇒ `null`）。
  * @param config `normalizeConfig()` 的返回值（其它来源的普通对象返回 `null`）
  */
@@ -127,36 +144,65 @@ export function configDetection(config) {
 export function normalizeConfig(raw, opts = {}) {
   const merged = { ...DEFAULTS, ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) };
   // A-P2-D（2026-10-28 复核）：`provider: ''` / `model: ' '` 以前会原样传到守护（`??` 对空串不生效），
-  // initialize 收到空 provider 的行为取决于上游。这里与 distro/wslHome 同一套归一：空/纯空白 ⇒ 显式回落默认值。
-  const provider = asConfigText(merged.provider) || DEFAULTS.provider;
-  const model = asConfigText(merged.model) || DEFAULTS.model;
-  const profile = asConfigText(merged.profile) || DEFAULTS.profile;
-  const autoNeeded = !asConfigText(merged.distro) || !asConfigText(merged.wslHome);
+  // initialize 收到空 provider 的行为取决于上游。这里与 distro/wslHome 同一套归一：空/纯空白 ⇒ 显式回落默认值；
+  // 回落**不静默**（S3-8）：记进 configWarnings()，由 wsl_status 打出来（`'auto'` 也会被 asConfigText 归一成空）。
+  const warnings = [];
+  const providerText = asConfigText(merged.provider);
+  const modelText = asConfigText(merged.model);
+  const profileText = asConfigText(merged.profile);
+  if (!providerText) warnings.push(`provider 为空/纯空白或 'auto' ⇒ 已回落默认值 ${DEFAULTS.provider}`);
+  if (!modelText) warnings.push(`model 为空/纯空白或 'auto' ⇒ 已回落默认值 ${DEFAULTS.model}`);
+  if (!profileText) warnings.push(`profile 为空/纯空白或 'auto' ⇒ 已回落默认值 ${DEFAULTS.profile}`);
+  const provider = providerText || DEFAULTS.provider;
+  const model = modelText || DEFAULTS.model;
+  const profile = profileText || DEFAULTS.profile;
   const probe = typeof opts?.probe === 'function' ? opts.probe : null;
   const resolved = resolveAutoTarget(merged, probe ? { probe } : {});
-  const config = {
-    ...merged,
-    provider,
-    model,
-    profile,
-    distro: resolved.distro,
-    wslHome: resolved.wslHome,
-    // 显式 cwd 优先；否则跟随解析出来的 wslHome（旧默认值是 `'/home/g'` —— 同样是作者机器的值）。
-    //
-    // 行为变化（评审 P2-5，已在 README/docs §5 记录）：显式配了 `wslHome` 但没配 `cwd` 的用户，
-    // 有效 cwd 会从旧的 `/home/g` 变成自己的家目录。这是修正，但旧守护报告的 cwd 会因此不同 ⇒
-    // `configCompat` 判**结构性不兼容**，需要显式 `wsl_daemon action=restart` 一次（会丢当前会话上下文）。
-    cwd: asConfigText(merged.cwd) || resolved.wslHome,
-  };
-  // 显式配置 ⇒ 显式写 `null`：`merged` 里可能带着上一手转发来的结论（preset 展开），不能沿用。
-  config[TARGET_DETECTION] = autoNeeded ? { ...resolved, at: Date.now() } : null;
-  // 记录**探测前**的显式原值：`refreshAutoTarget()` 只能按它重算，否则会把探测结果误当显式配置。
-  config[AUTO_TARGET_SOURCE] = {
+  const source = {
     distro: asConfigText(merged.distro),
     wslHome: asConfigText(merged.wslHome),
     cwd: asConfigText(merged.cwd),
   };
+  const config = { ...merged, provider, model, profile };
+  // 目标赋值 + 探测结论记账与 refreshAutoTarget 共用一处（applyResolvedTarget；复核 standards-S4）。
+  // 行为变化（评审 P2-5，已在 README/docs §5 记录）：显式配了 `wslHome` 但没配 `cwd` 的用户，
+  // 有效 cwd 会从旧的 `/home/g` 变成自己的家目录。这是修正，但旧守护报告的 cwd 会因此不同 ⇒
+  // `configCompat` 判**结构性不兼容**，需要显式 `wsl_daemon action=restart` 一次（会丢当前会话上下文）。
+  applyResolvedTarget(config, source, resolved);
+  // 记录**探测前**的显式原值：`refreshAutoTarget()` 只能按它重算，否则会把探测结果误当显式配置。
+  config[AUTO_TARGET_SOURCE] = source;
+  config[CONFIG_WARNINGS] = warnings;
   return config;
+}
+
+/**
+ * 把**解析后的目标**应用到配置对象，并登记探测结论（`normalizeConfig` 与 `refreshAutoTarget` 共用）。
+ *
+ * 复核 standards-S4：原来这两处各写一份「赋值 + `TARGET_DETECTION` 记账 + `cwd` 回退」，
+ * 将来目标多一个派生键就必须两处同改（Shotgun Surgery 的入口）。收成一处。
+ *
+ * 显式值优先（`resolveAutoTarget` 已保证）；`cwd` 空 ⇒ 跟随解析出的 `wslHome`（旧默认值是作者机器的 `/home/g`）。
+ *
+ * @param config 目标配置对象（非对象/undefined 时只计算不写回）
+ * @param source **探测前**的显式原值（`{distro,wslHome,cwd}`）
+ * @param resolved `resolveAutoTarget()` 的返回值
+ * @returns 生效的目标 + `autoNeeded`（false ⇒ 纯显式配置）
+ */
+function applyResolvedTarget(config, source, resolved) {
+  const autoNeeded = !source.distro || !source.wslHome;
+  const target = {
+    distro: resolved.distro,
+    wslHome: resolved.wslHome,
+    cwd: source.cwd || resolved.wslHome,
+  };
+  if (config && typeof config === 'object') {
+    config.distro = target.distro;
+    config.wslHome = target.wslHome;
+    config.cwd = target.cwd;
+    // 显式配置 ⇒ 显式写 `null`：`merged` 里可能带着上一手转发来的结论（preset 展开），不能沿用。
+    config[TARGET_DETECTION] = autoNeeded ? { ...resolved, at: Date.now() } : null;
+  }
+  return { ...target, autoNeeded };
 }
 
 /**
@@ -250,18 +296,9 @@ export function refreshAutoTarget(config, opts = {}) {
     wslHome: config?.wslHome ?? '',
     cwd: config?.cwd ?? '',
   };
-  // 显式值优先（resolveAutoTarget 已保证），`cwd` 空则跟随解析出的家目录 —— 与 normalizeConfig 同语义。
-  const current = {
-    distro: resolved.distro,
-    wslHome: resolved.wslHome,
-    cwd: source.cwd || resolved.wslHome,
-  };
-  if (config && typeof config === 'object') {
-    config.distro = current.distro;
-    config.wslHome = current.wslHome;
-    config.cwd = current.cwd;
-    config[TARGET_DETECTION] = autoNeeded ? { ...resolved, at: Date.now() } : null;
-  }
+  // 赋值 + 探测结论记账与 normalizeConfig 共用 applyResolvedTarget（复核 standards-S4）。
+  const applied = applyResolvedTarget(config, source, resolved);
+  const current = { distro: applied.distro, wslHome: applied.wslHome, cwd: applied.cwd };
   return {
     ok: !resolved.problem,
     problem: resolved.problem,
@@ -269,6 +306,6 @@ export function refreshAutoTarget(config, opts = {}) {
     previous,
     current,
     changed: previous.distro !== current.distro || previous.wslHome !== current.wslHome || previous.cwd !== current.cwd,
-    auto: autoNeeded,
+    auto: applied.autoNeeded,
   };
 }

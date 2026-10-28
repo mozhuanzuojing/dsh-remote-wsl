@@ -119,6 +119,23 @@ test('refreshAutoTarget：必须清掉进程级缓存（旧结论不得在重探
   resetTargetDetection();
 });
 
+test('refreshAutoTarget：生产路径（不传 probe）在 wsl.exe 不可用 ⇒ 如实失败、保持空目标（S3-7）', () => {
+  const savedPath = process.env.PATH;
+  resetTargetDetection();
+  try {
+    process.env.PATH = ''; // 与 target-guards 的 withoutWsl 同一手法：确定性地“没有 wsl.exe”
+    const cfg = normalizeConfig({});
+    assert.equal(cfg.distro, '');
+    const r = refreshAutoTarget(cfg); // 这里走真实 resetTargetDetection + spawnSync 路径（不是 probe 注入）
+    assert.equal(r.ok, false);
+    assert.match(r.problem, /cordis\.patch\.yml/);
+    assert.equal(cfg.distro, '', '失败时不许伪造目标');
+  } finally {
+    process.env.PATH = savedPath;
+    resetTargetDetection();
+  }
+});
+
 test('refreshAutoTarget：纯显式配置不探测、也不清进程缓存（S2-3 回归）', () => {
   resetTargetDetection();
   // 先放一个"旧缓存"进去：如果显式配置也清缓存，下面就会重新探测并返回 FreshProbe。

@@ -18,7 +18,8 @@ import {
 } from './daemon-client.ts';
 import { withModulePrefix } from './explorer.ts';
 import { presetStatus } from './preset.ts';
-import { targetProblem, configDetection, refreshAutoTarget } from './config.ts';
+import { targetProblem, configDetection, refreshAutoTarget, REDETECT_HINT, configWarnings } from './config.ts';
+import { routeMismatch } from './daemon-launch.ts';
 // T47（P0 修复，**只加这一行 import，逻辑一行未改**）：`WebHost.start()` 的脚本里有
 // `exec mise exec -- pnpm dlx ${allowBuildFlags()} @deepseek-ai/dsh@<v> web --port <p>`。
 // 根因链：T1 把 `ALLOW_BUILDS`/`allowBuildFlags` 唯一化到 `src/sdk-runtime.ts`；T5 把「七个工具的注册面」
@@ -252,6 +253,41 @@ function describeWslTermination(res) {
 }
 
 /**
+ * 把「会话内重探」的结果渲染成输出行（**纯函数**，便于单测；A-P2-E / 复核 S2-4、S3-3、S5）。
+ *
+ * 单独抽出来的理由：`wsl_status.execute` 已经很长，重探渲染与路线告警是两件无关的事（Divergent Change）；
+ * 且这部分有分支语义（显式配置 / 换发行版 / 失败），值得直接断言而不是靠整段输出正则。
+ *
+ * @param result `refreshAutoTarget()` 的返回值（或测试桩）；`null` ⇒ 不渲染任何行
+ * @param config 归一后的配置（取更新后的 distro/wslHome/cwd）
+ * @returns 输出行数组（空数组 = 没有重探）
+ */
+export function renderRedetectResult(result, config) {
+  if (!result) return [];
+  if (result.ok !== true) {
+    return [`redetect: ⚠️ 重新探测仍失败：${result.problem ?? '未知原因'}（可稍后重试；显式配置 distro/wslHome 可完全跳过探测）`];
+  }
+  if (result.auto === false) {
+    return ['redetect: ℹ️ 目标来自**显式配置**（distro/wslHome 都已指定）⇒ 无需重探；本次未发起 wsl.exe，值未变'];
+  }
+  const lines = [
+    `redetect: ✅ 已重新探测：distro=${config.distro} wslHome=${config.wslHome} cwd=${config.cwd}` +
+      `${result.changed ? '（已更新配置）' : '（与之前相同）'}；宿主侧工具（wsl_exec / wsl_agent / 面板）立即生效。` +
+      `⚠️ wsl 预设的文件/搜索子插件是**注册时快照**，需重启 DSH 才跟随新目标。`,
+  ];
+  const prevDistro = result.previous?.distro ?? '';
+  const nextDistro = result.current?.distro ?? '';
+  if (prevDistro && nextDistro && prevDistro !== nextDistro) {
+    lines.push(
+      `redetect: ⚠️ 目标发行版已从 "${prevDistro}" 换到 "${nextDistro}"：旧发行版里若有守护，` +
+        `它的元数据与 /proc 孤儿扫描都不在新目标内 ⇒ 既不会被复用、也不会被 stop/orphan 扫到。` +
+        `如需收尾，先显式配回旧 distro 再 wsl_daemon action=stop；否则接受它自行退出（仍有 key 时不会自退）。`,
+    );
+  }
+  return lines;
+}
+
+/**
  * 注册七个工具。`deps` 由 index.ts 的 apply 提供（拆分前它们是同一闭包里的自由变量；这里改用**同名解构**
  * ⇒ 下面七个 `tools.register` 的函数体逐字未改）。
  */
@@ -289,6 +325,7 @@ export function registerTools(deps) {
         // A-P2-E（2026-10-28 复核补修）：显式要求时先重探一次 —— 必须发生在 targetProblem() 之前，
         // 否则整段输出仍按旧的空目标跳过所有 WSL 探测。
         const redetectResult = args?.redetect === true ? redetectTarget() : null;
+        const cfgWarnings = configWarnings(config);
         // F-15（2026-10-27 审查）：状态查询不再用同步 spawnSync（会阻塞宿主事件循环）；异步版失败
         // 时返回空数组，这里如实标成「读不到」而不是"没有发行版"。
         const distros = listDistrosAsync ? await listDistrosAsync() : listDistros();
@@ -394,17 +431,15 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
             `uptime=${Math.round((info.uptimeMs ?? 0) / 1000)}s idleMs=${info.idleMs} lingerMs=${info.lingerMs} keys=${ks.length} ` +
             `[${ks.map((k) => `${k.key}(turn ${k.turns}${k.queued ? `,q${k.queued}` : ''}${k.runtimePid ? `,pid${k.runtimePid}` : ''})`).join(', ') || '(none)'}]`;
           // A-P1-A：配置与守护的 provider/model 必须当场比对 —— 复用旧守护时这里就是唯一的可见面。
-          const dProvider = typeof info.provider === 'string' && info.provider.trim() ? info.provider.trim() : null;
-          const dModel = typeof info.model === 'string' && info.model.trim() ? info.model.trim() : null;
-          const wantProvider = typeof config.provider === 'string' && config.provider.trim() ? config.provider.trim() : null;
-          const wantModel = typeof config.model === 'string' && config.model.trim() ? config.model.trim() : null;
-          if (dProvider === null || dModel === null) {
+          // 判定收口在 daemon-launch.routeMismatch（复核 S3-6），这里只按 kind 选文案。
+          const route = routeMismatch(info, config);
+          if (route.kind === 'unreported') {
             daemonRouteAlarm =
-              `守护没有上报实际 provider/model（0.3.4 之前的旧守护）⇒ 无法校验本次配置（${wantProvider ?? '?'}/${wantModel ?? '?'}）` +
+              `守护没有上报实际 provider/model（0.3.4 之前的旧守护）⇒ 无法校验本次配置（${route.host.provider ?? '?'}/${route.host.model ?? '?'}）` +
               `是否生效；执行 wsl_daemon action=restart 后状态里会显示实际生效值`;
-          } else if ((wantProvider && dProvider !== wantProvider) || (wantModel && dModel !== wantModel)) {
+          } else if (route.kind === 'mismatch') {
             daemonRouteAlarm =
-              `守护实际 provider/model = ${dProvider}/${dModel}，本次配置 = ${wantProvider ?? '?'}/${wantModel ?? '?'}` +
+              `守护实际 provider/model = ${route.daemon.provider}/${route.daemon.model}，本次配置 = ${route.host.provider ?? '?'}/${route.host.model ?? '?'}` +
               ` —— **配置改了但守护还是旧进程**（不自动重启，避免无声中断正在进行的会话）；执行 wsl_daemon action=restart 才会用新值` +
               `（会丢当前会话上下文）`;
           }
@@ -459,6 +494,9 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
                   : '未初始化（插件未加载？）';
         return [
           `plugin: dsh-remote-wsl@${PLUGIN_VERSION}（版本 = 本仓 package.json；升级/回滚见 README）`,
+          ...(cfgWarnings.length
+            ? [`config: ⚠️ ${cfgWarnings.join('；')}（已按默认值继续运行；要真正生效请改 cordis.patch.yml）`]
+            : []),
           `distros: ${distros.join(', ') || (distrosReadFailed ? '(读不到：wsl.exe -l -q 失败，不等于“没有发行版”)' : '(none)')}`,
           ...(targetIssue
             ? [`target ⚠️: ${targetIssue}`]
@@ -471,20 +509,7 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
             ? [`target auto-detected: ${detection.notes.join('；')}（显式配置 distro/wslHome 可完全跳过探测）`]
             : []),
           `target: ${config.distro || '(未解析)'}  wslHome=${config.wslHome || '(未解析)'}  cwd=${config.cwd || '(未解析)'}`,
-          ...(redetectResult
-            ? [
-                redetectResult.ok
-                  ? `redetect: ✅ 已重新探测：distro=${config.distro} wslHome=${config.wslHome} cwd=${config.cwd}` +
-                    `${redetectResult.changed ? '（已更新配置）' : '（与之前相同）'}；宿主侧工具（wsl_exec / wsl_agent / 面板）立即生效。` +
-                    `⚠️ wsl 预设的文件/搜索子插件是**注册时快照**，需重启 DSH 才跟随新目标。`
-                  : `redetect: ⚠️ 重新探测仍失败：${redetectResult.problem ?? '未知原因'}（可稍后重试；显式配置 distro/wslHome 可完全跳过探测）`,
-              ]
-            : targetIssue
-              ? [
-                  'hint: 目标未解析时可调用 `wsl_status({ redetect: true })` 在会话内重探一次' +
-                    '（清掉进程缓存并重跑探测，宿主侧工具立刻可用；无需重启 DSH）',
-                ]
-              : []),
+          ...renderRedetectResult(redetectResult, config),
           `wsl ip: ${ip}`,
           `shell env injection (useShellEnvironment): ${config.useShellEnvironment === false ? 'off' : 'on'}（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）`,
           `localhost forwarding: ${lfLine}`,
@@ -756,10 +781,8 @@ ${command}
           // 「not running」这种**结论**（而实际什么都没扫），还会把 `/.dsh/remote-wsl` 这种伪造路径
           // 打给用户去复制。与 `stop` 分支同样处理：直接回根因，不做状态判断。
           const statusIssue = targetProblem(config);
-          // A-P2-E：把"怎么在会话内救回来"直接写在根因旁边，而不是只说"去改配置/重启"。
-          if (statusIssue) {
-            return `${statusIssue}\n提示：可调用 \`wsl_status({ redetect: true })\` 在会话内重新探测目标（清进程缓存后重跑探测，无需重启 DSH）。`;
-          }
+          // A-P2-E：可操作入口已由 target-detect 的文案统一携带（`REDETECT_HINT`），这里不再另写一份。
+          if (statusIssue) return statusIssue;
           const s: any = await daemonStatus(config);
           const info0 = s.info ?? {};
           const ks0: any[] = Array.isArray(info0.keys) ? info0.keys : [];
@@ -800,18 +823,15 @@ ${command}
           const ks: any[] = Array.isArray(info.keys) ? info.keys : [];
           const orphans: any[] = Array.isArray(s.orphans) ? s.orphans : [];
           // A-P1-A：`wsl_daemon status` 是排障第一入口 —— 实际 provider/model 与配置必须同时出现。
-          const statusProvider = typeof info.provider === 'string' && info.provider.trim() ? info.provider.trim() : null;
-          const statusModel = typeof info.model === 'string' && info.model.trim() ? info.model.trim() : null;
-          const wantedProvider = typeof config.provider === 'string' && config.provider.trim() ? config.provider.trim() : null;
-          const wantedModel = typeof config.model === 'string' && config.model.trim() ? config.model.trim() : null;
+          const route = routeMismatch(info, config);
           const routeWarn =
-            statusProvider === null || statusModel === null
-              ? `route: ⚠️ 守护未上报 provider/model（0.3.4 之前的旧守护）⇒ 无法校验本次配置 ${wantedProvider ?? '?'}/${wantedModel ?? '?'}；wsl_daemon action=restart 后可核对`
-              : (wantedProvider && statusProvider !== wantedProvider) || (wantedModel && statusModel !== wantedModel)
-                ? `route: ⚠️ 守护实际 ${statusProvider}/${statusModel} ≠ 本次配置 ${wantedProvider ?? '?'}/${wantedModel ?? '?'} —— 配置改了但守护还是旧进程；执行 wsl_daemon action=restart 生效（会丢当前会话上下文）`
+            route.kind === 'unreported'
+              ? `route: ⚠️ 守护未上报 provider/model（0.3.4 之前的旧守护）⇒ 无法校验本次配置 ${route.host.provider ?? '?'}/${route.host.model ?? '?'}；wsl_daemon action=restart 后可核对`
+              : route.kind === 'mismatch'
+                ? `route: ⚠️ 守护实际 ${route.daemon.provider}/${route.daemon.model} ≠ 本次配置 ${route.host.provider ?? '?'}/${route.host.model ?? '?'} —— 配置改了但守护还是旧进程；执行 wsl_daemon action=restart 生效（会丢当前会话上下文）`
                 : null;
           return [
-            `daemon: pid=${info.daemonPid} actualPort=${info.port} slot=${s.slot} version=${info.version} plugin=${info.pluginVersion ?? 'unknown'} protocol=v${info.protocolVersion ?? 0} cwd=${info.cwd} profile=${info.profile} provider=${statusProvider ?? 'unknown'} model=${statusModel ?? 'unknown'}`,
+            `daemon: pid=${info.daemonPid} actualPort=${info.port} slot=${s.slot} version=${info.version} plugin=${info.pluginVersion ?? 'unknown'} protocol=v${info.protocolVersion ?? 0} cwd=${info.cwd} profile=${info.profile} provider=${info.provider ?? 'unknown'} model=${info.model ?? 'unknown'}`,
             machineLine({
               slot: s.slot,
               pid: info.daemonPid,

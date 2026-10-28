@@ -20,7 +20,7 @@ import {
   releaseEnsureLock, scanDaemonProcessesAsync, sleep, stateDirLinux, tcpProbe, tokenLinux,
   tryAcquireEnsureLock, unc,
 } from './daemon-protocol.ts';
-import { configCompat, killWslPidAsync, launchDaemon, removeLauncher } from './daemon-launch.ts';
+import { configCompat, killWslPidAsync, launchDaemon, removeLauncher, structuralIncompatError } from './daemon-launch.ts';
 import { assertConfigTarget, targetProblem } from './config.ts';
 import { asConfigText } from './target-detect.ts';
 
@@ -199,10 +199,7 @@ export async function ensureDaemon(cfg, { version, restart = false, noReuse = fa
           return {
             ok: false,
             notes,
-            error:
-              `远端守护（槽位 ${rec.slot} / 端口 ${hs.info.port}）与本次配置**结构性不兼容**：${compat.hard.join('、')}。` +
-              `复用会让会话跑在错误的工作目录/插件集，或继续用旧 provider 打上游（配置像没改、401 长驻）。` +
-              `请显式执行 wsl_daemon action=restart 以新配置重启（会丢当前会话上下文），或改用另一个 config.daemonPort。`,
+            error: structuralIncompatError(compat, rec.slot, hs.info.port),
           };
         }
         if (hs.info.port !== wantSlot) {

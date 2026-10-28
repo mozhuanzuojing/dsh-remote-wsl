@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULTS, normalizeConfig } from '../src/config.ts';
 import { PLUGIN_VERSION, PROTOCOL_VERSION } from '../src/plugin-version.ts';
-import { configCompat } from '../src/daemon-launch.ts';
+import { configCompat, routeMismatch } from '../src/daemon-launch.ts';
 
 test('normalizeConfig：补齐默认值、调用方覆盖优先、非对象入参不炸', () => {
   // 2026-10-28：`distro`/`wslHome` 缺省现在是"自动探测"（见 test/target-detect.test.ts）。
@@ -96,7 +96,9 @@ test('configCompat：守护上报的 provider/model 与配置一致 ⇒ 无 rout
   const c = configCompat({ cwd: '/home/g', profile: 'sdk', provider: 'commandcode', model: 'deepseek/x' }, info, null);
   assert.equal(c.hard.length, 0, JSON.stringify(c));
   assert.ok(!c.soft.some((s: string) => /provider|model/.test(s)), JSON.stringify(c.soft));
-  assert.deepEqual(c.route, {
+  // 判定本身收口在 routeMismatch（复核 S3-6）：两个工具面都复用它。
+  assert.deepEqual(routeMismatch(info, { provider: 'commandcode', model: 'deepseek/x' }), {
+    kind: 'ok',
     daemon: { provider: 'commandcode', model: 'deepseek/x' },
     host: { provider: 'commandcode', model: 'deepseek/x' },
   });
@@ -115,8 +117,9 @@ test('configCompat：守护的 provider/model 与配置不同 ⇒ hard（不静�
   const msg = c.hard.join(' | ');
   assert.match(msg, /provider deepseek-official≠commandcode/, msg);
   assert.match(msg, /model deepseek-flash≠deepseek\/x/, msg);
-  assert.equal(c.route.daemon.provider, 'deepseek-official');
-  assert.equal(c.route.host.provider, 'commandcode');
+  assert.equal(routeMismatch(info, { provider: 'commandcode', model: 'deepseek/x' }).kind, 'mismatch');
+  assert.equal(routeMismatch(info, { provider: 'commandcode', model: 'deepseek/x' }).daemon.provider, 'deepseek-official');
+  assert.equal(routeMismatch(info, { provider: 'commandcode', model: 'deepseek/x' }).host.provider, 'commandcode');
 });
 
 test('configCompat：守护没上报 provider/model（0.3.4 之前的旧守护）⇒ soft 且不硬阻塞', () => {
@@ -124,8 +127,8 @@ test('configCompat：守护没上报 provider/model（0.3.4 之前的旧守护�
   const c = configCompat({ cwd: '/home/g', profile: 'sdk', provider: 'commandcode', model: 'deepseek/x' }, info, null);
   assert.equal(c.hard.length, 0, JSON.stringify(c));
   assert.ok(c.soft.some((s: string) => /未上报 provider\/model/.test(s)), JSON.stringify(c.soft));
-  assert.equal(c.route.daemon.provider, null);
-  assert.equal(c.route.host.provider, 'commandcode');
+  assert.equal(routeMismatch(info, { provider: 'commandcode', model: 'deepseek/x' }).kind, 'unreported');
+  assert.equal(routeMismatch(info, { provider: 'commandcode', model: 'deepseek/x' }).host.provider, 'commandcode');
 });
 
 test('configCompat：useShellEnvironment / proxyPort 不同 ⇒ soft（只提示 restart，不 hard）', () => {

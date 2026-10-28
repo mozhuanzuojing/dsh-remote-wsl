@@ -347,6 +347,26 @@ export function launchDaemon(cfg, port, version, log = () => {}) {
 }
 
 /**
+ * `provider/model` 的**唯一判定**（复核 S3-6：原来 configCompat / wsl_status / `wsl_daemon status`
+ * 各写一份同形比较，改口径要改三处）。
+ *
+ * @param info 守护身份（hello/status/meta 的形状）
+ * @param cfg 本次配置（归一后或手工构造都可）
+ * @returns `{ kind: 'ok' | 'unreported' | 'mismatch', daemon, host }` —— `unreported` = 旧守护缺字段
+ *          （无法判定，宿主侧只能 soft 提示 restart），`mismatch` = 已上报且与本次配置不同（结构性，hard）。
+ */
+export function routeMismatch(info, cfg) {
+  const norm = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const daemon = { provider: norm(info?.provider), model: norm(info?.model) };
+  const host = { provider: norm(cfg?.provider), model: norm(cfg?.model) };
+  if (daemon.provider === null || daemon.model === null) return { kind: 'unreported', daemon, host };
+  if ((host.provider && daemon.provider !== host.provider) || (host.model && daemon.model !== host.model)) {
+    return { kind: 'mismatch', daemon, host };
+  }
+  return { kind: 'ok', daemon, host };
+}
+
+/**
  * 配置相容性检查（task-9 追加 D）：复用已有守护前必须比对**关键参数**，不许静默忽略调用方的配置。
  *  · `hard`   = 结构性不兼容（cwd / profile）：复用会让"会话跑在错误的工作目录/插件集"上 ⇒ 明确报错。
  *  · `soft`   = 可容忍但不该静默（idleMs / queueLimit / lingerMs）：复用并**显式回报**（可用 restart 应用新值）。
@@ -369,23 +389,20 @@ export function configCompat(cfg, info, wantedVersion) {
   //     · 守护上报了值且与本次配置不同 ⇒ hard（明确要求 restart，不静默跑错上游）；
   //     · 守护没上报（0.3.4 之前的旧守护）⇒ soft（无法校验，提示 restart 后可见），不硬阻塞；
   //     · useShellEnvironment / proxyPort 只影响环境注入/代理探测 ⇒ soft。
-  const daemonProvider = typeof info?.provider === 'string' && info.provider.trim() ? info.provider.trim() : null;
-  const daemonModel = typeof info?.model === 'string' && info.model.trim() ? info.model.trim() : null;
-  const hostProvider = typeof cfg?.provider === 'string' && cfg.provider.trim() ? cfg.provider.trim() : null;
-  const hostModel = typeof cfg?.model === 'string' && cfg.model.trim() ? cfg.model.trim() : null;
-  const route = {
-    daemon: { provider: daemonProvider, model: daemonModel },
-    host: { provider: hostProvider, model: hostModel },
-  };
-  if (daemonProvider === null || daemonModel === null) {
+  const route = routeMismatch(info, cfg);
+  if (route.kind === 'unreported') {
     soft.push(
       `守护未上报 provider/model（插件 ${info?.pluginVersion ?? 'unknown'}，0.3.4 之前的守护）⇒ ` +
-        `本次配置 ${hostProvider ?? '?'}/${hostModel ?? '?'} 是否生效**无法校验**；` +
+        `本次配置 ${route.host.provider ?? '?'}/${route.host.model ?? '?'} 是否生效**无法校验**；` +
         `wsl_daemon action=restart 后状态里会显示实际生效值`,
     );
-  } else {
-    if (hostProvider && daemonProvider !== hostProvider) hard.push(`provider ${daemonProvider}≠${hostProvider}`);
-    if (hostModel && daemonModel !== hostModel) hard.push(`model ${daemonModel}≠${hostModel}`);
+  } else if (route.kind === 'mismatch') {
+    if (route.host.provider && route.daemon.provider !== route.host.provider) {
+      hard.push(`provider ${route.daemon.provider}≠${route.host.provider}`);
+    }
+    if (route.host.model && route.daemon.model !== route.host.model) {
+      hard.push(`model ${route.daemon.model}≠${route.host.model}`);
+    }
   }
   // 只有宿主**明确表达**过这个偏好才比较：缺键（例如 selftest.ts 手工构造的 cfg）不等于 false，
   // 否则对任何开着 shell env 的守护都会多一条假的 `useShellEnvironment true≠false` 告警
@@ -432,9 +449,24 @@ export function configCompat(cfg, info, wantedVersion) {
     hard,
     soft,
     plugin,
-    route,
     version: wantedVersion && info?.version && info.version !== wantedVersion ? { daemon: info.version, wanted: wantedVersion } : null,
   };
+}
+
+/**
+ * 结构性不兼容时的**统一报错**（复核 S3-7）：把措辞从 `ensureDaemon` 的调用点抽出来，
+ * 这样"必须先 restart / 或换 daemonPort"这条出路可以被单测直接锁住（此前只有阅读证据）。
+ *
+ * @param compat `configCompat()` 的返回值（取 `hard`）
+ * @param slot 请求槽位
+ * @param port 守护实际端口
+ */
+export function structuralIncompatError(compat, slot, port) {
+  return (
+    `远端守护（槽位 ${slot} / 端口 ${port}）与本次配置**结构性不兼容**：${(compat?.hard ?? []).join('、')}。` +
+    `复用会让会话跑在错误的工作目录/插件集，或继续用旧 provider 打上游（配置像没改、401 长驻）。` +
+    `请显式执行 wsl_daemon action=restart 以新配置重启（会丢当前会话上下文），或改用另一个 config.daemonPort。`
+  );
 }
 
 /** 本插件**自己的**守护进程里，占了这两个端口之一的那些（按 /proc 身份扫描，不看元数据）。 */

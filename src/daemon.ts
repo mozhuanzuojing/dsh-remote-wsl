@@ -96,6 +96,12 @@ const PROMPT_TIMEOUT_MS = numArg('prompt-timeout-ms', 300000, 1000);
 const QUIET_MS = numArg('quiet-ms', 3000, 100);
 const SHELL_ENV = !flag('no-shell-env');
 /**
+ * 守护身份里的「路由四元组」（`meta` / `status` / `hello` 三处共用；2026-10-28 复核 standards-S3：
+ * 原来三处逐字重复，加一个身份字段要改三处、漏一处就出现"宿主看到的身份与元数据不一致"）。
+ * 新增身份字段只改这里。
+ */
+const ROUTE_IDENTITY = { provider: PROVIDER, model: MODEL, useShellEnvironment: SHELL_ENV, proxyPort: PROXY_PORT };
+/**
  * 关掉「启动 1.5s 后后台补齐核心 CLI 工具」（见 `startBackgroundProvision()`）。
  * 给集成测试 / CI 用：它们要在**零网络**下确定性运行；真机上线时核心工具通常已装，
  * 少了预热只是首次搜索慢一点（按需路径 `kickSearchProvision` 仍会补）。
@@ -402,10 +408,7 @@ function writeMeta(extra = {}) {
     profile: PROFILE,
     // 2026-10-28 独立复核 A-P1-A：守护身份必须包含**实际生效的 provider/model**。
     // 没有这两个字段时，宿主改完配置只能"假设"复用没问题 —— 旧 provider 会一直生效且零告警。
-    provider: PROVIDER,
-    model: MODEL,
-    useShellEnvironment: SHELL_ENV,
-    proxyPort: PROXY_PORT,
+    ...ROUTE_IDENTITY,
     idleMs: IDLE_MS,
     queueLimit: QUEUE_LIMIT,
     lingerMs: LINGER_MS,
@@ -737,10 +740,7 @@ async function handle(req) {
       cwd: CWD,
       profile: PROFILE,
       // A-P1-A：status 是 `wsl_daemon status` 的唯一数据源 —— 用户必须能看见"守护在用哪个 provider"。
-      provider: PROVIDER,
-      model: MODEL,
-      useShellEnvironment: SHELL_ENV,
-      proxyPort: PROXY_PORT,
+      ...ROUTE_IDENTITY,
       idleMs: IDLE_MS,
       queueLimit: QUEUE_LIMIT,
       lingerMs: LINGER_MS,
@@ -939,10 +939,7 @@ const server = net.createServer((socket) => {
           cwd: CWD,
           profile: PROFILE,
           // A-P1-A：hello 是宿主复用守护前的**唯一身份核对点**；缺这两个字段就没法判配置是否生效。
-          provider: PROVIDER,
-          model: MODEL,
-          useShellEnvironment: SHELL_ENV,
-          proxyPort: PROXY_PORT,
+          ...ROUTE_IDENTITY,
           idleMs: IDLE_MS,
           queueLimit: QUEUE_LIMIT,
           startedAt,

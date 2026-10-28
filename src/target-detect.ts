@@ -48,10 +48,19 @@ export const HOME_PROBE_TIMEOUT_MS = 10000;
 export const NO_DISTRO_REASON = 'no-distro';
 export const NO_HOME_REASON = 'no-wsl-home';
 
+/**
+ * 「会话内重探」的统一提示（2026-10-28 复核 S3-1/S3-2/S6）。
+ *
+ * 纪律见 `config.ts:163`：探测失败的可操作说明**只在探测模块里写一份**，工具层只引用 ——
+ * 否则 `wsl_exec` / `wsl_agent` / fs / 面板会各自漂出一套措辞。
+ */
+export const REDETECT_HINT = '调用 `wsl_status({ redetect: true })` 在会话内重新探测（清掉进程缓存后重跑，无需重启 DSH）';
+
 /** 探测不到默认发行版时的可操作报错（已含 `remote-wsl: ` 前缀）。 */
 export const NO_DISTRO_MESSAGE =
   'remote-wsl: 未能自动探测到 WSL 默认发行版（`wsl.exe -l -v` 里没有带 `*` 的行，或 wsl.exe 不可用）。' +
-  '请在 cordis.patch.yml 里显式配置 distro（README「配置」一节），或用 `wsl --set-default <发行版>` 指定默认发行版。';
+  '请在 cordis.patch.yml 里显式配置 distro（README「配置」一节），或用 `wsl --set-default <发行版>` 指定默认发行版；' +
+  `也可以${REDETECT_HINT}。`;
 
 /**
  * 探测到发行版但读不到 `$HOME` 时的可操作报错。
@@ -62,7 +71,8 @@ export function noHomeMessage(distro) {
     `remote-wsl: 已确定发行版 "${distro}"，但读不到它的登录用户 $HOME` +
     `（\`wsl -d ${distro} --exec sh -c 'printf %s "$HOME"'\` 失败；输出不是绝对路径、或含空白字符的` +
     '家目录也会被拒绝 —— 带空白的家目录拼进 bash 脚本会失真）。' +
-    '请在 cordis.patch.yml 里显式配置 wslHome（README「配置」一节）。'
+    '请在 cordis.patch.yml 里显式配置 wslHome（README「配置」一节）；' +
+    `也可以${REDETECT_HINT}。`
   );
 }
 
@@ -87,7 +97,7 @@ export function wsl1Message(distro) {
 export function noDistroTimeoutMessage(timeoutMs) {
   return (
     `remote-wsl: 探测默认发行版超时（\`wsl.exe -l -v\` ${timeoutMs}ms 未返回；WSL 可能在冷启动或卡住）。` +
-    'WSL 恢复后重启 DSH 会自动重试；或在 cordis.patch.yml 里显式配置 distro / wslHome 完全跳过探测。'
+    `WSL 恢复后可以${REDETECT_HINT}；或在 cordis.patch.yml 里显式配置 distro / wslHome 完全跳过探测。`
   );
 }
 
