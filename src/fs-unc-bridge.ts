@@ -73,27 +73,44 @@ function isUncForDistro(value: any, distro: string): boolean {
   return unc !== null && unc.distro.toLowerCase() === distro.toLowerCase();
 }
 
-/** 输入是否属于本发行版的 UNC 会话（绝对 UNC，或 cwd 为 UNC 的相对路径）。 */
-function isBridgeInput(input: any, opts: any, distro: string): boolean {
-  if (isUncForDistro(input, distro)) return true;
-  if (isUncForDistro(opts?.cwd, distro)) return true;
-  // 只认明确的 /mnt 绝对路径；任意 POSIX 绝对路径不能把普通 Windows 会话拖进 WSL。
-  return isMntLinuxPath(String(input ?? ''));
+/** 输入是否是明确的 POSIX 绝对路径（不是 Windows 盘符、不是 UNC）。 */
+function isPosixAbsolute(input: any): boolean {
+  const raw = String(input ?? '');
+  return raw.startsWith('/') && !raw.startsWith('//');
 }
 
-/** 输入是否明确落在 /mnt（WSL DrvFs）。相对路径的 symlink 由 resolve 的 EPERM fallback 兜住。 */
+/** 输入是否明确落在 /mnt（WSL DrvFs）。 */
 function isMntInput(input: any, opts: any, distro: string): boolean {
   const raw = String(input ?? '');
   if (isUncForDistro(raw, distro)) {
     const unc = parseUnc(raw)!;
     return isMntLinuxPath(unc.linuxPath);
   }
-  if (raw.startsWith('/') && !raw.startsWith('//')) return isMntLinuxPath(raw);
+  if (isPosixAbsolute(raw)) return isMntLinuxPath(raw);
   if (isUncForDistro(opts?.cwd, distro)) {
     const cwd = parseUnc(String(opts.cwd))!;
     return isMntLinuxPath(cwd.linuxPath);
   }
   return false;
+}
+
+/** 输入是否属于本发行版的 WSL 路径：
+ *  · 本发行版 UNC；
+ *  · POSIX 绝对路径（仅 /mnt 或 UNC 会话 cwd 下）；
+ *  · UNC cwd 下不含反斜杠的相对路径。
+ *  Windows 盘符（D:\…）、含反斜杠的相对路径、其它发行版 UNC 必须交回原 host resolve。
+ */
+function isBridgeInput(input: any, opts: any, distro: string): boolean {
+  const raw = String(input ?? '');
+  const unc = parseUnc(raw);
+  if (unc !== null) return unc.distro.toLowerCase() === distro.toLowerCase();
+  if (/^[A-Za-z]:[\\/]/.test(raw)) return false;
+  if (raw.includes('\\')) return false;
+  if (isPosixAbsolute(raw)) {
+    return isUncForDistro(opts?.cwd, distro) || isMntLinuxPath(raw);
+  }
+  // 纯相对路径只有 cwd 是本发行版 UNC 时才交给 WSL；Windows cwd 保持原行为。
+  return isUncForDistro(opts?.cwd, distro);
 }
 
 /** 解析 `dev:ino:size:mtimeNs:ctimeNs`；失败返回 null。 */
@@ -214,29 +231,57 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
 
   const bridgedResolve = async function (input: any, opts: any = {}) {
     if (!isBridgeInput(input, opts, distro)) return originalResolve.call(fsService, input, opts);
-    if (isMntInput(input, opts, distro)) return resolveViaWsl(input, opts);
+    // /mnt 与 POSIX 路径在 Windows 9P 上没有可靠 realpath；直接以 WSL 原生解析为准。
+    if (isMntInput(input, opts, distro) || isPosixAbsolute(input)) return resolveViaWsl(input, opts);
+    // 普通 UNC 先保留宿主 9P 语义；host stat 看不到（典型：symlink → /mnt/d 被 fs-local
+    // 词法化成不存在的 leaf）时，再用 WSL realpath + WSL stat 确认是否真实存在。
+    let hostResult;
     try {
-      return await originalResolve.call(fsService, input, opts);
+      hostResult = await originalResolve.call(fsService, input, opts);
     } catch (error: any) {
-      // WSL symlink → /mnt/d：Windows realpath 经 9P 报 EPERM；只对实测的 EPERM 回退，
-      // EACCES 等真实权限拒绝必须原样抛出，不能掩盖。
-      if (error?.code === 'EPERM' && isBridgeInput(input, opts, distro)) {
-        return resolveViaWsl(input, opts);
-      }
-      throw error;
+      // 9P 对某些 symlink/DrvFs 组合会直接抛 EPERM/EACCES；这类错误回退 WSL，
+      // 其它错误保持原有失败语义。
+      if (!['EPERM', 'EACCES', 'ENOENT', 'EISDIR'].includes(String(error?.code))) throw error;
+      return resolveViaWsl(input, opts);
     }
+    let hostLive;
+    try {
+      hostLive = await originalStat.call(fsService, hostResult, opts?.signal);
+    } catch (error: any) {
+      // fs-local 的 probe 通常把 ENOENT 吞成 undefined；某些 9P 权限/链接错误会直接抛。
+      if (error?.code !== 'EPERM' && error?.code !== 'EACCES' && error?.code !== 'ENOENT') throw error;
+      hostLive = undefined;
+    }
+    if (hostLive !== undefined) return hostResult;
+    try {
+      const wslResult = await resolveViaWsl(input, opts);
+      // symlink→/mnt 下的新文件：WSL stat 也返回 undefined，但目标身份已经是 /mnt，
+      // 必须采用 WSL targetKey，后续 write 才会走 native /mnt 分支。
+      if (isMntTarget(wslResult, distro)) return wslResult;
+      if (await wslStat(wslFs, toWslTarget(wslResult), opts?.signal)) return wslResult;
+    } catch {
+      /* WSL 也不可用/不认路径：保持宿主结果，让后续 read 报原来的 FS_NOT_FOUND */
+    }
+    return hostResult;
   };
 
   const bridgedLstat = async function (input: any, opts: any = {}, signal: any) {
     if (!isBridgeInput(input, opts, distro)) return originalLstat.call(fsService, input, opts, signal);
-    if (isMntInput(input, opts, distro)) return callWsl('lstat', input, opts, signal);
+    if (isMntInput(input, opts, distro) || isPosixAbsolute(input)) return callWsl('lstat', input, opts, signal);
+    let hostResult;
     try {
-      return await originalLstat.call(fsService, input, opts, signal);
+      hostResult = await originalLstat.call(fsService, input, opts, signal);
     } catch (error: any) {
-      if (error?.code === 'EPERM' && isBridgeInput(input, opts, distro)) {
-        return callWsl('lstat', input, opts, signal);
-      }
-      throw error;
+      // Windows 对 symlink 目录本身可能报 EISDIR；9P 可能报 EPERM。仅这些可回退，
+      // 真正的权限拒绝（其它 EACCES）保持原样。
+      if (!['EPERM', 'EACCES', 'EISDIR', 'ENOENT'].includes(String(error?.code))) throw error;
+      hostResult = undefined;
+    }
+    if (hostResult !== undefined) return hostResult;
+    try {
+      return await callWsl('lstat', input, opts, signal);
+    } catch {
+      return hostResult;
     }
   };
 
@@ -268,11 +313,17 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   const bridgedListDir = async function (target: any, signal: any) {
     if (!isMntTarget(target, distro)) return originalListDir.call(fsService, target, signal);
     const entries = await callWsl('listDir', toWslTarget(target), signal);
+    const parentDisplay = String(target?.displayPath ?? '');
     return entries.map((entry: any) => ({
       ...entry,
       target: {
         ...entry.target,
         targetKey: uncPath(distro, entry.target.targetKey),
+        // WSL listDir 用 path.posix.join 拼 displayPath；父路径是 UNC 时会得到 `\mnt\d/child`
+        // 这种混合分隔符。父路径为 UNC 时按 Windows 分隔符补全。
+        displayPath: parentDisplay.startsWith('\\\\')
+          ? `${parentDisplay.replace(/[\\/]+$/, '')}\\${String(entry?.name ?? '')}`
+          : entry.target.displayPath,
       },
     }));
   };

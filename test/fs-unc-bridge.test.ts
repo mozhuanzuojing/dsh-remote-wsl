@@ -138,7 +138,14 @@ function mntHostFs() {
       return undefined;
     },
     resolve: async (input: any) => {
-      if (String(input).includes('\\mnt\\') || String(input) === 'sac-fe/src/axios.js') throw eperm('realpath');
+      if (String(input).includes('\\mnt\\')) throw eperm('realpath');
+      // 真实 fs-local 对 symlink → /mnt 的 ENOENT 返回词法路径，不抛异常；桥不能只靠 EPERM 回退。
+      if (String(input) === 'sac-fe/src/axios.js') {
+        return {
+          targetKey: '\\\\wsl.localhost\\debian-u8-1\\home\\g\\sac-fe\\src\\axios.js',
+          displayPath: '\\\\wsl.localhost\\debian-u8-1\\home\\g\\sac-fe\\src\\axios.js',
+        };
+      }
       return { targetKey: String(input), displayPath: String(input) };
     },
     writeText: async () => { throw new Error('host write must not be called'); },
@@ -165,11 +172,20 @@ test('UNC 读桥：/mnt 的 resolve/readText/stat 走 WSL，EPERM fallback 生�
   assert.equal((await fs.stat(target)).version, '2096:7:9:100:100');
   assert.equal(await fs.readText(target), 'from-wsl');
 
-  // 相对路径 + UNC cwd 的 symlink → /mnt：宿主 resolve/lstat 报 EPERM，必须走 WSL fallback。
+  // 真实 fs-local 对 `sac-fe/src`（symlink → /mnt）返回词法路径而非抛 EPERM；
+  // UNC 会话的 resolve 必须直接走 WSL realpath，才能得到 /mnt 的真实身份。
   const fallbackCwd = '\\\\wsl.localhost\\debian-u8-1\\home\\g';
   const fallbackTarget = await fs.resolve('sac-fe/src/axios.js', { cwd: fallbackCwd });
   assert.equal(fallbackTarget.targetKey, '\\\\wsl.localhost\\debian-u8-1\\mnt\\d\\x.txt');
   assert.equal((await fs.lstat('sac-fe/src/axios.js', { cwd: fallbackCwd })).version, '2096:7:9:100:100');
+
+  // Windows 盘符/反斜杠相对路径/其它发行版 UNC 不能被 UNC cwd 拖进 WSL 翻译。
+  assert.equal((await fs.resolve('D:\\project\\x.txt', { cwd: fallbackCwd })).targetKey, 'D:\\project\\x.txt');
+  assert.equal((await fs.resolve('..\\foo\\x.txt', { cwd: fallbackCwd })).targetKey, '..\\foo\\x.txt');
+  assert.equal(
+    (await fs.resolve('\\\\wsl.localhost\\ubuntu\\home\\g\\x.txt', { cwd: fallbackCwd })).targetKey,
+    '\\\\wsl.localhost\\ubuntu\\home\\g\\x.txt',
+  );
 });
 
 test('UNC 读桥：/mnt 的 lstat/streamText/readBytes/readByteRange/listDir 都走 WSL', async () => {
@@ -210,4 +226,37 @@ test('UNC 写桥：/mnt 的 write/edit 用 WSL 版本做 CAS，且回取 WSL 版
   assert.equal(writeOut.version, '2096:7:9:100:100');
   const editOut = await fs.editText(target, { oldString: 'a', newString: 'b' }, { version: '2096:7:9:100:100' }, undefined, { mode: 'danger-full-access' });
   assert.equal(editOut.version, '2096:7:9:100:100');
+});
+
+test('UNC 读桥：普通 UNC resolve 先走 host，不被 WSL 抢走', async () => {
+  const normal = '\\\\wsl.localhost\\debian-u8-1\\home\\g\\a.txt';
+  const fs = {
+    resolve: async () => ({ targetKey: normal, displayPath: normal }),
+    stat: async () => ({ version: '0:1:2:3:4' }),
+    writeText: async () => { throw new Error('write not used'); },
+    editText: async () => { throw new Error('edit not used'); },
+  };
+  const wsl = {
+    resolve: async () => { throw new Error('WSL resolve must not be called for normal UNC'); },
+    stat: async () => { throw new Error('WSL stat must not be called for normal UNC'); },
+    writeText: async () => ({ operation: 'update', version: 'wsl' }),
+    editText: async () => ({ version: 'wsl', before: '', after: '' }),
+  };
+  attachUncWriteBridge(fs, { distro: 'debian-u8-1', wslFs: wsl });
+  const target = await fs.resolve(normal, { cwd: '\\\\wsl.localhost\\debian-u8-1\\home\\g' });
+  assert.equal(target.targetKey, normal);
+});
+
+test('UNC 读桥：symlink→/mnt 下尚不存在的新文件仍采用 WSL targetKey', async () => {
+  const fs = mntHostFs();
+  const wsl = {
+    resolve: async () => ({ targetKey: '/mnt/d/new.txt', displayPath: '/mnt/d/new.txt' }),
+    stat: async () => undefined,
+    lstat: async () => undefined,
+    writeText: async () => ({ operation: 'create', version: 'wsl' }),
+    editText: async () => ({ version: 'wsl', before: '', after: '' }),
+  };
+  attachUncWriteBridge(fs, { distro: 'debian-u8-1', wslFs: wsl });
+  const target = await fs.resolve('sac-fe/new.txt', { cwd: '\\\\wsl.localhost\\debian-u8-1\\home\\g' });
+  assert.equal(target.targetKey, '\\\\wsl.localhost\\debian-u8-1\\mnt\\d\\new.txt');
 });
