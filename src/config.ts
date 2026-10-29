@@ -76,6 +76,16 @@ export const DEFAULTS = {
   /** 并发启动锁最多等多久（毫秒）。 */
   daemonLockWaitMs: 45000,
 
+  // ── WSL 原生 shell（preset 里的 ctx.shell 替代实现，见 src/shell-provider.ts）─────
+  /** 单条 bash 命令的默认超时（毫秒）；模型可用 timeoutMs 覆盖，上限是 shellMaxTimeoutMs。 */
+  shellTimeoutMs: 120000,
+  /** 单条命令允许的最大超时（毫秒）；超过按此值夹紧。 */
+  shellMaxTimeoutMs: 600000,
+  /** 每条流保留的字节上限（超出丢弃并标 truncated）；与 dsh-bash-local 的 maxOutputBytes 同值。 */
+  shellMaxOutputBytes: 64 * 1024,
+  /** kill 时 SIGTERM → SIGKILL 的宽限（毫秒）。 */
+  shellGraceMs: 3000,
+
   // ── 文件世界 ────────────────────────────────────────────────────────────────
   /** readText 的字节上限：宿主 readText 区间 <10MiB，16MiB 覆盖并留余量；更大的走真流式。 */
   readTextMaxBytes: 16 * 1024 * 1024,

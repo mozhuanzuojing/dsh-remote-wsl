@@ -120,6 +120,25 @@ interface ExplorerSnapshot {
   d) **不得**暴露 `all=true` 式会波及其他人的能力；`explorer.daemon` 只作用于本插件自己的槽位；
   e) 响应与错误**不回传** token/凭据。
 - **`explorer.openSession` 的 P0 语义（降级，明示不静默副作用）**：默认**不烧模型调用** —— 幂等 ensure 守护后，从 daemon 元数据取该 `(key,cwd)` **已物化**的 sessionId；没有则返回 `{sessionId:null, created:false, note:'首次 wsl_agent 轮次才会物化'}`。**UI 必须把这个状态显示出来**（"远端会话将在首次发消息时建立"），不许让用户以为已经开好。`warm:true`（真起一轮）保留在实现里，但 **P0 的 UI 不暴露**，留 P1 的显式动作。
+- **`explorer.newSession` 的 P2 契约（2026-10-29：面板「在此目录新建会话」落 WSL preset）**
+  - 入参：`{ path, distro?, workspaceId? }`。`workspaceId`（可选）= 已由 `explorer.addWorkspace` 登记的 host 工作区；
+    给了它就走宿主 `sessionController.create({workspaceId})`（会话挂进该工作区，与侧栏「新会话」同一条宿主路径），
+    否则走 `create({cwd: UNC})`。理由：`create` 只接受两者**之一**（抽源码 `dsh-api-session-controller/lib/index.js:756`）。
+  - 行为：`create` **默认带 `agentPreset:'wsl'`**（本插件注册的 preset id，`src/preset.ts` 的 `agentPresets.register({id:'wsl'})`）。
+    契约证据：`create(request)` 透传 `agentPreset`（`lib/index.js:768`）、`composeAgent(presetId)` 用 `agentPresets.resolve(id)`
+    （`:351-364`）、成功时返回体带 `agentPreset`（`:783-786`）。
+  - 返回（事实面，客户端必须按它措辞，不许写伪成功）：
+    `{ ok:true, sessionId, cwd, distro, path, workspaceId?, presetRequested:'wsl', presetApplied:boolean,
+      agentPreset:string|null, presetDegraded?:true, presetError?:string }`。
+    `presetApplied === false` 有两种含义，都**不是**"已应用"：① 旧宿主静默丢掉 `agentPreset`（返回体没有该字段）；
+    ② 宿主拒绝该 preset ⇒ 本方法已**降级**为不带 preset 重试（`presetDegraded:true` + `presetError:<code>: <message>`，
+    并打一行 stderr 日志）。与 preset 无关的失败（cwd/workspace/内部错）**不降级**，原样 `E_UNAVAILABLE`。
+  - 客户端侧：`uiWorkspace.startSession(workspaceId, options)` 的 options **确实收 `agentPreset`**
+    （抽源码 `dsh-client-ui-workspace/lib/client.js:1500-1502` 解构、`:1525` 透传），但它返回 void 且把失败吞成
+    `console.warn` ⇒ 只作"宿主没有 `sessionController`（`E_UNAVAILABLE`）"时的兜底；正常路径是
+    `explorer.newSession` + `uiWorkspace.openSession(sessionId)`（`openSession` = `replaceMain(...,'reveal')`，同文件 `:1471-1473`；
+    它要求该 id 已在客户端会话表里，否则 `sessions.retain` 抛 unknown session ⇒ 客户端做短重试，仍失败就如实报 `opened:false`）。
+
 - **不新增 agent 工具**：现有 **7 个**工具（`wsl_status`/`wsl_exec`/`wsl_agent`/`wsl_daemon`/`wsl_open_ui`/`wsl_sync_version`/`wsl_path`）继续是 **agent 面**；面板是 **人面**，两者共用同一套 host 实现。（工具名权威：`src/index.ts` 的 `name: 'wsl_*'` 共 **7** 处；`wsl_path` 是 A6 新增的第 7 个。）
 
 ---

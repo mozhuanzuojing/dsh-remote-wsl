@@ -59,7 +59,7 @@ flowchart LR
   - **目录浏览**：路径框 / 面包屑 / Home / 最近目录，支持隐藏文件与筛选。
   - **守护状态**：头部药丸显示运行态，悬停提示里带 pid/版本/槽位；未运行时可直接点起。底栏显示会话数、更新时间和漂移。
   - **代理三态徽标**：可达 / 不可达（带 `host:port`）/ 未探测。数据取自既有 `snapshot.proxy`，不新增请求。
-  - **在此目录新建会话**：浏览到配置 `cwd` 以外的目录时，主按钮是它——建一个真 DSH 会话（cwd 是该 WSL 路径的 UNC，会话出现在左侧列表）；在配置 `cwd` 内主按钮是「添加为 WSL 工作区」。
+  - **在此目录新建会话**：浏览到配置 `cwd` 以外的目录时，主按钮是它——建一个真 DSH 会话（会话出现在左侧列表）；在配置 `cwd` 内主按钮是「添加为 WSL 工作区」。**2026-10-29 起默认落 WSL preset**：主流程 `addWorkspace → host explorer.newSession → uiWorkspace.openSession`，host 侧 `create({cwd|workspaceId, agentPreset:'wsl'})`，并把 `presetApplied` / `agentPreset` / `presetError` 作为**事实**回给面板（旧宿主不认 `agentPreset` 时面板如实说"未应用"，不谎称成功）。
   - **添加为 WSL 工作区**：把目录登记成 UNC 工作区（该工作区的文件工具走 9P，和「远端会话」是两条路，见下方「已知边界」）。
   - **远端会话卡**：列出 `cwd + sessionId 前 8 位`、轮次与空闲时间，可复制完整 sessionId。
   - **窄态与双语**：320 / 360 / 376 / 416 / 420 / 480 / 1280 七档实测无横向溢出；窄态下快捷目录 chips 保持完整并横向滚动（不压字）；中文 / English 跟随宿主语言。
@@ -67,6 +67,7 @@ flowchart LR
   - 文件工具经 `{op:'fs'}` RPC 交给 WSL 侧守护用原生 `node:fs` 执行，**不走 9P**（绕开 `write` 在 `\\wsl.localhost\…` 上的原子写失败）。
   - `listDir` 的符号链接语义与上游 `dsh-fs-local` 一致：链接**跟随目标**（`ln -s /etc d` 报 `directory` 而不是 `other`），子项身份取 `realpath`（同一文件不会因不同链接得到两个身份）。
   - WSL 内 `grep` / `glob` 优先用 ripgrep / fd，没有再回落 ugrep / GNU grep / find。
+  - **原生 `bash`（2026-10-29 起）**：preset 的 `wsl-world` 隔离组里把 `ctx.shell` 也换成了 WSL 执行器（`src/shell-provider.ts`），组内的 `bash` 工具**直接跑在发行版里**（每条命令一次 `wsl.exe`；`set -m` 独立进程组，超时/中止时按进程组回收，后台孤儿由脚本自己收）。它**不受 Windows 文件沙箱约束**：执行器 `sandboxMode` 返回 `undefined`，模型看到的 `sandbox_permissions` 参数不存在——这是事实，不是提权通道。终端（PTY）仍由宿主提供。
   - 18 个常用 Rust CLI（ripgrep、fd、ast-grep、sd、bat、tokei 等）的安装目录：核心 8 个在守护启动时后台预热（可用 `--no-provision` 关掉，测试/CI 用），`grep` / `glob` 缺 rg / fd 时按需装，任意项可用 `wsl_tools action=install` 装到 `~/.local/bin`。
   - **下载会校验 sha256，且校验结论是可见的**：`verified` 取 `ok`（官方摘要：GitHub API `digest` 或发布页校验文件）、`pinned`（只有内置 TOFU 摘要）、`unavailable`（上游没有任何摘要 ⇒ 本次没校验，会写进结果说明）、`mismatch`（不匹配 ⇒ **拒绝安装**）。内置摘要表覆盖 18 个兜底 URL，其中 5 项与官方来源逐字相等，其余 13 项该版本上游未发布摘要 ⇒ **TOFU pin**：只保证「与钉住的那一份一致」，不证明上游未被入侵，因此记 `pinned` 而不是 `ok`。
   - 文件工具按 host 的 `workspace-write` 策略做真实路径围栏（符号链接祖先也被解析后再判定，越界返回 `FS_SANDBOX_DENIED`）；`watch` 在 host 契约里没有入口，插件保留实现但不依赖它。
@@ -249,6 +250,9 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `backgroundWarm` | `true` | 版本漂移时后台预热，不阻塞当前调用 |
 | `webPort` | `3082` | `wsl_open_ui` 在 WSL 里起的 web 端口 |
 | `proxyPort` | `9910` | 宿主代理探测端口 |
+| `shellTimeoutMs` / `shellMaxTimeoutMs` | `120000` / `600000` | WSL preset 里原生 `bash` 的单条命令默认超时 / 上限（模型可用 `timeoutMs` 覆盖，超上限按上限夹紧） |
+| `shellMaxOutputBytes` | `65536` | 原生 `bash` 每条流保留的字节上限；超出丢弃并标 `truncated`（本轮**不落 spill 文件**） |
+| `shellGraceMs` | `3000` | 原生 `bash` 被 kill 时 SIGTERM → SIGKILL 的宽限 |
 | `dshVersion` | `''` | 空 = 跟随桌面；也可钉死某个版本 |
 
 ## 使用
@@ -294,7 +298,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 ### WSL 执行世界
 
-新建会话时把 preset 选成「WSL（远程执行世界）」，文件工具就落到配置的发行版里；`wsl_tools` 可以列/装这些 WSL 侧 CLI 工具。想跑 WSL 里的命令或一次性体检，仍用 `wsl_exec` / `wsl_agent`。
+新建会话时把 preset 选成「WSL（远程执行世界）」，**文件工具与 `bash` 都落到配置的发行版里**（`bash` 走 `src/shell-provider.ts`：每条命令一次 `wsl.exe`、独立进程组、超时/中止按组回收；终端 PTY 仍是宿主工具）；`wsl_tools` 可以列/装这些 WSL 侧 CLI 工具。面板里「在此目录新建会话」默认就落这个 preset。想跑一次性体检仍可用 `wsl_exec`，要跨宿主持久会话用 `wsl_agent`。
 
 ## 数据存在哪里
 
@@ -356,6 +360,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `src/explorer.ts` | 面板数据面 `POST /remote-wsl/api`（同源 + 硬白名单） |
 | `src/fs-provider.ts`、`src/fs-rpc.ts` | WSL 执行世界的 fs provider 与 RPC |
 | `src/preset.ts`、`src/search-tool.ts` | `wsl` preset、WSL 内 `grep` / `glob` 与 `wsl_tools` |
+| `src/shell-provider.ts` | WSL preset 里的 `ctx.shell` 替代实现（原生 `bash`：cwd 翻译 / 输出上限 / 超时 / 进程组回收） |
 | `client/` | client 半 chunk（含 i18n 与全部 CSS） |
 | `test/` | 可重跑的回归用例（Node 内置 test runner，直接跑 `.ts`） |
 | `scripts/check-syntax.ts` | 零依赖语法门禁（`src` 用 Node type stripping 解析、`client` 用 `node --check`） |

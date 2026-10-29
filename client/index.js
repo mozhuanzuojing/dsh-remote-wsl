@@ -673,3 +673,12 @@ window.__ModuleLoader__.load({
 //   · i18n 新增 `orphans.unverified` / `orphans.errorUnknown`（zh/en 逐键配对）；
 //   · 本入口 CSS 新增 `.dsh-rw-scanwarn`（文字 label-primary，warn 只在边框/圆点）与 `.dsh-rw-scanwarn-text`。
 //   · 改了 `client.panel.header.js` + `client.i18n.js` + 本入口 ⇒ 按 docs/client-contract.md §11 刷新入口 rev（本行）。
+// 2026-10-29 P2（面板「在此目录新建会话」落 WSL preset）：client 侧改动 =
+//   · header chunk：主流程改为 addWorkspace → **host** `explorer.newSession({path, workspaceId})`（host 侧带
+//     `agentPreset:'wsl'` 并返回 presetApplied/agentPreset/presetError 事实）→ `uiWorkspace.openSession(sessionId)`
+//     切主视图（带短重试，因为新行是经 api-session/added 推送到达的）；`uiWorkspace.startSession` 只在宿主没有
+//     sessionController（E_UNAVAILABLE）时作兜底，且显式传 `{agentPreset:'wsl'}`（options 形状已在平台源码核实）；
+//   · 接线层 `client.panel.js` 新增 `newSessionNote`（preset 是否应用 / 主视图是否切换，按事实措辞，
+//     不写伪成功；放接线层是因为 helpers chunk 已贴 400 行门禁）；
+//   · api chunk：`newSession` 支持可选 `workspaceId`；i18n 新增 5 组键（zh/en 逐键配对）。
+//   ⇒ 三个 chunk + 本入口都改了，按 docs/client-contract.md §11 刷新入口 rev（本行）。

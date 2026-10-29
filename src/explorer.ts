@@ -428,6 +428,10 @@ function readWorkspaces(cfg) {
  * @param deps.resolveVersion  index.ts 的 `resolveVersion()` —— 版本/pin/drift 的同一个
  * @param deps.writePin        index.ts 的 `writePin()` —— `wsl_sync_version` 写 pin 的同一个
  * @param deps.webHosts        index.ts 的 `webHosts` Map（port → WebHost）—— `wsl_open_ui` 的同一个
+ * @param deps.workspaceRegistry 取 host 的 `workspaceRegistry` 服务的闭包（`addWorkspace` 登记 / `newSession`
+ *                             用 workspaceId 时查 path）；服务缺失 ⇒ 返回 undefined，由方法自己给可读 503/400
+ * @param deps.sessionController 取 host 的 `sessionController` 服务的闭包（`newSession` 建真会话；
+ *                              `create({cwd|workspaceId, agentPreset})`，契约见 `newSession` 的注释）
  * @param deps.distroStateProbe **可选测试缝**：注入 `() => {defaultName,running,ok}` 以在不起发行版、
  *                             不改真实 STATE 的前提下验证"未运行/启停"分支。**index.ts 不传**，默认走真实
  *                             `wsl.exe -l -v`（`probeDistroState()`）；生产路径不因它而变。
@@ -1010,26 +1014,137 @@ export function createExplorerHandlers(deps) {
     return { path, distro, entries };
   }
 
-/** explorer.newSession({path, distro?}) —— 建一个真正的 DSH 会话，cwd = 该 WSL 路径的 UNC。
- * 为什么不是 explorer.openSession：openSession 只碰 WSL 侧守护（准备/附着一个远端会话），不产生 DSH 会话；
- * 宿主本来就有 sessionController.create({ cwd })（Web 前端「新会话」用的同一个入口）。这里直接接它。
+/**
+ * 本插件注册的 WSL preset 的 id（权威：`src/preset.ts` 的 `agentPresets.register({ id: 'wsl' })`）。
+ * 面板「在此目录新建会话」默认就落这个 preset（HANDOFF 第九版 P2）。
+ */
+const WSL_PRESET_ID = 'wsl';
+
+/**
+ * 宿主的 `sessionController.create` 是不是**因为 preset** 拒的（P2 降级判据）。
+ *
+ * 为什么必须判而不是"错了就重试"：`create` 的失败面里还有 cwd/workspace 冲突、mkdir 失败、
+ * 内部错误 —— 那些重试不带 preset 只会把真实根因盖掉。这里只认**契约里能证明与 preset 有关**的两类：
+ *   · `agent-preset/*`：`dsh-api-session-controller` 的 `rejectCreation()` 把 preset 冲突/未知转成
+ *     `agent-preset/conflict|not-found|invalid`（抽源码 `lib/index.js:1073-1086`；`agent-preset/not-found`
+ *     由 `dsh-agent-preset-registry/lib/index.js:599/615/636` 抛，`invalid` 见 `:645`）；
+ *   · `gateway/bad-request` 且 message 明确点名 agentPreset（更老的宿主可能把未知字段当参数错拒绝）。
+ * 其余一律**不降级**（原样报错）。
+ * @param e `ctl.create()` 抛出的错误
+ * @returns 是否属于"preset 被宿主拒绝"
+ */
+const isPresetRejection = (e) => {
+  const code = str(e?.code);
+  if (code.startsWith('agent-preset/')) return true;
+  const message = str(e?.message);
+  return code === 'gateway/bad-request' && /agent[\s-]?preset/i.test(message);
+};
+
+/**
+ * `explorer.newSession({path, distro?, workspaceId?})` —— 建一个**真正的 DSH 会话**（P2：默认落 WSL preset）。
+ *
+ * 为什么不是 `explorer.openSession`：openSession 只碰 WSL 侧守护（准备/附着一个远端会话），不产生 DSH 会话；
+ * 宿主本来就有 `sessionController.create`（Web 前端「新会话」用的同一个入口，抽源码
+ * `dsh-api-session-controller/lib/index.js:3090-3091` → `SessionCommandController.create` `:755-787`）。
+ *
+ * ## P2：`agentPreset: 'wsl'`
+ * 以前这里只传 `{ cwd }` ⇒ 会话落标准 preset：文件工具是 Windows 侧 `dsh-tool-fs` 走 9P（Linux 路径读
+ * 大文件会报 `offset … is out of range`），shell 是 pwsh ⇒ 面板开的会话根本不是"WSL 世界"。
+ * 契约（抽源码逐行核实）：
+ *   · `create(request)` 收 `agentPreset`（`SessionCommandController.create` `:768` 原样透传给
+ *     `agents.createSession`；`composeAgent(presetId)` `:351-364` 用 `agentPresets.resolve(id)` 解析）；
+ *   · 返回体在宿主**真的**解析到 preset 时带 `{ agentPreset }`（`:783-786`），否则**不带该字段**
+ *     （`composeAgent` 在 `agentPresets` 服务缺失时直接跳过 preset，见 `:352-355`）。
+ *
+ * ## 兼容与失败透明（不静默）
+ * 旧宿主有三种"不认 agentPreset"的形态，本方法的处理：
+ *   1. **静默忽略**（最老版本：字段被丢、返回体没有 `agentPreset`）⇒ 不报错也不谎称成功：
+ *      `presetApplied:false` + `agentPreset:null`，调用方必须如实显示"preset 未应用"；
+ *   2. **抛 `agent-preset/not-found|invalid|conflict`**（WSL preset 没注册/被禁/坏掉）⇒ **明确降级**：
+ *      打一行日志 + 重试一次**不带 preset** 的 create，返回 `presetApplied:false, presetDegraded:true,
+ *      presetError:<宿主原文>`；重试仍失败则两条原因一起报；
+ *   3. 其它失败（cwd/workspace/内部错）⇒ **不降级**，原样 `E_UNAVAILABLE`（降级只会掩盖根因）。
+ *
+ * ## `workspaceId`（可选）
+ * 面板已把目录登记为 host 工作区时传它：`create` 只接受 `workspaceId` 或 `cwd` **之一**
+ * （`:756` 显式拒绝两个都给），给 workspaceId 才能把新会话挂进该工作区（`:775-782` `attachSession`），
+ * 与侧栏「新会话」同一条宿主路径。缺省仍按 `cwd = 该 WSL 路径的 UNC`（原始语义）。
+ *
+ * @param args `{ path, distro?, workspaceId? }`（`distro` 缺省 = 配置里的发行版）
+ * @returns `{ ok:true, sessionId, cwd, distro, path, workspaceId?, presetRequested,
+ *   presetApplied, agentPreset, presetDegraded?, presetError? }`
  */
 async function newSession(args) {
-const { distro, path } = await resolveTarget(args, 'explorer.newSession');
-const uncPath = unc(distro, path);
-const ctl = typeof deps.sessionController === 'function' ? deps.sessionController() : undefined;
-if (!ctl || typeof ctl.create !== 'function') {
-failUnavailable('remote-wsl: 宿主没有 sessionController 服务（当前 profile 不是 Web 应用？）⇒ 无法创建 DSH 会话');
-}
-let created;
-try {
-created = await ctl.create({ cwd: uncPath });
-} catch (e) {
-failUnavailable('remote-wsl: 创建 DSH 会话失败：' + String(e && e.message ? e.message : e));
-}
-const sessionId = str(created?.sessionId);
-if (!sessionId) failUnavailable('remote-wsl: 创建 DSH 会话后没有拿到 sessionId');
-return { ok: true, sessionId, cwd: uncPath, distro, path };
+  const { distro, path } = await resolveTarget(args, 'explorer.newSession');
+  const uncPath = unc(distro, path);
+  const ctl = typeof deps.sessionController === 'function' ? deps.sessionController() : undefined;
+  if (!ctl || typeof ctl.create !== 'function') {
+    failUnavailable('remote-wsl: 宿主没有 sessionController 服务（当前 profile 不是 Web 应用？）⇒ 无法创建 DSH 会话');
+  }
+
+  const workspaceId = str(args?.workspaceId).trim();
+  let cwd = uncPath;
+  if (workspaceId) {
+    // 只做**报告面**的校验（拿 workspace.path 当 cwd 回给面板）；真正的 not-found 由宿主 create 负责。
+    const registry = typeof deps.workspaceRegistry === 'function' ? deps.workspaceRegistry() : undefined;
+    const found = registry && typeof registry.get === 'function' ? await Promise.resolve(registry.get(workspaceId)) : undefined;
+    if (registry && typeof registry.get === 'function' && found === undefined) {
+      failArg(
+        `remote-wsl: explorer.newSession 的 workspaceId "${workspaceId}" 在宿主 workspaceRegistry 里不存在` +
+          `（先调 explorer.addWorkspace 登记该路径，或不要传 workspaceId）`,
+      );
+    }
+    cwd = str(found?.path) || uncPath;
+  }
+  const base = workspaceId ? { workspaceId } : { cwd };
+
+  let created;
+  let presetDegraded = false;
+  let presetError = null;
+  try {
+    created = await ctl.create({ ...base, agentPreset: WSL_PRESET_ID });
+  } catch (e) {
+    if (!isPresetRejection(e)) {
+      failUnavailable('remote-wsl: 创建 DSH 会话失败：' + String(e && e.message ? e.message : e));
+    }
+    // 明确降级（形态 2）：宿主拒绝这个 preset ⇒ 先留证，再不带 preset 重试一次。
+    // 留证必须带**机器可读 code**（`agent-preset/not-found` 等）：面板 detail 与日志都靠它定位，
+    // 只有 message 的话"为什么降级"就退化成一句人话，没法与宿主契约对上。
+    presetDegraded = true;
+    presetError = [str(e?.code), str(e?.message)].filter((part) => part.length > 0).join(': ') || String(e);
+    log(
+      `explorer.newSession: 宿主拒绝 agentPreset="${WSL_PRESET_ID}"（${presetError}）⇒ 降级为不带 preset 重试；` +
+        '返回 presetApplied:false',
+    );
+    try {
+      created = await ctl.create({ ...base });
+    } catch (e2) {
+      failUnavailable(
+        'remote-wsl: 创建 DSH 会话失败（WSL preset 被拒后不带 preset 重试仍失败）：' +
+          String(e2 && e2.message ? e2.message : e2),
+        presetError,
+      );
+    }
+  }
+
+  const sessionId = str(created?.sessionId);
+  if (!sessionId) failUnavailable('remote-wsl: 创建 DSH 会话后没有拿到 sessionId');
+
+  // 事实面（形态 1 的可见化）：只有宿主回传 agentPreset === 'wsl' 才敢说 true；
+  // 旧宿主静默丢字段时这里必为 false —— 不许把"请求过"当成"已应用"。
+  const applied = str(created?.agentPreset).trim();
+  return {
+    ok: true,
+    sessionId,
+    cwd,
+    distro,
+    path,
+    ...(workspaceId ? { workspaceId } : {}),
+    presetRequested: WSL_PRESET_ID,
+    presetApplied: applied === WSL_PRESET_ID,
+    agentPreset: applied || null,
+    ...(presetDegraded ? { presetDegraded: true, presetError } : {}),
+  };
 }
 
   /**

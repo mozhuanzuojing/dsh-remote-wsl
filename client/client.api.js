@@ -284,12 +284,22 @@ window.__ModuleLoader__.load({
 				 * 语义提醒：工作区路径是 **UNC ⇒ 文件工具经 9P**，与 `openSession` 的"远端会话"是两条路。
 				 */
 				/**
-				 * 建一个**真正的 DSH 会话**（cwd = 该 WSL 路径的 UNC）；返回 { ok, sessionId, cwd }。
+				 * 建一个**真正的 DSH 会话**（cwd = 该 WSL 路径的 UNC）；返回
+				 * `{ ok, sessionId, cwd, presetRequested, presetApplied, agentPreset, presetDegraded?, presetError? }`。
 				 * 与 openSession 的区别：openSession 只碰 WSL 侧守护，不产生 DSH 会话。
+				 *
+				 * 2026-10-29（P2）：host 侧现在**默认带 `agentPreset:'wsl'`**（面板开的会话落 WSL preset，
+				 * 不再落标准 preset）。`presetApplied` 是宿主的**事实**字段：只有宿主回传 `agentPreset==='wsl'`
+				 * 才是 true；旧宿主静默丢字段时它必为 false（调用方必须如实显示，不许当成已应用）。
+				 *
+				 * `workspaceId` 可选：已用 `addWorkspace` 登记过该目录时传它 ⇒ host `create({workspaceId})`
+				 * 把会话挂进该工作区（`create` 只收 `workspaceId` 或 `cwd` 之一）。
 				 */
 				newSession(input, options) {
 					const path = requireString(input && input.path, "path", t);
-					return call(METHODS.newSession, { path }, options);
+					const args = { path };
+					if (input && typeof input.workspaceId === "string" && input.workspaceId.length > 0) args.workspaceId = input.workspaceId;
+					return call(METHODS.newSession, args, options);
 				},
 				addWorkspace(input, options) {
 					const path = requireString(input && input.path, "path", t);

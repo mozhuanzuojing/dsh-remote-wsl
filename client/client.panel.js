@@ -71,6 +71,38 @@ window.__ModuleLoader__.load({
 			return ready;
 		}
 
+		/**
+		 * 「在此目录新建会话」的结果条（2026-10-29，P2）。为什么放**接线层**而不是 helpers：
+		 * helpers chunk 已贴 400 行门禁（docs/handoff-2026-10-22.md §3「单 chunk < 400 行（门禁）」），
+		 * 而这条文案要读的是 header chunk 组装出来的**事实对象**（preset 应用了没 / 主视图切了没）。
+		 *
+		 * 三条事实口径（不许写伪成功）：
+		 *   1. `presetApplied === true` 才说"WSL preset 已应用"；false ⇒ 如实说"未应用"（旧宿主静默丢
+		 *      `agentPreset` 字段时就是 false）；`null` = 兜底路径（宿主没有 sessionController，走了
+		 *      `uiWorkspace.startSession`，它返回 void、成败不可观测）⇒ 只说"已请求"；
+		 *   2. `opened === true` 才说"已切到主视图"；false 说明会话已建好但 openSession 没成功 ⇒ 提示可
+		 *      从左侧会话列表打开 + 原因进 detail；
+		 *   3. `presetError` / `openError` 是宿主/平台原文，一律进 detail（折叠），不进主句。
+		 * @param t i18n 取词函数
+		 * @param result header chunk 的返回体
+		 * @returns {{text: string, detail: string|null}}
+		 */
+		function newSessionNote(t, result) {
+			if (result === null || typeof result !== "object" || result.ok !== true) return { text: t("session.noInfo"), detail: null };
+			const id = typeof result.sessionId === "string" && result.sessionId.length > 0 ? result.sessionId : "?";
+			const cwdText = typeof result.cwd === "string" && result.cwd.length > 0 ? result.cwd : "?";
+			if (result.presetApplied === null) return { text: t("session.requestedWsl", { cwd: cwdText }), detail: null };
+			const details = [];
+			if (typeof result.presetError === "string" && result.presetError.length > 0) details.push(result.presetError);
+			if (result.opened === false) {
+				details.push(t("session.notOpenedDetail"));
+				if (typeof result.openError === "string" && result.openError.length > 0) details.push(result.openError);
+			}
+			const detail = details.length > 0 ? details.join("\n") : null;
+			if (result.presetApplied !== true) return { text: t("session.presetNotApplied", { id, cwd: cwdText }), detail };
+			return { text: t(result.opened === true ? "session.openedWsl" : "session.createdWsl", { id, cwd: cwdText }), detail };
+		}
+
 		function createPanel(ctx, api, i18n) {
 			const t = i18n && typeof i18n.t === "function" ? i18n.t : (key) => key;
 			/** 目标发行版（多发行版切换）的本地记忆；只影响本面板的请求，不写插件配置。 */
@@ -211,7 +243,7 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 	focusIndex, forceLocale, homePathOf, i18nSubscribe,
 	icon, isRecord, joinWslPath, lastRun,
 	menuOpen, menuRef, moreRef, mounts,
-	mountsProbed, newAbortController, normalizeWslPath,
+	mountsProbed, newAbortController, newSessionNote, normalizeWslPath,
 	openSessionNote, pathError, pathInput, pending,
 	pendingFrom, pushRecent, readAbort, readRecent,
 	readSeq, recent, recentOk, rootRef,

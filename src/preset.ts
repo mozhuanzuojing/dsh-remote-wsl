@@ -36,6 +36,8 @@ export const inject = [];
 // 包内子路径由 profile 的模块解析器按 node_modules 解析，和宿主平面加载 `dsh-remote-wsl` 同一条路。
 const PROVIDER_PATH = 'dsh-remote-wsl/fs-provider';
 const SEARCH_TOOL_PATH = 'dsh-remote-wsl/search-tool';
+// 原生 shell（P0）：组内 `ctx.shell` 换成 WSL 执行器，`tool-bash` 因此在 win32 也可用（见 shell-provider.ts）。
+const SHELL_PROVIDER_PATH = 'dsh-remote-wsl/shell-provider';
 
 
 
@@ -54,13 +56,14 @@ export function buildWslPresetPlugins(cfg) {
     },
     { id: 'agent-instructions', name: '@deepseek-ai/dsh-agent-instructions', config: { maxBytes: 65536 } },
     { id: 'time-context', name: '@deepseek-ai/dsh-time-context' },
-    { id: 'tool-bash', name: '@deepseek-ai/dsh-tool-bash', disabled: process.platform === 'win32' },
-    { id: 'tool-pwsh', name: '@deepseek-ai/dsh-tool-pwsh', disabled: process.platform !== 'win32' },
     {
+      // WSL 执行世界：`fs` 与 `shell` 都在这个隔离组里被换掉（组外宿主平面不受影响）。
+      // 2026-10-29（P0）：`tool-bash` 从宿主平面挪进来 —— 它注入的 `shell` 必须是组内的 WSL 执行器；
+      // `tool-pwsh` 不再挂（它同样走 `ctx.shell`，在 WSL 世界里会变成"叫 PowerShell 却跑 bash"的谎话）。
       id: 'wsl-world',
       name: 'cordis:group',
       group: true,
-      isolate: { fs: true },
+      isolate: { fs: true, shell: true },
       config: [
         {
           id: 'fs-wsl',
@@ -76,6 +79,13 @@ export function buildWslPresetPlugins(cfg) {
           // 换角度评审第 3 条：**全量转发**（旧实现只转 4 个键 ⇒ readTextMaxBytes 等配置到不了子插件）。
           config: { ...wslCfg },
         },
+        // 原生 bash：执行发生在 WSL 里（每条命令一次 wsl.exe；进程组回收见 shell-provider.ts 文件头）。
+        {
+          id: 'shell-wsl',
+          name: SHELL_PROVIDER_PATH,
+          config: { ...wslCfg },
+        },
+        { id: 'tool-bash', name: '@deepseek-ai/dsh-tool-bash' },
       ],
     },
     { id: 'tool-jobs', name: '@deepseek-ai/dsh-tool-jobs' },
@@ -173,7 +183,8 @@ export function apply(ctx, rawConfig = {}) {
         .register({
           id: 'wsl',
           name: 'WSL（远程执行世界）',
-          description: '文件工具在 WSL 发行版内原生执行（不经过 \\\\wsl.localhost 的 9P 共享）；bash/终端仍由宿主工具提供。',
+          description:
+            '文件工具、grep/glob 与 bash 都在 WSL 发行版内原生执行（不经过 \\\\wsl.localhost 的 9P 共享）；终端（PTY）仍由宿主提供。',
           order: 9,
           plugins,
         })

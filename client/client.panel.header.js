@@ -33,7 +33,7 @@ function renderHeader(props) {
 	listPath, load, menuOpen, menuRef,
 	moreRef, mounts, mountsCache, mountsProbed,
 	narrow, newAbortController, normalizeWslPath, onMenuKey,
-	openSessionNote, others, pathError, pathInput,
+	openSessionNote, newSessionNote, others, pathError, pathInput,
 	pending, pendingFrom, pushRecent, readAbort,
 	readRecent, readSeq, recent, recentOk,
 	rootRef, run, runDaemon, setAction,
@@ -98,22 +98,64 @@ function renderHeader(props) {
 								if (cwd === null) return;
 								if (primaryIsSession) {
 									run(`openbrowse:${cwd}`, async (signal) => {
-// 先登记 UNC 工作区，再用客户端工作区导航开一个新会话（与侧栏「新会话」同一条路径；
-// 它会真正切到主视图）。uiWorkspace 取不到时回落到 host 的 explorer.newSession。
-// 2026-10-22 实测（web profile 实例 + CDP，见 spike/verify/uiworkspace-20261022/）：
-//   · apply() 期 ctx.get("uiWorkspace") 还是 undefined（provider fiber 未 ACTIVE）；
-//     等 chunk 就绪、用户真能点按钮时它一定可用（startSession/openSession/listDirectory 都是函数）；
-//   · startSession(workspaceId) **同步**返回 undefined，且自己吞掉失败（console.warn + 平台 toast）。
-//     所以这里不靠返回值判断成败；只按 thenable 兜一层，将来它若改成返回 Promise 也不会丢错误。
+// 2026-10-29（P2）：「在此目录新建会话」默认落 **WSL preset**（agentPreset:'wsl'）。
+// 顺序：① addWorkspace 把 UNC 登记为 host 工作区；② **host** explorer.newSession 建会话（带 preset，
+// 返回 presetApplied / agentPreset / presetError 这些**事实**）；③ uiWorkspace.openSession(sessionId) 切主视图。
+// 为什么不直接 uiWorkspace.startSession(workspaceId, { agentPreset:'wsl' })（该 options 真实存在，不是臆造：
+// dsh-client-ui-workspace/lib/client.js:1500-1502 解构 agentPreset、:1525 透传给 connectBlank）：
+//   · startSession 返回 void，失败被吞成 console.warn（:1525 的 .catch）⇒ 面板拿不到"preset 到底应用没应用"，
+//     也拿不到"会话到底建没建"；宿主 newSession 会回事实字段，满足失败透明；
+//   · WSL preset 没注册时宿主抛 agent-preset/not-found：我们这边会**降级重试**并报 presetApplied:false，
+//     而 startSession 那条路直接不建会话、只弹平台 toast。
+// 所以 startSession 只作兜底：宿主没有 sessionController 服务（非 Web profile ⇒ E_UNAVAILABLE）时，回到
+// 上游唯一可用的路径，并把 agentPreset 显式传进去。
 const ws = await api.addWorkspace({ path: cwd }, signal);
 const nav = ctx && typeof ctx.get === "function" ? ctx.get("uiWorkspace") : undefined;
-if (ws && ws.ok === true && ws.id && nav && typeof nav.startSession === "function") {
-const opening = nav.startSession(ws.id);
+const canStart = !!(nav && typeof nav.startSession === "function");
+let created = null;
+try {
+created = await api.newSession({ path: cwd, workspaceId: ws && ws.ok === true && ws.id ? ws.id : undefined }, signal);
+} catch (error) {
+const apiCode = error && error.detail && typeof error.detail.code === "string" ? error.detail.code : null;
+if (canStart && apiCode === "E_UNAVAILABLE") {
+const workspaceId = ws && ws.ok === true && ws.id ? ws.id : undefined;
+const opening = workspaceId === undefined ? nav.startSession() : nav.startSession(workspaceId, { agentPreset: "wsl" });
 if (opening && typeof opening.then === "function") await opening;
-return { ok: true, workspaceId: ws.id, cwd: ws.uncPath };
+return { ok: true, workspaceId: workspaceId ?? null, cwd: ws && ws.uncPath ? ws.uncPath : cwd, presetRequested: "wsl", presetApplied: null };
 }
-return api.newSession({ path: cwd }, signal);
-}, { describe: (result) => result && result.workspaceId ? t("session.opened", { cwd: String(result.cwd || cwd) }) : t("session.dshCreated", { id: String(result && result.sessionId ? result.sessionId : "?"), cwd: String(result && result.cwd ? result.cwd : cwd) }), refresh: true });
+throw error;
+}
+// 切主视图：openSession(target) = replaceMain(..., "reveal")（同文件 :1471-1473），但它要求该 id 已在
+// 客户端会话表里（否则 sessions.retain 抛 unknown session：dsh-api-session-controller/lib/client.js:3846
+// → lib/types/client/sessions/manager.js:70）。新增行是经 api-session/added **推送**到达的，与我们的 HTTP
+// 返回存在竞态 ⇒ 短暂重试；仍失败就如实报 opened:false（会话已建好，可从左侧会话列表打开），不假装切过去。
+let opened = false;
+let openError = null;
+if (nav && typeof nav.openSession === "function" && typeof created.sessionId === "string" && created.sessionId.length > 0) {
+for (let attempt = 0; attempt < 4 && !opened; attempt += 1) {
+try {
+await nav.openSession(created.sessionId);
+opened = true;
+} catch (openFailure) {
+openError = openFailure;
+if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 120 * (attempt + 1)));
+}
+}
+}
+return {
+ok: true,
+sessionId: created.sessionId,
+workspaceId: typeof created.workspaceId === "string" ? created.workspaceId : ws && ws.id ? ws.id : null,
+cwd: typeof created.cwd === "string" && created.cwd.length ? created.cwd : ws && ws.uncPath ? ws.uncPath : cwd,
+agentPreset: typeof created.agentPreset === "string" ? created.agentPreset : null,
+presetRequested: typeof created.presetRequested === "string" ? created.presetRequested : "wsl",
+presetApplied: created.presetApplied === true,
+presetDegraded: created.presetDegraded === true,
+presetError: typeof created.presetError === "string" ? created.presetError : null,
+opened,
+openError: openError === null ? null : String(openError && openError.message ? openError.message : openError),
+};
+}, { describe: (result) => newSessionNote(t, result), refresh: true });
 									return;
 								}
 								run(`a1:${cwd}`, (signal) => api.addWorkspace({ path: cwd }, signal), {
