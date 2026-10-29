@@ -57,7 +57,7 @@ const fsErr = (message, code) => {
  * —— Windows 侧解析 `..` 后指向**另一个文件**。UNC 语法没有能表达文件名内 `\` 的转义，所以只能报错
  * （宁可让调用方拿到明确失败，也不给它一条错路径）。
  */
-const uncPath = (distro, linuxPath) => {
+export const uncPath = (distro, linuxPath) => {
   const raw = String(linuxPath ?? '/');
   if (raw.includes('\\')) {
     throw fsErr(
