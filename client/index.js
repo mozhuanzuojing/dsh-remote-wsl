@@ -241,7 +241,8 @@ window.__ModuleLoader__.load({
 			".dsh-rw-note-details{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-note-detail{background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;padding:8px;margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-error{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-state-error-primary);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;box-shadow:none}",
-			".dsh-rw-error-title{display:flex;align-items:center;gap:6px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-state-error-primary)}",
+			// 2026-10-29 检查：状态色只做边框/圆点；标题正文用 label-primary（与 scanwarn 同一条对比度纪律）。
+			".dsh-rw-error-title{display:flex;align-items:center;gap:6px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-error-body{font-size:12px;line-height:16px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-empty{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:8px 0}",
 			".dsh-rw-conflict{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);border-radius:4px;padding:6px 8px}",

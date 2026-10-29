@@ -27,6 +27,7 @@ import { resolveVersion, writePin, runWsl, sweepOwnTempFiles, shellPreamble, sle
 import { createInHostPool } from './in-host-runtime.ts';
 import { registerTools, sweepStaleRuntimes } from './register-tools.ts';
 import { apply as applyWslPreset } from './preset.ts';
+import { installUncWriteBridge } from './fs-unc-bridge.ts';
 
 import { normalizeConfig, configDetection } from './config.ts';
 /** Stable Loader identity. */
@@ -284,6 +285,9 @@ export function apply(ctx, rawConfig = {}) {
   // 挂上本插件的 `ctx.fs` provider（src/fs-provider.ts），读写走 WSL 原生 node:fs，不碰 9P。
   // 服务不可用时 preset.ts 会明确打一行，不静默跳过。
   applyWslPreset(ctx, config);
+  // 2026-10-29：standard preset 在 UNC 工作区里的 write/edit 仍走 fs-local（9P）⇒
+  // GetFileSecurityW EIO。把 host fs 服务实例的写/编辑桥到 WSL fs-rpc；非 UNC 路径原样放行。
+  installUncWriteBridge(ctx, config);
   // 插件卸载时回收常驻进程（idle 定时器之外的第二道保险）。
   // ⚠️ disposer 必须**可等待**：早前写成 `void rt.close()`（不 await），宿主/测试一退出就把清理
   // 截断，WSL 侧会留下 .sh/.pid（2026-10-10 实测）。
