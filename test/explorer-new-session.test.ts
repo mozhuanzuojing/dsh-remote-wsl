@@ -219,3 +219,25 @@ test('P2：workspaceId 不存在 ⇒ E_ARG（先 addWorkspace），不误建到�
   );
   assert.equal(calls.length, 0, 'workspace 不存在时不该走到 create');
 });
+
+test('P2：宿主没有 sessionController ⇒ 专用码 E_NO_SESSION（客户端只对这个码回落 startSession）', async () => {
+  // 2026-10-29 review：复用 E_UNAVAILABLE 会让「宿主建会话失败（503）」被客户端当"没有服务"回落，
+  // 吞掉真实错误并谎报成功。这里把"没有服务"锁成独立码。
+  const { handlers } = createExplorerHandlers({
+    config: CFG,
+    listDistros: () => ['debian'],
+    listDistrosAsync: async () => ['debian'],
+    distroStateProbe: () => ({ defaultName: 'debian', running: new Set(['debian']), versions: new Map(), ok: true }),
+    resolveVersion: () => ({ version: '0.3.7', desktopVersion: '0.3.7', pin: null, drift: null }),
+    writePin: () => true,
+    webHosts: new Map(),
+  });
+  await assert.rejects(
+    () => handlers['explorer.newSession']({ path: LINUX_PATH }),
+    (e) => {
+      assert.equal(e.code, 'E_NO_SESSION');
+      assert.match(e.message, /sessionController/);
+      return true;
+    },
+  );
+});

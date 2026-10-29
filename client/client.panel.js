@@ -93,6 +93,7 @@ window.__ModuleLoader__.load({
 			const cwdText = typeof result.cwd === "string" && result.cwd.length > 0 ? result.cwd : "?";
 			if (result.presetApplied === null) return { text: t("session.requestedWsl", { cwd: cwdText }), detail: null };
 			const details = [];
+			if (result.presetDegraded === true) details.push(t("session.presetDegradedDetail"));
 			if (typeof result.presetError === "string" && result.presetError.length > 0) details.push(result.presetError);
 			if (result.opened === false) {
 				details.push(t("session.notOpenedDetail"));

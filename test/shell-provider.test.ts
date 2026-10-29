@@ -72,6 +72,10 @@ function ioStub() {
       if (this.pgid === null) throw new Error(`ENOENT: ${path}`);
       return String(this.pgid);
     },
+    appendFileSync(path, body) {
+      const prev = writes.get(path);
+      writes.set(path, { body: String(prev ? prev.body : '') + String(body), opts: prev ? prev.opts : undefined });
+    },
     unlinkSync(path) {
       removed.push(path);
       writes.delete(path);
@@ -146,7 +150,7 @@ test('execute：启动脚本带 cd 守卫、独立进程组、环境覆盖，且
   // 命令作为 `bash -c` 的位置参数（单引号），`$(id)` 必须保持字面量
   assert.match(script, /bash -c 'echo "\$\(id\)"' &/);
   // 作业自己的进程组：pid 写进 pgid 文件，退出时按 -pid 收孤儿
-  assert.match(script, /printf '%s' "\$pid" > '\/tmp\/dsh-rwsl-shell-.*\.pgid'/);
+  assert.match(script, /printf '%s' "\$pid" > '\/tmp\/dsh-rwsl-[0-9]+-shell-.*\.pgid'/);
   assert.match(script, /kill -TERM -- -"\$pid"/);
   child.emit('close', 0, null);
   await proc.result();
@@ -160,7 +164,7 @@ test('execute：spawn 的 argv 里不内联命令（避免 pwsh→wsl→bash 三
   const proc = await p.execute(p.resolve({ command: 'echo 中文' }));
   const flat = spawn.calls[0].argv.join(' ');
   assert.doesNotMatch(flat, /中文/);
-  assert.match(flat, /\/tmp\/dsh-rwsl-shell-.*\.sh/);
+  assert.match(flat, /\/tmp\/dsh-rwsl-[0-9]+-shell-.*\.sh/);
   child.emit('close', 0, null);
   await proc.result();
 });
@@ -296,17 +300,27 @@ test('execute：spawn error → done 不 reject、result() 带同一个错误 re
   assert.equal(proc.status, 'killed');
 });
 
-test('execute：输出超过上限 → 内容截断、truncated=true，但读偏移仍单调', async () => {
+test('execute：输出超过上限 ⇒ **留尾部**（bash 工具契约“truncated to its tail”），并落 spill 全文', async () => {
   const io = ioStub();
   const child = fakeChild();
   const p = providerOf({ shellMaxOutputBytes: 8 }, { io, spawn: spawnStub([child]) });
   const proc = await p.execute(p.resolve({ command: 'x' }));
-  child.stdout.emit('data', Buffer.from('aaaaaaaa'));
-  child.stdout.emit('data', Buffer.from('bbbbbbbb'));
+  child.stdout.emit('data', Buffer.from('aaaa'));
+  child.stdout.emit('data', Buffer.from('bbbb'));
+  child.stdout.emit('data', Buffer.from('cccc'));
   child.emit('close', 0, null);
   const result = await proc.result();
-  assert.equal(result.stdout.text, 'aaaaaaaa');
+  assert.equal(result.stdout.text, 'bbbbcccc', '保留的应是尾部 8 字节，不是头部');
   assert.equal(result.stdout.truncated, true);
+  assert.match(String(result.stdout.spillPath), /\.out$/, '溢出时必须给出 spillPath');
+  const spill = [...io.writes.entries()].find(([path]) => String(path).endsWith('.out'));
+  assert.ok(spill, 'spill 文件必须被写入');
+  assert.equal(spill[1].body, 'aaaabbbbcccc', 'spill 必须是**全流**（含被丢弃的头部）');
+  // 已丢弃前缀的读：返回保留区并标 lossy，nextOffset 是**绝对**偏移
+  const from0 = proc.observed.stdout.readFrom(0);
+  assert.equal(from0.text, 'bbbbcccc');
+  assert.equal(from0.lossy, true);
+  assert.equal(from0.nextOffset, 12, 'nextOffset 必须是全流累计字节数');
 });
 
 test('execute：stderr 上限始终按 shellMaxOutputBytes，不随调用方 stdoutMaxBytes 放大', async () => {
@@ -355,4 +369,39 @@ test('execute：WSL /tmp 写不进去时给出可诊断原因（发行版没在�
   };
   const p = providerOf({}, { io, spawn: spawnStub([]) });
   await assert.rejects(p.execute(p.resolve({ command: 'x' })), /无法在发行版 "test-distro" 里写启动脚本/);
+});
+
+test('resolve：显式非法 timeoutMs / stdoutMaxBytes 必须抛（不静默回落默认值）', () => {
+  const p = providerOf();
+  assert.throws(() => p.resolve({ command: 'x', timeoutMs: 0 }), /positive finite/);
+  assert.throws(() => p.resolve({ command: 'x', timeoutMs: Number.NaN }), /positive finite/);
+  assert.throws(() => p.resolve({ command: 'x', stdoutMaxBytes: -1 }), /positive finite/);
+  // sandboxPolicy 原样透传（契约对齐 dsh-bash-local；本执行器 sandboxMode=undefined，tool-bash 不会传）
+  const policy = { mode: 'workspace-write' };
+  assert.equal(p.resolve({ command: 'x', sandboxPolicy: policy }).sandboxPolicy, policy);
+});
+
+test('execute：准备期（写脚本/冷启动）已耗尽 timeoutMs 时立即按超时结算', async () => {
+  const io = ioStub();
+  let clock = 0;
+  const slowIo = { ...io, writeFileSync: (p, b, o) => { clock += 50; io.writeFileSync(p, b, o); } };
+  const child = fakeChild();
+  const p = createWslShellProvider({ cfg: { distro: 'test-distro', wslHome: '/home/u', cwd: '/home/u', shellGraceMs: 10 }, io: slowIo, spawn: spawnStub([child, fakeChild(), fakeChild()]), now: () => clock });
+  const proc = await p.execute(p.resolve({ command: 'sleep 100', timeoutMs: 5 }));
+  const result = await proc.result();
+  assert.equal(result.timedOut, true);
+  assert.equal(result.timeoutMs, 5);
+  assert.equal(proc.status, 'killed');
+});
+
+test('shutdown：组合销毁时 kill 所有活着的 handle（并等待 settle）', async () => {
+  const io = ioStub();
+  const child = fakeChild();
+  const spawn = spawnStub([child, fakeChild(), fakeChild()]);
+  const p = providerOf({ shellGraceMs: 10 }, { io, spawn });
+  const proc = await p.execute(p.resolve({ command: 'sleep 100' }));
+  const shutdown = p.shutdown();
+  assert.equal(proc.kill(), false, 'shutdown 已先 kill ⇒ 再 kill 返回 false');
+  await shutdown;
+  assert.equal(proc.status, 'killed');
 });

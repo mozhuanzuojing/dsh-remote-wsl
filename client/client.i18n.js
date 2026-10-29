@@ -251,6 +251,7 @@ window.__ModuleLoader__.load({
 			"session.presetNotApplied": "已创建 DSH 会话 {id}，但 WSL preset 未应用（cwd={cwd}）",
 			"session.requestedWsl": "已请求在 WSL preset 下新建会话（cwd={cwd}）；结果以平台提示为准",
 			"session.notOpenedDetail": "主视图未切换：会话已建好，可从左侧会话列表打开",
+			"session.presetDegradedDetail": "已降级：宿主拒绝了 WSL preset，本次按标准 preset 创建（下方为宿主原文）",
 
 			"daemon.started": "已启动守护",
 			"daemon.restarted": "已重启守护",
@@ -497,6 +498,7 @@ window.__ModuleLoader__.load({
 			"session.presetNotApplied": "DSH session created: {id}, but the WSL preset was not applied (cwd={cwd})",
 			"session.requestedWsl": "Requested a new WSL-preset session (cwd={cwd}); the platform notice reports the outcome",
 			"session.notOpenedDetail": "The main view did not switch; the session exists and can be opened from the session list",
+			"session.presetDegradedDetail": "Degraded: the host rejected the WSL preset, so this session was created with the standard preset (host text below)",
 
 			"daemon.started": "Daemon started",
 			"daemon.restarted": "Daemon restarted",

@@ -677,8 +677,14 @@ window.__ModuleLoader__.load({
 //   · header chunk：主流程改为 addWorkspace → **host** `explorer.newSession({path, workspaceId})`（host 侧带
 //     `agentPreset:'wsl'` 并返回 presetApplied/agentPreset/presetError 事实）→ `uiWorkspace.openSession(sessionId)`
 //     切主视图（带短重试，因为新行是经 api-session/added 推送到达的）；`uiWorkspace.startSession` 只在宿主没有
-//     sessionController（E_UNAVAILABLE）时作兜底，且显式传 `{agentPreset:'wsl'}`（options 形状已在平台源码核实）；
+//     sessionController（E_NO_SESSION；review 修复前误用 E_UNAVAILABLE）时作兜底，且显式传 `{agentPreset:'wsl'}`（options 形状已在平台源码核实）；
 //   · 接线层 `client.panel.js` 新增 `newSessionNote`（preset 是否应用 / 主视图是否切换，按事实措辞，
 //     不写伪成功；放接线层是因为 helpers chunk 已贴 400 行门禁）；
 //   · api chunk：`newSession` 支持可选 `workspaceId`；i18n 新增 5 组键（zh/en 逐键配对）。
 //   ⇒ 三个 chunk + 本入口都改了，按 docs/client-contract.md §11 刷新入口 rev（本行）。
+// 2026-10-29 review 修复（在同一 P2 提交线后）：
+//   · header chunk：只有 host 返回 `E_NO_SESSION`（没有 sessionController）才回落 startSession；E_UNAVAILABLE
+//     是"宿主建会话失败"，不再被当成"没有服务"吞掉；
+//   · panel chunk：`newSessionNote` 在 `presetDegraded:true` 时把"已降级"作为独立 detail 行；
+//   · i18n 新增 `session.presetDegradedDetail`（zh/en 逐键配对）。
+//   ⇒ 再次刷新入口 rev（本行）。

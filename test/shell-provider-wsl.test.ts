@@ -133,10 +133,15 @@ test('真实 WSL：命令刚起就 kill（pgid 文件可能还没写）也不留
   assert.equal(await countExactProcess('sleep 47'), 0, '立即 kill 后仍有 sleep 47 存活');
 });
 
-test('真实 WSL：输出上限生效且标 truncated', { skip }, async () => {
+test('真实 WSL：输出上限生效、留尾部、spill 落全文', { skip }, async () => {
   const p = createWslShellProvider({ cfg: { ...cfg, shellMaxOutputBytes: 200 } });
-  const proc = await p.execute(p.resolve({ command: `head -c 5000 /dev/zero | tr '\\0' 'x'` }));
+  const proc = await p.execute(p.resolve({ command: `printf 'HEAD'; head -c 5000 /dev/zero | tr '\\0' 'x'; printf 'TAIL'` }));
   const result = await proc.result();
-  assert.equal(result.stdout.text.length, 200);
   assert.equal(result.stdout.truncated, true);
+  assert.equal(result.stdout.text.length, 200);
+  assert.ok(result.stdout.text.endsWith('TAIL'), '保留的应是尾部（含最后的 TAIL）');
+  assert.ok(!result.stdout.text.startsWith('HEAD'), '头部应被丢弃');
+  assert.match(String(result.stdout.spillPath), /^\/tmp\/dsh-rwsl-\d+-shell-.*\.out$/);
+  const size = await (await p.execute(p.resolve({ command: `wc -c < ${result.stdout.spillPath}` }))).result();
+  assert.equal(size.stdout.text.trim(), '5008', 'spill 必须是全流（HEAD 4 + 5000 + TAIL 4）');
 });

@@ -149,6 +149,7 @@ const str = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v));
  * 为什么：`explorer.daemon` / `fixPin` 的失败路径必须回"可读结构化错误 + 合适状态码"，
  * 不允许异常穿过 adapter 变成 500 裸栈。adapter 按 `code` 选状态码：
  *   `E_ARG` → 400（调用方参数错）、`E_UNAVAILABLE` → 503（守护/版本这类"远端此刻不可用"）、
+ *   `E_NO_SESSION` → 503（宿主没有 sessionController；客户端**只对这个码**回落 startSession），
  *   其它/未标 → 500（真内部错）。message 已含可操作诊断（端口被占时 daemon-client 会把
  *   daemon.log 尾部一并带出来），且**不含任何凭据**。
  *
@@ -173,6 +174,14 @@ const failUnavailable = (message, detail = null, reason = null) => {
 };
 const failNotFound = (message, detail = null, reason = null) => {
   throw explorerError('E_NOTFOUND', message, detail, reason);
+};
+/**
+ * 「宿主没有 sessionController 服务」专用码（2026-10-29 review）。
+ * 为什么不能复用 `E_UNAVAILABLE`：宿主建会话失败（cwd/workspace/内部错）也走 503 E_UNAVAILABLE；
+ * 客户端只有**这个码**才应回落到 `uiWorkspace.startSession`，否则会把真实错误吞掉并谎报成功。
+ */
+const failNoSession = (message, detail = null) => {
+  throw explorerError('E_NO_SESSION', message, detail);
 };
 
 /**
@@ -1079,7 +1088,7 @@ async function newSession(args) {
   const uncPath = unc(distro, path);
   const ctl = typeof deps.sessionController === 'function' ? deps.sessionController() : undefined;
   if (!ctl || typeof ctl.create !== 'function') {
-    failUnavailable('remote-wsl: 宿主没有 sessionController 服务（当前 profile 不是 Web 应用？）⇒ 无法创建 DSH 会话');
+    failNoSession('remote-wsl: 宿主没有 sessionController 服务（当前 profile 不是 Web 应用？）⇒ 无法创建 DSH 会话');
   }
 
   const workspaceId = str(args?.workspaceId).trim();
@@ -1327,7 +1336,7 @@ function sendJson(res, status, body) {
 /** 失败 `code` → HTTP 状态码（lead 加固 2：错误路径必须是可读结构化响应，不是 500 裸栈）。
  *  `E_NOTFOUND`(404) 是 A3 的加法，与 `explorer.listDir` 的"路径不存在"一类**成对**存在：
  *  状态码表新增一项，方法表也新增一项，两边都不单独扩张。 */
-const STATUS_BY_CODE = { E_ARG: 400, E_NOTFOUND: 404, E_UNAVAILABLE: 503 };
+const STATUS_BY_CODE = { E_ARG: 400, E_NOTFOUND: 404, E_UNAVAILABLE: 503, E_NO_SESSION: 503 };
 
 /**
  * 把方法表装进 HTTP。**本层不做任何业务判断**，只做动词/头/白名单/错误映射。

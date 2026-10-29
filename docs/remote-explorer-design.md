@@ -133,9 +133,13 @@ interface ExplorerSnapshot {
     `presetApplied === false` 有两种含义，都**不是**"已应用"：① 旧宿主静默丢掉 `agentPreset`（返回体没有该字段）；
     ② 宿主拒绝该 preset ⇒ 本方法已**降级**为不带 preset 重试（`presetDegraded:true` + `presetError:<code>: <message>`，
     并打一行 stderr 日志）。与 preset 无关的失败（cwd/workspace/内部错）**不降级**，原样 `E_UNAVAILABLE`。
+    **2026-10-29 review 修正**：`presetDegraded:true` 会作为独立 detail 行显示（`session.presetDegradedDetail`），
+    不再只靠 `presetError` 原文。
   - 客户端侧：`uiWorkspace.startSession(workspaceId, options)` 的 options **确实收 `agentPreset`**
     （抽源码 `dsh-client-ui-workspace/lib/client.js:1500-1502` 解构、`:1525` 透传），但它返回 void 且把失败吞成
-    `console.warn` ⇒ 只作"宿主没有 `sessionController`（`E_UNAVAILABLE`）"时的兜底；正常路径是
+    `console.warn` ⇒ 只作"宿主没有 `sessionController`（**`E_NO_SESSION`**）"时的兜底；`E_UNAVAILABLE` 表示
+    宿主**建会话失败**（cwd/workspace/内部错），必须原样报错、**不得**回落（review 修正前误把两者混用，
+    会把真实错误吞掉并返回 `ok:true`）。正常路径是
     `explorer.newSession` + `uiWorkspace.openSession(sessionId)`（`openSession` = `replaceMain(...,'reveal')`，同文件 `:1471-1473`；
     它要求该 id 已在客户端会话表里，否则 `sessions.retain` 抛 unknown session ⇒ 客户端做短重试，仍失败就如实报 `opened:false`）。
 

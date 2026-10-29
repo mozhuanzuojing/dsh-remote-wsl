@@ -26,9 +26,10 @@
  *     最后兜底杀 `wsl.exe`。正常结束时脚本自己按同一 PGID 收掉后台孤儿。
  *
  * ## 输出与上限
- * 每条流各留一份只增 Buffer；`readFrom(offset)` 按**字节偏移**增量返回，且只返回完整 UTF-8 码点
- * （不产生 U+FFFD）。超过上限后丢弃尾部并置 `lossy`（→ 工具面的 `truncated: true`）。
- * **这一版不落 spill 文件**：`readFrom` 不返回 `spillPath`（契约允许省略），spill 属后续增量。
+ * 每条流各留一份**尾部** Buffer（与 `dsh-bash-local` 的 "truncated to its tail" 一致）；`readFrom(offset)`
+ * 按**全流累计字节偏移**增量返回，且只返回完整 UTF-8 码点（不产生 U+FFFD）。超过上限后丢头部并置
+ * `lossy`（→ 工具面的 `truncated: true`），同时把**全文**落到 WSL `/tmp/dsh-rwsl-<winpid>-shell-*.out`，
+ * `readFrom` / `result` 返回 `spillPath`（由插件既有 `/tmp` 清扫器回收）。
  *
  * @module dsh-remote-wsl/shell-provider
  */
@@ -108,38 +109,85 @@ export function toLinuxWorkdir(value, cfg) {
 }
 
 /**
- * 有界增量读器：底层只增 Buffer；`readFrom(offset)` 从字节偏移解码，**只返回完整 UTF-8 码点**，
- * 因此连续读取不会产生替换字符，也不会重复/丢字节。
- * @param maxBytes 该流保留的字节上限（超出丢弃并置 lossy）
+ * 有界增量读器：**留尾部、丢头部**（与 `dsh-bash-local` / bash 工具契约「Long output is truncated
+ * to its tail」一致；初版留头丢尾，2026-10-29 review 修正）。
+ *
+ * `readFrom(offset)` 的 offset 是**全流累计字节偏移**（不是保留区内的下标）：保留区用 `start` 记录
+ * 第一个保留字节的绝对偏移；调用方传入已被丢弃的偏移时，从 `start` 开始返回并置 `lossy`。
+ * 解码只返回完整 UTF-8 码点，`nextOffset` 永远落在码点边界。
+ * @param maxBytes 保留的尾部字节上限
+ * @param spill 可选的全文落盘口（`{path, write(buf), append(buf)}`）；第一次溢出时把已收前缀写入
  */
-function createStream(maxBytes) {
+function createStream(maxBytes, spill = null) {
   const chunks = [];
+  /** 保留区第一个字节的绝对偏移（>0 ⇒ 头部已丢）。 */
+  let start = 0;
+  /** 全流已收字节数（绝对总量）。 */
   let total = 0;
-  let dropped = 0;
+  let spilling = false;
+  let spillPath = null;
+  let spillError = null;
+
+  const writeSpill = (buf, append) => {
+    if (!spill) return;
+    try {
+      if (append) spill.append(buf);
+      else spill.write(buf);
+      spillPath = spill.path;
+    } catch (error) {
+      spillError = messageOf(error);
+    }
+  };
+  const trim = () => {
+    let excess = total - start - maxBytes;
+    while (excess > 0 && chunks.length > 0) {
+      const first = chunks[0];
+      if (first.length <= excess) {
+        chunks.shift();
+        start += first.length;
+        excess -= first.length;
+      } else {
+        chunks[0] = first.subarray(excess);
+        start += excess;
+        excess = 0;
+      }
+    }
+  };
   return {
     push(buf) {
-      const room = maxBytes - total;
-      if (room <= 0) {
-        dropped += buf.length;
-        return;
+      if (!spilling) {
+        chunks.push(buf);
+        total += buf.length;
+        if (total > maxBytes && spill) {
+          writeSpill(Buffer.concat(chunks), false); // 首次溢出：完整前缀落盘
+          spilling = true;
+        }
+      } else {
+        chunks.push(buf);
+        total += buf.length;
+        writeSpill(buf, true);
       }
-      const take = buf.length <= room ? buf : buf.subarray(0, room);
-      chunks.push(take);
-      total += take.length;
-      if (take.length < buf.length) dropped += buf.length - take.length;
+      trim();
     },
-    bytes: () => Buffer.concat(chunks, total),
+    bytes: () => Buffer.concat(chunks, total - start),
     get length() {
       return total;
     },
     get lossy() {
-      return dropped > 0;
+      return start > 0;
     },
-    /** @returns `{text, nextOffset, lossy}`（nextOffset 永远落在码点边界） */
+    get spillPath() {
+      return spillPath;
+    },
+    get spillError() {
+      return spillError;
+    },
+    /** @returns `{text, nextOffset, lossy, spillPath?}`（nextOffset 是**绝对**偏移，落在码点边界） */
     readFrom(from) {
-      const all = Buffer.concat(chunks, total);
-      let start = Number.isFinite(from) && from > 0 ? Math.min(Math.floor(from), all.length) : 0;
-      while (start > 0 && start < all.length && (all[start] & 0xc0) === 0x80) start -= 1;
+      const all = Buffer.concat(chunks, total - start);
+      const requested = Number.isFinite(from) && from > 0 ? Math.floor(from) : 0;
+      let begin = Math.max(requested, start) - start;
+      while (begin > 0 && begin < all.length && (all[begin] & 0xc0) === 0x80) begin -= 1;
       let end = all.length;
       // 末字节若是**不完整**码点，先不返回（下次数据到了再说）
       let lead = -1;
@@ -154,8 +202,13 @@ function createStream(maxBytes) {
         const need = b >= 0xf0 ? 4 : b >= 0xe0 ? 3 : b >= 0xc0 ? 2 : 1;
         if (lead + need > end) end = lead;
       }
-      if (end < start) end = start;
-      return { text: all.subarray(start, end).toString('utf8'), nextOffset: end, lossy: dropped > 0 };
+      if (end < begin) end = begin;
+      return {
+        text: all.subarray(begin, end).toString('utf8'),
+        nextOffset: start + end,
+        lossy: start > 0,
+        ...(spillPath !== null ? { spillPath } : {}),
+      };
     },
   };
 }
@@ -180,14 +233,28 @@ export function createWslShellProvider(options = {}) {
   const io = options.io ?? fs;
   const graceMs = positive(cfg.shellGraceMs, DEFAULTS.graceMs);
   const maxOutputBytes = positive(cfg.shellMaxOutputBytes, DEFAULTS.maxOutputBytes);
+  /** 活着的 handle：组合销毁时要按 `dsh-shell` 契约「stop and await」（见 apply 的 effect）。 */
+  const live = new Set();
 
   const tempPaths = () => {
-    const token = `${process.pid}-${now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    // 文件名必须匹配插件既有清扫器 `find /tmp -name 'dsh-rwsl-<winPid>-*'`（wsl-io.sweepOwnTempFiles），
+    // 否则宿主硬杀留下的脚本/溢出文件永远没人清。
+    const token = `${now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    const base = `dsh-rwsl-${process.pid}-shell-${token}`;
     return {
-      script: `/tmp/dsh-rwsl-shell-${token}.sh`,
-      pgid: `/tmp/dsh-rwsl-shell-${token}.pgid`,
+      script: `/tmp/${base}.sh`,
+      pgid: `/tmp/${base}.pgid`,
+      stdout: `/tmp/${base}.out`,
+      stderr: `/tmp/${base}.err`,
     };
   };
+
+  /** 溢出全文落盘口（WSL /tmp；只在真的超过上限时创建；保留到插件下次清扫，供模型/用户读全文）。 */
+  const spillTarget = (distro, linuxPath) => ({
+    path: linuxPath,
+    write: (buf) => io.writeFileSync(uncFile(distro, linuxPath), buf, { mode: 0o600 }),
+    append: (buf) => io.appendFileSync(uncFile(distro, linuxPath), buf, { mode: 0o600 }),
+  });
 
   /**
    * 生成 WSL 侧 wrapper 脚本。
@@ -287,14 +354,19 @@ export function createWslShellProvider(options = {}) {
     resolve(request) {
       const command = String(request?.command ?? '');
       if (command.trim().length === 0) throw new Error('remote-wsl shell: command 不能为空');
+      // 与 dsh-timeout.clampTimeout / dsh-bash-local.assertPositiveFinite 同语义：**显式给的非法值要抛**，
+      // 不能静默回落默认值（那会让调用方以为自己的上限生效了）。
+      if (request?.timeoutMs !== undefined && (!Number.isFinite(request.timeoutMs) || request.timeoutMs <= 0)) {
+        throw new Error('remote-wsl shell: timeoutMs must be a positive finite number');
+      }
+      if (request?.stdoutMaxBytes !== undefined && (!Number.isFinite(request.stdoutMaxBytes) || request.stdoutMaxBytes <= 0)) {
+        throw new Error('remote-wsl shell: stdoutMaxBytes must be a positive finite number');
+      }
       const workdir = toLinuxWorkdir(request?.workdir, cfg);
-      const stdoutMaxBytes = positive(request?.stdoutMaxBytes, maxOutputBytes);
       const max = positive(cfg.shellMaxTimeoutMs, DEFAULTS.maxTimeoutMs);
       const base = positive(cfg.shellTimeoutMs, DEFAULTS.timeoutMs);
-      const timeoutMs =
-        Number.isFinite(request?.timeoutMs) && request.timeoutMs > 0
-          ? Math.min(request.timeoutMs, max)
-          : Math.min(base, max);
+      const timeoutMs = Math.min(request?.timeoutMs ?? base, max);
+      const stdoutMaxBytes = request?.stdoutMaxBytes ?? maxOutputBytes;
       return {
         command,
         workdir,
@@ -305,6 +377,9 @@ export function createWslShellProvider(options = {}) {
         ...(request?.stdin !== undefined ? { stdin: request.stdin } : {}),
         ...(request?.env !== undefined ? { env: request.env } : {}),
         ...(request?.dshEnv !== undefined ? { dshEnv: request.dshEnv } : {}),
+        // 契约对齐（dsh-bash-local:103）：调用方给的 sandboxPolicy 原样带进 spec。
+        // 本执行器 `sandboxMode=undefined`，tool-bash 不会传；带上是为了"换成别的调用方"时不丢字段。
+        ...(request?.sandboxPolicy !== undefined ? { sandboxPolicy: request.sandboxPolicy } : {}),
       };
     },
 
@@ -314,6 +389,7 @@ export function createWslShellProvider(options = {}) {
      * @returns handle
      */
     async execute(spec) {
+      const startedAt = now();
       const distro = String(cfg.distro ?? '').trim();
       if (!distro) {
         throw new Error(
@@ -329,10 +405,10 @@ export function createWslShellProvider(options = {}) {
         );
       }
 
-      const stdout = createStream(spec.stdoutMaxBytes);
+      const stdout = createStream(spec.stdoutMaxBytes, spillTarget(distro, paths.stdout));
       // stderr 上限跟 `dsh-bash-local` 一样取 `maxOutputBytes`（不是调用方的 stdoutMaxBytes）：
       // 两者混用会让"把 stdout 调大"顺手把 stderr 也放大，与上游语义不一致。
-      const stderr = createStream(maxOutputBytes);
+      const stderr = createStream(maxOutputBytes, spillTarget(distro, paths.stderr));
       let killed = false;
       let timedOut = false;
       let aborted = false;
@@ -391,6 +467,7 @@ export function createWslShellProvider(options = {}) {
         proc.exitCode = exitCode;
         proc.signal = exitSignal;
         proc.status = wasForced || providerFailed ? 'killed' : 'completed';
+        live.delete(proc);
         finish.resolve();
       };
 
@@ -446,14 +523,26 @@ export function createWslShellProvider(options = {}) {
         result: () =>
           done.then(() => {
             if (spawnError) throw spawnError;
+            const spillNotes = [stdout.spillError, stderr.spillError]
+              .filter((note) => typeof note === 'string' && note.length > 0)
+              .map((note) => `remote-wsl shell: spill 写入失败：${note}\n`)
+              .join('');
             return {
               exitCode,
               signal: exitSignal,
               timedOut,
               aborted,
               timeoutMs: spec.timeoutMs,
-              stdout: { text: stdout.bytes().toString('utf8'), truncated: stdout.lossy },
-              stderr: { text: stderr.bytes().toString('utf8'), truncated: stderr.lossy },
+              stdout: {
+                text: stdout.bytes().toString('utf8'),
+                truncated: stdout.lossy,
+                ...(stdout.spillPath !== null ? { spillPath: stdout.spillPath } : {}),
+              },
+              stderr: {
+                text: stderr.bytes().toString('utf8') + spillNotes,
+                truncated: stderr.lossy,
+                ...(stderr.spillPath !== null ? { spillPath: stderr.spillPath } : {}),
+              },
             };
           }),
       };
@@ -493,13 +582,21 @@ export function createWslShellProvider(options = {}) {
         /* ignore */
       }
 
+      // 超时从 execute() 入口起算（含写脚本/冷启动的准备期）——与 dsh-bash-local 的
+      // "Expiry during preparation returns a settled timed-out handle" 对齐；剩余时间 ≤0 就直接杀。
       if (spec.onExpiry === 'kill' && Number.isFinite(spec.timeoutMs) && spec.timeoutMs > 0) {
-        deadlineTimer = setTimeout(() => {
-          if (settled) return;
+        const remaining = spec.timeoutMs - (now() - startedAt);
+        if (remaining <= 0) {
           timedOut = true;
           proc.kill();
-        }, spec.timeoutMs);
-        deadlineTimer.unref?.();
+        } else {
+          deadlineTimer = setTimeout(() => {
+            if (settled) return;
+            timedOut = true;
+            proc.kill();
+          }, remaining);
+          deadlineTimer.unref?.();
+        }
       }
       if (spec.signal) {
         onAbort = () => {
@@ -517,7 +614,28 @@ export function createWslShellProvider(options = {}) {
         }
       }
 
+      live.add(proc);
       return proc;
+    },
+
+    /**
+     * 组合销毁时的收尾（`dsh-shell` 契约：still-running process 要被 stop 并 await）。
+     * 只 kill 我们自己的 handle；不碰发行版里别的进程。
+     * @returns 全部 handle settle 或 `graceMs + 2s` 超时后返回（不抛）
+     */
+    async shutdown() {
+      const pending = [...live];
+      if (pending.length === 0) return;
+      for (const handle of pending) {
+        try {
+          handle.kill();
+        } catch {
+          /* ignore */
+        }
+      }
+      const all = Promise.all(pending.map((handle) => handle.done.catch(() => undefined)));
+      const timeout = new Promise((resolve) => setTimeout(resolve, graceMs + 2000));
+      await Promise.race([all, timeout]);
     },
   };
 }
@@ -529,5 +647,11 @@ export function createWslShellProvider(options = {}) {
  * @param rawConfig 插件配置（与宿主平面同一份，`normalizeConfig()` 归一）
  */
 export function apply(ctx, rawConfig = {}) {
-  ctx.provide('shell', createWslShellProvider({ config: rawConfig }));
+  const provider = createWslShellProvider({ config: rawConfig });
+  ctx.provide('shell', provider);
+  // `dsh-shell` 契约：组合销毁时 still-running 的进程要被 stop 并 await（不能把孤儿留给发行版）。
+  // cordis 的 effect 回调返回 disposer；这里 fire-and-forget 地跑 shutdown（内部自带超时，不抛）。
+  ctx.effect(() => () => {
+    void provider.shutdown();
+  });
 }

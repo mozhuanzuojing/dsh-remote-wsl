@@ -43,7 +43,7 @@
 | `done` | `dsh-tool-bash:115`（后台 job 等它） | Promise，**永不 reject**；spawn 失败也在 settle 后 resolve |
 | `status` | 作业/工具体渲染 | `running` → `completed` / `killed`（超时、abort、我们主动 kill、provider 失败） |
 | `exitCode` / `signal` | `tool-bash` 结果映射 | 被强制结束时 `exitCode=null, signal='SIGTERM'`（避免把 bash 的 143 渲染成"命令失败"） |
-| `observed.stdout.readFrom(byte)` | `dsh-jobs-local:711-734`（`guardSource` 会吞异常） | 只增 Buffer + 字节偏移；**保证返回完整 UTF-8 码点**（上游参考实现不保证，见 §6 风险） |
+| `observed.stdout.readFrom(byte)` | `dsh-jobs-local:711-734`（`guardSource` 会吞异常） | **尾部**保留 Buffer + **全流累计**字节偏移；**保证返回完整 UTF-8 码点**（上游参考实现不保证；review 后修正） |
 | `observed.stderr.readFrom` | 同上 | 同上 |
 | `readOutput()` | 模型侧增量输出 | `{delta, lossy}`，stderr 以 `[stderr]` 合并 |
 | `kill()` | 作业取消 / 工具中断 | 幂等；先 WSL 内 `kill -TERM -- -PGID`，`shellGraceMs` 后 `KILL` + 兜底 `wsl.exe SIGKILL` |
@@ -93,7 +93,7 @@ dsh web: http://127.0.0.1:8917/?token=…
    - 桌面宿主：当前进程是旧代码（preset 21 行、无 shell provider），要用户重启才会加载本轮代码。
    - 用户侧验法（2 分钟）：重启 DSH → 新建会话时选「WSL（远程执行世界）」→ 让模型跑 `uname -a`；正确结果是 Linux 内核串，且工具名是 `bash`。
 2. **`readFrom` 偏移**：上游 `dsh-subprocess-local/lib/output.js:188-198` 的 `nextOffset` 恒等于累计字节数、不保证 UTF-8 边界（按字符长度算会静默出 U+FFFD）。我们的实现按字节并回退到码点边界，**语义更严**；若未来宿主把 `nextOffset` 当成"必须等于 total"来用会不兼容——目前消费方只用返回值本身。
-3. **无 spill 文件**：超过 `shellMaxOutputBytes` 直接丢尾部并标 `truncated:true`，`readFrom` 不返回 `spillPath`（契约允许省略）。模型能知道被截断，但拿不到全文。
+3. **spill 已实现（review 后）**：超过 `shellMaxOutputBytes` 时**留尾部**、返回 `spillPath`（WSL `/tmp/dsh-rwsl-<winpid>-shell-*.out`，全文；由插件既有 `/tmp` 清扫器回收）。初版"留头丢尾、不落 spill"与 `dsh-bash-local` 的 tail-keep 契约相反，已在 review 修复。
 4. **每条命令一次 `wsl.exe`**：~40–90ms 固定开销；发行版没在跑时写入 /tmp 会先把发行版拉起（与既有 UNC 路径同一行为）。
 5. **`kill -TERM -- -"$pid"` 的理论竞态**：命令刚退出、pid 立刻被新进程组复用时，收尾那一枪可能打到无关组。窗口极小（同一条脚本内、微秒级），本轮接受；严格做法是收尾前 `kill -0 -- -"$pid"` 再比对 `/proc/<pid>/stat` 的启动时间。
 6. **`tool-pwsh` 从 preset 移除**：WSL 世界里它同样是 `ctx.shell` 的消费方，保留会变成"叫 PowerShell 却跑 bash"。宿主平面不受影响。
@@ -125,7 +125,22 @@ dsh web: http://127.0.0.1:8917/?token=…
 宽限到点用缓存值发 KILL；`settle` 对被强制结束的组再补一发 KILL。
 **P3（已修）**：stderr 保留上限误用调用方 `stdoutMaxBytes`，改为与 `dsh-bash-local` 一致的 `maxOutputBytes`。
 **保留（S3 / 已知限制）**：`set -m` 不可用时只会退化为"杀掉 wsl.exe、Linux 侧可能留孤儿"（不会误杀别的组）；
-每命令一次 `wsl.exe`（~40–90ms）；无 spill 文件；正常结束会清掉命令自己 `&` 的后台子进程（与 jobs 的
+每命令一次 `wsl.exe`（~40–90ms）；spill 文件只在溢出时创建、不即时删除；正常结束会清掉命令自己 `&` 的后台子进程（与 jobs 的
 `run_in_background` 是两条路，后者应该用 jobs）；`kill -TERM -- -PGID` 的 pid 复用窗口极小但存在。
 **证据**：单测 20/20（新增「pgid 文件缺失时轮询重读」「stderr 不随 stdoutMaxBytes 放大」）；
 真机 9/9（新增「trap TERM 的超时无孤儿」「立即 kill 无孤儿」）；全量 196 tests / 184 pass / 0 fail / 12 skip。
+## 10. Review 第二轮（2026-10-29，Spec 轴）
+
+| # | 级别 | 发现 | 处置 |
+|---|---|---|---|
+| R-1 | P1 | 输出超限**留头丢尾**，与 `dsh-bash-local` / bash 工具「truncated to its tail」相反；`nextOffset` 截断后不是全流累计 | 已修：改尾部保留 + 全流绝对偏移；新增单测/真机断言（尾部含 `TAIL`、spill 全 5008 字节） |
+| R-2 | P2 | 溢出无 spill 文件（spec 的「输出上限/spill」只做了一半） | 已修：溢出时把全文落 WSL `/tmp/dsh-rwsl-<winpid>-shell-*.out`，返回 `spillPath`；单测+真机覆盖 |
+| R-3 | P2 | `apply` 没有 teardown，组合销毁时运行中的命令不会被 stop/await（违反 `dsh-shell` 契约） | 已修：provider 跟踪 live handles；`apply` 的 `ctx.effect` disposer 调 `shutdown()`（kill 全部 + 等待，超时兜底） |
+| R-4 | P2 | P2 客户端把任何 `E_UNAVAILABLE` 当"没有 sessionController"回落 `startSession` ⇒ 吞掉宿主建会话失败并返回 `ok:true` | 已修：新增专用码 `E_NO_SESSION`（宿主缺服务），客户端只对它回落；`E_UNAVAILABLE` 原样报错 |
+| R-5 | P3 | `resolve()` 缺 `sandboxPolicy` 透传；非法 `timeoutMs`/`stdoutMaxBytes` 被静默回落 | 已修：原样透传 + 显式非法值抛错（与 `clampTimeout`/`assertPositiveFinite` 同语义） |
+| R-6 | P3 | 超时从 spawn 后才计，写脚本/冷启动不在准备期 | 已修：deadline 从 `execute()` 入口起算，准备期耗尽 ⇒ 立即按超时结算 |
+| R-7 | P3 | `presetDegraded` 未参与 UI 三态 | 已修：作为独立 detail 行（`session.presetDegradedDetail`，zh/en） |
+| R-8 | 判断项 | WSL preset 额外移除 `tool-pwsh`（P0 未要求） | 保留：它同样消费 `ctx.shell`，在 WSL 世界里会"叫 PowerShell 却跑 bash"；只影响本 preset，宿主平面不变 |
+| R-9 | 偏离 | daemon `{op:'exec'}` 未做（spec 硬活之一） | 保留偏离：直连 `wsl.exe` 已完成验收；等 P1 PTY 需要宿主代理 backend 时统一评估，理由见 §4 |
+
+**回归**：单测 23/23、真机 9/9、全量 199 tests（详见交付报告）。

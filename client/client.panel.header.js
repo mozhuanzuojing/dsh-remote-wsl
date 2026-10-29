@@ -117,7 +117,9 @@ try {
 created = await api.newSession({ path: cwd, workspaceId: ws && ws.ok === true && ws.id ? ws.id : undefined }, signal);
 } catch (error) {
 const apiCode = error && error.detail && typeof error.detail.code === "string" ? error.detail.code : null;
-if (canStart && apiCode === "E_UNAVAILABLE") {
+// 只有「宿主没有 sessionController」（E_NO_SESSION）才回落 startSession；宿主建会话失败也是 503，
+// 但那是 E_UNAVAILABLE —— 回落会把真实错误吞掉并谎报成功（2026-10-29 review 修正）。
+if (canStart && apiCode === "E_NO_SESSION") {
 const workspaceId = ws && ws.ok === true && ws.id ? ws.id : undefined;
 const opening = workspaceId === undefined ? nav.startSession() : nav.startSession(workspaceId, { agentPreset: "wsl" });
 if (opening && typeof opening.then === "function") await opening;
