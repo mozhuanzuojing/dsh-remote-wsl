@@ -98,7 +98,7 @@ window.__ModuleLoader__.load({
 				React, browse, cwd, visibleEntries, searching, search,
 				focusIndex, setFocusIndex, jumpTo, joinWslPath, normalizeWslPath,
 				icon, t, errorText, listPath, showHidden, hiddenCount, homePathOf,
-				VIRTUAL_MIN_ROWS, prefetchDir, cancelPrefetch, run, clearSearch, searchRef,
+				VIRTUAL_MIN_ROWS, prefetchDir, cancelPrefetch, run, clearSearch, searchRef, api,
 			} = props;
 			// 大目录窗口化：只有条目数超过阈值才启用（hook 必须无条件调用）
 			const listRef = React.useRef(null);
@@ -227,6 +227,25 @@ window.__ModuleLoader__.load({
 									t("browser.enter"),
 								)
 							: null,
+						React.createElement(
+							"button",
+							{
+								type: "button",
+								className: "dsh-rw-link",
+								"aria-label": t("row.openAria", { path: childPath }),
+								title: t("row.openTitle", { path: childPath }),
+								onClick: function (event) {
+									event.stopPropagation();
+									if (typeof api.openExternal !== "function") return;
+									run(
+										"open:" + childPath,
+										() => api.openExternal({ path: childPath, kind: isDir ? "directory" : "file", app: "vscode" }),
+										{ describe: () => t("row.opened", { path: childPath }) },
+									);
+								},
+							},
+							t("row.open"),
+						),
 						React.createElement(
 							"button",
 							{

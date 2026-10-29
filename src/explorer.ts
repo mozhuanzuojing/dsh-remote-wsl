@@ -55,7 +55,7 @@
  *
  * @module dsh-remote-wsl/explorer
  */
-import { execFile, spawnSync } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 import { parseWslUncPath } from './unc-path.ts';
@@ -65,6 +65,7 @@ import { parseWslDistroTable } from './distro-table.ts';
 import { targetProblem, NO_DISTRO_REASON, NO_HOME_REASON } from './config.ts';
 import { asConfigText } from './target-detect.ts';
 import { WSL_PRESET_ID } from './preset.ts';
+import { buildVsCodeOpenArgs, buildVsCodeWslUri, buildWslUncCandidates } from './open-editor.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -75,6 +76,7 @@ export const EXPLORER_METHODS = [
   'explorer.listDir',
   'explorer.addWorkspace',
   'explorer.newSession',
+  'explorer.openExternal',
 ];
 
 /**
@@ -1256,6 +1258,64 @@ async function newSession(args) {
     return { ok: true, id, title: str(created?.record?.title) || title, uncPath, alreadyExisted: false };
   }
 
+  /**
+   * `explorer.openExternal({path, distro?, kind, app?})` —— 在 Windows 侧打开 WSL 路径。
+   *
+   * ZCode 对照（2026-10-29 第三轮）：
+   *   · VS Code 走 Remote-WSL URI（目录 `--folder-uri` / 文件 `--file-uri`），不能裸传 Linux 路径；
+   *   · 资源管理器用 UNC 候选：`\\wsl.localhost\…` 优先，老 Windows 回退 `\\wsl$\…`。
+   * 只接受 `file` / `directory`（由面板 listDir 的真实 kind 传入），不做文件系统写操作。
+   */
+  async function openExternal(args) {
+    const { distro, path } = await resolveTarget(args, 'explorer.openExternal');
+    if (process.platform !== 'win32') {
+      failUnavailable('remote-wsl: explorer.openExternal 只支持 Windows 宿主');
+    }
+    const kind = args?.kind === 'file' ? 'file' : args?.kind === 'directory' ? 'directory' : null;
+    if (kind === null) failArg('remote-wsl: explorer.openExternal 的 kind 必须是 file 或 directory');
+    const app = args?.app === 'explorer' ? 'explorer' : 'vscode';
+    const primaryUnc = unc(distro, path);
+
+    if (app === 'explorer') {
+      const candidates = buildWslUncCandidates(primaryUnc, path);
+      let lastError = '';
+      for (const candidate of candidates) {
+        try {
+          const child = spawn('explorer.exe', [kind === 'file' ? `/select,${candidate}` : candidate], {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true,
+          });
+          child.unref();
+          return { ok: true, app: 'explorer', path: candidate };
+        } catch (error) {
+          lastError = String(error?.message ?? error);
+        }
+      }
+      failUnavailable(`remote-wsl: 打开资源管理器失败：${lastError || 'explorer.exe 不可用'}`);
+    }
+
+    const where = spawnSync('where.exe', ['code'], { encoding: 'utf8', windowsHide: true });
+    if (where.status !== 0) {
+      failUnavailable('remote-wsl: 找不到 VS Code 的 `code` CLI（可改用 app="explorer"）');
+    }
+    const uri = buildVsCodeWslUri(distro, path);
+    const argv = buildVsCodeOpenArgs(kind, uri);
+    // code 在 Windows 上是 code.cmd；经 cmd.exe 从 PATH 启动。argv 的 URI 已分段编码，
+    // code 与 flag 都由本函数构造，避免把用户路径直接拼进 shell。
+    try {
+      const child = spawn('cmd.exe', ['/d', '/s', '/c', `code ${argv.map((arg) => `"${arg}"`).join(' ')}`], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      child.unref();
+      return { ok: true, app: 'vscode', path: primaryUnc, uri };
+    } catch (error) {
+      failUnavailable(`remote-wsl: 启动 VS Code 失败：${String(error?.message ?? error)}`);
+    }
+  }
+
   const handlers = {
     'explorer.snapshot': snapshot,
     'explorer.openSession': openSession,
@@ -1264,6 +1324,7 @@ async function newSession(args) {
     'explorer.listDir': listDir,
     'explorer.addWorkspace': addWorkspace,
     'explorer.newSession': newSession,
+    'explorer.openExternal': openExternal,
   };
   return { handlers, log };
 }

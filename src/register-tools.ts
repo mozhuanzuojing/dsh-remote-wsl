@@ -307,7 +307,7 @@ export function registerTools(deps) {
     tools.register({
       name: 'wsl_status',
       description:
-        'Report the WSL remote-host picture: available distros, the DSH desktop version this Windows install runs, the version pinned inside WSL, any drift between them, the dsh versions already materialized in the WSL pnpm dlx cache, the shell-environment injection switch, the localhostForwarding setting that the WSL2 port forwarding depends on, and the resident remote runtimes this plugin holds. Read-only and cheap; call it before blaming the remote side. Pass `redetect: true` to re-run target auto-detection in-session (clears the process-wide cache and re-probes; explicit distro/wslHome are never overwritten).',
+        'Report the WSL remote-host picture: available distros, the DSH desktop version this Windows install runs, the version pinned inside WSL, any drift between them, the dsh versions already materialized in the WSL pnpm dlx cache, the shell-environment injection switch, the localhostForwarding setting that the WSL2 port forwarding depends on, the resident remote runtimes this plugin holds, and the effective WSL identity (actual distro/user/home/platform/arch). Read-only and cheap; call it before blaming the remote side. Pass `redetect: true` to re-run target auto-detection in-session (clears the process-wide cache and re-probes; explicit distro/wslHome are never overwritten).',
       parameters: {
         type: 'object',
         properties: {
@@ -358,6 +358,7 @@ export function registerTools(deps) {
         const MARK = '__REMOTE_WSL_DLX_MARK__';
         let ip = '(未探测)';
         let dlx = '(未探测)';
+        let identity = targetIssue ? '(跳过：目标发行版未确定)' : '(未探测)';
         if (!targetIssue && distros.includes(config.distro)) {
           const res = await runWsl(
             config,
@@ -376,6 +377,27 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
             // 哨兵缺失 ⇒ 脚本没跑到。这里**不能**报 "none"（那是"确认没装"的意思，会臆造事实）
             ip = `(探测失败: ${res.stderr.trim().split('\n').filter(Boolean).slice(-1)[0] ?? ''})`;
             dlx = '(探测失败)';
+          }
+          // ZCode 对照（2026-10-29 第三轮）：不只报配置值，报**实际** WSL 身份/平台/架构；
+          // 便于发现 root/default user 差异和 arm64 工具供给问题。单独一次调用，异常不阻断状态主体。
+          const idRes = await runWsl(
+            config,
+            `${shellPreamble(config)}printf '%s\\n' "\${WSL_DISTRO_NAME:-}"
+id -un
+printf '%s\\n' "$HOME"
+uname -s
+uname -m
+`,
+            { timeoutMs: 20000, signal: exec?.signal },
+          );
+          const idLines = idRes.stdout.split('\n').map((s) => s.trim());
+          if (idRes.exitCode === 0 && idLines.length >= 5) {
+            const [actualDistro, actualUser, actualHome, platform, arch] = idLines;
+            identity =
+              `distro=${actualDistro || config.distro} user=${actualUser || '(unknown)'} ` +
+              `home=${actualHome || config.wslHome || '(unresolved)'} platform=${platform || '(unknown)'} arch=${arch || '(unknown)'}`;
+          } else {
+            identity = `(探测失败: ${idRes.stderr.trim().split('\n').filter(Boolean).slice(-1)[0] ?? `exit ${idRes.exitCode}`})`;
           }
         }
 
@@ -509,6 +531,7 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
             ? [`target auto-detected: ${detection.notes.join('；')}（显式配置 distro/wslHome 可完全跳过探测）`]
             : []),
           `target: ${config.distro || '(未解析)'}  wslHome=${config.wslHome || '(未解析)'}  cwd=${config.cwd || '(未解析)'}`,
+          `identity: ${identity}`,
           ...renderRedetectResult(redetectResult, config),
           `wsl ip: ${ip}`,
           `shell env injection (useShellEnvironment): ${config.useShellEnvironment === false ? 'off' : 'on'}（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）`,

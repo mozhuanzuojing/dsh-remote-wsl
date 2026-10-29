@@ -1,6 +1,8 @@
 /**
  * dsh-remote-wsl —— client 半入口（**手写的 lazy-CJS loader bundle**，零构建）。
  *
+ * 2026-10-29（open-in-editor）：client.panel.list.js 增加了行内「打开」动作，必须触碰入口 rev。
+ *
  * 为什么长这样（都有出处，不是猜的）：
  * - 静态 `dsh.client` 半没有 ESM、没有 JSX 转换、**没有** `host.call`/`styles.insert`
  *   （那两个是动态包 cordis_define/run 的 closure 内建：

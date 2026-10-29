@@ -54,6 +54,7 @@ window.__ModuleLoader__.load({
 			listDir: "explorer.listDir",
 			addWorkspace: "explorer.addWorkspace",
 			newSession: "explorer.newSession",
+			openExternal: "explorer.openExternal",
 		});
 
 		/** 上表的**投影视图**（唯一用途：让自检/探针脚本按同一来源比对 host 的 `EXPLORER_METHODS`）。 */
@@ -355,6 +356,15 @@ window.__ModuleLoader__.load({
 				listDir(input, options) {
 					const path = requireString(input && input.path, "path", t);
 					return call(METHODS.listDir, { path }, options);
+				},
+				/** 在 Windows 侧打开 WSL 文件/目录（VS Code Remote-WSL 或资源管理器）。 */
+				openExternal(input, options) {
+					const path = requireString(input && input.path, "path", t);
+					const kind = input && input.kind === "file" ? "file" : input && input.kind === "directory" ? "directory" : null;
+					if (kind === null) throw new ExplorerApiError(t("api.argument", { field: "kind" }), "argument");
+					const args = { path, kind };
+					if (input && input.app === "explorer") args.app = "explorer";
+					return call(METHODS.openExternal, args, options);
 				},
 			};
 			return Object.freeze(api);

@@ -113,6 +113,10 @@ window.__ModuleLoader__.load({
 
 
 			"row.openBusy": "打开中…",
+			"row.open": "打开",
+			"row.openAria": "在 VS Code 打开 {path}",
+			"row.openTitle": "在 VS Code 中打开 {path}",
+			"row.opened": "已打开 {path}",
 			"row.copy": "复制路径",
 			"row.copyNoClipboard": "此环境没有 navigator.clipboard",
 
@@ -361,6 +365,10 @@ window.__ModuleLoader__.load({
 
 
 			"row.openBusy": "Opening…",
+			"row.open": "Open",
+			"row.openAria": "Open {path} in VS Code",
+			"row.openTitle": "Open {path} in VS Code",
+			"row.opened": "Opened {path}",
 			"row.copy": "Copy path",
 			"row.copyNoClipboard": "navigator.clipboard is unavailable in this environment",
 

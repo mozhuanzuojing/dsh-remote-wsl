@@ -11,7 +11,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.3.10** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.3.11** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="远程资源管理器面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -60,6 +60,7 @@ flowchart LR
   - **守护状态**：头部药丸显示运行态，悬停提示里带 pid/版本/槽位；未运行时可直接点起。底栏显示会话数、更新时间和漂移。
   - **代理三态徽标**：可达 / 不可达（带 `host:port`）/ 未探测。数据取自既有 `snapshot.proxy`，不新增请求。
   - **在此目录新建会话**：浏览到配置 `cwd` 以外的目录时，主按钮是它——建一个真 DSH 会话（会话出现在左侧列表）；在配置 `cwd` 内主按钮是「添加为 WSL 工作区」。**2026-10-29 起默认落 WSL preset**：主流程 `addWorkspace → host explorer.newSession → uiWorkspace.openSession`，host 侧 `create({cwd|workspaceId, agentPreset:'wsl'})`，并把 `presetApplied` / `agentPreset` / `presetError` 作为**事实**回给面板（旧宿主不认 `agentPreset` 时面板如实说"未应用"，不谎称成功）。
+  - **打开文件/目录**：文件行新增「打开」，通过 `explorer.openExternal` 在 VS Code 中打开；目录用 `--folder-uri`、文件用 `--file-uri`，URI 是 `vscode-remote://wsl+<distro><linuxPath>`（无 VS Code CLI 时给可操作错误；资源管理器候选 `\\wsl.localhost\...` / `\\wsl$\...` 由 host 侧 helper 生成）。
   - **添加为 WSL 工作区**：把目录登记成 UNC 工作区（该工作区的文件工具走 9P，和「远端会话」是两条路，见下方「已知边界」）。
   - **远端会话卡**：列出 `cwd + sessionId 前 8 位`、轮次与空闲时间，可复制完整 sessionId。
   - **窄态与双语**：320 / 360 / 376 / 416 / 420 / 480 / 1280 七档实测无横向溢出；窄态下快捷目录 chips 保持完整并横向滚动（不压字）；中文 / English 跟随宿主语言。
@@ -359,6 +360,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `src/register-tools.ts` | 七个工具的实现 |
 | `src/daemon.ts`、`src/daemon-*.ts` | WSL 侧常驻守护、协议、launcher 与生命周期 |
 | `src/explorer.ts` | 面板数据面 `POST /remote-wsl/api`（同源 + 硬白名单） |
+| `src/open-editor.ts` | VS Code Remote-WSL URI 与资源管理器 UNC 候选纯函数 |
 | `src/fs-provider.ts`、`src/fs-rpc.ts` | WSL 执行世界的 fs provider 与 RPC |
 | `src/fs-unc-bridge.ts` | standard preset 的 UNC 文件桥：写/编辑 + `/mnt` 解析与读取，绕过 9P DACL/DrvFs 限制 |
 | `src/preset.ts`、`src/search-tool.ts` | `wsl` preset、WSL 内 `grep` / `glob` 与 `wsl_tools` |
