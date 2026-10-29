@@ -118,6 +118,18 @@ function isBridgeInput(input: any, opts: any, distro: string): boolean {
   return isUncForDistro(opts?.cwd, distro);
 }
 
+/** `/mnt` cwd 下 Windows 习惯的反斜杠相对路径要先归一为 POSIX，否则 path.posix 会把它当普通字符。 */
+function normalizeBridgeInput(input: any, opts: any, distro: string): string {
+  const raw = String(input ?? '');
+  if (isUncForDistro(opts?.cwd, distro)) {
+    const cwdUnc = parseUnc(String(opts.cwd))!;
+    if (isMntLinuxPath(cwdUnc.linuxPath) && !raw.startsWith('\\\\') && !/^[A-Za-z]:[\\/]/.test(raw)) {
+      return raw.replace(/\\/g, '/');
+    }
+  }
+  return raw;
+}
+
 /** 解析 `dev:ino:size:mtimeNs:ctimeNs`；失败返回 null。 */
 function parseVersion(version: any): { ino: string; size: string; mtimeNs: bigint } | null {
   const parts = String(version ?? '').split(':');
@@ -189,7 +201,8 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   };
 
   const resolveViaWsl = async (input: any, opts: any) => {
-    const target = await callWsl('resolve', input, opts);
+    const wslInput = normalizeBridgeInput(input, opts, distro);
+    const target = await callWsl('resolve', wslInput, opts);
     const raw = String(input ?? '');
     let displayPath: string;
     if (isUncForDistro(raw, distro)) {
@@ -281,7 +294,9 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
 
   const bridgedLstat = async function (input: any, opts: any = {}, signal: any) {
     if (!isBridgeInput(input, opts, distro)) return originalLstat.call(fsService, input, opts, signal);
-    if (isMntInput(input, opts, distro) || isPosixAbsolute(input)) return callWsl('lstat', input, opts, signal);
+    if (isMntInput(input, opts, distro) || isPosixAbsolute(input)) {
+      return callWsl('lstat', normalizeBridgeInput(input, opts, distro), opts, signal);
+    }
     let hostResult;
     try {
       hostResult = await originalLstat.call(fsService, input, opts, signal);
@@ -293,7 +308,7 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
     }
     if (hostResult !== undefined) return hostResult;
     try {
-      return await callWsl('lstat', input, opts, signal);
+      return await callWsl('lstat', normalizeBridgeInput(input, opts, distro), opts, signal);
     } catch (error) {
       throw error;
     }

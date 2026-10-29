@@ -260,3 +260,28 @@ test('UNC 读桥：symlink→/mnt 下尚不存在的新文件仍采用 WSL targe
   const target = await fs.resolve('sac-fe/new.txt', { cwd: '\\\\wsl.localhost\\debian-u8-1\\home\\g' });
   assert.equal(target.targetKey, '\\\\wsl.localhost\\debian-u8-1\\mnt\\d\\new.txt');
 });
+
+test('UNC 读桥：/mnt cwd 下的反斜杠相对路径归一为 POSIX', async () => {
+  const calls: any[] = [];
+  const wsl = {
+    resolve: async (input: any) => {
+      calls.push(['resolve', input]);
+      return { targetKey: '/mnt/d/sub/file.txt', displayPath: '/mnt/d/sub/file.txt' };
+    },
+    lstat: async (input: any) => {
+      calls.push(['lstat', input]);
+      return { version: '2096:7:9:100:100', type: 'file', size: 9 };
+    },
+    stat: async () => ({ version: '2096:7:9:100:100' }),
+    writeText: async () => ({ operation: 'update', version: 'wsl' }),
+    editText: async () => ({ version: 'wsl', before: '', after: '' }),
+  };
+  const fs = mntHostFs();
+  attachUncWriteBridge(fs, { distro: 'debian-u8-1', wslFs: wsl });
+  const cwd = '\\\\wsl.localhost\\debian-u8-1\\mnt\\d';
+  const target = await fs.resolve('sub\\file.txt', { cwd });
+  assert.equal(calls[0][1], 'sub/file.txt');
+  assert.equal(target.targetKey, '\\\\wsl.localhost\\debian-u8-1\\mnt\\d\\sub\\file.txt');
+  await fs.lstat('..\\foo.txt', { cwd });
+  assert.equal(calls[1][1], '../foo.txt');
+});
