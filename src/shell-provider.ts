@@ -238,9 +238,29 @@ export function createWslShellProvider(options = {}) {
     }
   };
 
-  /** 在 WSL 里按进程组发信号（TERM / KILL 由调用方分两段发）。 */
-  const signalGroup = (distro, paths, signal) => {
-    const script = `PG=$(cat ${shq(paths.pgid)} 2>/dev/null || true); case "\${PG:-}" in ''|*[!0-9]*) exit 0;; esac; kill -${signal} -- -"$PG" 2>/dev/null || true`;
+  /** 读一次 pgid 记录（WSL /tmp 的 UNC 直读）；没有/不是正整数 ⇒ null。 */
+  const readPgid = (distro, paths) => {
+    try {
+      const raw = String(io.readFileSync(uncFile(distro, paths.pgid), 'utf8')).trim();
+      if (!/^\d+$/.test(raw)) return null;
+      const value = Number(raw);
+      return Number.isSafeInteger(value) && value > 0 ? value : null;
+    } catch {
+      return null;
+    }
+  };
+
+  /**
+   * 在 WSL 里按进程组发信号（TERM / KILL 由调用方分两段发）。
+   * 2026-10-29 review 修复：**不再从文件里读 PGID**，由调用方把读到的数字传进来。
+   * 旧实现让 kill 脚本自己去 `cat` 文件：`settle()` 删文件与异步 kill 脚本读文件之间存在竞态，
+   * 实测「超时（命令 trap TERM）/ 立即 kill」会留下孤儿 `sleep`（pgid 文件已被删 ⇒ 脚本读到空 ⇒ 一发信号都没发）。
+   * @param pgid 目标进程组（调用方已从 pgid 文件读出并校验为正整数）
+   * @param signal `TERM` | `KILL`
+   */
+  const signalGroup = (distro, pgid, signal) => {
+    if (!Number.isSafeInteger(pgid) || pgid <= 0) return;
+    const script = `kill -${signal} -- -${pgid} 2>/dev/null || true`;
     try {
       const child = spawnImpl('wsl.exe', ['-d', distro, '--exec', 'bash', '-c', script], {
         stdio: ['ignore', 'ignore', 'ignore'],
@@ -310,7 +330,9 @@ export function createWslShellProvider(options = {}) {
       }
 
       const stdout = createStream(spec.stdoutMaxBytes);
-      const stderr = createStream(spec.stdoutMaxBytes);
+      // stderr 上限跟 `dsh-bash-local` 一样取 `maxOutputBytes`（不是调用方的 stdoutMaxBytes）：
+      // 两者混用会让"把 stdout 调大"顺手把 stderr 也放大，与上游语义不一致。
+      const stderr = createStream(maxOutputBytes);
       let killed = false;
       let timedOut = false;
       let aborted = false;
@@ -322,9 +344,18 @@ export function createWslShellProvider(options = {}) {
       let stdoutOffset = 0;
       let stderrOffset = 0;
       let terminateTimer = null;
+      let pgidRetryTimer = null;
       let drainTimer = null;
       let deadlineTimer = null;
       let onAbort = null;
+      /** 命令进程组（从 WSL /tmp 的 pgid 文件读出，turn 一次就缓存；kill 一发必须带上它）。 */
+      let knownPgid = null;
+      const currentPgid = () => {
+        if (knownPgid !== null) return knownPgid;
+        const read = readPgid(distro, paths);
+        if (read !== null) knownPgid = read;
+        return knownPgid;
+      };
       const finish = {};
       const done = new Promise((resolve) => {
         finish.resolve = resolve;
@@ -335,6 +366,7 @@ export function createWslShellProvider(options = {}) {
         settled = true;
         if (deadlineTimer) clearTimeout(deadlineTimer);
         if (terminateTimer) clearTimeout(terminateTimer);
+        if (pgidRetryTimer) clearTimeout(pgidRetryTimer);
         if (drainTimer) clearTimeout(drainTimer);
         if (onAbort && spec.signal) {
           try {
@@ -343,8 +375,13 @@ export function createWslShellProvider(options = {}) {
             /* ignore */
           }
         }
-        // 正常结束时的组内孤儿由 wrapper 脚本自己收（见 buildScript）；只有我们主动 kill 才在这里补刀
-        if (killed || timedOut || aborted) signalGroup(distro, paths, 'KILL');
+        // 正常结束时的组内孤儿由 wrapper 脚本自己收（见 buildScript）；只有我们主动 kill 才在这里补刀。
+        // 2026-10-29 review：这里必须用**缓存的数字**（或再读一次）发 KILL —— 不能依赖 kill 脚本回头读文件，
+        // settle 会立刻删掉它。
+        if (killed || timedOut || aborted) {
+          const pgid = currentPgid();
+          if (pgid !== null) signalGroup(distro, pgid, 'KILL');
+        }
         removeTemp(distro, paths);
         // 被我们杀掉的进程没有"自己的退出码"语义：与 dsh-bash-local 一致地报 null，
         // 让工具面用 killed/timedOut 分类，而不是把 bash 的 143 渲染成"命令失败"。
@@ -381,9 +418,22 @@ export function createWslShellProvider(options = {}) {
           if (settled) return false;
           if (killed) return false;
           killed = true;
-          signalGroup(distro, paths, 'TERM');
+          const pgid = currentPgid();
+          if (pgid !== null) {
+            signalGroup(distro, pgid, 'TERM');
+          } else {
+            // 命令可能还没把 PGID 写出来（wsl.exe 启动 ~100ms）：短轮询一次，
+            // 否则"kill 太早"会既不杀命令、又在宽限后只杀 wsl.exe ⇒ Linux 侧留孤儿（实测）。
+            pgidRetryTimer = setTimeout(() => {
+              if (settled) return;
+              const late = currentPgid();
+              if (late !== null) signalGroup(distro, late, 'TERM');
+            }, 120);
+            pgidRetryTimer.unref?.();
+          }
           terminateTimer = setTimeout(() => {
-            signalGroup(distro, paths, 'KILL');
+            const finalPgid = currentPgid();
+            if (finalPgid !== null) signalGroup(distro, finalPgid, 'KILL');
             try {
               child.kill('SIGKILL');
             } catch {

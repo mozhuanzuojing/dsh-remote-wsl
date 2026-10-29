@@ -62,8 +62,15 @@ function ioStub() {
   const writes = new Map();
   const removed = [];
   return {
+    /** 模拟 WSL 侧脚本写出的 pgid（测试可按需改写；null = 文件还没出现）。 */
+    pgid: '4242',
     writeFileSync(path, body, opts) {
       writes.set(path, { body: String(body), opts });
+    },
+    readFileSync(path) {
+      if (!String(path).endsWith('.pgid')) throw new Error(`ENOENT: ${path}`);
+      if (this.pgid === null) throw new Error(`ENOENT: ${path}`);
+      return String(this.pgid);
     },
     unlinkSync(path) {
       removed.push(path);
@@ -216,19 +223,41 @@ test('execute：正常退出 → status=completed、exitCode 保留（非零不�
 
 test('execute：kill() 先 TERM 进程组、宽限后 KILL 并兜底杀 wsl.exe；status=killed', async () => {
   const io = ioStub();
+  io.pgid = '4242';
   const child = fakeChild();
-  const cleanup = fakeChild();
-  const spawn = spawnStub([child, cleanup, cleanup]);
+  const spawn = spawnStub([child, fakeChild(), fakeChild(), fakeChild()]);
   const p = providerOf({ shellGraceMs: 20 }, { io, spawn });
   const proc = await p.execute(p.resolve({ command: 'sleep 100' }));
   assert.equal(proc.kill(), true);
   assert.equal(proc.kill(), false, 'kill 必须幂等');
-  assert.match(spawn.calls[1].argv.join(' '), /kill -TERM/);
+  assert.match(spawn.calls[1].argv.join(' '), /kill -TERM -- -4242/);
   await flush(60);
   assert.equal(child.killedWith, 'SIGKILL', '宽限到点必须兜底杀 wsl.exe');
+  assert.ok(
+    spawn.calls.slice(2).some((call) => /kill -KILL -- -4242/.test(call.argv.join(' '))),
+    '宽限到点必须对同一进程组发 KILL',
+  );
   const result = await proc.result();
   assert.equal(proc.status, 'killed');
   assert.equal(result.exitCode, null);
+});
+
+test('execute：kill 时 pgid 文件还没出现 ⇒ 短轮询重读后再发 TERM（否则只杀 wsl.exe 会留孤儿）', async () => {
+  const io = ioStub();
+  io.pgid = null;
+  const child = fakeChild();
+  const spawn = spawnStub([child, fakeChild(), fakeChild()]);
+  const p = providerOf({ shellGraceMs: 500 }, { io, spawn });
+  const proc = await p.execute(p.resolve({ command: 'sleep 100' }));
+  assert.equal(proc.kill(), true);
+  io.pgid = '7777';
+  await flush(200);
+  assert.ok(
+    spawn.calls.some((call) => /kill -TERM -- -7777/.test(call.argv.join(' '))),
+    '重读后必须补发 TERM',
+  );
+  child.emit('close', null, 'SIGKILL');
+  await proc.result();
 });
 
 test('execute：超时 → timedOut=true、timeoutMs 原样回显、status=killed', async () => {
@@ -278,6 +307,19 @@ test('execute：输出超过上限 → 内容截断、truncated=true，但读偏
   const result = await proc.result();
   assert.equal(result.stdout.text, 'aaaaaaaa');
   assert.equal(result.stdout.truncated, true);
+});
+
+test('execute：stderr 上限始终按 shellMaxOutputBytes，不随调用方 stdoutMaxBytes 放大', async () => {
+  const io = ioStub();
+  const child = fakeChild();
+  const p = providerOf({ shellMaxOutputBytes: 8 }, { io, spawn: spawnStub([child]) });
+  const proc = await p.execute(p.resolve({ command: 'x', stdoutMaxBytes: 4096 }));
+  child.stderr.emit('data', Buffer.from('e'.repeat(64)));
+  child.emit('close', 0, null);
+  const result = await proc.result();
+  assert.equal(result.stderr.text.length, 8, 'stderr 仍应被 8 字节上限截断');
+  assert.equal(result.stderr.truncated, true);
+  assert.equal(result.stdout.truncated, false);
 });
 
 test('execute：stdin 透传并在无输入时也要关闭（否则读 stdin 的命令会挂死）', async () => {

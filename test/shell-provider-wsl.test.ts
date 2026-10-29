@@ -99,13 +99,38 @@ test('真实 WSL：kill() 结束进程组（后台子进程不留在发行版里
   assert.equal(result.exitCode, null);
   // 发行版里不应该再有这个 sleep（给 3s 宽限）
   await new Promise((resolve) => setTimeout(resolve, 3000));
+  assert.equal(await countExactProcess('sleep 30'), 0, 'kill 之后仍有 sleep 30 存活');
+});
+
+/** 统计发行版里 cmdline **完全等于**给定字符串的进程数（避免 pgrep 把外层 bash 的命令行也算进来）。 */
+async function countExactProcess(args) {
   const check = await (
-    await provider().execute(
-      provider().resolve({ command: `ps -eo args= | grep -c '^sleep 30$' || true` }),
-    )
+    await provider().execute(provider().resolve({ command: `ps -eo args= | grep -cx '${args}' || true` }))
   ).result();
-  const alive = Number.parseInt(check.stdout.text.trim(), 10);
-  assert.equal(Number.isFinite(alive) ? alive : 0, 0, `kill 之后仍有 sleep 进程存活：${check.stdout.text}`);
+  const count = Number.parseInt(check.stdout.text.trim(), 10);
+  return Number.isFinite(count) ? count : 0;
+}
+
+test('真实 WSL：超时 + 命令 trap 了 TERM 时也必须用 KILL 回收（无孤儿）', { skip }, async () => {
+  // 2026-10-29 review 回归：旧实现让 kill 脚本回头 `cat` pgid 文件，settle 先删文件 ⇒ 一发信号都没发，
+  // 「trap "" TERM; sleep 41」在超时后留下孤儿。现在 pgid 由调用方读出并随脚本传参。
+  const p = provider();
+  const proc = await p.execute(p.resolve({ command: `bash -c 'trap "" TERM; sleep 41'`, timeoutMs: 250 }));
+  const result = await proc.result();
+  assert.equal(result.timedOut, true);
+  await new Promise((resolve) => setTimeout(resolve, 3500)); // 宽限 3s 之后
+  assert.equal(await countExactProcess('sleep 41'), 0, '超时后仍有 trap TERM 的 sleep 41 存活');
+});
+
+test('真实 WSL：命令刚起就 kill（pgid 文件可能还没写）也不留孤儿', { skip }, async () => {
+  // 2026-10-29 review 回归：kill 太早 ⇒ 旧实现只杀 wsl.exe，Linux 侧 sleep 变孤儿。
+  const p = provider();
+  const proc = await p.execute(p.resolve({ command: 'sleep 47' }));
+  assert.equal(proc.kill(), true);
+  const result = await proc.result();
+  assert.equal(proc.status, 'killed');
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  assert.equal(await countExactProcess('sleep 47'), 0, '立即 kill 后仍有 sleep 47 存活');
 });
 
 test('真实 WSL：输出上限生效且标 truncated', { skip }, async () => {
