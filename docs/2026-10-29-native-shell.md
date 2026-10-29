@@ -13,6 +13,7 @@
 | `ctx.shell` 在 preset 的 isolate realm 里可被**纯 JS 对象**替换 | ✅ 已实现并挂载 | §3；探针宿主启动日志「WSL preset 已注册（plugins=19）」，`broken` 为空 ⇒ 无失败行、无等待行 |
 | WSL preset 里的 `bash` 工具执行**发生在 WSL 内** | ✅ 执行器层已验证（单元 18 条 + 真机 7 条） | §5；`test/shell-provider*.test.ts` |
 | 真模型 → `bash` 工具 → WSL 的**整链路** | 🟡 **未验证** | §6 说明为什么两条现成路径都不通，以及用户侧 2 分钟验法 |
+| P2 host 路径（`create({agentPreset:'wsl'})` 真的被宿主应用） | ✅ 已验证 | 隔离 web 探针 `POST /remote-wsl/api explorer.newSession {path:'/home/g'}` → `{presetApplied:true, agentPreset:'wsl', sessionId:'session-f2351880…'}`（2026-10-29 11:40） |
 | 终端（PTY）仍在宿主 | ⛔ 未动 | 属 P1（HANDOFF 第九版路线 A/B） |
 | daemon 新增 `{op:'exec'}` RPC | ⛔ 未做（按 §4 的取舍，本轮走直连 `wsl.exe`） | §4 |
 
