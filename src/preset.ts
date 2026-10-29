@@ -30,6 +30,13 @@ import { normalizeConfig } from './config.ts';
 export const name = 'dsh-remote-wsl-preset';
 export const inject = [];
 
+/**
+ * `wsl` preset 的**唯一权威 id**（2026-10-29 Standards review：之前 `'wsl'` 字面量散在 preset/explorer/
+ * client 三处）。宿主侧消费者（`explorer.newSession` 的 `agentPreset`）从这里 import；client 半是手写
+ * 独立 bundle、拿不到 TS 模块，只能保留字面量并由 `test/explorer-new-session.test.ts` 锁住一致性。
+ */
+export const WSL_PRESET_ID = 'wsl';
+
 // 2026-10-24：preset 行名必须用**包内子路径**，不能用绝对文件路径。
 // 实测（隔离实例 `/api/agentPresets/list`）：绝对路径 `D:/.../src/fs-provider.ts` 在 preset 的
 // EntryTree 里 import 失败，两行都显示 "never started" ⇒ preset 标记 broken、UI 下拉里看不到。
@@ -181,7 +188,7 @@ export function apply(ctx, rawConfig = {}) {
     child.effect(() => {
       presets
         .register({
-          id: 'wsl',
+          id: WSL_PRESET_ID,
           name: 'WSL（远程执行世界）',
           description:
             '文件工具、grep/glob 与 bash 都在 WSL 发行版内原生执行（不经过 \\\\wsl.localhost 的 9P 共享）；终端（PTY）仍由宿主提供。',

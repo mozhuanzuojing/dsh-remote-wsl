@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 
 import { DEFAULTS } from '../src/config.ts';
 import { createExplorerHandlers } from '../src/explorer.ts';
+import { WSL_PRESET_ID } from '../src/preset.ts';
 
 /** 已解析的目标（`distro` + `wslHome` 都有值 ⇒ `targetProblem()` 为 null，`resolveDistro()` 不再探测）。 */
 const CFG = { ...DEFAULTS, distro: 'debian', wslHome: '/home/g', cwd: '/home/g' };
@@ -100,7 +101,8 @@ test('P2：explorer.newSession 默认把 agentPreset="wsl" 交给宿主（cwd = 
   const result = await handlers['explorer.newSession']({ path: LINUX_PATH });
 
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], { cwd: UNC_DEBIAN, agentPreset: 'wsl' });
+  assert.equal(WSL_PRESET_ID, 'wsl', 'preset id 的唯一权威在 preset.ts；client 半的字面量必须与它一致');
+  assert.deepEqual(calls[0], { cwd: UNC_DEBIAN, agentPreset: WSL_PRESET_ID });
   assert.equal(result.ok, true);
   assert.equal(result.sessionId, 'session-a');
   assert.equal(result.cwd, UNC_DEBIAN);

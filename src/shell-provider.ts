@@ -35,20 +35,18 @@
  */
 import { spawn as nodeSpawn } from 'node:child_process';
 import fs from 'node:fs';
-import { normalizeConfig } from './config.ts';
+import { DEFAULTS as CONFIG_DEFAULTS, normalizeConfig } from './config.ts';
 import { shq } from './shell-quote.ts';
-import { parseWslUncPath } from './unc-path.ts';
+import { parseWslUncPath, wslUncPath } from './unc-path.ts';
 
 export const name = 'dsh-remote-wsl-shell';
 export const inject = [];
 
-/** 与 `dsh-bash-local` 同名的默认值（不复刻实现，只为让工具面行为一致；可用配置覆盖）。 */
-const DEFAULTS = {
-  timeoutMs: 120000,
-  maxTimeoutMs: 600000,
-  maxOutputBytes: 64 * 1024,
-  graceMs: 3000,
-};
+/**
+ * 与 `dsh-bash-local` 同值的回落只在**测试缝**（`options.cfg` 直接注入）缺键时用；
+ * 生产路径 `normalizeConfig()` 已把这些键填好 —— 所以数值真相只有 `config.ts` DEFAULTS 一份，
+ * 这里不再复制一份字面量（2026-10-29 Standards review 的 Duplicated Code 项）。
+ */
 
 /** 模型友好环境：关掉颜色/分页器（与 bash-local 的 ENV_OVERRIDES 一致）。 */
 const ENV_OVERRIDES = { NO_COLOR: '1', TERM: 'dumb', PAGER: 'cat', GIT_PAGER: 'cat' };
@@ -213,10 +211,12 @@ function createStream(maxBytes, spill = null) {
   };
 }
 
-/** WSL UNC 根（`\\wsl.localhost\<distro>`）。 */
-const uncRoot = (distro) => `\\\\wsl.localhost\\${distro}`;
-/** `/tmp/a.sh` → `\\wsl.localhost\<distro>\tmp\a.sh` */
-const uncFile = (distro, linuxPath) => `${uncRoot(distro)}${linuxPath.split('/').join('\\')}`;
+/**
+ * `/tmp/a.sh` → `\\wsl.localhost\<distro>\tmp\a.sh`。
+ * **复用** `unc-path.wslUncPath`（含 F-23 反斜杠守卫），不再自拼 UNC 前缀 —— 2026-10-29 Standards
+ * review：src 里"Linux 路径→UNC"曾有 4 份，重复的正是仓库修过的坑。
+ */
+const uncFile = (distro, linuxPath) => wslUncPath(distro, linuxPath);
 
 /**
  * 造一个 WSL shell 执行器（纯对象，不 import 任何 `@deepseek-ai/*`）。
@@ -231,8 +231,8 @@ export function createWslShellProvider(options = {}) {
   const spawnImpl = options.spawn ?? nodeSpawn;
   const now = options.now ?? (() => Date.now());
   const io = options.io ?? fs;
-  const graceMs = positive(cfg.shellGraceMs, DEFAULTS.graceMs);
-  const maxOutputBytes = positive(cfg.shellMaxOutputBytes, DEFAULTS.maxOutputBytes);
+  const graceMs = positive(cfg.shellGraceMs, CONFIG_DEFAULTS.shellGraceMs);
+  const maxOutputBytes = positive(cfg.shellMaxOutputBytes, CONFIG_DEFAULTS.shellMaxOutputBytes);
   /** 活着的 handle：组合销毁时要按 `dsh-shell` 契约「stop and await」（见 apply 的 effect）。 */
   const live = new Set();
 
@@ -363,8 +363,8 @@ export function createWslShellProvider(options = {}) {
         throw new Error('remote-wsl shell: stdoutMaxBytes must be a positive finite number');
       }
       const workdir = toLinuxWorkdir(request?.workdir, cfg);
-      const max = positive(cfg.shellMaxTimeoutMs, DEFAULTS.maxTimeoutMs);
-      const base = positive(cfg.shellTimeoutMs, DEFAULTS.timeoutMs);
+      const max = positive(cfg.shellMaxTimeoutMs, CONFIG_DEFAULTS.shellMaxTimeoutMs);
+      const base = positive(cfg.shellTimeoutMs, CONFIG_DEFAULTS.shellTimeoutMs);
       const timeoutMs = Math.min(request?.timeoutMs ?? base, max);
       const stdoutMaxBytes = request?.stdoutMaxBytes ?? maxOutputBytes;
       return {

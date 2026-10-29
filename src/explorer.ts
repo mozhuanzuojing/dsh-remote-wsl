@@ -64,6 +64,7 @@ import { readWslOutput } from './wsl-output.ts';
 import { parseWslDistroTable } from './distro-table.ts';
 import { targetProblem, NO_DISTRO_REASON, NO_HOME_REASON } from './config.ts';
 import { asConfigText } from './target-detect.ts';
+import { WSL_PRESET_ID } from './preset.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -437,8 +438,9 @@ function readWorkspaces(cfg) {
  * @param deps.resolveVersion  index.ts 的 `resolveVersion()` —— 版本/pin/drift 的同一个
  * @param deps.writePin        index.ts 的 `writePin()` —— `wsl_sync_version` 写 pin 的同一个
  * @param deps.webHosts        index.ts 的 `webHosts` Map（port → WebHost）—— `wsl_open_ui` 的同一个
- * @param deps.workspaceRegistry 取 host 的 `workspaceRegistry` 服务的闭包（`addWorkspace` 登记 / `newSession`
- *                             用 workspaceId 时查 path）；服务缺失 ⇒ 返回 undefined，由方法自己给可读 503/400
+ * @param deps.workspaceRegistry 取 host 的 `workspaceRegistry` 服务的闭包（`addWorkspace` 登记；`newSession`
+ *                             用 workspaceId 时**尽力**查 path）；服务缺失 ⇒ 返回 undefined，`newSession` **跳过**
+ *                             这层报告面校验（workspace not-found 由宿主 `create` 负责），不是 503/400 的来源
  * @param deps.sessionController 取 host 的 `sessionController` 服务的闭包（`newSession` 建真会话；
  *                              `create({cwd|workspaceId, agentPreset})`，契约见 `newSession` 的注释）
  * @param deps.distroStateProbe **可选测试缝**：注入 `() => {defaultName,running,ok}` 以在不起发行版、
@@ -1024,10 +1026,10 @@ export function createExplorerHandlers(deps) {
   }
 
 /**
- * 本插件注册的 WSL preset 的 id（权威：`src/preset.ts` 的 `agentPresets.register({ id: 'wsl' })`）。
- * 面板「在此目录新建会话」默认就落这个 preset（HANDOFF 第九版 P2）。
+ * 本插件注册的 WSL preset id：**唯一权威在 `src/preset.ts` 的 `WSL_PRESET_ID`**（2026-10-29 Standards
+ * review：这里曾再写一遍字面量）。面板「在此目录新建会话」默认就落这个 preset（HANDOFF 第九版 P2）。
  */
-const WSL_PRESET_ID = 'wsl';
+
 
 /**
  * 宿主的 `sessionController.create` 是不是**因为 preset** 拒的（P2 降级判据）。
