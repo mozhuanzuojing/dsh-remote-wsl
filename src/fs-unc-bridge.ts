@@ -105,6 +105,11 @@ function isBridgeInput(input: any, opts: any, distro: string): boolean {
   const unc = parseUnc(raw);
   if (unc !== null) return unc.distro.toLowerCase() === distro.toLowerCase();
   if (/^[A-Za-z]:[\\/]/.test(raw)) return false;
+  // cwd 落在 /mnt 时，相对路径即使写成 `sub\file`（Windows 习惯）也应是 WSL 的 DrvFs 路径。
+  if (isUncForDistro(opts?.cwd, distro)) {
+    const cwdUnc = parseUnc(String(opts.cwd))!;
+    if (isMntLinuxPath(cwdUnc.linuxPath) && !raw.startsWith('\\\\')) return true;
+  }
   if (raw.includes('\\')) return false;
   if (isPosixAbsolute(raw)) {
     return isUncForDistro(opts?.cwd, distro) || isMntLinuxPath(raw);
@@ -185,9 +190,17 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
 
   const resolveViaWsl = async (input: any, opts: any) => {
     const target = await callWsl('resolve', input, opts);
-    // 绝对 UNC 输入保留用户看到的 \\wsl.localhost\… 形式；相对路径用 WSL 解析出的绝对 Linux 路径。
     const raw = String(input ?? '');
-    const displayPath = isUncForDistro(raw, distro) ? raw : String(target.displayPath ?? target.targetKey);
+    let displayPath: string;
+    if (isUncForDistro(raw, distro)) {
+      // 绝对 UNC 输入保留用户看到的 \\wsl.localhost\… 形式。
+      displayPath = raw;
+    } else if (isUncForDistro(opts?.cwd, distro) && !isPosixAbsolute(raw)) {
+      // 相对路径基于 UNC cwd 时，保留 UNC 展示形式，避免 read 的 <path> 变成 Linux 路径。
+      displayPath = `${String(opts.cwd).replace(/[\\/]+$/, '')}\\${raw.replace(/\//g, '\\')}`;
+    } else {
+      displayPath = String(target.displayPath ?? target.targetKey);
+    }
     return { targetKey: uncPath(distro, target.targetKey), displayPath };
   };
 
@@ -259,8 +272,9 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
       // 必须采用 WSL targetKey，后续 write 才会走 native /mnt 分支。
       if (isMntTarget(wslResult, distro)) return wslResult;
       if (await wslStat(wslFs, toWslTarget(wslResult), opts?.signal)) return wslResult;
-    } catch {
-      /* WSL 也不可用/不认路径：保持宿主结果，让后续 read 报原来的 FS_NOT_FOUND */
+    } catch (error) {
+      // WSL 解析/读取失败不能被静默改写成宿主词法路径（否则 symlink→/mnt 会伪报 not found）。
+      throw error;
     }
     return hostResult;
   };
@@ -280,8 +294,8 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
     if (hostResult !== undefined) return hostResult;
     try {
       return await callWsl('lstat', input, opts, signal);
-    } catch {
-      return hostResult;
+    } catch (error) {
+      throw error;
     }
   };
 

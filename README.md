@@ -381,6 +381,9 @@ node --experimental-strip-types --test test/*.test.ts
 npm run check
 npm test
 
+# 真实 WSL /mnt 读桥探针（可复现；会启动守护，需 WSL 侧可用）
+node --experimental-strip-types scripts/probe-unc-bridge.ts "\\\\wsl.localhost\\debian-u8-1\\mnt\\d\\path\\to\\file"
+
 # 装上 pre-push 钩子（可选：有配置 GitHub 代理时，推送前会探测代理可达性）
 npm run hooks
 ```
