@@ -25,8 +25,8 @@
 | `src/preset.ts` | `wsl-world` 组从 `isolate: { fs }` 扩成 `isolate: { fs, shell }`；组内新增 `shell-wsl` 行与 `tool-bash` 行；删掉宿主平面上的 `tool-bash`（win32 原本 `disabled`）与 `tool-pwsh`。 |
 | `src/config.ts` | 新增 4 个配置项：`shellTimeoutMs`(120s)、`shellMaxTimeoutMs`(600s)、`shellMaxOutputBytes`(64KiB)、`shellGraceMs`(3s)，与 `dsh-bash-local` 默认值同值。 |
 | `package.json` | `exports` 加 `./shell-provider`（preset 行名必须走包内子路径，实测绝对路径会 never started）。 |
-| `test/shell-provider.test.ts` | 18 条：路径翻译、resolve 夹紧、脚本构造、增量读、UTF-8 边界、kill/超时/abort、spawn error、截断、stdin、distro 未解析、/tmp 写不进。 |
-| `test/shell-provider-wsl.test.ts` | 7 条真机：`uname -s`=Linux、退出码/stderr/workdir、env+stdin、超时、进程组回收、输出上限。非 win32 或无 `wsl.exe` ⇒ 整组 skip（不是假通过）。 |
+| `test/shell-provider.test.ts` | 20 条：路径翻译、resolve 夹紧、脚本构造、增量读、UTF-8 边界、kill/超时/abort、spawn error、截断、stdin、distro 未解析、/tmp 写不进。 |
+| `test/shell-provider-wsl.test.ts` | 9 条真机：`uname -s`=Linux、退出码/stderr/workdir、env+stdin、超时、进程组回收、输出上限。非 win32 或无 `wsl.exe` ⇒ 整组 skip（不是假通过）。 |
 
 ## 3. 契约（事实，带行号）
 
@@ -70,8 +70,8 @@ node(宿主) --spawn--> wsl.exe -d <distro> --exec bash /tmp/dsh-rwsl-shell-<tok
 ```powershell
 cd D:\project\dsh1\dsh-remote-wsl
 node --experimental-strip-types scripts/check-syntax.ts          # 32 TS + 13 JS，OK
-node --experimental-strip-types --test test/shell-provider.test.ts          # 18/18
-node --experimental-strip-types --test test/shell-provider-wsl.test.ts      # 7/7（真 WSL）
+node --experimental-strip-types --test test/shell-provider.test.ts          # 20/20
+node --experimental-strip-types --test test/shell-provider-wsl.test.ts      # 9/9（真 WSL）
 node --experimental-strip-types --test test/*.test.ts                       # 全量，见本轮报告数字
 ```
 
@@ -115,3 +115,17 @@ dsh web: http://127.0.0.1:8917/?token=…
 | `_work/wsl-native/probe/headless-e2e.jsonl` | headless 探针的 `--json` 事件流（证伪 headless 路径） |
 
 探针 profile（**可随时删**）：`%TEMP%\rwsl-native-home\profiles\rwslprobe`（隔离宿主）、`~\.dsh\profiles\rwslprobe` / `~\.dsh\profiles\rwslheadless`（真实 home 下的探针 profile，仅含 junction 与 patch）。
+
+## 9. Review 记录（2026-10-29，提交 `8178b48`）
+
+**P1（已修）**：`kill`/超时路径会留下 Linux 侧孤儿。根因：旧 kill 脚本让 WSL 侧自己 `cat` pgid 文件，
+而 `settle()` 会立刻删文件 ⇒ 「超时（命令 trap 了 TERM）」「命令刚起就 kill」两种路径下 TERM/KILL 脚本
+读到空 PGID，只剩 `child.kill(SIGKILL)` 杀掉 `wsl.exe`，Linux 侧 `sleep` 变孤儿（实测复现：`sleep 41` / `sleep 47`）。
+修复：PGID 由宿主侧 `readFileSync` 读出并**随脚本传参**；kill 时读不到 ⇒ 120ms 后重读补发 TERM；
+宽限到点用缓存值发 KILL；`settle` 对被强制结束的组再补一发 KILL。
+**P3（已修）**：stderr 保留上限误用调用方 `stdoutMaxBytes`，改为与 `dsh-bash-local` 一致的 `maxOutputBytes`。
+**保留（S3 / 已知限制）**：`set -m` 不可用时只会退化为"杀掉 wsl.exe、Linux 侧可能留孤儿"（不会误杀别的组）；
+每命令一次 `wsl.exe`（~40–90ms）；无 spill 文件；正常结束会清掉命令自己 `&` 的后台子进程（与 jobs 的
+`run_in_background` 是两条路，后者应该用 jobs）；`kill -TERM -- -PGID` 的 pid 复用窗口极小但存在。
+**证据**：单测 20/20（新增「pgid 文件缺失时轮询重读」「stderr 不随 stdoutMaxBytes 放大」）；
+真机 9/9（新增「trap TERM 的超时无孤儿」「立即 kill 无孤儿」）；全量 196 tests / 184 pass / 0 fail / 12 skip。
