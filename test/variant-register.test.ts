@@ -94,7 +94,7 @@ test('registerWslVariants：dispose 释放本次注册的变体', async () => {
   assert.deepEqual(disposed, ['wsl-standard']);
 });
 
-test('registerWslVariants：源 preset 含 !!js 时明确失败，不注册坏 preset', async () => {
+test('registerWslVariants：源 preset 的 !!js 表达式保留为 __jsExpr，交给宿主 loader 求值', async () => {
   const registered = [];
   const presets = {
     list: async () => [{ id: 'standard' }],
@@ -105,6 +105,8 @@ test('registerWslVariants：源 preset 含 !!js 时明确失败，不注册坏 p
     },
   };
   const result = await registerWslVariants(presets);
-  assert.equal(registered.length, 0, '含 !!js 时不得注册');
-  assert.ok(result.failures.some((line) => line.includes('!!js')), JSON.stringify(result.failures));
+  assert.equal(registered.length, 1, '!!js 行不应阻止变体注册');
+  assert.equal(result.registered[0], 'wsl-standard');
+  const row = registered[0].plugins.find((entry) => entry.id === 'persona');
+  assert.equal(row.name.__jsExpr, 'process.env.X');
 });

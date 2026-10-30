@@ -29,13 +29,7 @@ function variantDescription(id) {
   return `WSL execution world for ${display}: bash and file tools run inside the WSL distribution.`;
 }
 
-/** `!!js` 表达式目前只被解析成占位对象；变体无法求值，宁可明确失败也不注册一个坏 preset。 */
-function containsJsExpr(value) {
-  if (Array.isArray(value)) return value.some(containsJsExpr);
-  if (!value || typeof value !== 'object') return false;
-  if (Object.prototype.hasOwnProperty.call(value, '__jsExpr')) return true;
-  return Object.values(value).some(containsJsExpr);
-}
+/** `!!js` 表达式按 DSH entry-list 方言保留为 `__jsExpr` 节点，由宿主 loader 在实际挂载时求值。 */
 
 async function readComposition(presets, row) {
   if (typeof presets.readDocument === 'function') {
@@ -119,7 +113,6 @@ export async function registerWslVariants(presets, log = () => {}, options = {})
       // 右侧栏终端后端：每个 WSL 变体都挂 wsl-terminal（宿主自带 terminal UI/注册表）。
       // 源预设若已带同名组则不重复（避免 loader 的 duplicate entry id）。
       const plugins = await parseVariantComposition(transformed);
-      if (containsJsExpr(plugins)) throw new Error('源 preset 含 !!js 表达式，变体暂不支持求值');
       const dispose = await presets.register({
         id: variantId,
         name: variantName(id),
