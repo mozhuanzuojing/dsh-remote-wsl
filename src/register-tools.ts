@@ -253,6 +253,32 @@ function describeWslTermination(res) {
 }
 
 /**
+ * `wsl_status` 的 WSL 命令通道健康度（纯函数，便于单测）。
+ *
+ * 为什么要单独报：daemon TCP 还活着 ≠ 新 `wsl.exe` 进程能跑。实测 WSL VM 卡住/OOM 时，
+ * `wsl.exe --exec` 会一直不返回，而既有 daemon socket 仍能握手；只看 daemon 会把问题误报成
+ * 「守护正常」。这里把 `killedBy` 结构化事实翻成可操作结论，并明确插件**不会**自动杀 WSL/守护。
+ *
+ * @param res `runWsl` 的返回值；`null`/`undefined` = 没有探测
+ */
+export function wslExecHealthNote(res) {
+  if (!res) return 'not-probed';
+  const kind = res?.killedBy;
+  if (kind === 'timeout') {
+    return '⚠️ timeout（wsl.exe 新进程超时；daemon 可能仍 running，疑似 WSL VM/资源卡住；先 wsl --shutdown 后重试，插件不会自动杀）';
+  }
+  if (kind === 'abort') return '⚠️ aborted（本次状态查询被取消）';
+  if (kind === 'signal') return `⚠️ signal ${res?.killedBySignal ?? 'unknown'}（wsl.exe 被信号终止）`;
+  if (kind === null) return '⚠️ not-started（wsl.exe 未启动，见 stderr）';
+  const code = res?.exitCode;
+  if (code !== 0) {
+    const tail = String(res?.stderr ?? '').trim().split('\n').filter(Boolean).slice(-1)[0] ?? '';
+    return `⚠️ exit ${code}${tail ? `（${tail}）` : ''}`;
+  }
+  return 'ok';
+}
+
+/**
  * 把「会话内重探」的结果渲染成输出行（**纯函数**，便于单测；A-P2-E / 复核 S2-4、S3-3、S5）。
  *
  * 单独抽出来的理由：`wsl_status.execute` 已经很长，重探渲染与路线告警是两件无关的事（Divergent Change）；
@@ -347,7 +373,7 @@ export function registerTools(deps) {
           pidFiles = '(跳过：目标发行版未确定)';
         } else {
           const res = await runWsl(config, 'find /tmp -maxdepth 1 -name "dsh-rwsl-*.pid" -print | wc -l\n', {
-            timeoutMs: 20000,
+            timeoutMs: 8000,
             signal: exec?.signal,
           });
           pidFiles = (res.stdout || '').trim() || '0';
@@ -359,14 +385,16 @@ export function registerTools(deps) {
         let ip = '(未探测)';
         let dlx = '(未探测)';
         let identity = targetIssue ? '(跳过：目标发行版未确定)' : '(未探测)';
+        let wslExecNote = targetIssue ? '(跳过：目标发行版未确定)' : '(未探测)';
         if (!targetIssue && distros.includes(config.distro)) {
           const res = await runWsl(
             config,
             `${shellPreamble(config)}hostname -I
 echo ${MARK}
 ${dlxInventoryScript({ wslHome: config.wslHome })}`,
-            { timeoutMs: 40000, signal: exec?.signal },
+            { timeoutMs: 12000, signal: exec?.signal },
           );
+          wslExecNote = wslExecHealthNote(res);
           const lines = res.stdout.split('\n').map((s) => s.trim());
           const at = lines.indexOf(MARK);
           if (at >= 0) {
@@ -377,27 +405,35 @@ ${dlxInventoryScript({ wslHome: config.wslHome })}`,
             // 哨兵缺失 ⇒ 脚本没跑到。这里**不能**报 "none"（那是"确认没装"的意思，会臆造事实）
             ip = `(探测失败: ${res.stderr.trim().split('\n').filter(Boolean).slice(-1)[0] ?? ''})`;
             dlx = '(探测失败)';
+            if (wslExecNote === 'ok') wslExecNote = '⚠️ 输出不完整（缺少哨兵，不能当成"没有"）';
           }
           // ZCode 对照（2026-10-29 第三轮）：不只报配置值，报**实际** WSL 身份/平台/架构；
           // 便于发现 root/default user 差异和 arm64 工具供给问题。单独一次调用，异常不阻断状态主体。
-          const idRes = await runWsl(
-            config,
-            `${shellPreamble(config)}printf '%s\\n' "\${WSL_DISTRO_NAME:-}"
+          // 若上面已经 timeout，再发一次 wsl.exe 只会白等：明确跳过并保留根因。
+          if (res.killedBy === 'timeout') {
+            identity = '(跳过：WSL 命令通道超时)';
+          } else {
+            const idRes = await runWsl(
+              config,
+              `${shellPreamble(config)}printf '%s\\n' "\${WSL_DISTRO_NAME:-}"
 id -un
 printf '%s\\n' "$HOME"
 uname -s
 uname -m
 `,
-            { timeoutMs: 20000, signal: exec?.signal },
-          );
-          const idLines = idRes.stdout.split('\n').map((s) => s.trim());
-          if (idRes.exitCode === 0 && idLines.length >= 5) {
-            const [actualDistro, actualUser, actualHome, platform, arch] = idLines;
-            identity =
-              `distro=${actualDistro || config.distro} user=${actualUser || '(unknown)'} ` +
-              `home=${actualHome || config.wslHome || '(unresolved)'} platform=${platform || '(unknown)'} arch=${arch || '(unknown)'}`;
-          } else {
-            identity = `(探测失败: ${idRes.stderr.trim().split('\n').filter(Boolean).slice(-1)[0] ?? `exit ${idRes.exitCode}`})`;
+              { timeoutMs: 5000, signal: exec?.signal },
+            );
+            const idHealth = wslExecHealthNote(idRes);
+            if (idHealth !== 'ok') wslExecNote = idHealth;
+            const idLines = idRes.stdout.split('\n').map((s) => s.trim());
+            if (idRes.exitCode === 0 && idLines.length >= 5) {
+              const [actualDistro, actualUser, actualHome, platform, arch] = idLines;
+              identity =
+                `distro=${actualDistro || config.distro} user=${actualUser || '(unknown)'} ` +
+                `home=${actualHome || config.wslHome || '(unresolved)'} platform=${platform || '(unknown)'} arch=${arch || '(unknown)'}`;
+            } else {
+              identity = `(探测失败: ${idRes.stderr.trim().split('\n').filter(Boolean).slice(-1)[0] ?? `exit ${idRes.exitCode}`})`;
+            }
           }
         }
 
@@ -532,6 +568,7 @@ uname -m
             : []),
           `target: ${config.distro || '(未解析)'}  wslHome=${config.wslHome || '(未解析)'}  cwd=${config.cwd || '(未解析)'}`,
           `identity: ${identity}`,
+          `wsl exec: ${wslExecNote}`,
           ...renderRedetectResult(redetectResult, config),
           `wsl ip: ${ip}`,
           `shell env injection (useShellEnvironment): ${config.useShellEnvironment === false ? 'off' : 'on'}（只注入常驻进程 wsl_agent / wsl_open_ui；wsl_exec 的一次性路径不注入）`,

@@ -520,6 +520,24 @@ export async function handshake(cfg, port, token, timeoutMs) {
 
 /** 已握手连接上的一次调用（status / prompt / shutdown）：一条连接上 hello + op。 */
 
+/**
+ * 传输层失败的可操作提示（纯函数，便于单测）。
+ *
+ * 为什么必须把「socket reset」和「守护 op 返回失败」分开写：前者是 Windows↔WSL 通道/VM 问题，
+ * 后者是守护里某个操作失败。实测 WSL VM 卡死时会出现 `read ECONNRESET` 或握手无回包；
+ * 此时盲目 `wsl_daemon stop all` 只会增加误杀，先给用户「查 wsl_status / wsl --shutdown」的路径。
+ */
+export function transportErrorAdvice(kind, error) {
+  const text = String(error ?? '');
+  if (/ECONNRESET|ECONNABORTED|EPIPE|socket hang up|closed before reply/i.test(text)) {
+    return '；Windows→WSL socket 被重置：WSL 可能卡死/OOM；先关掉 WSL 内重负载并执行 wsl --shutdown 后重试（插件不会自动杀 WSL 或守护）';
+  }
+  if (kind === 'timeout' || /no reply within/i.test(text)) {
+    return '；握手/调用超时：先用 wsl_status 看 `wsl exec` 健康度；不要据此执行 stop all';
+  }
+  return '';
+}
+
 // ── 原 daemon-client.ts 第 303-318 行 ──
 export async function callDaemon(cfg, { port, token, req, timeoutMs }) {
   const hsTimeout = Number(cfg.daemonHandshakeTimeoutMs ?? 3000);
@@ -528,7 +546,7 @@ export async function callDaemon(cfg, { port, token, req, timeoutMs }) {
   return {
     ...r,
     ok: false,
-    error: `守护调用失败(${r.kind}): ${r.error}（Windows 侧 ${hsTimeout}ms 握手判据）`,
+    error: `守护调用失败(${r.kind}): ${r.error}（Windows 侧 ${hsTimeout}ms 握手判据）${transportErrorAdvice(r.kind, r.error)}`,
   };
 }
 
