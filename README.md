@@ -11,7 +11,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.3.12** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.3.13** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="远程资源管理器面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -264,6 +264,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | 看发行版 / 版本 / 漂移 / 守护 | `wsl_status` |
 | 启动时目标探测失败（WSL 没就绪） | `wsl_status({ redetect: true })` 会话内重探一次（不用重启 DSH；`wsl` 预设子插件仍需重启才跟随） |
 | 跑一条一次性命令 | `wsl_exec`（`command`、`cwd`、`timeoutSec`） |
+| 跑长任务 / 后台任务 | 用 `wsl_exec` 时不要依赖普通 `&` 或裸 `setsid`；用 `nohup ... > /tmp/x.log 2>&1 < /dev/null &`、`setsid -f ...` 或 `systemd-run --user --collect ...` 并把日志写文件（2026-10-30 实测普通 `&` 会在包装层退出后被回收） |
 | 让 WSL 里的 agent 做多轮 | `wsl_agent`（`task`、`followUps`、`key`、`cwd`） |
 | 关掉客户端后继续 | 同上；重新打开后保持 `key` 与 `cwd` |
 | 结束远端会话 | `wsl_daemon action=stop`（或 `restart` 换版本） |
@@ -332,6 +333,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 - **没有命令沙箱**：`wsl_exec` / `wsl_agent` 的命令跑在**你自己的 WSL** 里，不受 Windows 侧 DSH 文件策略约束。要隔离请用 WSL 侧手段。
 - **桌面壳不能连远端 host**：`wsl_open_ui` 是补位，不是把桌面壳改成远端连接。
 - **SDK 没有 cancel、没有 per-prompt 结果**：放弃一轮 = 结束运行时 = 丢上下文；同 key 并发只能 FIFO + 上限拒绝。
+- **守护退出后的文件恢复**：WSL preset / standard preset UNC 桥共享的 fs provider 在守护元数据缺失或连接被拒/提前关闭时，会清掉 `daemonReady`、重新 `ensureDaemon` 并只重试一次；`timeout` / `error`（含 ECONNRESET）不重发，避免有副作用操作重放。
 - **超时不会自动重试**：`wsl_agent` 超时（默认 600s）后**不会**自动重发同一个 prompt —— 请求可能已送达并在守护里继续执行，重发会让有副作用的操作跑两遍。先确认远端是否已产生效果，再决定是否重试。守护"半死"（端口可连但不应答）也不会自动重启，用 `wsl_daemon action=restart`。
 - **升级后旧守护会继续活着**：守护是 detached 的，宿主升级/重启都不会杀它。`wsl_status` 会显示守护的插件/协议版本；版本不一致时新功能（流式读取、`listDir` 的符号链接语义、安装校验结论等）在 `wsl_daemon action=restart` 前不可用（状态里会明确告警）。本版协议为 **v3**（在 v2 的 `fs.listDir` `targetKey`/链接语义之上，守护身份统一上报 `provider`/`model`/`useShellEnvironment`/`proxyPort`，`prompt` 可携带并校验 `provider`/`model`），属加法：新宿主仍可复用旧守护，只是旧语义在 restart 前不可用。
 - **9P / UNC 上的文件工具**：standard preset 的 `write` / `edit` 已由 `src/fs-unc-bridge.ts` 接管到 WSL fs-rpc；`/mnt/...` 路径的 `resolve` / `stat` / 读取类方法也由同一桥接入（Windows 9P 对 DrvFs 会 EPERM）。但用 Windows 的 `git` / `pnpm` 等写型工具改 WSL 里的 ext4 文件，仍可能写坏属主/权限；跑工具或改文件请走 `wsl_exec` / `wsl_agent`，或用 WSL 执行世界的文件工具。跨 OS 文件事件不可靠，插件不监听。

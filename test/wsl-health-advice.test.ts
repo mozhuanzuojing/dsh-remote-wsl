@@ -13,6 +13,28 @@ test('wslExecHealthNote：timeout 明确指向 WSL VM 卡住，不把 daemon soc
   assert.match(note, /不会自动杀/);
 });
 
+test('wslExecHealthNote：WSL 服务自己的 WSAETIMEDOUT（exit 4294967295）也要归因', () => {
+  const note = wslExecHealthNote({
+    killedBy: 'exit',
+    exitCode: 4294967295,
+    stdout: '由于连接方在一段时间后没有正确答复...\n错误代码： Wsl/Service/WSAETIMEDOUT\n',
+    stderr: '',
+  });
+  assert.match(note, /WSAETIMEDOUT/);
+  assert.match(note, /wsl --shutdown/);
+});
+
+test('wslExecHealthNote：成功探测的输出里恰好出现 WSAETIMEDOUT 也不能误报', () => {
+  assert.equal(
+    wslExecHealthNote({
+      killedBy: 'exit',
+      exitCode: 0,
+      stdout: 'log line mentions Wsl/Service/WSAETIMEDOUT but command succeeded\n',
+    }),
+    'ok',
+  );
+});
+
 test('wslExecHealthNote：成功/普通失败/未启动分别给出不同事实', () => {
   assert.equal(wslExecHealthNote({ killedBy: 'exit', exitCode: 0 }), 'ok');
   assert.match(wslExecHealthNote({ killedBy: 'exit', exitCode: 1, stderr: 'boom\n' }), /exit 1/);

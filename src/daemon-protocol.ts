@@ -521,6 +521,16 @@ export async function handshake(cfg, port, token, timeoutMs) {
 /** 已握手连接上的一次调用（status / prompt / shutdown）：一条连接上 hello + op。 */
 
 /**
+ * 是否属于**可安全重试一次**的传输失败：连接被拒 / 在拿到回包前断开。
+ *
+ * 为什么 `timeout` / `error`（含 ECONNRESET）不算：请求可能已经送达并执行，重发会重复有副作用的操作；
+ * 这与 prompt 的 F-10 语义 #10 一致。抽到协议层供 `index.ts` 与 fs provider 共用，避免两套判据漂移。
+ */
+export function isRecoverableDaemonTransport(kind) {
+  return kind === 'refused' || kind === 'closed';
+}
+
+/**
  * 传输层失败的可操作提示（纯函数，便于单测）。
  *
  * 为什么必须把「socket reset」和「守护 op 返回失败」分开写：前者是 Windows↔WSL 通道/VM 问题，

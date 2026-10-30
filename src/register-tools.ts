@@ -258,6 +258,8 @@ function describeWslTermination(res) {
  * 为什么要单独报：daemon TCP 还活着 ≠ 新 `wsl.exe` 进程能跑。实测 WSL VM 卡住/OOM 时，
  * `wsl.exe --exec` 会一直不返回，而既有 daemon socket 仍能握手；只看 daemon 会把问题误报成
  * 「守护正常」。这里把 `killedBy` 结构化事实翻成可操作结论，并明确插件**不会**自动杀 WSL/守护。
+ * 另外只在**非 0 退出**时识别 WSL 服务自己的 `WSAETIMEDOUT` 文本（它可能出现在 stdout 或 stderr，
+ * 不能因为 tail 日志里恰好出现该字符串就把成功探测误判成超时）。
  *
  * @param res `runWsl` 的返回值；`null`/`undefined` = 没有探测
  */
@@ -272,6 +274,11 @@ export function wslExecHealthNote(res) {
   if (kind === null) return '⚠️ not-started（wsl.exe 未启动，见 stderr）';
   const code = res?.exitCode;
   if (code !== 0) {
+    // 2026-10-30 真机：WSL 服务超时文本可能落在 stdout（wsl.exe 自己的错误输出），也可能在 stderr。
+    const serviceText = `${String(res?.stderr ?? '')}\n${String(res?.stdout ?? '')}`;
+    if (/WSAETIMEDOUT|Wsl\/Service\/WSAETIMEDOUT/i.test(serviceText)) {
+      return '⚠️ WSL service timeout（WSAETIMEDOUT；wsl.exe 自己返回 4294967295，不是 bash 的退出码；先 wsl --shutdown 后重试）';
+    }
     const tail = String(res?.stderr ?? '').trim().split('\n').filter(Boolean).slice(-1)[0] ?? '';
     return `⚠️ exit ${code}${tail ? `（${tail}）` : ''}`;
   }
@@ -660,7 +667,11 @@ ${command}
           : '';
         const outTrunc = res.stdout.length > 100000 ? `\n…[stdout 只保留前 100000 字符]\n` : '';
         const errTrunc = res.stderr.length > 20000 ? `\n…[stderr 只保留前 20000 字符]\n` : '';
-        return `${describeWslTermination(res)}${streamOutTrunc}${streamErrTrunc}\n--- stdout ---\n${res.stdout.slice(0, 100000)}${outTrunc}--- stderr ---\n${res.stderr.slice(0, 20000)}${errTrunc}`;
+        // WSAETIMEDOUT 这类 WSL 服务超时的文本可能落在 stdout；在此直接附上可操作结论，
+        // 不只依赖 wsl_status。普通命令失败不重复刷 health（describeWslTermination 已给退出码）。
+        const health = wslExecHealthNote(res);
+        const healthLine = /^⚠️ (WSL service timeout|not-started)/.test(health) ? `\n[remote-wsl health: ${health}]` : '';
+        return `${describeWslTermination(res)}${healthLine}${streamOutTrunc}${streamErrTrunc}\n--- stdout ---\n${res.stdout.slice(0, 100000)}${outTrunc}--- stderr ---\n${res.stderr.slice(0, 20000)}${errTrunc}`;
       },
     });
 

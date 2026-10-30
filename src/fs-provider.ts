@@ -33,7 +33,7 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ensureDaemon } from './daemon-client.ts';
-import { callDaemon, readDaemonRecord, winToWsl } from './daemon-protocol.ts';
+import { callDaemon, isRecoverableDaemonTransport, readDaemonRecord, winToWsl } from './daemon-protocol.ts';
 import { resolveVersion } from './wsl-io.ts';
 
 import { normalizeConfig, targetProblem } from './config.ts';
@@ -83,10 +83,15 @@ export function parseUnc(input) {
  * 造一个 WSL 侧 RPC 调用器（文件与搜索共用）：懒起守护 + 元数据鉴权 + 错误码透传。
  *
  * @param rawConfig - `distro` / `daemonPort` / `wslHome` / `cwd`（缺省同插件默认）
+ * @param deps - **测试缝**（生产不传）：注入 `ensureDaemon` / `readDaemonRecord` / `callDaemon`，
+ *               用于离线验证「守护元数据消失/连接被拒后重 ensure」恢复路径，不碰真实 wsl.exe。
  * @returns `{config, distro, ensure, call(op, method, args, signal)}`
  */
-export function createWslRpc(rawConfig = {}) {
+export function createWslRpc(rawConfig = {}, deps = {}) {
   const config = normalizeConfig(rawConfig);
+  const ensureDaemonFn = typeof deps.ensureDaemon === 'function' ? deps.ensureDaemon : ensureDaemon;
+  const readDaemonRecordFn = typeof deps.readDaemonRecord === 'function' ? deps.readDaemonRecord : readDaemonRecord;
+  const callDaemonFn = typeof deps.callDaemon === 'function' ? deps.callDaemon : callDaemon;
   const distro = String(config.distro);
   // 2026-10-28（零配置）：自动探测失败 ⇒ 这个 provider 的每一个操作都无处可去。把原因钉住，
   // 在**首次调用**时明确拒绝（不在 apply 抛：那会让整个 WSL preset 变 broken，连别的工具都看不到）。
@@ -99,7 +104,7 @@ export function createWslRpc(rawConfig = {}) {
     if (daemonReady === null) {
       const version = resolveVersion(config);
       if (!version.version) throw fsErr('remote-wsl: 无法确定 dsh 版本（desktop runtime.json 不可读且未配 dshVersion）', 'FS_IO_ERROR');
-      daemonReady = ensureDaemon(config, { version: version.version, log: () => {} }).catch((e) => {
+      daemonReady = ensureDaemonFn(config, { version: version.version, log: () => {} }).catch((e) => {
         daemonReady = null;
         throw fsErr(`remote-wsl: 启动 WSL 守护失败：${e?.message ?? String(e)}`, 'FS_IO_ERROR');
       });
@@ -110,14 +115,42 @@ export function createWslRpc(rawConfig = {}) {
   const call = async (op, method, args, signal) => {
     signal?.throwIfAborted?.();
     await ensure();
-    const rec = readDaemonRecord(config);
-    if (!rec || !rec.token) throw fsErr('remote-wsl: 守护元数据缺失（WSL 侧守护不在）', 'FS_IO_ERROR');
-    const r = await callDaemon(config, {
-      port: rec.meta?.port ?? rec.slot,
-      token: rec.token,
-      req: { op, id: 1, method, args },
-      timeoutMs: Number(config.fsTimeoutMs) || 60000,
-    });
+    /**
+     * 2026-10-30 WSL 会话复盘：`daemonReady` 是**一次性缓存**，但守护是独立进程，
+     * WSL 重启/守护退出后缓存仍会命中；旧实现随后只报「守护元数据缺失」而不会重新拉起。
+     * 这里把「记录缺失」当成缓存失效，清缓存重 ensure；transport 被拒/连接断开再重试一次
+     * （与 prompt 的 `refused`/`closed` 判据一致；`timeout`/`error`（含 ECONNRESET）不重发，
+     * 避免有副作用的操作重放）。
+     */
+    const readRec = () => {
+      const rec = readDaemonRecordFn(config);
+      return rec && rec.token ? rec : null;
+    };
+    const requireRec = () => {
+      const rec = readRec();
+      if (!rec) throw fsErr('remote-wsl: 守护元数据缺失（WSL 侧守护不在）', 'FS_IO_ERROR');
+      return rec;
+    };
+    let rec = readRec();
+    if (!rec) {
+      daemonReady = null;
+      await ensure();
+      rec = requireRec();
+    }
+    const callOnce = (target) =>
+      callDaemonFn(config, {
+        port: target.meta?.port ?? target.slot,
+        token: target.token,
+        req: { op, id: 1, method, args },
+        timeoutMs: Number(config.fsTimeoutMs) || 60000,
+      });
+    let r = await callOnce(rec);
+    if (!r?.msg && isRecoverableDaemonTransport(r.kind)) {
+      daemonReady = null;
+      await ensure();
+      rec = requireRec();
+      r = await callOnce(rec);
+    }
     signal?.throwIfAborted?.();
     if (!r?.msg) throw fsErr(`remote-wsl: 守护调用失败（${r?.kind ?? 'unknown'}）：${r?.error ?? '没有回包'}`, 'FS_IO_ERROR');
     if (r.msg.ok !== true) throw fsErr(String(r.msg.error ?? 'operation failed'), String(r.msg.code ?? 'FS_IO_ERROR'));

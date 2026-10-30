@@ -21,6 +21,7 @@ import { warmScript, dlxInventoryScript, pickDesktopVersion } from './version.ts
 import {
   ensureDaemon, stopDaemon, daemonPrompt, daemonStatus, daemonSnapshot, readDaemonMeta, stateDirLinux,
 } from './daemon-client.ts';
+import { isRecoverableDaemonTransport } from './daemon-protocol.ts';
 import { decodeWslOutput, registerExplorer, withModulePrefix } from './explorer.ts';
 import { activeLifecycle, adoptPreviousLifecycle, createLifecycle } from './lifecycle.ts';
 import { resolveVersion, writePin, runWsl, sweepOwnTempFiles, shellPreamble, sleep } from './wsl-io.ts';
@@ -192,7 +193,7 @@ export function apply(ctx, rawConfig = {}) {
    * 没有幂等键。只有"连不上 / 连接在拿到应答前就断了"才重试一次（此时请求大概率没被处理）。
    */
   function isTransportFailure(r: { ok?: boolean; queueFull?: boolean; kind?: string }) {
-    return !r?.ok && !r?.queueFull && (r?.kind === 'refused' || r?.kind === 'closed');
+    return !r?.ok && !r?.queueFull && isRecoverableDaemonTransport(r?.kind);
   }
 
   /**
