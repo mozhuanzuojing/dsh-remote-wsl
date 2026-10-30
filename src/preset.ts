@@ -28,7 +28,6 @@ import path from 'node:path';
 
 import { normalizeConfig } from './config.ts';
 import { registerWslVariants } from './variant-register.ts';
-import { setHostSubprocessResolver } from './subprocess-host.ts';
 export const name = 'dsh-remote-wsl-preset';
 export const inject = [];
 
@@ -72,7 +71,7 @@ export function buildWslPresetPlugins(cfg) {
       id: 'wsl-world',
       name: 'cordis:group',
       group: true,
-      isolate: { fs: true, shell: true, subprocess: true },
+      isolate: { fs: true, shell: true },
       config: [
         {
           id: 'fs-wsl',
@@ -102,19 +101,12 @@ export function buildWslPresetPlugins(cfg) {
           name: 'dsh-remote-wsl/command-policy',
           config: { toolNames: ['bash'], commandPolicy: wslCfg.commandPolicy },
         },
-        {
-          // 官方右侧栏 Terminal 读会话的 subprocess：这里把它换成 WSL 代理，
-          // Terminal 的 shell 发现/PTY spawn 就会落到发行版 bash。
-          id: 'subprocess-wsl',
-          name: 'dsh-remote-wsl/subprocess-provider',
-          config: { ...wslCfg },
-        },
       ],
     },
     // 注意：官方右侧栏 Terminal 不用 `terminals` 注册表，而是用会话的 `subprocess`
     // （`dsh-api-terminal-controller` → `agent.ctx.get("subprocess").spawnTerminal(...)`）。
-    // 因此这里挂 `dsh-terminal-bash` 组对官方 UI 无效；要让右侧栏真正跑 WSL bash，
-    // 需要在 `wsl-world` 里提供 WSL 的 `subprocess` provider（尚未实现，见 README「已知边界」）。
+    // preset 里的 isolate provider 覆盖不到 controller 读的宿主服务；真正的 WSL 终端由
+    // 根插件 `src/subprocess-bridge.ts` 包装宿主 spawnTerminal（按 UNC cwd 分派）实现。
     { id: 'tool-jobs', name: '@deepseek-ai/dsh-tool-jobs' },
     { id: 'tool-schedule', name: '@deepseek-ai/dsh-tool-schedule' },
     { id: 'skill-filesystem', name: '@deepseek-ai/dsh-skill-filesystem' },
@@ -191,8 +183,6 @@ export function presetStatus() {
 }
 
 export function apply(ctx, rawConfig = {}) {
-  // 宿主 subprocess 的惰性读取器：subprocess provider 在 WSL isolate realm 里调用。
-  setHostSubprocessResolver(() => (typeof ctx.get === 'function' ? ctx.get('subprocess') : undefined));
   const cfg = normalizeConfig(rawConfig);
   const plugins = buildWslPresetPlugins(cfg);
   presetState.phase = 'registering';
@@ -242,7 +232,7 @@ export function apply(ctx, rawConfig = {}) {
           presetState.broken = broken ?? null;
           // 2026-10-30：为 roster 中健康的基础模式生成 wsl-<mode> 变体。失败只记录，不影响
           // 现有 `wsl` preset（用户仍可用标准 WSL 世界）。
-          void registerWslVariants(presets, logStartup, { distro: cfg.distro }).then((result) => {
+          void registerWslVariants(presets, logStartup).then((result) => {
             if (disposed) {
               void result.dispose();
               return;

@@ -69,10 +69,9 @@ async function parseVariantComposition(content) {
  * Publish all available WSL mode variants.
  * @param presets - the host's `agentPresets` service
  * @param log - optional line logger
- * @param options.distro - distribution passed to each variant's subprocess provider
  * @returns `{registered, skipped, failures, dispose}`（dispose 释放本次注册的变体）
  */
-export async function registerWslVariants(presets, log = () => {}, options = {}) {
+export async function registerWslVariants(presets, log = () => {}) {
   const registered = [];
   const skipped = [];
   const failures = [];
@@ -108,10 +107,7 @@ export async function registerWslVariants(presets, log = () => {}, options = {})
         undefined,
         undefined,
         { dropSubagentDelegation: true },
-        { distro: options.distro },
       );
-      // 右侧栏终端后端：每个 WSL 变体都挂 wsl-terminal（宿主自带 terminal UI/注册表）。
-      // 源预设若已带同名组则不重复（避免 loader 的 duplicate entry id）。
       const plugins = await parseVariantComposition(transformed);
       const dispose = await presets.register({
         id: variantId,

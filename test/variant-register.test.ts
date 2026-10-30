@@ -33,11 +33,6 @@ test('registerWslVariants：基础模式生成 wsl-<mode>，world 含 fs/shell/�
   assert.ok(world.config.some((row) => row.id === 'shell-wsl'));
   assert.ok(world.config.some((row) => row.id === 'fs-wsl'));
   assert.ok(world.config.some((row) => row.id === 'wsl-command-policy'));
-  assert.equal(world.isolate?.subprocess, true, 'wsl-world 必须隔离 subprocess');
-  const subprocessRow = world.config.find((row) => row.id === 'subprocess-wsl');
-  assert.ok(subprocessRow, 'wsl-world 必须挂 subprocess provider');
-  assert.equal(subprocessRow.name, 'dsh-remote-wsl/subprocess-provider');
-  assert.equal(subprocessRow.config?.distro, 'Ubuntu');
 });
 
 test('registerWslVariants：没有 readDocument/read 时返回失败而不是抛/伪造', async () => {

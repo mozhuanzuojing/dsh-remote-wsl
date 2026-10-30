@@ -240,7 +240,6 @@ function wslWorldGroup(
   jobsPath?: string,
   sawJobs = false,
   imagePath?: string,
-  subprocessConfig?: { distro?: string },
 ): string {
   return [
     '# ── WSL execution world (dsh-remote-wsl variant) ─────────────────────',
@@ -252,7 +251,6 @@ function wslWorldGroup(
     '  isolate:',
     '    shell: true', // portability-allow: a YAML fragment for a plugin's own `isolate:` block, not a spawn option
     '    fs: true',
-    '    subprocess: true',
     // The Windows confinement runner cannot describe a Linux path, so the
     // world owns the capability (see the sandbox row below) whenever it mounts
     // a shell that would otherwise call it.
@@ -262,13 +260,6 @@ function wslWorldGroup(
     `      name: '${shellPath.replace(/'/g, "''")}'`,
     '    - id: fs-wsl',
     `      name: '${fsPath.replace(/'/g, "''")}'`,
-    // 右侧栏 Terminal 读会话的 subprocess：换成 WSL 代理后，官方 Terminal 的
-    // shell 发现/PTY spawn 都落到发行版 bash（不是 Windows shell）。
-    '    - id: subprocess-wsl',
-    "      name: 'dsh-remote-wsl/subprocess-provider'",
-    ...(subprocessConfig?.distro
-      ? ['      config:', `        distro: '${String(subprocessConfig.distro).replace(/'/g, "''")}'`]
-      : []),
     ...(persistent === undefined
       ? []
       : [
@@ -584,7 +575,6 @@ export function transformPresetForWsl(
   jobsPath?: string,
   imagePath?: string,
   options?: { dropSubagentDelegation?: boolean },
-  subprocessConfig?: { distro?: string },
 ): string {
   const lines = source.split('\n')
   const spans = topLevelSpans(lines)
@@ -633,7 +623,7 @@ export function transformPresetForWsl(
   if (source.includes('tool-jobs')) sawJobs = true
   const result = [...kept]
   if (result.length > 0 && result[result.length - 1] !== '') result.push('')
-  result.push(wslWorldGroup(shellPath, fsPath, sawEditor, persistent, sawSearch ? searchPath : undefined, jobsPath, sawJobs, imagePath, subprocessConfig))
+  result.push(wslWorldGroup(shellPath, fsPath, sawEditor, persistent, sawSearch ? searchPath : undefined, jobsPath, sawJobs, imagePath))
   return result.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '\n')
 }
 

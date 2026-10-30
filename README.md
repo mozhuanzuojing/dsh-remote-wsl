@@ -11,7 +11,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.3.17** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.3.18** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -72,7 +72,7 @@ flowchart LR
   - `listDir` 的符号链接语义与上游 `dsh-fs-local` 一致：链接**跟随目标**（`ln -s /etc d` 报 `directory` 而不是 `other`），子项身份取 `realpath`（同一文件不会因不同链接得到两个身份）。
   - WSL 内 `grep` / `glob` 优先用 ripgrep / fd，没有再回落 ugrep / GNU grep / find。
   - **原生 `bash`（2026-10-29 起）**：preset 的 `wsl-world` 隔离组里把 `ctx.shell` 也换成了 WSL 执行器（`src/shell-provider.ts`），组内的 `bash` 工具**直接跑在发行版里**（每条命令一次 `wsl.exe`；`set -m` 独立进程组，超时/中止时按进程组回收，后台孤儿由脚本自己收；超上限**留尾部**并把全文落到 WSL `/tmp` 的 spill 文件）。它**不受 Windows 文件沙箱约束**：执行器 `sandboxMode` 返回 `undefined`，模型看到的 `sandbox_permissions` 参数不存在——这是事实，不是提权通道。**验证边界**：执行器层已真机验证（9 条）；「模型 → `bash` 工具 → WSL」的整链路需要重启 DSH 后人工验收（见 `docs/2026-10-29-native-shell.md` §6）。
-  - **WSL 右侧栏终端（2026-10-30，已接 subprocess 缝）**：官方 `dsh-client-ui-sidebar-terminal` 的终端**不经过 `terminals` 注册表**，而是用会话的 `subprocess`（`dsh-api-terminal-controller` → `agent.ctx.get("subprocess").spawnTerminal(...)`）。因此 `wsl-world` 现在 **隔离并替换 `subprocess`**（`src/subprocess-provider.ts`）：`terminalEnvironment` 报 `platform:linux`/`/bin/bash`，`resolveExecutable` 把候选归一到 `/bin/bash`，`spawnTerminal` 把 argv 包成 `wsl.exe [-d <distro>] --exec bash -l`；其余 subprocess 方法全部透传宿主。UI 仍用宿主官方 xterm，不自建终端。**边界**：终端从发行版默认目录启动（UNC cwd 没被翻译成 `--cd`，避免静默换目录）；真机 GUI 验收仍需重启后做，见「已知边界」。
+  - **WSL 右侧栏终端（2026-10-30，改走 host subprocess bridge）**：实测官方 Terminal 的 controller 读的是**宿主** `subprocess.spawnTerminal`，preset 内 `isolate: {subprocess:true}` 的 provider 覆盖不到它（WSL 会话右侧栏仍起 `cmd.exe` 并因 UNC cwd 报错）。因此根插件在 `src/subprocess-bridge.ts` 里包装宿主 `spawnTerminal`：`cwd` 是 `\\\\wsl.localhost\\…` / `\\\\wsl$\\…` 时改成 `wsl.exe [-d <distro>] --exec bash -l`，其它 cwd 原样放行。**边界**：终端标签仍可能显示 `cmd.exe`（shell 发现仍走宿主）；WSL preset + Windows 盘符 cwd 的会话不触发；真机需重启后再验。
   - **标准 preset 的 UNC 文件桥（2026-10-29 检查修复）**：即使没选 `wsl` preset，只要会话 cwd 是 `\\wsl.localhost\<配置发行版>\…`，`write` / `edit` 也会由 `src/fs-unc-bridge.ts` 接到 WSL 侧 fs-rpc。原因是宿主 `dsh-fs-local` 在 9P 上替换已有文件时会调用 `GetFileSecurityW`/`ReplaceFileW` 复制 DACL，直接报 `GetFileSecurityW EIO (Win32 1)`。桥同时覆盖 `/mnt/...`（DrvFs）：WSL symlink 指向 `/mnt/d/...` 时，Windows `realpath`/`stat`/`readFile` 会报 `EPERM`，因此这些路径的 `resolve`/`lstat`/`stat`/`readText`/`streamText`/`readBytes`/`readByteRange`/`listDir` 也改走 WSL fs-rpc；其它 Windows 路径原样走宿主实现。普通 UNC 写前仍用宿主 `stat` 校验版本，写后回取宿主版本；`/mnt` 路径从第一次 `stat` 起使用 WSL 版本，observation-policy 语义一致。
   - 18 个常用 Rust CLI（ripgrep、fd、ast-grep、sd、bat、tokei 等）的安装目录：核心 8 个在守护启动时后台预热（可用 `--no-provision` 关掉，测试/CI 用），`grep` / `glob` 缺 rg / fd 时按需装，任意项可用 `wsl_tools action=install` 装到 `~/.local/bin`。
   - **下载会校验 sha256，且校验结论是可见的**：`verified` 取 `ok`（官方摘要：GitHub API `digest` 或发布页校验文件）、`pinned`（只有内置 TOFU 摘要）、`unavailable`（上游没有任何摘要 ⇒ 本次没校验，会写进结果说明）、`mismatch`（不匹配 ⇒ **拒绝安装**）。内置摘要表覆盖 18 个兜底 URL，其中 5 项与官方来源逐字相等，其余 13 项该版本上游未发布摘要 ⇒ **TOFU pin**：只保证「与钉住的那一份一致」，不证明上游未被入侵，因此记 `pinned` 而不是 `ok`。
@@ -436,3 +436,4 @@ $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-r
 - [提交历史](https://github.com/mozhuanzuojing/dsh-remote-wsl/commits/main)
 - [设计 / 验证记录](docs/)
 - MIT © 2026 磨砖做镜 (mozhuanzuojing)
+
