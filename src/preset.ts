@@ -28,6 +28,7 @@ import path from 'node:path';
 
 import { normalizeConfig } from './config.ts';
 import { registerWslVariants } from './variant-register.ts';
+import { setHostSubprocessResolver } from './subprocess-host.ts';
 export const name = 'dsh-remote-wsl-preset';
 export const inject = [];
 
@@ -71,7 +72,7 @@ export function buildWslPresetPlugins(cfg) {
       id: 'wsl-world',
       name: 'cordis:group',
       group: true,
-      isolate: { fs: true, shell: true },
+      isolate: { fs: true, shell: true, subprocess: true },
       config: [
         {
           id: 'fs-wsl',
@@ -100,6 +101,13 @@ export function buildWslPresetPlugins(cfg) {
           id: 'wsl-command-policy',
           name: 'dsh-remote-wsl/command-policy',
           config: { toolNames: ['bash'], commandPolicy: wslCfg.commandPolicy },
+        },
+        {
+          // 官方右侧栏 Terminal 读会话的 subprocess：这里把它换成 WSL 代理，
+          // Terminal 的 shell 发现/PTY spawn 就会落到发行版 bash。
+          id: 'subprocess-wsl',
+          name: 'dsh-remote-wsl/subprocess-provider',
+          config: { ...wslCfg },
         },
       ],
     },
@@ -183,6 +191,8 @@ export function presetStatus() {
 }
 
 export function apply(ctx, rawConfig = {}) {
+  // 宿主 subprocess 的惰性读取器：subprocess provider 在 WSL isolate realm 里调用。
+  setHostSubprocessResolver(() => (typeof ctx.get === 'function' ? ctx.get('subprocess') : undefined));
   const cfg = normalizeConfig(rawConfig);
   const plugins = buildWslPresetPlugins(cfg);
   presetState.phase = 'registering';
@@ -232,7 +242,7 @@ export function apply(ctx, rawConfig = {}) {
           presetState.broken = broken ?? null;
           // 2026-10-30：为 roster 中健康的基础模式生成 wsl-<mode> 变体。失败只记录，不影响
           // 现有 `wsl` preset（用户仍可用标准 WSL 世界）。
-          void registerWslVariants(presets, logStartup).then((result) => {
+          void registerWslVariants(presets, logStartup, { distro: cfg.distro }).then((result) => {
             if (disposed) {
               void result.dispose();
               return;

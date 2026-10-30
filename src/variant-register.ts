@@ -12,7 +12,7 @@ import { transformPresetForWsl } from './variants.ts';
 
 const MODE_LABELS = Object.freeze({
   standard: { en: 'Standard mode', zh: '标准模式' },
-  code: { en: 'Code mode', zh: 'PTC 模式' },
+  code: { en: 'Code mode', zh: '代码模式' },
   ptc: { en: 'PTC mode', zh: 'PTC 模式' },
   minimal: { en: 'Minimal mode', zh: '极简模式' },
   cordis: { en: 'Creator mode', zh: '创造模式' },
@@ -75,9 +75,10 @@ async function parseVariantComposition(content) {
  * Publish all available WSL mode variants.
  * @param presets - the host's `agentPresets` service
  * @param log - optional line logger
+ * @param options.distro - distribution passed to each variant's subprocess provider
  * @returns `{registered, skipped, failures, dispose}`（dispose 释放本次注册的变体）
  */
-export async function registerWslVariants(presets, log = () => {}) {
+export async function registerWslVariants(presets, log = () => {}, options = {}) {
   const registered = [];
   const skipped = [];
   const failures = [];
@@ -113,6 +114,7 @@ export async function registerWslVariants(presets, log = () => {}) {
         undefined,
         undefined,
         { dropSubagentDelegation: true },
+        { distro: options.distro },
       );
       // 右侧栏终端后端：每个 WSL 变体都挂 wsl-terminal（宿主自带 terminal UI/注册表）。
       // 源预设若已带同名组则不重复（避免 loader 的 duplicate entry id）。

@@ -11,7 +11,7 @@
 | 危险命令 `tools/pre-execute` 审批 | `wsl_exec`、WSL preset `bash` 无门禁 | **吸收**：`src/command-policy.ts` + `wsl` preset 子插件 |
 | `assessShellCommand` deny-list | 无 | **吸收**：删除/批量删除/磁盘格式化/容器/部署/Git/重启分类 |
 | 输出脱敏（`redact.js`） | 无 | **不吸收**：用户明确本轮不需要 |
-| 右侧栏终端（`sidebarRightTabs`/xterm） | 无；只有 `wsl_open_ui` 独立 Web UI | **暂缓（已核实阻塞）**：官方 Terminal 走会话 `subprocess`（`agent.ctx.get("subprocess").spawnTerminal`），不是 `terminals` 注册表；需要 WSL `subprocess` provider，未实现 |
+| 右侧栏终端（`sidebarRightTabs`/xterm） | 无；只有 `wsl_open_ui` 独立 Web UI | **吸收（subprocess 后端）**：`wsl-world` 隔离并替换 `subprocess`（`src/subprocess-provider.ts`），官方 xterm/终端池复用；真机 GUI 待验收 |
 | SFTP / 数据库 / 隧道 / 批量 | WSL 已有 fs provider、`wsl_exec`、本地 shell | **不吸收**：避免重复 SSH 专属能力 |
 | SSH 凭据 / known_hosts / 主机指纹 | 无网络认证 | **不吸收** |
 | 远端工作区绑定 | WSL preset + UNC 桥已提供原生文件世界 | **不吸收**：WSL 语义更强 |

@@ -32,7 +32,7 @@ const EDITOR_ROWS = new Set(['str-replace-editor', 'tool-str-replace-editor'])
  * discussion #6751): without `belongsToComposition` on the `agent/created` install path, six
  * live compositions — the three shipped presets plus this generator's three variants — make
  * every new session fail with `tool "subagent" is already registered in this scope` (issue
- * #60). While the host family lacks the gate ({@link hostLacksSubagentGate}) the variant drops
+ * #60). While the host family lacks the gate (0.2.x, see `dropSubagentDelegation`) the variant drops
  * the copied row, so this generator adds no second composition and sessions keep working; a
  * variant without the row has no `subagent`/`list_subagent_models` tools, which is a missing
  * feature where the alternative was a missing session.
@@ -240,9 +240,10 @@ function wslWorldGroup(
   jobsPath?: string,
   sawJobs = false,
   imagePath?: string,
+  subprocessConfig?: { distro?: string },
 ): string {
   return [
-    '# ── WSL execution world (dsh-wsl-workspace variant) ─────────────────────',
+    '# ── WSL execution world (dsh-remote-wsl variant) ─────────────────────',
     '# The shell and fs services are provided entry-locally (the isolate',
     '# realm); host services (tools registry, shell-env, jobs) fall through.',
     '- id: wsl-world',
@@ -251,6 +252,7 @@ function wslWorldGroup(
     '  isolate:',
     '    shell: true', // portability-allow: a YAML fragment for a plugin's own `isolate:` block, not a spawn option
     '    fs: true',
+    '    subprocess: true',
     // The Windows confinement runner cannot describe a Linux path, so the
     // world owns the capability (see the sandbox row below) whenever it mounts
     // a shell that would otherwise call it.
@@ -260,6 +262,13 @@ function wslWorldGroup(
     `      name: '${shellPath.replace(/'/g, "''")}'`,
     '    - id: fs-wsl',
     `      name: '${fsPath.replace(/'/g, "''")}'`,
+    // 右侧栏 Terminal 读会话的 subprocess：换成 WSL 代理后，官方 Terminal 的
+    // shell 发现/PTY spawn 都落到发行版 bash（不是 Windows shell）。
+    '    - id: subprocess-wsl',
+    "      name: 'dsh-remote-wsl/subprocess-provider'",
+    ...(subprocessConfig?.distro
+      ? ['      config:', `        distro: '${String(subprocessConfig.distro).replace(/'/g, "''")}'`]
+      : []),
     ...(persistent === undefined
       ? []
       : [
@@ -575,6 +584,7 @@ export function transformPresetForWsl(
   jobsPath?: string,
   imagePath?: string,
   options?: { dropSubagentDelegation?: boolean },
+  subprocessConfig?: { distro?: string },
 ): string {
   const lines = source.split('\n')
   const spans = topLevelSpans(lines)
@@ -623,36 +633,8 @@ export function transformPresetForWsl(
   if (source.includes('tool-jobs')) sawJobs = true
   const result = [...kept]
   if (result.length > 0 && result[result.length - 1] !== '') result.push('')
-  result.push(wslWorldGroup(shellPath, fsPath, sawEditor, persistent, sawSearch ? searchPath : undefined, jobsPath, sawJobs, imagePath))
+  result.push(wslWorldGroup(shellPath, fsPath, sawEditor, persistent, sawSearch ? searchPath : undefined, jobsPath, sawJobs, imagePath, subprocessConfig))
   return result.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '\n')
-}
-
-/** Whether an id is one of this plugin's own preset directories. */
-export function isWslVariantId(id: string): boolean {
-  return id === 'wsl' || /^wsl-[a-z0-9-]+$/.test(id)
-}
-
-/**
- * Whether the host family still carries the upstream duplicate-registration defect.
- *
- * `@deepseek-ai/dsh-tool-subagent` installs on every `agent/created` event with no
- * `belongsToComposition` gate and dedupes by object identity, so each live copy of the
- * delegation row is one more composition, and at six Desktop session creation fails outright
- * (issue #60; deepseek-ai/deepseek-harness discussion #6751). Verified absent in every release
- * of the current compat window — `@deepseek-ai/dsh-tools` 0.2.0-rc.1 through 0.2.1-rc.2, the
- * installed tree carrying no `belongsToComposition` at all — so while the window head stays in
- * 0.2.x the predicate says the gate is missing. When a fixed release becomes the window head,
- * narrow this predicate: the delegation row comes back, and with it `subagent` delegation
- * inside WSL sessions.
- *
- * An unreadable version leans the same way (fail-closed): a host this plugin cannot name is
- * more likely to lack the gate than to carry it, and the cost asymmetry is a missing
- * `subagent` tool against a missing session.
- * @param version - the host family's release string, when it could be read.
- * @returns true when the generator must not let the copied delegation row through.
- */
-export function hostLacksSubagentGate(version: string | undefined): boolean {
-  return version === undefined || /^0\.2\./.test(version)
 }
 
 /** The variant id for one source preset id. */
