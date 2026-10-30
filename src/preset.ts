@@ -118,7 +118,13 @@ export function buildWslPresetPlugins(cfg) {
                 shellDialect: 'bash',
                 shellPath: 'wsl.exe',
                 // distro 为空 = 自动探测/默认发行版；此时不能传 `-d ''`（wsl.exe 会报错）。
-                shellArgs: [...(wslCfg.distro ? ['-d', wslCfg.distro] : []), '--exec', 'bash', '-l'],
+                shellArgs: [
+                  ...(wslCfg.distro ? ['-d', wslCfg.distro] : []),
+                  ...(wslCfg.cwd ? ['--cd', wslCfg.cwd] : []),
+                  '--exec',
+                  'bash',
+                  '-l',
+                ],
                 idleSilenceMs: 1200,
               },
             },
@@ -250,7 +256,7 @@ export function apply(ctx, rawConfig = {}) {
           presetState.broken = broken ?? null;
           // 2026-10-30：为 roster 中健康的基础模式生成 wsl-<mode> 变体。失败只记录，不影响
           // 现有 `wsl` preset（用户仍可用标准 WSL 世界）。
-          void registerWslVariants(presets, logStartup, { distro: cfg.distro }).then((result) => {
+          void registerWslVariants(presets, logStartup, { distro: cfg.distro, cwd: cfg.cwd }).then((result) => {
             if (result.registered.length) logStartup(`WSL 模式变体已注册：${result.registered.join(', ')}`);
             if (result.failures.length) logStartup(`WSL 模式变体失败：${result.failures.join(' | ')}`);
           }).catch((e) => logStartup(`WSL 模式变体异常：${e?.message ?? e}`));

@@ -73,10 +73,17 @@ async function parseVariantComposition(content) {
  * `bash` inside the distribution rather than a Windows shell.
  * @param distro - explicit distribution; empty means the default distribution,
  *   in which case no `-d` arg is emitted (an empty `-d` is a wsl.exe error).
+ * @param cwd - optional Linux working directory for the terminal's first shell.
  * @returns the entry-list rows for one `wsl-terminal` group.
  */
-function terminalRows(distro) {
-  const args = [...(distro ? ['-d', distro] : []), '--exec', 'bash', '-l'];
+function terminalRows(distro, cwd) {
+  const args = [
+    ...(distro ? ['-d', distro] : []),
+    ...(cwd ? ['--cd', cwd] : []),
+    '--exec',
+    'bash',
+    '-l',
+  ];
   return [
     '- id: wsl-terminal',
     '  name: cordis:group',
@@ -147,7 +154,7 @@ export async function registerWslVariants(presets, log = () => {}, options = {})
       // 源预设若已带同名组则不重复（避免 loader 的 duplicate entry id）。
       const withTerminal = transformed.includes('id: wsl-terminal')
         ? transformed
-        : `${transformed}\n${terminalRows(options.distro ?? '')}\n`;
+        : `${transformed}\n${terminalRows(options.distro ?? '', options.cwd ?? '')}\n`;
       const plugins = await parseVariantComposition(withTerminal);
       await presets.register({
         id: variantId,
