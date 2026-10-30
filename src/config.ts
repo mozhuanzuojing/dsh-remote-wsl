@@ -50,6 +50,8 @@ export const DEFAULTS = {
   backgroundWarm: true,
   /** 远端 agent 的宿主形态：'daemon'（默认，跨宿主复用）或 'in-host'（逃生舱）。 */
   backend: 'daemon',
+  /** 危险命令策略：'standard'（默认，删除/格式化/销毁/重启等需审批）或 'off'（仅操作者显式关闭；Agent 不可改）。 */
+  commandPolicy: 'standard',
 
   // ── 超时 ────────────────────────────────────────────────────────────────────
   /** 单次工具调用的墙钟上限（毫秒）。 */

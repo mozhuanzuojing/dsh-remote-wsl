@@ -93,6 +93,13 @@ export function buildWslPresetPlugins(cfg) {
           config: { ...wslCfg },
         },
         { id: 'tool-bash', name: '@deepseek-ai/dsh-tool-bash' },
+        // 2026-10-30 吸收 dsh-ssh-ops：WSL preset 内的 bash 危险命令也要宿主审批。
+        // 只在 WSL 组内挂载，标准 preset 的本地 bash 不受影响。
+        {
+          id: 'wsl-command-policy',
+          name: 'dsh-remote-wsl/command-policy',
+          config: { toolNames: ['bash'], commandPolicy: wslCfg.commandPolicy },
+        },
       ],
     },
     { id: 'tool-jobs', name: '@deepseek-ai/dsh-tool-jobs' },

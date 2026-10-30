@@ -11,7 +11,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.3.13** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.3.14** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="远程资源管理器面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -94,8 +94,8 @@ flowchart LR
 | 工具 | 做什么 |
 |---|---|
 | `wsl_status` | 只读诊断（传 `redetect: true` 时会**重探一次**并可能更新目标）：发行版、桌面 dsh 版本、WSL pin、漂移、dlx 已装版本、shell 环境开关、`localhostForwarding`、守护 pid/端口/版本/keys、实际 `identity`（distro/user/home/platform/arch）与 `wsl exec` 命令通道健康度（timeout 时会明确提示 WSL VM 可能卡住、建议 `wsl --shutdown`，且插件不会自动杀守护） |
-| `wsl_exec` | 在 WSL 里跑一次性 bash（cwd 是 Linux 路径），回 exit/stdout/stderr；默认 120s，脚本带 `set -uo pipefail`（管道读端早退时 SIGPIPE 会如实表现为 `exit 141`） |
-| `wsl_agent` | 把任务交给 WSL 里的 dsh（`--profile sdk`，stdio JSON-RPC）；守护持有运行时，支持 `followUps`、`key`、`cwd` |
+| `wsl_exec` | 在 WSL 里跑一次性 bash（cwd 是 Linux 路径），回 exit/stdout/stderr；默认 120s，脚本带 `set -uo pipefail`（管道读端早退时 SIGPIPE 会如实表现为 `exit 141`）；危险命令（删除/格式化/容器销毁/Git 破坏性清理/重启等）执行前需宿主审批，无审批通道时拒绝 |
+| `wsl_agent` | 把任务交给 WSL 里的 dsh（`--profile sdk`，stdio JSON-RPC）；守护持有运行时，支持 `followUps`、`key`、`cwd`；**其内部生成的命令不经过 `wsl_exec` 的危险命令门禁** |
 | `wsl_daemon` | `status` / `start`（幂等）/ `stop`（显式结束会话，`all=true` 清孤儿）/ `restart`（对齐新版本） |
 | `wsl_open_ui` | 在 WSL 里起 `dsh web`，在 Windows 开应用窗口；`stop=true` 停掉 |
 | `wsl_sync_version` | 读桌面版本 → 比对 WSL pin → 可选预热 → 修复 pin；`warm=true` 物化该版本 |
@@ -244,6 +244,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `provider` / `model` | `deepseek-official` / `deepseek-flash` | 远端 agent 用的 provider 与模型 id（以 WSL 侧 dsh 的 provider catalog 为准，例如 `commandcode` + `deepseek/deepseek-v4.1-flash-fast`）。**守护是常驻进程：改完必须 `wsl_daemon action=restart` 才生效**；0.3.4 起复用前会核对，不一致直接报错并提示 restart |
 | `profile` | `sdk` | WSL 侧 dsh 的 profile（守护据此装载插件集）。变更同样需要 `wsl_daemon action=restart` |
 | `backend` | `daemon` | `daemon` = 运行时由 WSL 常驻守护持有；`in-host` = 旧形态逃生舱（关客户端即丢会话） |
+| `commandPolicy` | `standard` | `standard` = `wsl_exec` / WSL preset `bash` 的危险命令需宿主审批；`off` 只能由操作者显式关闭，Agent 不可改 |
 | `daemonPort` | `8731` | 守护槽位/端口；WSL 侧被占则 +1，Windows 侧被占则换端口重试 |
 | `daemonIdleMs` | `1800000` | 空闲回收，到期即丢上下文 |
 | `daemonLingerMs` | `600000` | 无 key 且无客户端时的自退闸门；有会话不触发 |
@@ -331,6 +332,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 ## 已知边界（不假装有）
 
 - **没有命令沙箱**：`wsl_exec` / `wsl_agent` 的命令跑在**你自己的 WSL** 里，不受 Windows 侧 DSH 文件策略约束。要隔离请用 WSL 侧手段。
+- **危险命令门禁（2026-10-30 起）**：`wsl_exec` 与 WSL preset 内的 `bash` 会在执行前识别删除、磁盘格式化、容器销毁、部署销毁、Git 破坏性清理、重启/关机等命令，并通过 DSH 宿主审批通道请求操作者确认；无审批通道时**拒绝执行**（fail-closed），不会自动放行。`wsl_agent` 是 WSL 内的完整 dsh agent，其生成的命令**不经过**这层门禁；不要把 `wsl_agent` 当成受沙箱保护的执行通道。
 - **桌面壳不能连远端 host**：`wsl_open_ui` 是补位，不是把桌面壳改成远端连接。
 - **SDK 没有 cancel、没有 per-prompt 结果**：放弃一轮 = 结束运行时 = 丢上下文；同 key 并发只能 FIFO + 上限拒绝。
 - **守护退出后的文件恢复**：WSL preset / standard preset UNC 桥共享的 fs provider 在守护元数据缺失或连接被拒/提前关闭时，会清掉 `daemonReady`、重新 `ensureDaemon` 并只重试一次；`timeout` / `error`（含 ECONNRESET）不重发，避免有副作用操作重放。

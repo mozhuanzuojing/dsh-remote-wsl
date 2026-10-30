@@ -31,6 +31,7 @@ import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
 // T47：`reapWsl` 是 `WebHost.stop()` 用的（杀包装层后必须收回 WSL 侧的 `dsh web`，否则它变孤儿继续占端口）。
 // 与上一行同型：T5 拆分时漏了 import，`{stop:true}` 真调（**已起过一个 web host** 之后）才炸 ReferenceError。
 import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble, writeScript, removeScript, reapWsl, sleep, renderText, resolveVersion, readPin, writePin } from './wsl-io.ts';
+import { installCommandGate } from './command-policy.ts';
 
 // ── 远端 UI：WSL 跑 `dsh web`，Windows 开应用窗口 ─────────────────────────────
 
@@ -336,6 +337,9 @@ export function registerTools(deps) {
   ctx.inject(['tools'], (toolsCtx) => {
     const tools = toolsCtx.get('tools');
     if (!tools) return;
+    // 2026-10-30：在**同一个 tools 上下文**挂 pre-execute 门禁（不能挂到父 ctx：
+    // tools 服务事件在子上下文里；父层 listener 是否收到取决于 Cordis 事件传播，不能赌）。
+    installCommandGate(toolsCtx, { toolNames: ['wsl_exec'], commandPolicy: config.commandPolicy });
 
     tools.register({
       name: 'wsl_status',
@@ -628,7 +632,8 @@ uname -m
       description:
         'Run a bash command inside the WSL distro (the remote terminal). The process, its filesystem and its tools live in WSL; cwd is a Linux path. Returns exit code, stdout and stderr. ' +
         'The script runs under `set -uo pipefail`, so a pipeline whose reader exits early (e.g. `yes | head -c 1000`) surfaces the writer\'s SIGPIPE as exit 141 — that is bash semantics, not a plugin failure. ' +
-        'This one-shot path deliberately does NOT inject the login shell environment (see useShellEnvironment): it is a fresh `bash <script>` per call, and injecting would charge every call an extra login shell and let the caller\'s own profile silently change what an explicitly written command does. The long-lived processes behind wsl_agent / wsl_open_ui do get that injection.',
+        'This one-shot path deliberately does NOT inject the login shell environment (see useShellEnvironment): it is a fresh `bash <script>` per call, and injecting would charge every call an extra login shell and let the caller\'s own profile silently change what an explicitly written command does. The long-lived processes behind wsl_agent / wsl_open_ui do get that injection. ' +
+        'Explicitly destructive commands (delete/format/destroy/reboot, etc.) suspend this call for operator approval; without an approval channel they are denied — never retry or route around a rejection.',
       parameters: {
         type: 'object',
         properties: {
@@ -683,7 +688,8 @@ ${command}
         'A session ends only when (a) the daemon is stopped explicitly (wsl_daemon action=stop), (b) it has been idle for `daemonIdleMs` (default 30 minutes) and the idle reaper collected the runtime, or (c) the daemon/runtime died. In cases (b) and (c) the next turn gets a NEW sessionId and the reply says the context was reset. ' +
         'Timeouts are NOT retried automatically: the request may already be executing in the daemon and side effects may have happened, so verify the remote state before retrying (a daemon that is unreachable but still listening will also NOT self-restart; use wsl_daemon action=restart). ' +
         'Concurrent prompts on the same `key` are serialized FIFO inside the daemon; beyond `daemonQueueLimit` (default 4) waiting turns are rejected explicitly, because upstream has no cancel. ' +
-        'The per-call `cwd` really takes effect: the daemon keeps one runtime per (key, cwd) pair, so a new cwd starts its own session (its own sessionId) while the same key+cwd keeps reusing the same runtime; the reply always reports the effective `cwd=` and warns if it differs from the requested one.',
+        'The per-call `cwd` really takes effect: the daemon keeps one runtime per (key, cwd) pair, so a new cwd starts its own session (its own sessionId) while the same key+cwd keeps reusing the same runtime; the reply always reports the effective `cwd=` and warns if it differs from the requested one. ' +
+        'Its generated commands are inside the WSL-side full agent and are NOT intercepted by the `wsl_exec` dangerous-command gate; do not treat wsl_agent as a safety boundary.',
       parameters: {
         type: 'object',
         properties: {
