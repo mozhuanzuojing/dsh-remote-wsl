@@ -1017,11 +1017,22 @@ export function createExplorerHandlers(deps) {
     }
 
     const entries = dirents
-      .map((dirent) => ({
-        name: dirent.name,
-        kind: entryKindOf(dirent),
-        hidden: dirent.name.startsWith('.'),
-      }))
+      .map((dirent) => {
+        // 文件表的可选元数据：只读、逐项 best-effort；9P/drvfs 上 stat 失败不应让整个目录列表失败。
+        let info = null;
+        try {
+          info = statSync(`${winPath}\\${dirent.name}`);
+        } catch {
+          info = null;
+        }
+        return {
+          name: dirent.name,
+          kind: entryKindOf(dirent),
+          hidden: dirent.name.startsWith('.'),
+          size: info && info.isFile() ? info.size : null,
+          mtimeMs: info ? info.mtimeMs : null,
+        };
+      })
       .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
     return { path, distro, entries };

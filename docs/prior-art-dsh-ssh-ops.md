@@ -11,13 +11,13 @@
 | 危险命令 `tools/pre-execute` 审批 | `wsl_exec`、WSL preset `bash` 无门禁 | **吸收**：`src/command-policy.ts` + `wsl` preset 子插件 |
 | `assessShellCommand` deny-list | 无 | **吸收**：删除/批量删除/磁盘格式化/容器/部署/Git/重启分类 |
 | 输出脱敏（`redact.js`） | 无 | **不吸收**：用户明确本轮不需要 |
-| 右侧栏终端（`sidebarRightTabs`/xterm） | 无；只有 `wsl_open_ui` 独立 Web UI | **暂缓**：PTY、xterm、终端池、侧栏生命周期独立设计 |
+| 右侧栏终端（`sidebarRightTabs`/xterm） | 无；只有 `wsl_open_ui` 独立 Web UI | **吸收（后端）**：`wsl` preset 与变体挂 `wsl-terminal`（dsh-terminal-bash + wsl.exe）；UI/终端池用宿主官方 `dsh-client-ui-sidebar-terminal`，不自建 xterm |
 | SFTP / 数据库 / 隧道 / 批量 | WSL 已有 fs provider、`wsl_exec`、本地 shell | **不吸收**：避免重复 SSH 专属能力 |
 | SSH 凭据 / known_hosts / 主机指纹 | 无网络认证 | **不吸收** |
 | 远端工作区绑定 | WSL preset + UNC 桥已提供原生文件世界 | **不吸收**：WSL 语义更强 |
 | keepalive / 自动重连 | 本地守护 TCP 已有传输错误处理 | **不吸收**：问题域不同 |
 | i18n / 插件更新器 | 插件已有客户端双语 | **不吸收** |
-| 终端池 / 增量读取 | 只有右侧栏终端才需要 | **随右侧栏方案暂缓** |
+| 终端池 / 增量读取 | 只有右侧栏终端才需要 | **随宿主 UI 一起用**：池/增量由 `dsh-client-ui-sidebar-terminal` 提供，插件不重复实现 |
 
 ## 吸收细节
 
@@ -35,7 +35,7 @@
 
 - `wsl_agent` 是 WSL 内的完整 dsh agent，其生成的命令不经过本门禁；README 已写明。
 - deny-list 是启发式，不是完整沙箱；合法命令命中时需要操作者审批，不会静默执行。
-- 未吸收输出脱敏、右侧栏终端、SFTP/数据库/隧道/批量。
+- 未吸收输出脱敏、SFTP/数据库/隧道/批量。
 
 ## 参考源码
 

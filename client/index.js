@@ -47,7 +47,7 @@ window.__ModuleLoader__.load({
 
 		const PANEL_ID = "remote-wsl";
 		const PANEL_ORDER = 20;
-		const PANEL_LABEL_FALLBACK = "远程资源管理器";
+		const PANEL_LABEL_FALLBACK = "WSL 工作区";
 
 		/** 包内 chunk（入口同目录；名字被平台的 CLIENT_CHUNK 正则钉死）。 */
 		// ⚠ T32 实测的坑：chunk 的 URL 形如 `/plugins/dsh-remote-wsl/client.<name>.js?rev=<rev>`，
@@ -65,6 +65,7 @@ window.__ModuleLoader__.load({
 		const CHUNK_API = "client.api.js";
 		const CHUNK_PANEL = "client.panel.js";
 		const CHUNK_ICON = "client.icon.js";
+		const CHUNK_WORKSPACE = "client.panel.workspace.js";
 
 		const CSS = [
 			".dsh-rw-root{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;box-shadow:none}",
@@ -328,6 +329,34 @@ window.__ModuleLoader__.load({
 			".dsh-rw-root--narrow .dsh-rw-targetname{flex:1 1 auto}",
 			// ③ 窄态底栏：折行后各段自己成行，不再靠压缩命中盒/裁字来"塞进一行"。
 			".dsh-rw-root--narrow .dsh-rw-updated{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}",
+			// ── 2026-10-30 UI/UX：紧凑文件表 + WSL 工作区弹窗 ─────────────────────────
+			".dsh-rw-footer-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:0 10px;margin:2px 4px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}",
+			".dsh-rw-footer-action:hover{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-rowmeta{flex:none;display:flex;align-items:center;gap:12px;color:var(--dsw-alias-label-secondary);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}",
+			".dsh-rw-rowsize{width:70px;text-align:right}",
+			".dsh-rw-rowtime{width:116px;text-align:right}",
+			".dsh-rw-rowdir .dsh-rw-rowmeta{opacity:.65}",
+			".dsh-rw-wdialog-overlay{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.36);display:flex;align-items:center;justify-content:center;padding:16px}",
+			".dsh-rw-wdialog{width:min(620px,calc(100vw - 32px));max-height:min(720px,calc(100vh - 48px));display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.28);color:var(--dsw-alias-label-primary);overflow:hidden}",
+			".dsh-rw-wdialog-head{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 10px}",
+			".dsh-rw-wdialog-title{font-size:16px;line-height:24px;font-weight:650}",
+			".dsh-rw-wdialog-distro{display:flex;align-items:center;gap:10px;padding:0 18px 8px}",
+			".dsh-rw-wdialog-distro select{min-width:180px;max-width:260px}",
+			".dsh-rw-wdialog-chips{display:flex;align-items:center;gap:6px;padding:0 18px 8px;overflow-x:auto;scrollbar-width:none}",
+			".dsh-rw-wdialog-chips::-webkit-scrollbar{height:0}",
+			".dsh-rw-wdialog-path{display:flex;align-items:center;gap:8px;padding:0 18px 8px}",
+			".dsh-rw-wdialog-crumbs{display:flex;align-items:center;gap:2px;padding:0 18px 8px;color:var(--dsw-alias-label-secondary);font-size:12px;overflow-x:auto;white-space:nowrap}",
+			".dsh-rw-wdialog-list{flex:1;min-height:180px;max-height:380px;overflow:auto;padding:4px 10px;border-top:1px solid var(--dsw-alias-border-l1);border-bottom:1px solid var(--dsw-alias-border-l1)}",
+			".dsh-rw-wdialog-row{display:flex;align-items:center;gap:10px;width:100%;height:32px;padding:4px 8px;border:0;border-radius:5px;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;text-align:left;cursor:default}",
+			".dsh-rw-wdialog-row--dir{cursor:pointer}",
+			".dsh-rw-wdialog-row:hover{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-wdialog-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:left}",
+			".dsh-rw-wdialog-meta{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px;font-variant-numeric:tabular-nums}",
+			".dsh-rw-wdialog-arrow{flex:none;width:14px;color:var(--dsw-alias-label-secondary);text-align:center;font-size:18px;line-height:18px}",
+			".dsh-rw-wdialog-state{padding:24px 10px;color:var(--dsw-alias-label-secondary);font-size:13px;text-align:center}",
+			".dsh-rw-wdialog-state--error{color:var(--dsw-alias-state-error-primary);text-align:left;white-space:pre-wrap}",
+			".dsh-rw-wdialog-foot{display:flex;align-items:center;gap:8px;padding:12px 18px 16px}",
+			"@media (max-width: 520px){.dsh-rw-rowtime{display:none}.dsh-rw-wdialog{width:calc(100vw - 20px)}.dsh-rw-wdialog-foot .dsh-rw-hint{display:none}}",
 		].join("\n");
 
 		// 静态 bundle 的样式注入：手写 <style data-plugin-css>，卸载时由 module system 的
@@ -431,11 +460,13 @@ window.__ModuleLoader__.load({
 						throw new Error(i18n.t("chunk.notExported", { file: CHUNK_API, fn: "createExplorerApi" }));
 					}
 					const api = createExplorerApi(i18n);
-					return Promise.all([loadChunk(CHUNK_PANEL), loadChunk(CHUNK_ICON)]).then(([panelModule, iconModule]) => {
+					return Promise.all([loadChunk(CHUNK_PANEL), loadChunk(CHUNK_ICON), loadChunk(CHUNK_WORKSPACE)]).then(([panelModule, iconModule, workspaceModule]) => {
 						const createPanel = panelModule && panelModule.createPanel;
 						const createIcon = iconModule && iconModule.createIcon;
+						const WorkspaceDialog = workspaceModule && workspaceModule.WorkspaceDialog;
 						if (typeof createPanel !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_PANEL, fn: "createPanel" }));
 						if (typeof createIcon !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_ICON, fn: "createIcon" }));
+						if (typeof WorkspaceDialog !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_WORKSPACE, fn: "WorkspaceDialog" }));
 						// T41：面板自己被拆成了子 chunk（client.panel.helpers.js 等）。组件在**首次渲染**里直接
 						// 引用那些纯函数，所以必须在 createPanel() 之前 await 面板的 whenReady()；
 						// 否则 createPanel 内部的就绪断言会抛（宁可显式失败，也不做一个"少功能的面板"）。
@@ -444,6 +475,7 @@ window.__ModuleLoader__.load({
 							api,
 							i18n,
 							Panel: createPanel(ctx, api, i18n),
+							WorkspaceDialog,
 							Icon: createIcon(ctx),
 						}));
 					});
@@ -456,7 +488,7 @@ window.__ModuleLoader__.load({
 		 * @param ctx - client 受限 cordis 上下文（`slots` 服务由 ui-renderer 提供）。
 		 */
 		function apply(ctx) {
-			const boot = { ready: false, error: null, Panel: null, Icon: null, i18n: null };
+			const boot = { ready: false, error: null, Panel: null, Icon: null, WorkspaceDialog: null, i18n: null };
 			/**
 			 * 字典就绪前/未就绪时的翻译：**绝不把键名当文案显示**。
 			 * 只有 rail 名需要提前可用（侧栏可能在 chunk 就绪前就请求标签）。
@@ -473,6 +505,7 @@ window.__ModuleLoader__.load({
 					boot.api = product.api;
 					boot.i18n = product.i18n;
 					boot.Panel = product.Panel;
+					boot.WorkspaceDialog = product.WorkspaceDialog;
 					boot.Icon = product.Icon;
 					boot.ready = true;
 				},
@@ -535,6 +568,39 @@ window.__ModuleLoader__.load({
 			}
 
 			// 每个槽都要等父 entry 的 children 表声明它（否则 register 会 throw）。
+			function FooterSlot() {
+				const current = useBoot();
+				const [open, setOpen] = React.useState(false);
+				if (!current.ready || current.api === null) return null;
+				const Dialog = current.WorkspaceDialog;
+				if (typeof Dialog !== "function") return null;
+				const translate = (key, params) => (current.i18n && typeof current.i18n.t === "function" ? current.i18n.t(key, params) : fallbackText(key));
+				return React.createElement(
+					React.Fragment,
+					null,
+					React.createElement(
+						"button",
+						{
+							type: "button",
+							className: "dsh-rw-footer-action",
+							title: translate("workspace.title"),
+							"aria-label": translate("workspace.title"),
+							onClick: () => setOpen(true),
+						},
+						"WSL",
+					),
+					open
+						? React.createElement(Dialog, {
+							api: current.api,
+							ctx,
+							t: translate,
+							onClose: () => setOpen(false),
+						})
+						: null,
+				);
+			}
+
+			// 每个槽都要等父 entry 的 children 表声明它（否则 register 会 throw）。
 			// ★ rail 名**必须等字典就绪后再注册**：实测冷加载时侧栏请求 label 的时机早于
 			//   chunk 就绪 ⇒ 拿到 fallback 语言并一直留着（英文界面里 rail 名仍是中文的缺陷）。
 			//   注册幂等，所以成功/失败两条路径都在这之后注册一次。
@@ -554,6 +620,15 @@ window.__ModuleLoader__.load({
 					),
 				);
 			};
+			ctx.slots.inject("sidebar.footer.action", () =>
+				ctx.slots.register(
+					{
+						name: "sidebar.footer.action",
+						id: PANEL_ID + "-workspace",
+					},
+					FooterSlot,
+				),
+			);
 			ctx.slots.inject("main", () =>
 				ctx.slots.register(
 					{

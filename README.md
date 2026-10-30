@@ -11,11 +11,11 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.3.14** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.3.16** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
-<img width="1280" height="900" alt="远程资源管理器面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
+<img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
-**它是什么**：DSH 桌面壳的 host 由本机启动，没有「连远端 host」的开关（实测与机制见 [docs/2026-10-10-wsl-dsh-sdk-bridge.md](docs/2026-10-10-wsl-dsh-sdk-bridge.md)）。这个插件不假装有——它从 Windows 宿主侧驱动 WSL 里那份 dsh，提供七个工具、一个「远程资源管理器」面板，以及一个把文件工具搬进 WSL 的 agent preset，并把会话持久性、版本一致性和关停边界一起管起来。
+**它是什么**：DSH 桌面壳的 host 由本机启动，没有「连远端 host」的开关（实测与机制见 [docs/2026-10-10-wsl-dsh-sdk-bridge.md](docs/2026-10-10-wsl-dsh-sdk-bridge.md)）。这个插件不假装有——它从 Windows 宿主侧驱动 WSL 里那份 dsh，提供七个工具、一个「WSL 工作区」面板，以及一个把文件工具搬进 WSL 的 agent preset，并把会话持久性、版本一致性和关停边界一起管起来。
 
 ## 30 秒上手
 
@@ -54,7 +54,9 @@ flowchart LR
 - **会话结束只有三种方式**：显式 `wsl_daemon action=stop`（`restart` 也会先结束）；空闲 `daemonIdleMs`（默认 30 分钟）回收；守护或运行时死亡。守护在无 key 且无客户端持续 `daemonLingerMs`（默认 10 分钟）后自退，有会话时不会触发。
 - **同 key 串行**：并发 prompt 在守护里 FIFO；超过 `daemonQueueLimit`（默认 4）明确拒绝，不静默排队——上游 SDK 没有 cancel。
 - **七个工具**：诊断、一次性命令、常驻 agent、守护生命周期、远程 UI、版本对齐、路径互转，详见下方表格。
-- **远程资源管理器**：左侧栏「插件」下的面板。
+- **WSL 工作区**：左侧栏「插件」下的面板。
+  - **快速添加（2026-10-30 UI 重构）**：侧栏 footer 的 `WSL` 按钮打开聚焦的「添加 WSL 工作区」弹窗：发行版选择、路径输入、快捷位置、breadcrumb、目录列表与「创建并打开」；不再要求先进入面板再找按钮。
+  - **紧凑文件表（2026-10-30）**：文件行显示名称、大小、修改时间（目录不显示大小）；窄态隐藏时间列；单发行版时隐藏重复的 WSL 目标大卡，减少顶部噪声。
   - **WSL 目标**：发行版列表（状态点 + 默认/当前徽标 + WSL 版本），点行内「切换」换目标；切换只影响本面板的请求，不改插件配置。WSL1 行标「仅支持 WSL2」，面板的 host 方法会拒绝。
   - **目录浏览**：路径框 / 面包屑 / Home / 最近目录，支持隐藏文件与筛选。
   - **守护状态**：头部药丸显示运行态，悬停提示里带 pid/版本/槽位；未运行时可直接点起。底栏显示会话数、更新时间和漂移。
@@ -65,10 +67,12 @@ flowchart LR
   - **远端会话卡**：列出 `cwd + sessionId 前 8 位`、轮次与空闲时间，可复制完整 sessionId。
   - **窄态与双语**：320 / 360 / 376 / 416 / 420 / 480 / 1280 七档实测无横向溢出；窄态下快捷目录 chips 保持完整并横向滚动（不压字）；中文 / English 跟随宿主语言。
 - **WSL 执行世界（实验）**：agent preset `wsl`，名称「WSL（远程执行世界）」。
+  - **WSL 模式变体（2026-10-30）**：宿主 roster 中的 `standard` / `ptc` / `minimal` / `cordis` 会分别生成 `wsl-standard` / `wsl-ptc` / `wsl-minimal` / `wsl-cordis`；显示名采用 `WSL · Standard mode（标准模式）` 形式。变体通过 `agentPresets.readDocument` + WSL world 替换 + `js-yaml` 重新解析注册，失败只记日志，不影响原有 `wsl` preset。**每个变体也挂 `wsl-terminal` 后端**，所以右侧栏 Terminal 在这些会话里同样是发行版内 bash。
   - 文件工具经 `{op:'fs'}` RPC 交给 WSL 侧守护用原生 `node:fs` 执行，**不走 9P**（绕开 `write` 在 `\\wsl.localhost\…` 上的原子写失败）。
   - `listDir` 的符号链接语义与上游 `dsh-fs-local` 一致：链接**跟随目标**（`ln -s /etc d` 报 `directory` 而不是 `other`），子项身份取 `realpath`（同一文件不会因不同链接得到两个身份）。
   - WSL 内 `grep` / `glob` 优先用 ripgrep / fd，没有再回落 ugrep / GNU grep / find。
-  - **原生 `bash`（2026-10-29 起）**：preset 的 `wsl-world` 隔离组里把 `ctx.shell` 也换成了 WSL 执行器（`src/shell-provider.ts`），组内的 `bash` 工具**直接跑在发行版里**（每条命令一次 `wsl.exe`；`set -m` 独立进程组，超时/中止时按进程组回收，后台孤儿由脚本自己收；超上限**留尾部**并把全文落到 WSL `/tmp` 的 spill 文件）。它**不受 Windows 文件沙箱约束**：执行器 `sandboxMode` 返回 `undefined`，模型看到的 `sandbox_permissions` 参数不存在——这是事实，不是提权通道。终端（PTY）仍由宿主提供。**验证边界**：执行器层已真机验证（9 条）；「模型 → `bash` 工具 → WSL」的整链路需要重启 DSH 后人工验收（见 `docs/2026-10-29-native-shell.md` §6）。
+  - **原生 `bash`（2026-10-29 起）**：preset 的 `wsl-world` 隔离组里把 `ctx.shell` 也换成了 WSL 执行器（`src/shell-provider.ts`），组内的 `bash` 工具**直接跑在发行版里**（每条命令一次 `wsl.exe`；`set -m` 独立进程组，超时/中止时按进程组回收，后台孤儿由脚本自己收；超上限**留尾部**并把全文落到 WSL `/tmp` 的 spill 文件）。它**不受 Windows 文件沙箱约束**：执行器 `sandboxMode` 返回 `undefined`，模型看到的 `sandbox_permissions` 参数不存在——这是事实，不是提权通道。**验证边界**：执行器层已真机验证（9 条）；「模型 → `bash` 工具 → WSL」的整链路需要重启 DSH 后人工验收（见 `docs/2026-10-29-native-shell.md` §6）。
+  - **WSL 右侧栏终端（2026-10-30）**：`wsl` preset 的 `wsl-world` 内再挂一个 `wsl-terminal` 子组（`@deepseek-ai/dsh-terminal` + `@deepseek-ai/dsh-terminal-bash`，`backendType: wsl`，`shellPath: wsl.exe`，参数 `-d <distro> --exec bash -l`；distro 为空时省略 `-d` 走默认发行版）。**UI 用宿主官方右侧栏 Terminal 标签，不自建 xterm**；插件只提供“这个标签该起哪只 shell”的后端。
   - **标准 preset 的 UNC 文件桥（2026-10-29 检查修复）**：即使没选 `wsl` preset，只要会话 cwd 是 `\\wsl.localhost\<配置发行版>\…`，`write` / `edit` 也会由 `src/fs-unc-bridge.ts` 接到 WSL 侧 fs-rpc。原因是宿主 `dsh-fs-local` 在 9P 上替换已有文件时会调用 `GetFileSecurityW`/`ReplaceFileW` 复制 DACL，直接报 `GetFileSecurityW EIO (Win32 1)`。桥同时覆盖 `/mnt/...`（DrvFs）：WSL symlink 指向 `/mnt/d/...` 时，Windows `realpath`/`stat`/`readFile` 会报 `EPERM`，因此这些路径的 `resolve`/`lstat`/`stat`/`readText`/`streamText`/`readBytes`/`readByteRange`/`listDir` 也改走 WSL fs-rpc；其它 Windows 路径原样走宿主实现。普通 UNC 写前仍用宿主 `stat` 校验版本，写后回取宿主版本；`/mnt` 路径从第一次 `stat` 起使用 WSL 版本，observation-policy 语义一致。
   - 18 个常用 Rust CLI（ripgrep、fd、ast-grep、sd、bat、tokei 等）的安装目录：核心 8 个在守护启动时后台预热（可用 `--no-provision` 关掉，测试/CI 用），`grep` / `glob` 缺 rg / fd 时按需装，任意项可用 `wsl_tools action=install` 装到 `~/.local/bin`。
   - **下载会校验 sha256，且校验结论是可见的**：`verified` 取 `ok`（官方摘要：GitHub API `digest` 或发布页校验文件）、`pinned`（只有内置 TOFU 摘要）、`unavailable`（上游没有任何摘要 ⇒ 本次没校验，会写进结果说明）、`mismatch`（不匹配 ⇒ **拒绝安装**）。内置摘要表覆盖 18 个兜底 URL，其中 5 项与官方来源逐字相等，其余 13 项该版本上游未发布摘要 ⇒ **TOFU pin**：只保证「与钉住的那一份一致」，不证明上游未被入侵，因此记 `pinned` 而不是 `ok`。
@@ -83,7 +87,7 @@ flowchart LR
 
 深色（跟随 DSH 主题）：
 
-<img width="1280" height="900" alt="深色主题下的远程资源管理器" src="assets/screenshot-dark.webp">
+<img width="1280" height="900" alt="深色主题下的WSL 工作区" src="assets/screenshot-dark.webp">
 
 窄态（窗口 360；快捷目录 chips 横向滚动，完整显示、不再压字）：
 
@@ -160,7 +164,7 @@ if (-not (Test-Path $link)) {
 }
 ```
 
-重启后新开会话，让 agent 调一次 `wsl_status`：返回里应有 `plugin: dsh-remote-wsl@<version>`、发行版、版本与守护状态；左侧栏「插件」下应出现「远程资源管理器」。
+重启后新开会话，让 agent 调一次 `wsl_status`：返回里应有 `plugin: dsh-remote-wsl@<version>`、发行版、版本与守护状态；左侧栏「插件」下应出现「WSL 工作区」。
 
 **装不上时按这个顺序查**（桌面 GUI 看不到 stderr，插件加载失败不会弹窗）：
 
@@ -272,7 +276,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | 打开 WSL 里的 Web UI | `wsl_open_ui`（`port` 默认 3082，`open=false` 只起服务） |
 | 桌面升级后对齐版本 | `wsl_sync_version`（可 `warm=true`）→ `wsl_daemon action=restart` |
 | Windows / WSL 路径互转 | `wsl_path`（`direction=both` 默认） |
-| 浏览 / 打开 WSL 目录 | 左侧栏「远程资源管理器」 |
+| 浏览 / 打开 WSL 目录 | 左侧栏「WSL 工作区」 |
 
 这些工具是给模型用的：你直接在会话里描述任务，或显式点名工具；下面的例子是显式写法。
 

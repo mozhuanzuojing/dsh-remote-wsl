@@ -18,6 +18,20 @@ window.__ModuleLoader__.load({
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 		const React = require("react");
+		function humanSize(value) {
+			if (typeof value !== "number" || !Number.isFinite(value)) return "";
+			if (value < 1024) return value + " B";
+			if (value < 1024 * 1024) return (value / 1024).toFixed(1) + " KB";
+			if (value < 1024 * 1024 * 1024) return (value / 1024 / 1024).toFixed(1) + " MB";
+			return (value / 1024 / 1024 / 1024).toFixed(1) + " GB";
+		}
+		function humanMtime(value) {
+			const ms = Number(value);
+			if (!Number.isFinite(ms)) return "";
+			const date = new Date(ms);
+			if (Number.isNaN(date.getTime())) return "";
+			return date.toISOString().slice(0, 16).replace("T", " ");
+		}
 		/** 每个目录的滚动位置（模块级：面板重挂/回退都能回到原处）。 */
 		const scrollMemory = new Map();
 		/** 窗口化几何：行高 32 + gap 2；overscan 4 行。 */
@@ -206,6 +220,12 @@ window.__ModuleLoader__.load({
 					},
 					icon(isDir ? "folder" : "file"),
 					React.createElement("span", { className: "dsh-rw-rowname", title: childPath, dir: "ltr" }, entry.name),
+					React.createElement(
+						"span",
+						{ className: "dsh-rw-rowmeta", "aria-hidden": "true" },
+						React.createElement("span", { className: "dsh-rw-rowsize" }, isDir ? "" : humanSize(entry.size)),
+						React.createElement("span", { className: "dsh-rw-rowtime" }, isDir ? "" : humanMtime(entry.mtimeMs)),
+					),
 					entry.hidden === true ? React.createElement("span", { className: "dsh-rw-badge" }, t("browser.hiddenBadge")) : null,
 					React.createElement(
 						"span",

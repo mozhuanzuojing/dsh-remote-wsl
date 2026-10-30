@@ -27,6 +27,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { normalizeConfig } from './config.ts';
+import { registerWslVariants } from './variant-register.ts';
 export const name = 'dsh-remote-wsl-preset';
 export const inject = [];
 
@@ -99,6 +100,29 @@ export function buildWslPresetPlugins(cfg) {
           id: 'wsl-command-policy',
           name: 'dsh-remote-wsl/command-policy',
           config: { toolNames: ['bash'], commandPolicy: wslCfg.commandPolicy },
+        },
+        {
+          // 2026-10-30：官方右侧栏终端的 WSL 后端。DSH 自带 terminal 注册表与 PTY UI；
+          // 这里只提供“用 wsl.exe 启动发行版 bash”的 terminal 类型，不自行实现 xterm。
+          id: 'wsl-terminal',
+          name: 'cordis:group',
+          group: true,
+          isolate: { terminals: true },
+          config: [
+            { id: 'pty', name: '@deepseek-ai/dsh-terminal' },
+            {
+              id: 'terminal-wsl',
+              name: '@deepseek-ai/dsh-terminal-bash',
+              config: {
+                backendType: 'wsl',
+                shellDialect: 'bash',
+                shellPath: 'wsl.exe',
+                // distro 为空 = 自动探测/默认发行版；此时不能传 `-d ''`（wsl.exe 会报错）。
+                shellArgs: [...(wslCfg.distro ? ['-d', wslCfg.distro] : []), '--exec', 'bash', '-l'],
+                idleSilenceMs: 1200,
+              },
+            },
+          ],
         },
       ],
     },
@@ -224,6 +248,12 @@ export function apply(ctx, rawConfig = {}) {
           );
           presetState.phase = 'registered';
           presetState.broken = broken ?? null;
+          // 2026-10-30：为 roster 中健康的基础模式生成 wsl-<mode> 变体。失败只记录，不影响
+          // 现有 `wsl` preset（用户仍可用标准 WSL 世界）。
+          void registerWslVariants(presets, logStartup, { distro: cfg.distro }).then((result) => {
+            if (result.registered.length) logStartup(`WSL 模式变体已注册：${result.registered.join(', ')}`);
+            if (result.failures.length) logStartup(`WSL 模式变体失败：${result.failures.join(' | ')}`);
+          }).catch((e) => logStartup(`WSL 模式变体异常：${e?.message ?? e}`));
         })
         .catch((e) => {
           presetState.phase = 'failed';
