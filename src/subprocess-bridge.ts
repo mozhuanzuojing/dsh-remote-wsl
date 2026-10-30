@@ -10,12 +10,14 @@
  * ## 做法
  * 在插件根 apply 里拿到宿主唯一的 `subprocess` 实例，包一层 `spawnTerminal`：
  *   - `spec.cwd` 是 `\\wsl.localhost\…` / `\\wsl$\…`（WSL 会话的工作区）⇒ 换成
- *     `wsl.exe [-d <distro>] --exec bash -l`，cwd 改到 Windows 有效目录；
+ *     `wsl.exe [-d <cwd 里的发行版>] [--cd <cwd 的 Linux 路径>] --exec bash -l`，
+ *     宿主 cwd 改到 Windows 有效目录（Linux 侧由 --cd 决定）；
  *   - 其它 cwd 原样调用宿主实现。
  * 这样不改 controller、不依赖 isolate 作用域，也不影响 Windows 会话。
  *
  * ## 诚实边界
  * - 只按 **cwd** 判定 WSL 会话；WSL preset + Windows 盘符 cwd 的会话仍会走 Windows shell。
+ * - `--cd` 只对 UNC 路径可用；没有 UNC 时 bash 从宿主 cwd 映射的 `/mnt/...` 开始。
  * - controller 的 shell 发现仍走宿主 `terminalEnvironment`，所以终端标签可能显示
  *   `cmd.exe`/`PowerShell`，内容却是发行版 bash（外观与事实不一致）。
  * - 这是对宿主服务实例的运行时包装；宿主若冻结该实例或更换 API，bridge 会明确失败
@@ -27,6 +29,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+import { parseWslUncPath } from './unc-path.ts';
 
 /** Windows 侧合法 cwd（终端进程在这里启动，Linux 目录由 wsl.exe 决定）。 */
 const WINDOWS_CWD = process.env.SystemRoot ?? 'C:\\Windows';
@@ -63,7 +67,18 @@ export function installSubprocessBridge(host, cfg = {}) {
   const distro = typeof cfg.distro === 'string' ? cfg.distro.trim() : '';
   const wrapped = function spawnTerminalFromWsl(spec = {}) {
     if (!isWslUncCwd(spec.cwd)) return original.call(host, spec);
-    const argv = [wslExecutable(), ...(distro ? ['-d', distro] : []), '--exec', 'bash', '-l'];
+    // UNC cwd 同时给出真实发行版与 Linux 路径：优先用 cwd 里的 distro（比配置更准），
+    // 并把 Linux 路径作为 `--cd`；否则 bash 会落在宿主 cwd 映射出的 /mnt/c/Windows。
+    const unc = parseWslUncPath(spec.cwd);
+    const targetDistro = unc?.distro || distro;
+    const argv = [
+      wslExecutable(),
+      ...(targetDistro ? ['-d', targetDistro] : []),
+      ...(unc?.linuxPath ? ['--cd', unc.linuxPath] : []),
+      '--exec',
+      'bash',
+      '-l',
+    ];
     const env = {
       ...(spec.env ?? {}),
       SystemRoot: WINDOWS_CWD,

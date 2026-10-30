@@ -31,7 +31,7 @@ test('installSubprocessBridge：WSL UNC cwd 换成 wsl.exe bash', async () => {
   await host.spawnTerminal({ argv: ['cmd.exe'], cwd: '\\\\wsl.localhost\\Ubuntu\\home\\me', rows: 30, cols: 120, env: { DSH_SESSION_ID: 's' } });
   const spec = calls[0];
   assert.equal(spec.argv[0].endsWith('wsl.exe'), true);
-  assert.deepEqual(spec.argv.slice(1), ['-d', 'Ubuntu', '--exec', 'bash', '-l']);
+  assert.deepEqual(spec.argv.slice(1), ['-d', 'Ubuntu', '--cd', '/home/me', '--exec', 'bash', '-l']);
   assert.equal(spec.rows, 30);
   assert.equal(spec.cols, 120);
   assert.equal(spec.env.DSH_SESSION_ID, 's');
