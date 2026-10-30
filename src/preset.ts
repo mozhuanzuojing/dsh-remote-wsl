@@ -101,37 +101,12 @@ export function buildWslPresetPlugins(cfg) {
           name: 'dsh-remote-wsl/command-policy',
           config: { toolNames: ['bash'], commandPolicy: wslCfg.commandPolicy },
         },
-        {
-          // 2026-10-30：官方右侧栏终端的 WSL 后端。DSH 自带 terminal 注册表与 PTY UI；
-          // 这里只提供“用 wsl.exe 启动发行版 bash”的 terminal 类型，不自行实现 xterm。
-          id: 'wsl-terminal',
-          name: 'cordis:group',
-          group: true,
-          isolate: { terminals: true },
-          config: [
-            { id: 'pty', name: '@deepseek-ai/dsh-terminal' },
-            {
-              id: 'terminal-wsl',
-              name: '@deepseek-ai/dsh-terminal-bash',
-              config: {
-                backendType: 'wsl',
-                shellDialect: 'bash',
-                shellPath: 'wsl.exe',
-                // distro 为空 = 自动探测/默认发行版；此时不能传 `-d ''`（wsl.exe 会报错）。
-                shellArgs: [
-                  ...(wslCfg.distro ? ['-d', wslCfg.distro] : []),
-                  ...(wslCfg.cwd ? ['--cd', wslCfg.cwd] : []),
-                  '--exec',
-                  'bash',
-                  '-l',
-                ],
-                idleSilenceMs: 1200,
-              },
-            },
-          ],
-        },
       ],
     },
+    // 注意：官方右侧栏 Terminal 不用 `terminals` 注册表，而是用会话的 `subprocess`
+    // （`dsh-api-terminal-controller` → `agent.ctx.get("subprocess").spawnTerminal(...)`）。
+    // 因此这里挂 `dsh-terminal-bash` 组对官方 UI 无效；要让右侧栏真正跑 WSL bash，
+    // 需要在 `wsl-world` 里提供 WSL 的 `subprocess` provider（尚未实现，见 README「已知边界」）。
     { id: 'tool-jobs', name: '@deepseek-ai/dsh-tool-jobs' },
     { id: 'tool-schedule', name: '@deepseek-ai/dsh-tool-schedule' },
     { id: 'skill-filesystem', name: '@deepseek-ai/dsh-skill-filesystem' },
@@ -222,6 +197,7 @@ export function apply(ctx, rawConfig = {}) {
     }
     let disposed = false;
     let unregister = null;
+    let disposeVariants = null;
     child.effect(() => {
       presets
         .register({
@@ -256,7 +232,12 @@ export function apply(ctx, rawConfig = {}) {
           presetState.broken = broken ?? null;
           // 2026-10-30：为 roster 中健康的基础模式生成 wsl-<mode> 变体。失败只记录，不影响
           // 现有 `wsl` preset（用户仍可用标准 WSL 世界）。
-          void registerWslVariants(presets, logStartup, { distro: cfg.distro, cwd: cfg.cwd }).then((result) => {
+          void registerWslVariants(presets, logStartup).then((result) => {
+            if (disposed) {
+              void result.dispose();
+              return;
+            }
+            disposeVariants = result.dispose;
             if (result.registered.length) logStartup(`WSL 模式变体已注册：${result.registered.join(', ')}`);
             if (result.failures.length) logStartup(`WSL 模式变体失败：${result.failures.join(' | ')}`);
           }).catch((e) => logStartup(`WSL 模式变体异常：${e?.message ?? e}`));
@@ -269,6 +250,7 @@ export function apply(ctx, rawConfig = {}) {
       return () => {
         disposed = true;
         if (unregister) void unregister();
+        if (disposeVariants) void disposeVariants();
       };
     });
   });

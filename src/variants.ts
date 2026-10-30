@@ -278,17 +278,13 @@ function wslWorldGroup(
     '        toolNames: ["bash"]',
     '    - id: tool-fs',
     "      name: '@deepseek-ai/dsh-tool-fs'",
-    // #105: `dsh-tool-fs` registers `read_image` unless `readImage` is turned off, and from 0.2.1 the
-    // tool layer no longer lets two rows claim one name — the variant simply refuses to mount. The
-    // world's own realm-safe row below is the one that stays, so the host's is switched off here.
-    '      config:',
-    '        readImage: false',
-    // The world's answer for `read_image`, mounted beside the row whose registration of it cannot
-    // reach this realm. See `src/host/wsl-image-tool.ts` for what it takes over and why the
-    // isolation above stays.
+    // dsh-remote-wsl 没有配套的 realm-safe image row：默认**不关闭**宿主的 read_image
+    // （它走世界里的 WSL fs 提供者读图）。只有显式传入 imagePath 时才改用世界自己的 row。
     ...(imagePath === undefined
       ? []
       : [
+          '      config:',
+          '        readImage: false',
           `    - id: ${IMAGE_ROW_ID}`,
           `      name: '${imagePath.replace(/'/g, "''")}'`,
         ]),

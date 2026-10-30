@@ -33,17 +33,18 @@ test('registerWslVariants：基础模式生成 wsl-<mode>，world 含 fs/shell/�
   assert.ok(world.config.some((row) => row.id === 'shell-wsl'));
   assert.ok(world.config.some((row) => row.id === 'fs-wsl'));
   assert.ok(world.config.some((row) => row.id === 'wsl-command-policy'));
-  // 右侧栏终端：每个变体都要挂 WSL 后端（宿主自带 terminal UI/注册表）。
-  const terminal = standard.plugins.find((row) => row.id === 'wsl-terminal');
-  assert.ok(terminal, '变体必须含 wsl-terminal 组');
-  assert.equal(terminal.group, true);
-  const backend = terminal.config.find((row) => row.id === 'terminal-wsl');
-  assert.ok(backend, 'wsl-terminal 必须挂 dsh-terminal-bash 后端');
-  assert.equal(backend.name, '@deepseek-ai/dsh-terminal-bash');
-  assert.deepEqual(backend.config.shellArgs, ['-d', 'Ubuntu', '--exec', 'bash', '-l']);
 });
 
-test('registerWslVariants：无显式发行版时不传空 -d（默认发行版）', async () => {
+test('registerWslVariants：没有 readDocument/read 时返回失败而不是抛/伪造', async () => {
+  const result = await registerWslVariants({
+    list: async () => [{ id: 'standard' }],
+    register: async () => async () => {},
+  });
+  assert.equal(result.registered.length, 0);
+  assert.match(result.failures[0], /readDocument|read/);
+});
+
+test('registerWslVariants：不关闭宿主 read_image（本仓库没有 image 替身）', async () => {
   const registered = [];
   const presets = {
     list: async () => [{ id: 'standard' }],
@@ -54,16 +55,51 @@ test('registerWslVariants：无显式发行版时不传空 -d（默认发行版�
     },
   };
   await registerWslVariants(presets);
-  const terminal = registered[0].plugins.find((row) => row.id === 'wsl-terminal');
-  const backend = terminal.config.find((row) => row.id === 'terminal-wsl');
-  assert.deepEqual(backend.config.shellArgs, ['--exec', 'bash', '-l']);
+  const world = registered[0].plugins.find((row) => row.id === 'wsl-world');
+  const toolFs = world.config.find((row) => row.id === 'tool-fs');
+  assert.notEqual(toolFs.config?.readImage, false, '没有 image 替身时不得关闭 read_image');
 });
 
-test('registerWslVariants：没有 readDocument/read 时返回失败而不是抛/伪造', async () => {
-  const result = await registerWslVariants({
+test('registerWslVariants：roster 中所有健康基础 preset 都生成变体（不只固定 5 个）', async () => {
+  const registered = [];
+  const presets = {
+    list: async () => [{ id: 'standard' }, { id: 'custom-mode' }, { id: 'wsl-old' }, { id: 'broken-mode', broken: 'x' }],
+    readDocument: async (id) => ({ content: SOURCE, name: id }),
+    register: async (definition) => {
+      registered.push(definition);
+      return async () => {};
+    },
+  };
+  const result = await registerWslVariants(presets);
+  assert.deepEqual(result.registered.sort(), ['wsl-custom-mode', 'wsl-standard']);
+  assert.ok(!registered.some((row) => row.id === 'wsl-old'), '已存在的 wsl-* 不应重复');
+  assert.ok(!registered.some((row) => row.id === 'wsl-broken-mode'), 'broken preset 不应生成变体');
+});
+
+test('registerWslVariants：dispose 释放本次注册的变体', async () => {
+  const disposed = [];
+  const presets = {
     list: async () => [{ id: 'standard' }],
-    register: async () => async () => {},
-  });
-  assert.equal(result.registered.length, 0);
-  assert.match(result.failures[0], /readDocument|read/);
+    readDocument: async () => ({ content: SOURCE, name: 'standard' }),
+    register: async (definition) => async () => disposed.push(definition.id),
+  };
+  const result = await registerWslVariants(presets);
+  assert.equal(result.registered.length, 1);
+  await result.dispose();
+  assert.deepEqual(disposed, ['wsl-standard']);
+});
+
+test('registerWslVariants：源 preset 含 !!js 时明确失败，不注册坏 preset', async () => {
+  const registered = [];
+  const presets = {
+    list: async () => [{ id: 'standard' }],
+    readDocument: async () => ({ content: '- id: persona\n  name: !!js process.env.X\n', name: 'standard' }),
+    register: async (definition) => {
+      registered.push(definition);
+      return async () => {};
+    },
+  };
+  const result = await registerWslVariants(presets);
+  assert.equal(registered.length, 0, '含 !!js 时不得注册');
+  assert.ok(result.failures.some((line) => line.includes('!!js')), JSON.stringify(result.failures));
 });

@@ -18,8 +18,6 @@ const MODE_LABELS = Object.freeze({
   cordis: { en: 'Creator mode', zh: '创造模式' },
 });
 
-const BASE_IDS = ['standard', 'ptc', 'code', 'minimal', 'cordis'];
-
 function variantName(id) {
   const label = MODE_LABELS[id];
   return label ? `WSL · ${label.en}（${label.zh}）` : `WSL · ${id}`;
@@ -29,6 +27,14 @@ function variantDescription(id) {
   const label = MODE_LABELS[id];
   const display = label ? `${label.en}（${label.zh}）` : id;
   return `WSL execution world for ${display}: bash and file tools run inside the WSL distribution.`;
+}
+
+/** `!!js` 表达式目前只被解析成占位对象；变体无法求值，宁可明确失败也不注册一个坏 preset。 */
+function containsJsExpr(value) {
+  if (Array.isArray(value)) return value.some(containsJsExpr);
+  if (!value || typeof value !== 'object') return false;
+  if (Object.prototype.hasOwnProperty.call(value, '__jsExpr')) return true;
+  return Object.values(value).some(containsJsExpr);
 }
 
 async function readComposition(presets, row) {
@@ -66,73 +72,31 @@ async function parseVariantComposition(content) {
 }
 
 /**
- * The official right-Sidebar terminal's WSL backend, as YAML rows appended to a
- * generated variant. The host owns the terminal registry and the xterm UI
- * (`@deepseek-ai/dsh-client-ui-sidebar-terminal`); this row only says *which
- * shell* that UI's PTY starts, so a WSL variant's Terminal tab is an interactive
- * `bash` inside the distribution rather than a Windows shell.
- * @param distro - explicit distribution; empty means the default distribution,
- *   in which case no `-d` arg is emitted (an empty `-d` is a wsl.exe error).
- * @param cwd - optional Linux working directory for the terminal's first shell.
- * @returns the entry-list rows for one `wsl-terminal` group.
- */
-function terminalRows(distro, cwd) {
-  const args = [
-    ...(distro ? ['-d', distro] : []),
-    ...(cwd ? ['--cd', cwd] : []),
-    '--exec',
-    'bash',
-    '-l',
-  ];
-  return [
-    '- id: wsl-terminal',
-    '  name: cordis:group',
-    '  group: true',
-    '  isolate:',
-    '    terminals: true',
-    '  config:',
-    '    - id: pty',
-    "      name: '@deepseek-ai/dsh-terminal'",
-    '    - id: terminal-wsl',
-    "      name: '@deepseek-ai/dsh-terminal-bash'",
-    '      config:',
-    '        backendType: wsl',
-    '        shellDialect: bash',
-    '        shellPath: wsl.exe',
-    '        shellArgs:',
-    ...args.map((arg) => `          - '${String(arg).replace(/'/g, "''")}'`),
-    '        idleSilenceMs: 1200',
-  ].join('\n');
-}
-
-/**
  * Publish all available WSL mode variants.
  * @param presets - the host's `agentPresets` service
  * @param log - optional line logger
- * @param options.distro - distribution passed to each variant's Terminal backend
- * @returns `{registered, skipped, failures}`
+ * @returns `{registered, skipped, failures, dispose}`（dispose 释放本次注册的变体）
  */
-export async function registerWslVariants(presets, log = () => {}, options = {}) {
+export async function registerWslVariants(presets, log = () => {}) {
   const registered = [];
   const skipped = [];
   const failures = [];
+  const disposers = [];
   if (!presets || typeof presets.list !== 'function' || typeof presets.register !== 'function') {
-    return { registered, skipped, failures: ['agentPresets.register/list unavailable'] };
+    return { registered, skipped, failures: ['agentPresets.register/list unavailable'], dispose: async () => {} };
   }
   let rows;
   try {
     rows = await presets.list();
   } catch (e) {
-    return { registered, skipped, failures: [`agentPresets.list failed: ${e?.message ?? e}`] };
+    return { registered, skipped, failures: [`agentPresets.list failed: ${e?.message ?? e}`], dispose: async () => {} };
   }
   const existing = new Set((Array.isArray(rows) ? rows : []).map((row) => row && row.id).filter(Boolean));
-  const byId = new Map((Array.isArray(rows) ? rows : []).map((row) => [row.id, row]));
-  for (const id of BASE_IDS) {
-    const source = byId.get(id);
-    if (!source || source.broken) {
-      skipped.push(id);
-      continue;
-    }
+  const roster = (Array.isArray(rows) ? rows : []).filter(
+    (row) => row && typeof row.id === 'string' && row.id !== 'wsl' && !row.id.startsWith('wsl-') && !row.broken,
+  );
+  for (const source of roster) {
+    const id = source.id;
     const variantId = `wsl-${id}`;
     if (existing.has(variantId)) {
       skipped.push(variantId);
@@ -152,21 +116,34 @@ export async function registerWslVariants(presets, log = () => {}, options = {})
       );
       // 右侧栏终端后端：每个 WSL 变体都挂 wsl-terminal（宿主自带 terminal UI/注册表）。
       // 源预设若已带同名组则不重复（避免 loader 的 duplicate entry id）。
-      const withTerminal = transformed.includes('id: wsl-terminal')
-        ? transformed
-        : `${transformed}\n${terminalRows(options.distro ?? '', options.cwd ?? '')}\n`;
-      const plugins = await parseVariantComposition(withTerminal);
-      await presets.register({
+      const plugins = await parseVariantComposition(transformed);
+      if (containsJsExpr(plugins)) throw new Error('源 preset 含 !!js 表达式，变体暂不支持求值');
+      const dispose = await presets.register({
         id: variantId,
         name: variantName(id),
         description: variantDescription(id),
         plugins,
       });
+      if (typeof dispose === 'function') disposers.push(dispose);
       registered.push(variantId);
     } catch (e) {
       failures.push(`${variantId}: ${e?.message ?? e}`);
       log(`WSL variant ${variantId} 生成失败：${e?.message ?? e}`);
     }
   }
-  return { registered, skipped, failures };
+  return {
+    registered,
+    skipped,
+    failures,
+    /** 释放本次注册的变体（插件重载/卸载时调用，避免陈旧变体残留）。 */
+    dispose: async () => {
+      for (const dispose of disposers.splice(0)) {
+        try {
+          await dispose();
+        } catch {
+          /* 单个取消失败不阻塞其余清理 */
+        }
+      }
+    },
+  };
 }
