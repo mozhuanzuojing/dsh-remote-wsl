@@ -16,9 +16,17 @@
  *
  * ## 与标准 preset 的关系（诚实记录代价）
  * 子插件列表是**标准 preset 的静态拷贝**（`@deepseek-ai/dsh-web-app/presets/standard.patch.yml`
- * 2026-10-23 的形状），只做了两处替换：去掉 `tool-fs` / `tool-fs-search`，换成 `wsl-world` 组里的
- * `fs-wsl` + `tool-fs`。代价：上游给标准 preset 增删行时，这份拷贝不会自动跟随（README/报告已记）。
- * `tool-fs-search` 暂不挂：它 spawn Windows ripgrep，Linux 路径在它眼里不成立；WSL 内搜索待阶段三。
+ * **0.2.2-rc.1** 的形状，2026-11-05 对齐），只做了两处替换：去掉 `tool-fs` / `tool-fs-search`，换成
+ * `wsl-world` 组里的 `fs-wsl` + `tool-fs`。代价：上游给标准 preset 增删行时，这份拷贝不会自动跟随
+ * （README/报告已记）。`tool-fs-search` 暂不挂：它 spawn Windows ripgrep，Linux 路径在它眼里不成立；
+ * WSL 内搜索待阶段三。
+ *
+ * DSH 0.2.2 的两处结构变化已跟上：`list_agents` 从 `dsh-tool-subagent-control/list-agents` 子路径并入
+ * 主包（子路径不复存在，保留会让整份 preset 报 "never started" ⇒ broken）；`dsh-tool-subagent` 的
+ * 子模型选择开关由 `modelSelectionSettings` 改名为 `modelSelection` + `modelDiscovery`。
+ * `tool-fs` 显式 `applyPatch: false`：0.2.2 的 `standard.patch.yml` 也显式关闭（设为 true 才多出
+ * apply_patch 工具）。本插件的 WSL fs provider 已实现 `patchText`/`deleteFile`/`moveFile`（守护协议 v4），
+ * 这里跟随上游默认值，避免 WSL preset 比标准模式多出工具。
  *
  * @module dsh-remote-wsl/preset
  */
@@ -79,7 +87,9 @@ export function buildWslPresetPlugins(cfg) {
           // 换角度评审第 3 条：**全量转发**（旧实现只转 4 个键 ⇒ readTextMaxBytes 等配置到不了子插件）。
           config: { ...wslCfg },
         },
-        { id: 'tool-fs', name: '@deepseek-ai/dsh-tool-fs' },
+        // applyPatch 默认 false（0.2.2 的 standard 也显式写 false）：本 provider 已实现 patchText，
+        // 这里只为与标准模式保持同样的工具目录（不额外多出 apply_patch）。
+        { id: 'tool-fs', name: '@deepseek-ai/dsh-tool-fs', config: { applyPatch: false } },
         // WSL 内搜索：grep/glob 由 daemon 在发行版里执行（Windows ripgrep 对 Linux 路径不成立）。
         {
           id: 'search-wsl',
@@ -123,8 +133,15 @@ export function buildWslPresetPlugins(cfg) {
           id: 'plan-mode',
           name: '@deepseek-ai/dsh-plan-mode',
           config: {
-            section:
-              'You are in plan mode. Stay in plan mode until the user approves your plan through exit_plan_mode or switches the session mode. Explore first with non-mutating reads. Do not edit or write files while planning.',
+            // 与 0.2.2-rc.1 的 standard.patch.yml 逐字一致（plan-mode 在 0.2.2 会校验 section 非空）。
+            section: [
+              'You are in plan mode. Stay in plan mode until the user approves your plan through exit_plan_mode or switches the session mode. Imperative language to implement changes means plan the implementation, not execute it. A user\'s conversational agreement — including an answer confirming something you asked — approves nothing and does not end plan mode; fold the confirmed decision into the plan and submit it through exit_plan_mode.',
+              'Explore first. Use non-mutating reads, searches, static analysis, and checks to ground the plan in the actual repository. Do not edit or write files, change configuration, run formatters or code generation that rewrites tracked files, commit, or otherwise carry out the plan. Prefer existing functions and patterns over new machinery.',
+              'The tool catalog stays the same across modes for request-cache stability. These plan-mode rules override any later tool description or guidance that suggests using mutation tools; those tools remain listed to keep the tool catalog unchanged. Do not use todo_write to track this planning phase: it tracks implementation after an approved plan, while the plan itself belongs in exit_plan_mode.',
+              'Resolve discoverable facts by inspection. Use ask_user_question only for user-owned choices or material ambiguity that inspection cannot answer. Do not ask the user where code lives or how current behavior works when you can find out.',
+              'Make the plan decision-complete: state the goal and success criteria; group implementation changes by subsystem; identify public API, schema, and data-flow changes; cover edge cases, failure modes, tests, acceptance criteria, and explicit assumptions. Keep it concise enough to review but detailed enough that another engineer can implement it without making design decisions.',
+              'When ready, call exit_plan_mode with the complete plan markdown, starting with a # title. Make exit_plan_mode the only and final tool call in that assistant response: it presents the plan for approval, and implementation begins only in a later step after approval. Do not paste the final plan as a plain reply or ask "should I proceed?" through prose or ask_user_question. If review rejects it, incorporate the feedback and present again. If the review channel is unavailable or aborted, stay in plan mode and ask the user to switch modes manually; do not proceed with implementation.',
+            ].join('\n\n'),
           },
         },
       ],
@@ -150,9 +167,10 @@ export function buildWslPresetPlugins(cfg) {
       group: true,
       isolate: { workflowEngine: true },
       config: [
+        // 0.2.2：list_agents 已并入 dsh-tool-subagent-control 主包，`/list-agents` 子路径被删除。
         { id: 'tool-subagent-control', name: '@deepseek-ai/dsh-tool-subagent-control' },
-        { id: 'tool-subagent-list-agents', name: '@deepseek-ai/dsh-tool-subagent-control/list-agents' },
-        { id: 'tool-subagent', name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'spawn', toolName: 'subagent', modelSelectionSettings: true } },
+        // 0.2.2：`modelSelectionSettings` → `modelSelection` + `modelDiscovery`（前者已不被识别）。
+        { id: 'tool-subagent', name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'spawn', toolName: 'subagent', modelSelection: true, modelDiscovery: true } },
         { id: 'tool-subagent-fork', name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'fork', toolName: 'subagent_fork' } },
         { id: 'workflow-ptc', name: '@deepseek-ai/dsh-workflow-ptc', config: { provider: 'spawn' } },
         { id: 'tool-workflow', name: '@deepseek-ai/dsh-tool-workflow' },

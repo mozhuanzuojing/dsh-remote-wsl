@@ -242,6 +242,9 @@ async function startDaemon(t: any, opts: StartOpts = {}): Promise<DaemonProc | n
     spawnError: null,
   };
   proc.child = spawn(process.execPath, daemonArgs(stateDir, port, opts), {
+    // 用 stateDir 作为子进程 cwd：Windows 上 `/x` 这类 Linux 绝对路径会解析到当前盘符根，
+    // 这样 fs op 用例才能把 stateDir 的 Linux 形式传给 daemon 而不越出临时目录。
+    cwd: stateDir,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
@@ -824,6 +827,61 @@ test('prompt op：宿主 provider/model 与守护不一致 ⇒ 明确拒绝且�
     const st = await conn.nextJson(5000, 'status 回包');
     assert.equal(st.ok, true);
     assert.deepEqual(st.keys, [], '被拒绝的 prompt 不得创建 key');
+  } finally {
+    for (const c of conns) c.destroy();
+    await stopDaemon(proc);
+  }
+});
+
+test('fs ops：真实守护进程上 patchText / deleteFile / moveFile 走完整 TCP RPC（0.2.2 新接口）', async (t) => {
+  const proc = await startDaemon(t);
+  if (!proc) return;
+  const conns: any[] = [];
+  try {
+    const conn = await openConn(proc.port);
+    conns.push(conn);
+    await handshake(conn, proc.token);
+
+    // daemon 的 fs-rpc 只接受 Linux 绝对路径；Windows 上 `/x` 解析到当前盘符，
+    // 这里把 stateDir（C:\…）映射成 `/…`，确保与真实文件是同一个。
+    const linuxDir = proc.stateDir.replace(/^[A-Za-z]:\\/, '/').replace(/\\/g, '/');
+    const linuxFile = `${linuxDir}/fs022.txt`;
+    const linuxMoved = `${linuxDir}/fs022-moved.txt`;
+    const nativeFile = join(proc.stateDir, 'fs022.txt');
+    const nativeMoved = join(proc.stateDir, 'fs022-moved.txt');
+
+    const fsCall = async (id: number, method: string, args: any, what: string) => {
+      conn.send({ op: 'fs', id, method, args });
+      const reply = await conn.nextJson(8000, what);
+      assert.equal(reply.ok, true, `${what} 必须成功：${JSON.stringify(reply).slice(0, 300)}`);
+      assert.equal(reply.id, id);
+      return reply.result;
+    };
+
+    await fsCall(100, 'writeText', { path: linuxFile, content: 'one\ntwo\n' }, 'writeText');
+    assert.equal(readFileSync(nativeFile, 'utf8'), 'one\ntwo\n');
+
+    const stat = await fsCall(101, 'stat', { path: linuxFile }, 'stat');
+    await fsCall(102, 'patchText', {
+      path: linuxFile,
+      expectedVersion: stat.version,
+      hunks: [{ lineNumber: 2, oldLines: ['two'], newLines: ['TWO'] }],
+    }, 'patchText');
+    assert.equal(readFileSync(nativeFile, 'utf8'), 'one\nTWO\n');
+
+    const moveStat = await fsCall(103, 'stat', { path: linuxFile }, 'move stat');
+    const moved = await fsCall(104, 'moveFile', {
+      sourcePath: linuxFile,
+      destinationPath: linuxMoved,
+      expectedSourceVersion: moveStat.version,
+    }, 'moveFile');
+    assert.equal(moved.sourceDeleted, true);
+    assert.equal(existsSync(nativeFile), false);
+    assert.equal(readFileSync(nativeMoved, 'utf8'), 'one\nTWO\n');
+
+    const delStat = await fsCall(105, 'stat', { path: linuxMoved }, 'delete stat');
+    await fsCall(106, 'deleteFile', { path: linuxMoved, expectedVersion: delStat.version }, 'deleteFile');
+    assert.equal(existsSync(nativeMoved), false);
   } finally {
     for (const c of conns) c.destroy();
     await stopDaemon(proc);

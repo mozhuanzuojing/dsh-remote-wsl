@@ -11,7 +11,7 @@
  *   2. 探针 —— 直接调同一批函数做「真 WSL」验证。
  * 只依赖 `node:` 内置，**不得** import 宿主模块（daemon 是独立脚本，import 宿主模块会崩）。
  *
- * 语义对齐 `@deepseek-ai/dsh-fs-local`（本机 0.2.1-rc.3 的 LocalFileSystem）：
+ * 语义对齐 `@deepseek-ai/dsh-fs-local`（本机 **0.2.2-rc.1** 的 LocalFileSystem；0.2.1 同源）：
  *   · `stat` 跟随符号链接；`lstat` 不跟随；
  *   · 版本令牌 = `${dev}:${ino}:${size}:${mtimeNs}:${ctimeNs}`，**bigint 统计**（2026-10-27 审查 F-27：
  *     旧实现只有 `mtimeNs:size`，删除重建 / rsync 保留 mtime / chmod 后令牌不变 ⇒ 陈旧保护漏判）；
@@ -19,6 +19,8 @@
  *     （link(2) 已存在目标时 EEXIST，原子、不覆盖 —— 审查 F-28：先 stat 后 rename 时并发创建会静默互相覆盖）；
  *   · `expected.kind === "replaceIfVersion"`：版本不符 ⇒ FS_STALE_VERSION；
  *     `createIfAbsent`：已存在 ⇒ FS_NOT_OBSERVED；
+ *   · 编辑/补丁在 LF 规范化文本上匹配，写回恢复原 CRLF/LF 行尾（0.2.2 语义）；
+ *   · 0.2.2 新增 `patchText` / `deleteFile` / `moveFile`（apply_patch 的 update/delete/move 直接消费）；
  *   · `readText` 拒绝二进制（NUL 或非法 UTF-8）；上限可配（默认见 READ_TEXT_DEFAULT_BYTES），且用
  *     **流式硬截断**读（审查 F-29：stat 后文件可增长，`readFile()` 会按增长后的全文吃内存）；
  *   · `readChunk`：`streamText` 的分块读取（每块独立 open/read/close，UTF-8 跨块由宿主侧 TextDecoder 兜）；
@@ -360,6 +362,265 @@ export async function listDirOp(args) {
   return { entries: out, version: versionOf(st) };
 }
 
+// ── 文本编辑/补丁（与 fs-local 0.2.2 同语义）────────────────────────────────────
+
+/** 覆盖写后 diff 基线的上限（与 `dsh-fs-local` 的 `diffBasisMaxBytes` 默认 10MiB 一致）。 */
+const DIFF_BASIS_MAX_BYTES = 10 * 1024 * 1024;
+
+/** CRLF → LF（所有编辑/补丁都在 LF 规范化后的文本上做，写回时恢复原风格）。 */
+function normalizeLineEndings(content: string): string {
+  return content.replaceAll('\r\n', '\n');
+}
+
+/** 取前 4KiB 判断原文件行尾风格：CRLF 数量多于 LF 总数的一半 ⇒ CRLF。 */
+function detectLineEndings(raw: string): 'CRLF' | 'LF' {
+  const sample = raw.slice(0, 4096);
+  const crlfCount = sample.split('\r\n').length - 1;
+  return crlfCount > sample.split('\n').length - 1 - crlfCount ? 'CRLF' : 'LF';
+}
+
+/** 把 LF 规范化后的内容恢复成读入时检测到的行尾风格（CRLF 时先归一，避免 \r\r\n）。 */
+function restoreLineEndings(content: string, lineEndings: 'CRLF' | 'LF'): string {
+  return lineEndings === 'LF' ? content : normalizeLineEndings(content).split('\n').join('\r\n');
+}
+
+/** 统计字面量出现次数（与 fs-local 的 `countOccurrences` 同义）。 */
+function countOccurrences(content: string, needle: string): number {
+  let count = 0;
+  let index = 0;
+  for (;;) {
+    const found = content.indexOf(needle, index);
+    if (found === -1) return count;
+    count += 1;
+    index = found + needle.length;
+  }
+}
+
+/**
+ * 读为可编辑文本：拒绝二进制（NUL / 非法 UTF-8），并给出 LF 规范化内容 + 原行尾风格。
+ *
+ * 为什么必须规范化：上游 `dsh-fs-local.editText/patchText` 都在 LF 文本上匹配；不规范化时
+ * CRLF 文件里 `old_string`（LF）永远匹配不到，写回也会把整个文件改成 LF —— 这是 0.2.1 起
+ * 就存在的真实语义差（2026-11-05 复核时发现，本次一并修正）。
+ */
+async function readForEdit(abs: string, displayPath: string, verb: string) {
+  let buffer: Buffer;
+  try {
+    buffer = await fs.promises.readFile(abs);
+  } catch (e) {
+    throw mapFsError(e, displayPath);
+  }
+  if (buffer.includes(0)) throw fsError(`cannot ${verb} "${displayPath}": binary file`, 'FS_NOT_TEXT');
+  let raw: string;
+  try {
+    raw = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch {
+    throw fsError(`cannot ${verb} "${displayPath}": binary file`, 'FS_NOT_TEXT');
+  }
+  return { content: normalizeLineEndings(raw), lineEndings: detectLineEndings(raw) };
+}
+
+/**
+ * 为写/删除/移动的展示取一份 diff 基线：非文本、非法 UTF-8、达到/超过上限、读取期间大小变化，
+ * 都返回 `null`（与 fs-local 的 `readTextForDiff` 同义：best-effort，不影响操作本身成败）。
+ *
+ * 与 fs-local 一样在**打开的 fd 上**先 stat 再按 openedSize 分块读，最后一次大小校验；不用
+ * `readFile` 以免 stat 后文件增长时把超限内容整段读进内存。
+ */
+async function readTextForDiff(abs: string, maxBytes = DIFF_BASIS_MAX_BYTES): Promise<string | null> {
+  let handle;
+  try {
+    handle = await fs.promises.open(abs, 'r');
+  } catch {
+    return null;
+  }
+  try {
+    let info;
+    try {
+      info = await handle.stat({ bigint: true });
+    } catch {
+      return null;
+    }
+    if (!info.isFile() || info.size >= BigInt(maxBytes)) return null;
+    const openedSize = Number(info.size);
+    const buffer = Buffer.allocUnsafe(openedSize + 1);
+    let total = 0;
+    while (total < buffer.length) {
+      const { bytesRead } = await handle.read(buffer, total, Math.min(buffer.length - total, 64 * 1024), null);
+      if (bytesRead === 0) break;
+      total += bytesRead;
+    }
+    if (total !== openedSize) return null;
+    const basis = buffer.subarray(0, total);
+    if (basis.includes(0)) return null;
+    try {
+      return normalizeLineEndings(new TextDecoder('utf-8', { fatal: true }).decode(basis));
+    } catch {
+      return null;
+    }
+  } finally {
+    await handle.close().catch(() => {});
+  }
+}
+
+/**
+ * 字面量替换（与 `dsh-fs-local.applyLiteralEdit` 同语义）：
+ * 空 `oldString` ⇒ `FS_EDIT_NOT_FOUND`；找不到 ⇒ `FS_EDIT_NOT_FOUND`；多处且未 `replaceAll`
+ * ⇒ `FS_AMBIGUOUS_EDIT`。返回替换后的 LF 文本。
+ */
+function applyLiteralEdit(
+  content: string,
+  oldString: string,
+  newString: string,
+  replaceAll: boolean,
+  displayPath: string,
+): string {
+  const oldNorm = normalizeLineEndings(oldString);
+  if (oldNorm.length === 0) throw fsError('old_string must be a non-empty string', 'FS_EDIT_NOT_FOUND');
+  const newNorm = normalizeLineEndings(newString);
+  const replacements = countOccurrences(content, oldNorm);
+  if (replacements === 0) throw fsError(`old_string was not found in "${displayPath}"`, 'FS_EDIT_NOT_FOUND');
+  if (!replaceAll && replacements > 1) {
+    throw fsError(
+      `old_string matched ${replacements} times in "${displayPath}"; provide a more specific old_string or set replace_all to true`,
+      'FS_AMBIGUOUS_EDIT',
+    );
+  }
+  return content.split(oldNorm).join(newNorm);
+}
+
+// ── `patchText` 的纯文本 hunk 应用 ──────────────────────────────────────────────
+//
+// 语义对齐 `@deepseek-ai/dsh-fs-patch.applyHunks`（MIT；其 parser 部分含 OpenAI Codex
+// Apache-2.0 片段）。此处是**独立实现**：只接收宿主 `parsePatch()` 已经解析好的 hunk 对象，
+// 不再重复解析 patch 文本，避免把外部 parser 的整份代码搬进守护。
+
+const WHITE_SPACE = /\p{White_Space}/u;
+
+function trimEndWhitespace(value: string): string {
+  let end = value.length;
+  while (end > 0 && WHITE_SPACE.test(value.charAt(end - 1))) end--;
+  return value.slice(0, end);
+}
+
+function trimWhitespace(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && WHITE_SPACE.test(value.charAt(start))) start++;
+  while (end > start && WHITE_SPACE.test(value.charAt(end - 1))) end--;
+  return value.slice(start, end);
+}
+
+/** 4 轮匹配：原样 → 去尾部空白 → 去首尾空白 → 标点/空白归一（与上游 MATCH_PASSES 同义）。 */
+const MATCH_PASSES: Array<(value: string) => string> = [
+  (value) => value,
+  (value) => trimEndWhitespace(value),
+  (value) => trimWhitespace(value),
+  (value) =>
+    trimWhitespace(value)
+      .replace(/[\u2010-\u2015\u2212]/gu, '-')
+      .replace(/[\u2018-\u201B]/gu, "'")
+      .replace(/[\u201C-\u201F]/gu, '"')
+      .replace(/[\u00A0\u2002-\u200A\u202F\u205F\u3000]/gu, ' '),
+];
+
+function seekSequence(
+  lines: readonly string[],
+  pattern: readonly string[],
+  start: number,
+  eof: boolean,
+): number | undefined {
+  if (pattern.length === 0) return start;
+  if (pattern.length > lines.length) return undefined;
+  const last = lines.length - pattern.length;
+  const first = eof ? last : start;
+  for (const normalize of MATCH_PASSES) {
+    const expected = pattern.map(normalize);
+    for (let index = first; index <= last; index++) {
+      if (expected.every((line, offset) => normalize(lines[index + offset]!) === line)) return index;
+    }
+  }
+  return undefined;
+}
+
+interface PatchHunk {
+  lineNumber?: number;
+  context?: string;
+  oldLines: string[];
+  newLines: string[];
+  isEndOfFile?: boolean;
+}
+
+interface PatchFailure {
+  hunkLineNumber?: number;
+  stage: 'context' | 'oldLines';
+}
+
+/**
+ * 把解析好的 hunks 应用到 LF 文本（不抛匹配失败；返回首个失败 hunk 供上层报 `FS_PATCH_MISMATCH`）。
+ * 成功时输出以 LF 结尾（与 `dsh-fs-patch.applyHunks` 同义）。
+ */
+function applyHunks(
+  before: string,
+  hunks: readonly PatchHunk[],
+): { ok: true; after: string } | { ok: false; failure: PatchFailure } {
+  const original = before.split('\n');
+  if (original.at(-1) === '') original.pop();
+  const replacements: Array<{ start: number; oldLength: number; newLines: string[] }> = [];
+  let lineIndex = 0;
+  for (const hunk of hunks) {
+    if (hunk.context !== undefined) {
+      const pattern = [hunk.context];
+      const found = seekSequence(original, pattern, lineIndex, false);
+      if (found === undefined) {
+        return { ok: false, failure: { hunkLineNumber: hunk.lineNumber, stage: 'context' } };
+      }
+      lineIndex = found + 1;
+    }
+    if (hunk.oldLines.length === 0) {
+      const start = original.at(-1) === '' ? original.length - 1 : original.length;
+      replacements.push({ start, oldLength: 0, newLines: hunk.newLines });
+      continue;
+    }
+    let pattern = hunk.oldLines;
+    let newLines = hunk.newLines;
+    let found = seekSequence(original, pattern, lineIndex, hunk.isEndOfFile === true);
+    if (found === undefined && pattern.at(-1) === '') {
+      pattern = pattern.slice(0, -1);
+      if (newLines.at(-1) === '') newLines = newLines.slice(0, -1);
+      found = seekSequence(original, pattern, lineIndex, hunk.isEndOfFile === true);
+    }
+    if (found === undefined) {
+      return { ok: false, failure: { hunkLineNumber: hunk.lineNumber, stage: 'oldLines' } };
+    }
+    replacements.push({ start: found, oldLength: pattern.length, newLines });
+    lineIndex = found + pattern.length;
+  }
+  replacements.sort((left, right) => left.start - right.start);
+  let lines = original;
+  for (const replacement of replacements.reverse()) {
+    lines = [
+      ...lines.slice(0, replacement.start),
+      ...replacement.newLines,
+      ...lines.slice(replacement.start + replacement.oldLength),
+    ];
+  }
+  if (lines.at(-1) !== '') lines.push('');
+  return { ok: true, after: lines.join('\n') };
+}
+
+/** 把 hunks 应用到已读文本；失败转成 `FS_PATCH_MISMATCH`（与 fs-local `patchContent` 同文案）。 */
+function patchContent(before: string, hunks: readonly PatchHunk[], displayPath: string): string {
+  const result = applyHunks(before, hunks);
+  if (!result.ok) {
+    throw fsError(
+      `cannot patch "${displayPath}": hunk at patch line ${result.failure.hunkLineNumber} (${result.failure.stage}) does not match`,
+      'FS_PATCH_MISMATCH',
+    );
+  }
+  return result.after;
+}
+
 // ── 写路径的并发纪律 ──────────────────────────────────────────────────────────
 //
 // 为什么需要 per-target 锁（2026-10-27 审查 F-32 记录、F-28 同源）：守护进程是单进程、但请求是并发处理的。
@@ -368,17 +629,28 @@ export async function listDirOp(args) {
 // 里；这里用同义的 Promise 链（FIFO）串行化同一路径的写/编辑。
 const writeLocks = new Map();
 
+/** 在 `keys` 的串行队列上执行 `op`：按字典序获取、内层先释放（同 fs-local `withLocks`）。 */
+async function withPathLocks(keys: readonly string[], op: () => Promise<unknown>): Promise<any> {
+  const ordered = [...new Set(keys)].sort();
+  const acquire = async (index: number): Promise<any> => {
+    const key = ordered[index];
+    if (key === undefined) return op();
+    const prior = writeLocks.get(key) ?? Promise.resolve();
+    const run = prior.then(() => acquire(index + 1));
+    const tail = run.then(() => undefined, () => undefined);
+    writeLocks.set(key, tail);
+    try {
+      return await run;
+    } finally {
+      if (writeLocks.get(key) === tail) writeLocks.delete(key);
+    }
+  };
+  return acquire(0);
+}
+
 /** 在 `key` 的串行队列上执行 `op`（同一 key 的调用按到达顺序一个接一个）。 */
-async function withPathLock(key, op) {
-  const prior = writeLocks.get(key) ?? Promise.resolve();
-  const run = prior.then(op, op);
-  const tail = run.then(() => undefined, () => undefined);
-  writeLocks.set(key, tail);
-  try {
-    return await run;
-  } finally {
-    if (writeLocks.get(key) === tail) writeLocks.delete(key);
-  }
+function withPathLock(key: string, op: () => Promise<unknown>): Promise<any> {
+  return withPathLocks([key], op);
 }
 
 /** bigint stat；不存在返回 null（ENOTDIR 等其它错误照常映射抛出）。 */
@@ -405,21 +677,12 @@ async function writeTextLocked(args) {
   assertLinuxAbsolute(abs);
   const content = String(args?.content ?? '');
   const expected = args?.expected ?? null;
-  const existing = await statOrNull(abs);
-  if (existing !== null && !existing.isFile()) throw fsError(`cannot write "${abs}": not a regular file`, 'FS_NOT_REGULAR_FILE');
   // 合法性判定在 mkdir 之前：被拒绝的写不该在盘上留下新建的父目录（审查 F-32 记录的副作用顺序问题）。
-  if (expected && expected.kind === 'replaceIfVersion') {
-    if (existing === null) throw fsError(`cannot write "${abs}": file no longer exists`, 'FS_STALE_VERSION');
-    if (String(expected.version) !== versionOf(existing)) {
-      throw fsError(`cannot write "${abs}": file changed since it was read`, 'FS_STALE_VERSION');
-    }
-  } else if (expected && expected.kind === 'createIfAbsent' && existing !== null) {
-    throw fsError(`cannot overwrite existing "${abs}" without reading it first`, 'FS_NOT_OBSERVED');
-  }
+  const existing = await writeTarget(abs, expected);
   const dir = path.posix.dirname(abs);
   await fs.promises.mkdir(dir, { recursive: true });
   const tmp = path.posix.join(dir, `.${path.posix.basename(abs)}.${process.pid}.${randomUUID()}.tmp`);
-  const mode = existing === null ? 0o666 : Number(existing.mode & 0o7777n);
+  const mode = typeof args?.mode === 'number' ? args.mode : existing === null ? 0o666 : Number(existing.mode & 0o7777n);
   try {
     await fs.promises.writeFile(tmp, content, { encoding: 'utf8', mode });
     if (expected && expected.kind === 'createIfAbsent') {
@@ -465,43 +728,164 @@ export async function writeTextOp(args) {
   return withPathLock(abs, () => writeTextLocked(args));
 }
 
+/** 读当前文件作为某次变更的前置条件（与 fs-local `requireFile` 同语义）。 */
+async function requireFile(abs: string, expectedVersion: string | null, verb: string) {
+  const existing = await statOrNull(abs);
+  if (existing === null) throw fsError(`cannot ${verb} "${abs}": file changed since it was read`, 'FS_STALE_VERSION');
+  if (!existing.isFile()) throw fsError(`cannot ${verb} "${abs}": not a regular file`, 'FS_NOT_REGULAR_FILE');
+  if (expectedVersion !== null && versionOf(existing) !== expectedVersion) {
+    throw fsError(`cannot ${verb} "${abs}": file changed since it was read`, 'FS_STALE_VERSION');
+  }
+  return existing;
+}
+
+/** 读目标位置作为写入/移动目的地的前置条件（与 fs-local `writeTarget` 同语义）。 */
+async function writeTarget(abs: string, expected: any) {
+  const existing = await statOrNull(abs);
+  if (existing !== null && !existing.isFile()) {
+    throw fsError(`cannot write "${abs}": not a regular file`, 'FS_NOT_REGULAR_FILE');
+  }
+  if (expected?.kind === 'replaceIfVersion') {
+    if (existing === null) throw fsError(`cannot write "${abs}": file no longer exists`, 'FS_STALE_VERSION');
+    if (String(expected.version) !== versionOf(existing)) {
+      throw fsError(`cannot write "${abs}": file changed since it was read`, 'FS_STALE_VERSION');
+    }
+  } else if (expected?.kind === 'createIfAbsent' && existing !== null) {
+    throw fsError(`cannot overwrite existing "${abs}" without reading it first`, 'FS_NOT_OBSERVED');
+  }
+  return existing;
+}
+
+/** 删除单个文件（非递归；目录会被拒绝而不是整棵删除）。 */
+async function removeFile(abs: string): Promise<void> {
+  try {
+    await fs.promises.rm(abs);
+  } catch (e) {
+    throw mapFsError(e, abs);
+  }
+}
+
 /**
- * 字面量编辑（与 dsh-fs-local 的 applyLiteralEdit 同语义：唯一匹配 / replaceAll）。
+ * 读取 → 生成新文本 → 准备写回内容（调用方必须已持有 `abs` 的路径锁）。
+ * 编辑、补丁、移动+改写共用同一段「requireFile → readForEdit → restoreLineEndings」。
+ */
+async function computeTextEdit(
+  abs: string,
+  verb: string,
+  expectedVersion: string | null,
+  makeAfter: (content: string) => string,
+) {
+  const existing = await requireFile(abs, expectedVersion, verb);
+  const original = await readForEdit(abs, abs, verb);
+  const after = makeAfter(original.content);
+  return { existing, original, after, content: restoreLineEndings(after, original.lineEndings) };
+}
+
+/** 把 `computeTextEdit` 的结果按 target 的版本 CAS 原子写回。 */
+function commitTextEdit(abs: string, change: Awaited<ReturnType<typeof computeTextEdit>>) {
+  return writeTextLocked({
+    path: abs,
+    content: change.content,
+    expected: { kind: 'replaceIfVersion', version: versionOf(change.existing) },
+  });
+}
+
+/**
+ * 字面量编辑（与 dsh-fs-local 的 editText 同语义）：CRLF 规范化后匹配，写回恢复原行尾；
  * 整个「读 → 匹配 → 写」在 target 的路径锁内完成（上游 `editText` 的 critical section 同义）。
  */
 export async function editTextOp(args) {
   const abs = String(args?.path ?? '');
   assertLinuxAbsolute(abs);
+  const expectedVersion = args?.expectedVersion == null ? null : String(args.expectedVersion);
   return withPathLock(abs, async () => {
-    const oldString = String(args?.oldString ?? '');
-    const newString = String(args?.newString ?? '');
-    const replaceAll = args?.replaceAll === true;
+    const change = await computeTextEdit(abs, 'edit', expectedVersion, (content) =>
+      applyLiteralEdit(
+        content,
+        String(args?.oldString ?? ''),
+        String(args?.newString ?? ''),
+        args?.replaceAll === true,
+        abs,
+      ),
+    );
+    const written = await commitTextEdit(abs, change);
+    return { version: written.version, before: change.original.content, after: change.after };
+  });
+}
+
+/** 应用解析后的 hunks（0.2.2 `FileSystem.patchText` 的守护实现）。 */
+export async function patchTextOp(args) {
+  const abs = String(args?.path ?? '');
+  assertLinuxAbsolute(abs);
+  const expectedVersion = args?.expectedVersion == null ? null : String(args.expectedVersion);
+  const hunks = Array.isArray(args?.hunks) ? args.hunks : [];
+  return withPathLock(abs, async () => {
+    const change = await computeTextEdit(abs, 'patch', expectedVersion, (content) => patchContent(content, hunks, abs));
+    const written = await commitTextEdit(abs, change);
+    return { version: written.version, before: change.original.content, after: change.after };
+  });
+}
+
+/** 删除一个已读过的文件（0.2.2 `FileSystem.deleteFile` 的守护实现）。 */
+export async function deleteFileOp(args) {
+  const abs = String(args?.path ?? '');
+  assertLinuxAbsolute(abs);
+  return withPathLock(abs, async () => {
     const expectedVersion = args?.expectedVersion == null ? null : String(args.expectedVersion);
-    const st = await fs.promises.stat(abs, { bigint: true }).catch((e) => {
-      throw mapFsError(e, abs);
-    });
-    if (!st.isFile()) throw fsError(`cannot edit "${abs}": not a regular file`, 'FS_NOT_REGULAR_FILE');
-    const currentVersion = versionOf(st);
-    if (expectedVersion !== null && currentVersion !== expectedVersion) {
-      throw fsError(`cannot edit "${abs}": file changed since it was read`, 'FS_STALE_VERSION');
-    }
-    if (oldString.length === 0) throw fsError('oldString must be a non-empty string', 'FS_IO_ERROR');
-    const buf = await fs.promises.readFile(abs);
-    if (buf.includes(0)) throw fsError(`binary file (NUL byte): ${abs}`, 'FS_BINARY');
-    const text = buf.toString('utf8');
-    const count = text.split(oldString).length - 1;
-    if (count === 0) throw fsError(`oldString not found in "${abs}"`, 'FS_NOT_FOUND');
-    if (count > 1 && !replaceAll) {
-      throw fsError(`oldString is not unique in "${abs}" (${count} matches); pass replaceAll to replace every occurrence`, 'FS_IO_ERROR');
-    }
-    const next = replaceAll ? text.split(oldString).join(newString) : text.replace(oldString, newString);
-    // 用读到的版本做 CAS：读取期间若文件被外部改动，writeTextLocked 的版本比较会拒绝（fail-closed）。
+    await requireFile(abs, expectedVersion, 'delete');
+    const before = await readTextForDiff(abs);
+    await removeFile(abs);
+    return { before };
+  });
+}
+
+/**
+ * 移动/重命名，可选带 hunks 做「移动 + 改写」（0.2.2 `FileSystem.moveFile` 的守护实现）。
+ * 两个 target 都加锁，顺序按字典序；源删除失败不谎报成功，返回 `sourceDeleted:false` + 原因。
+ */
+export async function moveFileOp(args) {
+  const source = String(args?.sourcePath ?? '');
+  const destination = String(args?.destinationPath ?? '');
+  assertLinuxAbsolute(source);
+  assertLinuxAbsolute(destination);
+  if (source === destination) throw fsError(`cannot move "${source}" to itself`, 'FS_SAME_TARGET');
+  return withPathLocks([source, destination], async () => {
+    const sourceVersion = args?.expectedSourceVersion == null ? null : String(args.expectedSourceVersion);
+    const hunks = Array.isArray(args?.hunks) ? args.hunks : undefined;
+    const change = await computeTextEdit(source, 'move', sourceVersion, (content) =>
+      hunks === undefined ? content : patchContent(content, hunks, source),
+    );
+    const destinationExisting = await writeTarget(destination, args?.expectedDestination ?? null);
+    const before = destinationExisting !== null && Number(destinationExisting.size) < DIFF_BASIS_MAX_BYTES
+      ? await readTextForDiff(destination)
+      : null;
     const written = await writeTextLocked({
-      path: abs,
-      content: next,
-      expected: { kind: 'replaceIfVersion', version: currentVersion },
+      path: destination,
+      content: change.content,
+      mode: Number(change.existing.mode & 0o7777n),
+      expected: args?.expectedDestination?.kind === 'createIfAbsent' ? { kind: 'createIfAbsent' } : null,
     });
-    return { version: written.version, before: text, after: next };
+    const outcome = {
+      operation: destinationExisting !== null ? 'update' : 'create',
+      version: written.version,
+      before,
+      after: change.after,
+    };
+    const sourceBefore = Number(change.existing.size) < DIFF_BASIS_MAX_BYTES ? change.original.content : null;
+    try {
+      await removeFile(source);
+    } catch (error: any) {
+      return {
+        sourceBefore,
+        destination: outcome,
+        sourceDeleted: false,
+        sourceFailure: {
+          code: error?.fsCode ?? error?.code ?? 'FS_IO_ERROR',
+          message: error?.message ?? String(error),
+        },
+      };
+    }
+    return { sourceBefore, destination: outcome, sourceDeleted: true };
   });
 }
 
@@ -532,6 +916,12 @@ export async function handleFsOp(req) {
       return writeTextOp(args);
     case 'editText':
       return editTextOp(args);
+    case 'patchText':
+      return patchTextOp(args);
+    case 'deleteFile':
+      return deleteFileOp(args);
+    case 'moveFile':
+      return moveFileOp(args);
     default:
       throw fsError(`unknown fs method: ${method}`, 'FS_IO_ERROR');
   }

@@ -300,10 +300,22 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     ? internals.fsCall
     : (method, args, signal) => rpc.call('fs', method, args, signal);
 
+  /**
+   * 展开开头的 `~`（0.2.2 的 `dsh-fs-local.resolve/lstat` 新增语义）：`~`/`~/x` 用 **WSL 侧 home**
+   * （config.wslHome）而不是 Windows 的用户目录；`~user` 保持字面量。`~\` 只在 Windows 语义下
+   * 有含义，WSL 世界里不展开（与上游 POSIX 分支一致）。
+   */
+  const expandHome = (input) => {
+    const raw = String(input ?? '');
+    if (raw === '~') return config.wslHome || '/';
+    if (raw.startsWith('~/')) return `${config.wslHome || ''}${raw.slice(1)}`;
+    return input;
+  };
+
   /** 把一个输入路径解析成 `{distro, linuxPath}`；相对路径用 cwd 兜底。 */
   const translate = (input, cwd) => {
     if (targetIssue) throw fsErr(targetIssue, 'FS_IO_ERROR');
-    const raw = String(input ?? '').trim();
+    const raw = String(expandHome(input) ?? '').trim();
     if (raw.length === 0) throw fsErr('file_path must be a non-empty string', 'FS_NOT_FOUND');
     const unc = parseUnc(raw);
     if (unc !== null) {
@@ -378,6 +390,9 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     // workspace roots"，无法判断它被映射到了哪里（审查 F-16 记录的定位成本）。
     throw fsErr(`cannot write "${targetKey}": outside the writable workspace roots (${roots.join(', ')})`, 'FS_SANDBOX_DENIED');
   };
+
+  /** 需要写入的目标路径：有沙箱策略时用校验后的真实路径，否则用 targetKey。 */
+  const writablePath = async (target, policy) => (await assertWritable(target?.targetKey, policy)) ?? target.targetKey;
 
   // ── 共享轮询观察（2026-10-26 perf）：所有 watcher 合并成**一次** `statMany` / 500ms ──
   // 旧实现每个 watcher 各自 setTimeout + 各自 `stat` RPC ⇒ watcher 一多，RPC 数线性增长。
@@ -578,7 +593,7 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
 
     async writeText(target, content, expected, signal, sandboxPolicy) {
       // P0（F-01）：围栏检查与写入使用**同一个**解析后路径（别名/符号链接不再有机会换目标）。
-      const writePath = (await assertWritable(target.targetKey, sandboxPolicy)) ?? target.targetKey;
+      const writePath = await writablePath(target, sandboxPolicy);
       const r = await call(
         'writeText',
         { path: writePath, content, expected: expected ? { kind: expected.kind, version: expected.version } : null },
@@ -588,7 +603,7 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     },
 
     async editText(target, edit, expected, signal, sandboxPolicy) {
-      const writePath = (await assertWritable(target.targetKey, sandboxPolicy)) ?? target.targetKey;
+      const writePath = await writablePath(target, sandboxPolicy);
       const r = await call(
         'editText',
         {
@@ -601,6 +616,62 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
         signal,
       );
       return { version: r.version, before: r.before, after: r.after };
+    },
+
+    /**
+     * 0.2.2 `FileSystem.patchText`：host 已用 `dsh-fs-patch.parsePatch()` 解析好 hunks，这里交给
+     * WSL 侧守护在路径锁内读取 → 应用 → 原子写回（与 fs-local 的 critical section 同义）。
+     */
+    async patchText(target, hunks, expected, signal, sandboxPolicy) {
+      const writePath = await writablePath(target, sandboxPolicy);
+      const r = await call(
+        'patchText',
+        {
+          path: writePath,
+          hunks: Array.isArray(hunks) ? hunks : [],
+          expectedVersion: expected?.version ?? null,
+        },
+        signal,
+      );
+      return { version: r.version, before: r.before, after: r.after };
+    },
+
+    /** 0.2.2 `FileSystem.deleteFile`：返回删除前的 diff 基线（非文本/超限时为 null）。 */
+    async deleteFile(target, expected, signal, sandboxPolicy) {
+      const writePath = await writablePath(target, sandboxPolicy);
+      const r = await call('deleteFile', { path: writePath, expectedVersion: expected?.version ?? null }, signal);
+      return { before: r?.before ?? null };
+    },
+
+    /**
+     * 0.2.2 `FileSystem.moveFile`：源与目标都必须通过围栏（移动会删源、写目标）。
+     * `options.hunks` 是「移动 + 改写」时的解析后 hunks；源删除失败由守护如实回 `sourceDeleted:false`。
+     */
+    async moveFile(source, destination, options, signal, sandboxPolicy) {
+      const sourcePath = await writablePath(source, sandboxPolicy);
+      const destinationPath = await writablePath(destination, sandboxPolicy);
+      const r = await call(
+        'moveFile',
+        {
+          sourcePath,
+          destinationPath,
+          hunks: Array.isArray(options?.hunks) ? options.hunks : null,
+          expectedSourceVersion: options?.expectedSource?.version ?? null,
+          expectedDestination: options?.expectedDestination ?? null,
+        },
+        signal,
+      );
+      return {
+        sourceBefore: r?.sourceBefore ?? null,
+        destination: {
+          operation: r?.destination?.operation,
+          version: r?.destination?.version,
+          before: r?.destination?.before ?? null,
+          after: r?.destination?.after,
+        },
+        sourceDeleted: r?.sourceDeleted === true,
+        ...(r?.sourceFailure ? { sourceFailure: r.sourceFailure } : {}),
+      };
     },
 
     versionAfterWrite(after, target) {

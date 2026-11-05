@@ -7,11 +7,11 @@
 > 常驻守护让「关掉客户端 ≠ 会话结束」；换一个宿主进程，用同一个 `key` 还能接上之前的上下文。
 
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.3-6f42c1)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
+[![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.1-6f42c1)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.3.19** · 开发依据 DSH **0.2.1-rc.3** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.3.20** · 开发依据 DSH **0.2.2-rc.1** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -73,7 +73,7 @@ flowchart LR
   - WSL 内 `grep` / `glob` 优先用 ripgrep / fd，没有再回落 ugrep / GNU grep / find。
   - **原生 `bash`（2026-10-29 起）**：preset 的 `wsl-world` 隔离组里把 `ctx.shell` 也换成了 WSL 执行器（`src/shell-provider.ts`），组内的 `bash` 工具**直接跑在发行版里**（每条命令一次 `wsl.exe`；`set -m` 独立进程组，超时/中止时按进程组回收，后台孤儿由脚本自己收；超上限**留尾部**并把全文落到 WSL `/tmp` 的 spill 文件）。它**不受 Windows 文件沙箱约束**：执行器 `sandboxMode` 返回 `undefined`，模型看到的 `sandbox_permissions` 参数不存在——这是事实，不是提权通道。**验证边界**：执行器层已真机验证（9 条）；「模型 → `bash` 工具 → WSL」的整链路需要重启 DSH 后人工验收（见 `docs/2026-10-29-native-shell.md` §6）。
   - **WSL 右侧栏终端（2026-10-30，host subprocess bridge）**：官方 Terminal 的 controller 读的是**宿主** `subprocess.spawnTerminal`，preset 内 `isolate: {subprocess:true}` 的 provider 覆盖不到它（实测仍起 `cmd.exe` 并因 UNC cwd 报错）。根插件因此在 `src/subprocess-bridge.ts` 里包装宿主 `spawnTerminal`：`cwd` 是 `\\\\wsl.localhost\\…` / `\\\\wsl$\\…` 时，解析出 `distro` 与 Linux 路径，改成 `wsl.exe -d <distro> --cd <path> --exec bash -l`；其它 cwd 原样放行。**边界**：终端标签仍显示 `cmd.exe`（shell 发现仍走宿主），以内容和 `uname` 为准；WSL preset + Windows 盘符 cwd 的会话不触发。
-  - **标准 preset 的 UNC 文件桥（2026-10-29 检查修复）**：即使没选 `wsl` preset，只要会话 cwd 是 `\\wsl.localhost\<配置发行版>\…`，`write` / `edit` 也会由 `src/fs-unc-bridge.ts` 接到 WSL 侧 fs-rpc。原因是宿主 `dsh-fs-local` 在 9P 上替换已有文件时会调用 `GetFileSecurityW`/`ReplaceFileW` 复制 DACL，直接报 `GetFileSecurityW EIO (Win32 1)`。桥同时覆盖 `/mnt/...`（DrvFs）：WSL symlink 指向 `/mnt/d/...` 时，Windows `realpath`/`stat`/`readFile` 会报 `EPERM`，因此这些路径的 `resolve`/`lstat`/`stat`/`readText`/`streamText`/`readBytes`/`readByteRange`/`listDir` 也改走 WSL fs-rpc；其它 Windows 路径原样走宿主实现。普通 UNC 写前仍用宿主 `stat` 校验版本，写后回取宿主版本；`/mnt` 路径从第一次 `stat` 起使用 WSL 版本，observation-policy 语义一致。
+  - **标准 preset 的 UNC 文件桥（2026-10-29 检查修复，2026-11-05 扩展）**：即使没选 `wsl` preset，只要会话 cwd 是 `\\wsl.localhost\<配置发行版>\…`，`write` / `edit` / `patchText` / `deleteFile` / `moveFile` 也会由 `src/fs-unc-bridge.ts` 接到 WSL 侧 fs-rpc。原因是宿主 `dsh-fs-local` 在 9P 上替换已有文件时会调用 `GetFileSecurityW`/`ReplaceFileW` 复制 DACL，直接报 `GetFileSecurityW EIO (Win32 1)`。桥同时覆盖 `/mnt/...`（DrvFs）：WSL symlink 指向 `/mnt/d/...` 时，Windows `realpath`/`stat`/`readFile` 会报 `EPERM`，因此这些路径的 `resolve`/`lstat`/`stat`/`readText`/`streamText`/`readBytes`/`readByteRange`/`listDir` 也改走 WSL fs-rpc；其它 Windows 路径原样走宿主实现。普通 UNC 写前仍用宿主 `stat` 校验版本，写后回取宿主版本；`/mnt` 路径从第一次 `stat` 起使用 WSL 版本，observation-policy 语义一致。
   - 18 个常用 Rust CLI（ripgrep、fd、ast-grep、sd、bat、tokei 等）的安装目录：核心 8 个在守护启动时后台预热（可用 `--no-provision` 关掉，测试/CI 用），`grep` / `glob` 缺 rg / fd 时按需装，任意项可用 `wsl_tools action=install` 装到 `~/.local/bin`。
   - **下载会校验 sha256，且校验结论是可见的**：`verified` 取 `ok`（官方摘要：GitHub API `digest` 或发布页校验文件）、`pinned`（只有内置 TOFU 摘要）、`unavailable`（上游没有任何摘要 ⇒ 本次没校验，会写进结果说明）、`mismatch`（不匹配 ⇒ **拒绝安装**）。内置摘要表覆盖 18 个兜底 URL，其中 5 项与官方来源逐字相等，其余 13 项该版本上游未发布摘要 ⇒ **TOFU pin**：只保证「与钉住的那一份一致」，不证明上游未被入侵，因此记 `pinned` 而不是 `ok`。
   - 文件工具按 host 的 `workspace-write` 策略做真实路径围栏（符号链接祖先也被解析后再判定，越界返回 `FS_SANDBOX_DENIED`）；`watch` 在 host 契约里没有入口，插件保留实现但不依赖它。
@@ -325,7 +325,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 ## 兼容性
 
-- **DSH**：在本机 **0.2.1-rc.3** 上实测。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.0-rc.2`；
+- **DSH**：在本机 **0.2.2-rc.1** 上实测（0.2.1-rc.3 / 0.2.0-rc.2 仍兼容）。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.0-rc.2`；
   rc 语义按 semver 实算，过期不会导致静默禁用）；`dsh.compatibility.dshReleases` 只是**声明**、宿主不校验。
 - **平台**：Windows + WSL2；macOS / Linux 不适用，WSL1 不支持。
 - **WSL 侧运行时**：Node ≥ 26.10（实测 26.10.0）、pnpm（实测 12.6.0）、mise（实测 2026.9.7）。Windows 侧使用 DSH 自带运行时。
@@ -341,10 +341,10 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 - **SDK 没有 cancel、没有 per-prompt 结果**：放弃一轮 = 结束运行时 = 丢上下文；同 key 并发只能 FIFO + 上限拒绝。
 - **守护退出后的文件恢复**：WSL preset / standard preset UNC 桥共享的 fs provider 在守护元数据缺失或连接被拒/提前关闭时，会清掉 `daemonReady`、重新 `ensureDaemon` 并只重试一次；`timeout` / `error`（含 ECONNRESET）不重发，避免有副作用操作重放。
 - **超时不会自动重试**：`wsl_agent` 超时（默认 600s）后**不会**自动重发同一个 prompt —— 请求可能已送达并在守护里继续执行，重发会让有副作用的操作跑两遍。先确认远端是否已产生效果，再决定是否重试。守护"半死"（端口可连但不应答）也不会自动重启，用 `wsl_daemon action=restart`。
-- **升级后旧守护会继续活着**：守护是 detached 的，宿主升级/重启都不会杀它。`wsl_status` 会显示守护的插件/协议版本；版本不一致时新功能（流式读取、`listDir` 的符号链接语义、安装校验结论等）在 `wsl_daemon action=restart` 前不可用（状态里会明确告警）。本版协议为 **v3**（在 v2 的 `fs.listDir` `targetKey`/链接语义之上，守护身份统一上报 `provider`/`model`/`useShellEnvironment`/`proxyPort`，`prompt` 可携带并校验 `provider`/`model`），属加法：新宿主仍可复用旧守护，只是旧语义在 restart 前不可用。
-- **9P / UNC 上的文件工具**：standard preset 的 `write` / `edit` 已由 `src/fs-unc-bridge.ts` 接管到 WSL fs-rpc；`/mnt/...` 路径的 `resolve` / `stat` / 读取类方法也由同一桥接入（Windows 9P 对 DrvFs 会 EPERM）。但用 Windows 的 `git` / `pnpm` 等写型工具改 WSL 里的 ext4 文件，仍可能写坏属主/权限；跑工具或改文件请走 `wsl_exec` / `wsl_agent`，或用 WSL 执行世界的文件工具。跨 OS 文件事件不可靠，插件不监听。
+- **升级后旧守护会继续活着**：守护是 detached 的，宿主升级/重启都不会杀它。`wsl_status` 会显示守护的插件/协议版本；版本不一致时新功能（流式读取、`listDir` 的符号链接语义、**0.2.2 的 `patchText`/`deleteFile`/`moveFile`**、安装校验结论等）在 `wsl_daemon action=restart` 前不可用（状态里会明确告警）。本版协议为 **v4**（在 v3 的守护身份字段之上新增 `fs.patchText` / `fs.deleteFile` / `fs.moveFile` 三个 op），属加法：新宿主仍可复用旧守护，只是新 op 在 restart 前不可用。
+- **9P / UNC 上的文件工具**：standard preset 的 `write` / `edit` / `patchText` / `deleteFile` / `moveFile` 已由 `src/fs-unc-bridge.ts` 接管到 WSL fs-rpc；`/mnt/...` 路径的 `resolve` / `stat` / 读取类方法也由同一桥接入（Windows 9P 对 DrvFs 会 EPERM）。但用 Windows 的 `git` / `pnpm` 等写型工具改 WSL 里的 ext4 文件，仍可能写坏属主/权限；跑工具或改文件请走 `wsl_exec` / `wsl_agent`，或用 WSL 执行世界的文件工具。跨 OS 文件事件不可靠，插件不监听。
 - **WSL 执行世界只服务配置的一个发行版**；面板可以浏览多个发行版，但文件世界不会跟着切。
-- **`watch` 目前没有消费方**：DSH 0.2.1-rc.3 的 `FileSystem` 契约没有 `watch`，插件里保留了 500ms 轮询实现但宿主不会调用；跨 OS 文件事件本就不支持，别依赖它。
+- **`watch` 目前没有消费方**：DSH 0.2.2 的 `FileSystem` 契约里 `watch` 是可选的（基类直接拒绝），插件里保留了 500ms 轮询实现但宿主不会调用；跨 OS 文件事件本就不支持，别依赖它。
 - **自动装工具依赖网络**：从 GitHub Releases 选包，限流时走固定地址兜底；下载后校验 sha256 并**把结论说出来**（`ok`/`pinned`/`unavailable`，不匹配直接拒绝安装）。`unavailable` 表示"上游没给摘要、本次没校验"，不要当成已验证。失败会把原因和手动安装命令附在结果里，不静默降级。
 - **版本兼容有两条线**：宿主只看 `engines.dsh`（不满足会拒绝加载，并在 `skippedBundles` / 启动日志里留痕）；
   `dsh.compatibility.dshReleases` 只是给人看的声明，宿主不读。
@@ -370,7 +370,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `src/explorer.ts` | 面板数据面 `POST /remote-wsl/api`（同源 + 硬白名单） |
 | `src/open-editor.ts` | VS Code Remote-WSL URI 与资源管理器 UNC 候选纯函数 |
 | `src/fs-provider.ts`、`src/fs-rpc.ts` | WSL 执行世界的 fs provider 与 RPC |
-| `src/fs-unc-bridge.ts` | standard preset 的 UNC 文件桥：写/编辑 + `/mnt` 解析与读取，绕过 9P DACL/DrvFs 限制 |
+| `src/fs-unc-bridge.ts` | standard preset 的 UNC 文件桥：写/编辑/patchText/deleteFile/moveFile + `/mnt` 解析与读取，绕过 9P DACL/DrvFs 限制 |
 | `src/preset.ts`、`src/search-tool.ts` | `wsl` preset、WSL 内 `grep` / `glob` 与 `wsl_tools` |
 | `src/shell-provider.ts` | WSL preset 里的 `ctx.shell` 替代实现（原生 `bash`：cwd 翻译 / 输出上限 / 超时 / 进程组回收） |
 | `client/` | client 半 chunk（含 i18n 与全部 CSS） |
@@ -433,6 +433,7 @@ $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-r
 
 ## 更新日志与许可
 
+- **0.3.20（2026-11-05）适配 DSH 0.2.2-rc.1**：`list_agents` 已并入 `dsh-tool-subagent-control` 主包（原 `/list-agents` 子路径被上游删除，保留会让整份 WSL preset 判为 broken）；`dsh-tool-subagent` 的 `modelSelectionSettings` 改名 `modelSelection` + `modelDiscovery`；补齐 0.2.2 的 `fs.patchText` / `fs.deleteFile` / `fs.moveFile`（WSL fs provider + UNC 桥，守护协议 v4），编辑/补丁改为 CRLF 规范化后匹配并按原行尾写回；`tool-fs` 仍按上游标准默认 `applyPatch: false`；内置 preset 的 plan-mode 提示与 0.2.2 标准 preset 对齐。根因、对照与验证证据：[docs/2026-11-05-dsh-0.2.2-adaptation.md](docs/2026-11-05-dsh-0.2.2-adaptation.md)
 - [提交历史](https://github.com/mozhuanzuojing/dsh-remote-wsl/commits/main)
 - [设计 / 验证记录](docs/)
 - MIT © 2026 磨砖做镜 (mozhuanzuojing)

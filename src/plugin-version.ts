@@ -28,8 +28,12 @@ import { readFileSync } from 'node:fs';
  * 且不一致时**明确拒绝**。动机：401 那轮把 provider/model 接到了启动参数，但只对「新起守护」生效 ——
  * 改配置后重启 DSH 会静默复用旧守护、继续用旧 provider（同症状、零告警）。旧守护缺这些字段时
  * 宿主按「未上报」处理（soft 提示 restart），不会硬阻塞。
+ * v4（0.3.20，2026-11-05 适配 DSH 0.2.2）：`fs` 新增 `patchText` / `deleteFile` / `moveFile`
+ * 三个方法（上游 0.2.2 的 `dsh-fs-local` 新增，`apply_patch` 的 update/delete/move 操作直接消费它们）。
+ * 仍是**加法**：旧守护不认识这些 op 时宿主拿到 `unknown fs method`；`applyPatch` 默认关闭，
+ * 因此不影响既有读写。新宿主 + 旧守护按 `configCompat` 的 soft 处理（restart 后生效）。
  */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 /**
  * 插件自身版本（取自本仓 package.json；`link:` 安装时就是工作树那一份）。

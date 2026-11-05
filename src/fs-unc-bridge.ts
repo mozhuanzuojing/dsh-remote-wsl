@@ -16,10 +16,11 @@
  * （用户在普通 UNC 工作区里直接新建的会话）仍使用宿主的 `fs-sandbox -> fs-local`。
  *
  * 本桥包装宿主 `fs` 服务实例：
- *   · 普通 UNC：保留原本的 9P 实现；`writeText` / `editText` 走 WSL fs-rpc（绕开 DACL）。
+ *   · 普通 UNC：保留原本的 9P 实现；`writeText` / `editText` / `patchText` / `deleteFile` /
+ *     `moveFile` 走 WSL fs-rpc（绕开 DACL，且 0.2.2 的 apply_patch 三个新 op 同样不能在 9P 上跑）。
  *   · `/mnt` 路径：`resolve` / `lstat` / `stat` / `readText` / `streamText` / `readBytes` /
- *     `readByteRange` / `listDir` / `writeText` / `editText` 全部走 WSL fs-rpc（DrvFs 由 WSL
- *     原生 node:fs 访问）。
+ *     `readByteRange` / `listDir` / `writeText` / `editText` / `patchText` / `deleteFile` / `moveFile`
+ *     全部走 WSL fs-rpc（DrvFs 由 WSL 原生 node:fs 访问）。
  *   · 其它路径原样交给原方法，行为不变。
  *
  * ## 版本语义
@@ -184,6 +185,9 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
 
   const originalWrite = fsService.writeText;
   const originalEdit = fsService.editText;
+  const originalPatch = fsService.patchText;
+  const originalDelete = fsService.deleteFile;
+  const originalMove = fsService.moveFile;
   const originalStat = fsService.stat;
   const originalResolve = fsService.resolve;
   const originalLstat = fsService.lstat;
@@ -357,26 +361,78 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
     }));
   };
 
-  const bridgedWrite = async function (target: any, content: any, expected: any, signal: any, sandboxPolicy: any) {
-    if (!isBridgeTarget(target, distro)) return originalWrite.call(fsService, target, content, expected, signal, sandboxPolicy);
-    // 不经过 SandboxedFileSystem.checkedTarget 时仍要拿到会话默认策略；tool-fs 会显式传，
-    // 其它调用方没传时用 fs-sandbox 的默认 resolve()，不能静默变成无围栏。
+  /** 非桥路径调用原方法；宿主没有该能力时给出稳定错误（而不是 undefined.call）。 */
+  const callOriginal = (name: string, original: any, args: any[]) => {
+    if (typeof original !== 'function') throw fsError(`remote-wsl: 宿主 fs 不支持 ${name}()`, 'FS_IO_ERROR');
+    return original.apply(fsService, args);
+  };
+
+  /** 一次桥接写操作共用的前置：策略 / 是否 /mnt / expected 版本翻译。 */
+  const bridgeContext = async (target: any, expected: any, signal: any, sandboxPolicy: any) => {
     const policy = sandboxPolicy ?? fsService?.ctx?.sandboxPolicy?.resolve?.();
     const native = isMntTarget(target, distro);
     const wslExpected = await assertExpected(target, expected, signal, native);
+    return { policy, native, wslExpected };
+  };
+
+  /** 写后版本：普通 UNC 回取宿主 stat，/mnt 用 WSL stat。 */
+  const withBridgeVersion = async (target: any, signal: any, native: boolean, outcome: any) => ({
+    ...outcome,
+    version: await versionAfter(target, signal, native),
+  });
+
+  const bridgedWrite = async function (target: any, content: any, expected: any, signal: any, sandboxPolicy: any) {
+    if (!isBridgeTarget(target, distro)) return callOriginal('writeText', originalWrite, [target, content, expected, signal, sandboxPolicy]);
+    // 不经过 SandboxedFileSystem.checkedTarget 时仍要拿到会话默认策略；tool-fs 会显式传，
+    // 其它调用方没传时用 fs-sandbox 的默认 resolve()，不能静默变成无围栏。
+    const { policy, native, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
     const outcome = await callWsl('writeText', toWslTarget(target), content, wslExpected, signal, policy);
-    return { ...outcome, version: await versionAfter(target, signal, native) };
+    return withBridgeVersion(target, signal, native, outcome);
   };
 
   const bridgedEdit = async function (target: any, edit: any, expected: any, signal: any, sandboxPolicy: any) {
-    if (!isBridgeTarget(target, distro)) return originalEdit.call(fsService, target, edit, expected, signal, sandboxPolicy);
-    const policy = sandboxPolicy ?? fsService?.ctx?.sandboxPolicy?.resolve?.();
-    const native = isMntTarget(target, distro);
-    const wslExpected = await assertExpected(target, expected, signal, native);
+    if (!isBridgeTarget(target, distro)) return callOriginal('editText', originalEdit, [target, edit, expected, signal, sandboxPolicy]);
+    const { policy, native, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
     // edit 的 expected 是 `{version}`（fs-rpc 只读 version）；把 WSL 版本交给它做原子 CAS。
     const editExpected = wslExpected?.version !== undefined ? { version: wslExpected.version } : null;
     const outcome = await callWsl('editText', toWslTarget(target), edit, editExpected, signal, policy);
-    return { ...outcome, version: await versionAfter(target, signal, native) };
+    return withBridgeVersion(target, signal, native, outcome);
+  };
+
+  const bridgedPatch = async function (target: any, hunks: any, expected: any, signal: any, sandboxPolicy: any) {
+    if (!isBridgeTarget(target, distro)) return callOriginal('patchText', originalPatch, [target, hunks, expected, signal, sandboxPolicy]);
+    const { policy, native, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
+    const outcome = await callWsl('patchText', toWslTarget(target), hunks, wslExpected, signal, policy);
+    return withBridgeVersion(target, signal, native, outcome);
+  };
+
+  const bridgedDelete = async function (target: any, expected: any, signal: any, sandboxPolicy: any) {
+    if (!isBridgeTarget(target, distro)) return callOriginal('deleteFile', originalDelete, [target, expected, signal, sandboxPolicy]);
+    const { policy, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
+    return callWsl('deleteFile', toWslTarget(target), wslExpected, signal, policy);
+  };
+
+  const bridgedMove = async function (source: any, destination: any, options: any, signal: any, sandboxPolicy: any) {
+    if (!isBridgeTarget(source, distro) || !isBridgeTarget(destination, distro)) {
+      return callOriginal('moveFile', originalMove, [source, destination, options, signal, sandboxPolicy]);
+    }
+    const policy = sandboxPolicy ?? fsService?.ctx?.sandboxPolicy?.resolve?.();
+    const sourceNative = isMntTarget(source, distro);
+    const destinationNative = isMntTarget(destination, distro);
+    const sourceExpected = await assertExpected(source, options?.expectedSource, signal, sourceNative);
+    const destinationExpected = await assertExpected(destination, options?.expectedDestination, signal, destinationNative);
+    const outcome = await callWsl('moveFile', toWslTarget(source), toWslTarget(destination), {
+      ...(options?.hunks === undefined ? {} : { hunks: options.hunks }),
+      ...(sourceExpected === null ? {} : { expectedSource: sourceExpected }),
+      ...(destinationExpected === null ? {} : { expectedDestination: destinationExpected }),
+    }, signal, policy);
+    return {
+      ...outcome,
+      destination: {
+        ...outcome?.destination,
+        version: await versionAfter(destination, signal, destinationNative),
+      },
+    };
   };
 
   const patched: Array<{ name: string; original: any; wrapper: any }> = [];
@@ -388,6 +444,9 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   };
   patch('writeText', bridgedWrite);
   patch('editText', bridgedEdit);
+  patch('patchText', bridgedPatch);
+  patch('deleteFile', bridgedDelete);
+  patch('moveFile', bridgedMove);
   patch('resolve', bridgedResolve);
   patch('lstat', bridgedLstat);
   patch('stat', bridgedStat);
