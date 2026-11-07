@@ -402,6 +402,14 @@ export function acquireEnsureLockScript(lockLinux, staleSeconds = 120) {
   const mins = Math.max(1, Math.ceil(Number(staleSeconds) / 60));
   return [
     `d=${d}`,
+    // 2026-11-07 修复（首次安装 / 状态目录被清空时的"一直卡"）：
+    // 状态目录（`<wslHome>/.dsh/remote-wsl`）原本只由 `launchDaemon()` 创建，而 `launchDaemon()` 在
+    // **拿到启动锁之后**才跑 ⇒ 目录不存在时这里 `mkdir "$d"` 因父目录缺失恒失败 ⇒ 永远拿不到锁 ⇒
+    // `acquireEnsureLockWithWait` 空等满 `daemonLockWaitMs`（默认 45s）后报「锁被另一个宿主持有」的
+    // 误导错误，守护也永远起不来。先 `mkdir -p` 父目录（WSL 侧执行，umask 077 ⇒ 0700；UNC 的 chmod/创建
+    // 不可靠，这里走 bash 更稳），让抢锁自给自足。
+    'umask 077',
+    `mkdir -p -- "$(dirname -- "$d")" 2>/dev/null || true`,
     'if mkdir "$d" 2>/dev/null; then',
     '  date +%s > "$d/ts" 2>/dev/null || true',
     '  echo LOCKED',

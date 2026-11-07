@@ -60,3 +60,19 @@ test('启动锁：mkdir 原子抢占、释放后可重抢、陈旧锁自愈', { 
   run(release);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test('启动锁：状态目录不存在（首次安装）也必须能拿到锁，而不是永远 BUSY', { skip: !hasBash }, () => {
+  // 回归 2026-11-07「一直卡」：锁位于 `<stateDir>/ensure.<slot>.lock`，而 stateDir 原本只在
+  // launchDaemon（拿锁之后）才创建。父目录不存在时裸 `mkdir "$d"` 恒失败 ⇒ 永远 BUSY ⇒ 空等 45s
+  // 后报「锁被另一个宿主持有」。修复后脚本先 `mkdir -p` 父目录。
+  const root = mkdtempSync(join(tmpdir(), 'dsh-rw-lock-missing-'));
+  const stateDir = join(root, 'remote-wsl'); // 注意：故意不创建
+  const lock = join(stateDir, 'ensure.8731.lock');
+  const acquire = join(root, 'acquire.sh');
+  writeFileSync(acquire, `${acquireEnsureLockScript(lock, 120)}\n`);
+  const run = (f: string) => execFileSync('bash', [f], { encoding: 'utf8' }).trim();
+
+  assert.equal(run(acquire), 'LOCKED', '父目录缺失时也必须能抢到锁');
+  assert.equal(run(acquire), 'BUSY', '持锁期间第二次仍必须失败');
+  rmSync(root, { recursive: true, force: true });
+});

@@ -284,10 +284,14 @@ export class SdkRuntime {
       });
       this.exited = new Promise((res) => this.child.once('exit', (code) => {
         this.exitCode = code;
+        // 运行时死亡必须让所有**在飞的 request()** 立刻失败，而不是留在 pending 里等超时。
+        this.#failPendingAfterExit(code);
         res(code);
       }));
       exitedDuringInit = this.exited.then((code) => {
-        throw new Error(this.ad.text.startExited(code, this.stderrTail.slice(-300)));
+        const err: any = new Error(this.ad.text.startExited(code, this.stderrTail.slice(-300)));
+        err.code = 'RUNTIME_EXITED';
+        throw err;
       });
       exitedDuringInit.catch(() => {}); // 起成功之后再退出属于正常关停，不该变成 unhandled
       await Promise.race([
@@ -326,6 +330,25 @@ export class SdkRuntime {
       try { process.kill(-child.pid, 'SIGKILL'); } catch { /* ESRCH = 已经退了 */ }
     }
     try { await this.ad.closeHook?.({ self: this }); } catch { /* 回收失败也要把真实错误抛给调用方 */ }
+  }
+
+  /**
+   * 运行时进程退出后，把所有尚未得到应答的 `request()` 立刻 reject（并清空 pending）。
+   * 不这样做时，`initialize`/`session/prompt` 这类请求会一直挂在 pending，只能等各自的超时（最长 5 分钟）。
+   */
+  #failPendingAfterExit(code) {
+    const tail = this.stderrTail ? `: ${this.stderrTail.slice(-300)}` : '';
+    const err: any = new Error(`runtime exited (exit=${code})${tail}`);
+    // 打上机器可读标记：守护据此判定这是"运行时死了 ⇒ 重试前必须先修条件"，而不是可无脑重试的瞬时失败。
+    err.code = 'RUNTIME_EXITED';
+    for (const [, p] of this.pending) {
+      try {
+        p.reject(err);
+      } catch {
+        /* 已 settle */
+      }
+    }
+    this.pending.clear();
   }
 
   request(method, params, timeoutMs = this.promptTimeoutMs) {
@@ -473,7 +496,31 @@ export class SdkRuntime {
       throw e;
     }
     this.armQuiet();
-    await Promise.race([this.turnDone, sleep(this.promptTimeoutMs)]);
+    // ★ 关键修复（2026-11-07「插件一直卡」的根因之一）：把「运行时死亡」纳入本轮竞速。
+    // 以前这里只 race `turnDone` / `promptTimeoutMs`（默认 5 分钟）⇒ 若子进程在轮次中途 exit(1)
+    // （例如 dsh 启动插件失败、上游异常退出），`turnDone` 永远不会 resolve，于是：
+    //   · 守护侧这一轮一直挂着；
+    //   · 客户端只能等到 daemon 的连接空闲超时（SOCKET_IDLE_MS=120s）才收到
+    //     “connection closed before reply”（误导性地提示 socket 被重置），每次调用白等约 2 分钟。
+    // 现在进程一死立刻结束本轮，抛出真实的退出码 + stderr 尾巴，交给上面把原因转给 wsl_agent。
+    const exitFailure = this.exited.then((code) => {
+      const tail = this.stderrTail ? `: ${this.stderrTail.slice(-300)}` : '';
+      const err: any = new Error(`runtime exited during prompt (exit=${code})${tail}`);
+      err.code = 'RUNTIME_EXITED';
+      throw err;
+    });
+    exitFailure.catch(() => {}); // 若不是本分支胜出，别变成 unhandled rejection
+    // 用**可清除**的超时定时器（而不是裸 sleep）：race 结束后必须清掉，否则一个 5 分钟定时器会一直
+    // 挂在事件循环上（守护里无所谓，但会让单测进程/退出路径被拖住）。
+    let turnTimer: any;
+    const turnTimeout = new Promise((res) => {
+      turnTimer = setTimeout(res, this.promptTimeoutMs);
+    });
+    try {
+      await Promise.race([this.turnDone, exitFailure, turnTimeout]);
+    } finally {
+      clearTimeout(turnTimer);
+    }
     if (this.quietTimer) clearTimeout(this.quietTimer);
 
     const msgs = this.events.filter((e) => e?.type === 'assistant/message');

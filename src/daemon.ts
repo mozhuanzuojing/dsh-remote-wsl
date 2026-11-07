@@ -710,7 +710,16 @@ async function pump(entry) {
           queueDepth: entry.queue.length,
         });
       } catch (e) {
-        job.resolve({ ok: false, error: e?.message ?? String(e), retryable: true, queueDepth: entry.queue.length });
+        // 运行时中途死亡（RUNTIME_EXITED）属于"重试前必须先修条件"（例如凭据/配置错误），
+        // 不能让上层当成可无脑重试的瞬时失败 —— 否则用户会一直撞同一堵墙。
+        const fatal = e?.code === 'RUNTIME_EXITED';
+        job.resolve({
+          ok: false,
+          error: e?.message ?? String(e),
+          retryable: !fatal,
+          ...(fatal ? { errorCode: 'RUNTIME_EXITED' } : {}),
+          queueDepth: entry.queue.length,
+        });
       }
       writeMeta();
     }
