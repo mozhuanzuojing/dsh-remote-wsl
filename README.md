@@ -7,11 +7,11 @@
 > 常驻守护让「关掉客户端 ≠ 会话结束」；换一个宿主进程，用同一个 `key` 还能接上之前的上下文。
 
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.1-6f42c1)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
+[![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.2-6f42c1)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.3.20** · 开发依据 DSH **0.2.2-rc.1** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.3.20** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -325,7 +325,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 ## 兼容性
 
-- **DSH**：在本机 **0.2.2-rc.1** 上实测（0.2.1-rc.3 / 0.2.0-rc.2 仍兼容）。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.0-rc.2`；
+- **DSH**：最低要求 **`>=0.2.2-rc.2`**（本机在 DSH 0.2.2-rc.2 上运行）。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.2-rc.2`；
   rc 语义按 semver 实算，过期不会导致静默禁用）；`dsh.compatibility.dshReleases` 只是**声明**、宿主不校验。
 - **平台**：Windows + WSL2；macOS / Linux 不适用，WSL1 不支持。
 - **WSL 侧运行时**：Node ≥ 26.10（实测 26.10.0）、pnpm（实测 12.6.0）、mise（实测 2026.9.7）。Windows 侧使用 DSH 自带运行时。
