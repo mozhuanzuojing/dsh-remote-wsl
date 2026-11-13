@@ -4,11 +4,11 @@
  * 为什么不用 tsc：本仓是**零构建**（只用可擦除语法、不引入运行时/构建依赖），为一个语法门禁引入
  * TypeScript 依赖会破坏 "link: 安装即可用" 的约束。这里做两件可离线、零依赖的事：
  *  1. `src/**\/*.ts` 用 Node 内置的 `stripTypeScriptTypes` 解析（语法错会抛）；
- *  2. `client/**\/*.js` 用 `node --check` 校验（client 是无构建的普通 JS）。
+ *  2. `client/**\/*.js`（若存在）用 `node --check` 校验；本次 client 已迁到 src/client/*.ts，client/ 目录可不存在。
  *
  * 运行：`node --experimental-strip-types scripts/check-syntax.ts`
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,7 +46,7 @@ for (const file of tsFiles) {
   }
 }
 
-const jsFiles = walk(join(root, 'client'), (n) => n.endsWith('.js'));
+const jsFiles = existsSync(join(root, 'client')) ? walk(join(root, 'client'), (n) => n.endsWith('.js')) : [];
 for (const file of jsFiles) {
   try {
     execFileSync('node', ['--check', file], { stdio: 'pipe' });

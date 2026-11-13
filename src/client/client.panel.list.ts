@@ -1,23 +1,5 @@
-/**
- * client.panel.list.js —— 条目列表（窗口化 + 行渲染 + 键盘 + 滚动记忆；第 7 个 chunk，2026-10-19）。
- *
- * 为什么单独拆：browser.js 加入筛选/窗口化/点击/键盘后超过 panel-smoke-node 的 400 行纪律线；
- * 列表自带完整边界（滚动容器、窗口、行、键盘），与卡片外壳分开最干净。
- * 行为：
- * · 大目录（> VIRTUAL_MIN_ROWS）只渲染视口内 + overscan，上下用占位 div 撑住滚动高度；
- * · 行点击（目录）= 进入；行内「进入 / 复制路径」按钮 stopPropagation，绝不导航两次；
- * · roving tabindex：只有 focusIndex 那行 tabIndex=0，键盘移动的是**真实 DOM 焦点**；
- * · 滚动位置按目录记忆（回到上一目录停在原处）；
- * · 加载骨架 / 列表错误（技术细节折叠）/ 空目录 / 筛选无匹配 四态。
- */
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.list.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		const React = require("react");
+import React from 'react';
+
 		function humanSize(value) {
 			if (typeof value !== "number" || !Number.isFinite(value)) return "";
 			if (value < 1024) return value + " B";
@@ -288,7 +270,7 @@ window.__ModuleLoader__.load({
 			 * @param event - keydown。
 			 * @param explicitIndex - 行上触发时传该行 index；容器触发时省略（用 focusIndex）。
 			 */
-			const onListKey = function (event, explicitIndex) {
+			const onListKey = function (event: any, explicitIndex?: any) {
 				const count = visibleEntries.length;
 				if (count === 0) {
 					if (event.key === "/" && searchRef !== null && searchRef.current !== null) {
@@ -431,8 +413,5 @@ window.__ModuleLoader__.load({
 		function Entries(props) {
 			return renderEntries(props);
 		}
-		exports.Entries = Entries;
-		exports.renderEntries = renderEntries;
-		return module.exports;
-	},
-});
+		export { Entries };
+		export { renderEntries };

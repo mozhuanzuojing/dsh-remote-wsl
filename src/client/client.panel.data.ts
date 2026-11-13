@@ -1,25 +1,5 @@
-/**
- * client.panel.data.js —— 目录数据层（T41 之后新增的第 6 个 chunk；2026-10-19 UI/UX/性能轮）。
- *
- * 为什么单独拆出来：client.panel.actions.js 已到 400 行纪律线（panel-smoke-node 的"行数 <400"门禁），
- * 而本轮的缓存/单飞/预取逻辑是**与渲染无关**的一段纯数据行为，整块搬走最干净。
- *
- * 语义（与拆分前逐字一致）：
- * · listPath：缓存优先 + 单飞 + stale-while-revalidate（TTL 内 0 等待；过期先回显再复核；
- *   复核失败保留内容并标 stale；同路径并发共享一个请求）；
- * · prefetchDir/cancelPrefetch：悬停/聚焦目录行停 140ms 预取下一层，只写缓存不触发渲染；
- * · jumpTo/submitPath/clearSearch：导航与筛选的入口（换目录即清筛选）。
- */
+import React from 'react';
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.data.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
 
 		/** 空闲时长的人类可读形式（会话卡用）：<1m 记 '<1m'，其余 m/h/d。 */
 		function formatIdle(ms) {
@@ -30,6 +10,10 @@ window.__ModuleLoader__.load({
 			if (value < 86400000) return Math.floor(value / 3600000) + "h";
 			return Math.floor(value / 86400000) + "d";
 		}
+
+		// 规则约定：路径/UNC 的最终校验以 host（src/explorer.ts 白名单）为准；
+
+		// 这里的校验只为 UX 预提示，不得替代或放宽 host 规则。
 
 		function useDirectoryNavigation(props) {
 			const {
@@ -226,7 +210,4 @@ window.__ModuleLoader__.load({
 			return { listPath, jumpTo, submitPath, clearSearch, prefetchDir, cancelPrefetch, formatIdle };
 		}
 
-		exports.useDirectoryNavigation = useDirectoryNavigation;
-		return module.exports;
-	},
-});
+		export { useDirectoryNavigation };

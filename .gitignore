@@ -3,6 +3,7 @@ _backup/
 
 # 运行期/工具产物
 node_modules/
+lib/*.map
 .shadow/
 *.tmp
 *.bak
@@ -19,3 +20,6 @@ spike/
 *.token
 *.log
 *.err
+
+# 本地临时/验证产物（勿入库）
+_work/

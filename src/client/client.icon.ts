@@ -1,23 +1,5 @@
-/**
- * client.icon.js —— 侧栏 rail 里的 WSL 图标（`sidebar.panellist` 的 occupant）。
- *
- * 文件名约束见 client.api.js 头部说明（chunk 名被平台的 CLIENT_CHUNK 正则钉死）。
- *
- * 契约（docs/remote-explorer-design.md §3，实测 `SidebarPanelIconOwnerProps`）：
- *   props = { size: number, active: boolean }
- * 图标是**组件**不是图片路径；只画 `React.createElement`，无 JSX、无第三方图标库。
- * 颜色一律走 currentColor —— rail 由外壳决定非激活态颜色，激活态我们用品牌 token 抬一下。
- */
+import React from 'react';
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.icon.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
 
 		/**
 		 * 造图标组件。`ctx` 目前不需要，但保留形参以便将来加"漂移红点"之类的 ctx 依赖。
@@ -54,7 +36,4 @@ window.__ModuleLoader__.load({
 			};
 		}
 
-		exports.createIcon = createIcon;
-		return module.exports;
-	},
-});
+		export { createIcon };

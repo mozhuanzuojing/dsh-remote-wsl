@@ -170,7 +170,7 @@ if (-not (Test-Path $link)) {
 
 - `<profile>/node_modules/dsh-remote-wsl` 是否存在并指向仓库 —— `link:` 没被物化是第一位原因；
 - 宿主启动日志里的 `skippedBundles` / 插件加载错误 —— bundle 行包名写错时插件**根本不会加载**；
-- 再重启一次 DSH（host 半改动必须重启；只有 client chunk 改动可以只刷新页面）；
+- 再重启一次 DSH（host 半改动必须重启；只有 client 改动：`npm run build` 后刷新页面）；
 - 不要用 `dsh --profile desktop --dump-config` 验证：`desktop` profile 由 Electron 独占，CLI 会直接拒绝（`profile "desktop" is managed exclusively by the Electron application`）。
 
 ### 升级 / 回滚 / 卸载
@@ -182,7 +182,7 @@ if (-not (Test-Path $link)) {
 
 ```powershell
 git -C D:\tools\dsh-remote-wsl pull --ff-only
-# 重启 DSH Desktop（host 半代码在启动时加载；client chunk 只需刷新页面）
+# 重启 DSH Desktop（host 半代码在启动时加载；client 改动：`npm run build` 后刷新页面）
 ```
 
 回滚到任意提交（`link:` 安装意味着工作树就是运行中的代码）：
@@ -357,7 +357,7 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 ## 开发
 
-零构建 TypeScript（Node 原生 type stripping），没有 `@deepseek-ai/*` 运行时依赖；`client/` 是零构建 chunk，CSS 也在入口里。Windows 侧用 DSH 自带的 Node 即可跑 `.ts`（实测 24.21.0）；WSL 侧守护按 `engines.node` 需要 ≥ 26.10。
+**客户端构建**：client 已从手写 chunk 迁到 `src/client/*.ts`，用 `esbuild` 打成单文件 `lib/client.js`（`devDependencies`: esbuild；`lib/client.js` 随包入库）。`npm run build` 重建。这些 `.ts` 有 **tsc 类型检查**（`npm run typecheck`；devDependency: typescript），`npm run check` 另做零依赖语法校验；host 仍零构建（Node 原生 type stripping），无 `@deepseek-ai/*` 运行时依赖。Windows 侧用 DSH 自带的 Node 即可跑 `.ts`（实测 24.21.0）；WSL 侧守护按 `engines.node` 需要 ≥ 26.10。
 
 | 路径 | 作用 |
 |---|---|
@@ -373,7 +373,8 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 | `src/fs-unc-bridge.ts` | standard preset 的 UNC 文件桥：写/编辑/patchText/deleteFile/moveFile + `/mnt` 解析与读取，绕过 9P DACL/DrvFs 限制 |
 | `src/preset.ts`、`src/search-tool.ts` | `wsl` preset、WSL 内 `grep` / `glob` 与 `wsl_tools` |
 | `src/shell-provider.ts` | WSL preset 里的 `ctx.shell` 替代实现（原生 `bash`：cwd 翻译 / 输出上限 / 超时 / 进程组回收） |
-| `client/` | client 半 chunk（含 i18n 与全部 CSS） |
+| `src/client/` | client 半源码（TS；含 i18n 与全部 CSS） |
+| `lib/client.js` | client 构建产物（`npm run build` 产出，随包入库） |
 | `test/` | 可重跑的回归用例（Node 内置 test runner，直接跑 `.ts`） |
 | `scripts/check-syntax.ts` | 零依赖语法门禁（`src` 用 Node type stripping 解析、`client` 用 `node --check`） |
 | `assets/` | README 配图：banner、宽态 / 深色 / 窄态 / 头部截图 |
@@ -419,7 +420,7 @@ $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-r
 & $node src/selftest.ts stop
 ```
 
-> **改 client 的硬规则**：任何 chunk 变了，都必须同时动一下入口 `client/index.js`（平台按入口文件元数据算 `rev`，只改 chunk 不会换 URL，浏览器在 `immutable` 下会继续吃旧字节）。
+ > **改 client 的硬规则**：改 `src/client/*.ts` 后必须 `npm run build` 重建 `lib/client.js`（平台按 `lib/client.js` 的 rev 决定浏览器缓存；不重建则仍吃旧产物）节）。
 
 设计取舍：
 

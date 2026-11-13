@@ -1,19 +1,5 @@
-/**
- * client.panel.helpers.js —— 常量 + 纯函数 + 文案格式化 + 内联 SVG 图标 + StatusDot
- *
- * T41 机械拆分（生成器 `arch-t6/tools/gen-split2.mjs`，从拆分前备份整块切片）：
- * 被搬动的代码体**逐字不变**；只在本函数开头把上游名字解构回同名局部（显式清单，非正则猜）。
- */
+import React from 'react';
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.helpers.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
 
 		/** 最近目录（M12）：命名空间键 + 只存路径字符串。 */
 		const RECENT_KEY = "dsh-remote-wsl.recent";
@@ -275,7 +261,7 @@ window.__ModuleLoader__.load({
 			return { head: text, rest: "" };
 		}
 
-		function actionFailure(t, result, failKey) {
+		function actionFailure(t: any, result: any, failKey: any = undefined) {
 			const notes = Array.isArray(result && result.notes)
 				? result.notes.filter((line) => typeof line === "string" && line.length > 0)
 				: [];
@@ -359,41 +345,37 @@ window.__ModuleLoader__.load({
 			return React.createElement("span", { className: `dsh-rw-dot dsh-rw-dot--${kind}`, "aria-hidden": "true" });
 		}
 
-		exports.HIDE_UPDATED_PX = HIDE_UPDATED_PX;
-		exports.DIR_CACHE_MAX = DIR_CACHE_MAX;
-		exports.dirCache = dirCache;
-		exports.DIR_CACHE_TTL_MS = DIR_CACHE_TTL_MS;
-		exports.ROW_BLOCK = ROW_BLOCK;
-		exports.VIRTUAL_MIN_ROWS = VIRTUAL_MIN_ROWS;
-		exports.filterEntries = filterEntries;
-		exports.sortEntries = sortEntries;
-		exports.NARROW_PX = NARROW_PX;
-		exports.RECENT_KEY = RECENT_KEY;
-		exports.RECENT_MAX = RECENT_MAX;
-		exports.StatusDot = StatusDot;
-		exports.actionFailure = actionFailure;
-		exports.actionFailureText = actionFailureText;
-		exports.addWorkspaceErrorText = addWorkspaceErrorText;
-		exports.addWorkspaceNote = addWorkspaceNote;
-		exports.asArray = asArray;
-		exports.breadcrumbOf = breadcrumbOf;
-		exports.clock = clock;
-		exports.daemonNote = daemonNote;
-		exports.errorText = errorText;
-		exports.homePathOf = homePathOf;
-		exports.icon = icon;
-		exports.isRecord = isRecord;
-		exports.joinWslPath = joinWslPath;
-		exports.newAbortController = newAbortController;
-		exports.normalizeWslPath = normalizeWslPath;
-		exports.openSessionNote = openSessionNote;
-		exports.pushRecent = pushRecent;
-		exports.readRecent = readRecent;
-		exports.readRecentAll = readRecentAll;
-		exports.signalOf = signalOf;
-		exports.splitFirstSentence = splitFirstSentence;
-		exports.splitHumanText = splitHumanText;
-
-		return module.exports;
-	},
-});
+		export { HIDE_UPDATED_PX };
+		export { DIR_CACHE_MAX };
+		export { dirCache };
+		export { DIR_CACHE_TTL_MS };
+		export { ROW_BLOCK };
+		export { VIRTUAL_MIN_ROWS };
+		export { filterEntries };
+		export { sortEntries };
+		export { NARROW_PX };
+		export { RECENT_KEY };
+		export { RECENT_MAX };
+		export { StatusDot };
+		export { actionFailure };
+		export { actionFailureText };
+		export { addWorkspaceErrorText };
+		export { addWorkspaceNote };
+		export { asArray };
+		export { breadcrumbOf };
+		export { clock };
+		export { daemonNote };
+		export { errorText };
+		export { homePathOf };
+		export { icon };
+		export { isRecord };
+		export { joinWslPath };
+		export { newAbortController };
+		export { normalizeWslPath };
+		export { openSessionNote };
+		export { pushRecent };
+		export { readRecent };
+		export { readRecentAll };
+		export { signalOf };
+		export { splitFirstSentence };
+		export { splitHumanText };

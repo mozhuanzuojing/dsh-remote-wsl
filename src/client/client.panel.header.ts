@@ -1,19 +1,18 @@
-/**
- * client.panel.header.js —— 头部按钮组 + 动作结果/加载/错误三块（把元素 push 进共享的 body 数组）
- *
- * T41 机械拆分（生成器 `arch-t6/tools/gen-split2.mjs`，从拆分前备份整块切片）：
- * 被搬动的代码体**逐字不变**；只在本函数开头把上游名字解构回同名局部（显式清单，非正则猜）。
- */
+import React from 'react';
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.header.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
+		// 官方 UI 原语（经 dsh.client.inject 注入）；不可用则回退原生
+		let UI = (typeof window !== "undefined" && window.__dshRwUI) ? window.__dshRwUI : null;
+		if (UI === null) { try { UI = require("@deepseek-ai/dsh-client-ui-primitives"); } catch (e) { UI = null; } }
+		/** 头部动作按钮：官方 Button(size=sm) 可用则用之，否则回退 .dsh-rw-btn 原生按钮。 */
+		function HdrButton(props) {
+			const p = props || {};
+			const UX = (typeof window !== "undefined" && window.__dshRwUI) ? window.__dshRwUI : UI;
+			const rest = Object.assign({}, p); delete rest.variant; delete rest.icon; delete rest.children; delete rest.className;
+			if (UX !== null && UX.Button != null) {
+				return React.createElement(UX.Button, Object.assign({ variant: p.variant || "ghost", size: "sm" }, rest), p.children);
+			}
+			return React.createElement("button", Object.assign({ type: "button", className: p.className || "dsh-rw-btn" }, rest), p.icon, p.children);
+		}
 
 
 function renderHeader(props) {
@@ -58,11 +57,11 @@ function renderHeader(props) {
 				if (!narrow && primaryIsSession) {
 					headerButtons.push(
 						React.createElement(
-							"button",
+							HdrButton,
 							{
 								key: "addws",
-								type: "button",
-								className: "dsh-rw-btn",
+								variant: "outline",
+								icon: icon("plus"),
 								disabled: cwd === null || action.busy !== null,
 								"aria-label": cwd === null ? t("action.addWorkspaceNeedPath") : t("action.addWorkspaceAria", { path: cwd }),
 								title: cwd === null ? t("action.addWorkspaceNeedPath") : t("action.addWorkspaceTitle"),
@@ -75,18 +74,17 @@ function renderHeader(props) {
 									});
 								},
 							},
-							icon("plus"),
+
 							action.busy !== null && action.busy.startsWith("a1:") ? t("action.addWorkspaceBusy") : t("action.addWorkspace"),
 						),
 					);
 				}
 				headerButtons.push(
 					React.createElement(
-						"button",
+						HdrButton,
 						{
 							key: "primary",
-							type: "button",
-							className: "dsh-rw-btn dsh-rw-btn--primary",
+							variant: "primary",
 							disabled: cwd === null || action.busy !== null,
 							"aria-label": cwd === null
 								? t("browser.openHereAriaNone")
@@ -386,8 +384,4 @@ openError: openError === null ? null : String(openError && openError.message ? o
 			};
 }
 
-		exports.renderHeader = renderHeader;
-
-		return module.exports;
-	},
-});
+		export { renderHeader };

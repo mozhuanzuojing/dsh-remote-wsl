@@ -1,49 +1,15 @@
-/**
- * dsh-remote-wsl —— client 半入口（**手写的 lazy-CJS loader bundle**，零构建）。
- *
- * 2026-10-29（open-in-editor）：client.panel.list.js 增加了行内「打开」动作，必须触碰入口 rev。
- *
- * 为什么长这样（都有出处，不是猜的）：
- * - 静态 `dsh.client` 半没有 ESM、没有 JSX 转换、**没有** `host.call`/`styles.insert`
- *   （那两个是动态包 cordis_define/run 的 closure 内建：
- *   @deepseek-ai/dsh-cordis-client-runner/lib/client.js:54,157）。
- * - bundle 的固定形状 = `window.__ModuleLoader__.load({ id, factory })`，factory 收到一个
- *   只有平台种子表能解析的 `require`（react 等），Cordis 插件面靠 `exports.apply/inject`
- *   （官方 ui-sidebar/lib/client.js:1-10,530-533 同形）。
- * - 一个包只有**一个**被 serve 的入口（`exports["./client"]`）；要拆文件只能走包内 chunk：
- *   `require.async("./client.<name>.js")` → 路由 `/plugins/<pkg>/client.<name>.js`
- *   （CLIENT_CHUNK 正则见 dsh-client-modules/lib/index.js:169；文件位置 = 入口同目录，
- *   见 lib/index.js:938；chunk 注册用 `{ id, chunk: "<fileName>", factory }`，
- *   见 lib/client.js:571-580）。所以拆出来的文件名**只能**是 `client.<name>.js`。
- * - 取数：同源 `fetch("/remote-wsl/api")`（host 半 src/explorer.ts 的精确路由），
- *   封在 client.api.js 里；面板/图标/入口都不直接对 URL 说话。
- *
- * 槽位（docs/remote-explorer-design.md §3）：
- *   sidebar.panellist（list）{ id:'remote-wsl', order:20, label:()=>'远程资源管理器' }
- *   main            （keyed）{ key:'remote-wsl' } —— key 与 id 必须同名
- * 两者都由父 entry 声明，所以注册统一包在 `ctx.slots.inject(key, …)` 里等声明出现
- * （renderer/lib/client.js:1343-1402）。
- *
- * 挂载/卸载只读快照，**不杀守护**；唯一会动守护的是用户点状态条上的按钮。
- *
- * ── 入口 bump 记录（改 chunk 必须动入口，见 docs/client-contract.md §11）──────────────
- * T52：`.dsh-rw-menu` 的 CSS 就在**本文件**的 CSS 数组里 ⇒ 那次改动本身就是入口变更。
- * T53：`client.panel.tail.js` 的菜单组标题去掉误导性 `role="presentation"`（N4 对账，
- *      见 spike/verify/explorer-20261012/client-panel/REPORT-n4-grouplabel.md）⇒ 由此处 bump 入口。
- * T63：窄态（面板 <420）换短文案 + 头部/按钮禁止折行的 CSS（见
- *      spike/verify/explorer-20261012/usability/p07-narrow/REPORT-narrow320-fix.md）。
- *      本轮同时改了 3 个 chunk（i18n / header / tail）⇒ **最后一次编辑必须落在入口**，
- *      否则 `check-client-rev.ts` 会判 FAIL（入口的 mtime/内容不再是最新）。
- */
+import React from 'react';
+import * as __apiMod from './client.api.ts'
+import * as __i18nMod from './client.i18n.ts'
+import * as __panelMod from './client.panel.ts'
+import * as __iconMod from './client.icon.ts'
+import * as __workspaceMod from './client.panel.workspace.ts'
+const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod, "client.panel.js": __panelMod, "client.icon.js": __iconMod, "client.panel.workspace.js": __workspaceMod };
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
+		// 官方 UI 原语：在入口（entry）作用域加载一次，暴露到 window 供各 chunk 复用
+		let UI = null;
+		try { UI = require("@deepseek-ai/dsh-client-ui-primitives"); } catch (e) { UI = null; }
+		try { if (UI !== null) window.__dshRwUI = UI; } catch (e) {}
 
 		const PANEL_ID = "remote-wsl";
 		const PANEL_ORDER = 20;
@@ -99,7 +65,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-tchip>summary{list-style:none;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);cursor:pointer;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-tchip>summary::-webkit-details-marker{display:none}",
 			".dsh-rw-tchip[open]>summary{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
-			".dsh-rw-tchip .dsh-rw-menu{width:200px}",
+			".dsh-rw-tchip .dsh-rw-menu{width:200px;left:0;right:auto}",
 			".dsh-rw-sessions{padding-bottom:8px}",
 			// F-26 收口（task-8）：会话卡元信息（轮次 · 空闲）原来用 `label-tertiary` —— 该 token
 			// **不在面板 17 token 闭集里**，且 spec §1.0/§1.1 实测 light 底上只有 **3.71:1 < 4.5**并明确
@@ -131,7 +97,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-count{flex:none;min-width:16px;height:16px;box-sizing:border-box;padding:0 4px;border-radius:999px;background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;text-align:center;font-variant-numeric:tabular-nums}",
 			".dsh-rw-btn--quiet{border-color:transparent;background:none;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-btn--quiet:hover:enabled{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
-			".dsh-rw-daemon{display:inline-flex;align-items:center;gap:5px;flex:none;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;white-space:nowrap}",
+			".dsh-rw-daemon{display:inline-flex;align-items:center;gap:5px;flex:none;height:24px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);background:none;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:16px;cursor:pointer;white-space:nowrap}",
 			".dsh-rw-daemon:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			// 2026-10-23 review ①：状态 token 只用于**边框/圆点**，文字一律用 `label-primary`。
 			// 原因（实测对比度，白底）：success 2.28:1、warn 2.15:1、error 4.50:1 ——
@@ -204,12 +170,13 @@ window.__ModuleLoader__.load({
 			".dsh-rw-rowname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 1 auto;direction:ltr;unicode-bidi:isolate;text-align:left}",
 			".dsh-rw-rowacts{display:flex;align-items:center;gap:8px;flex:none;visibility:hidden}",
 			".dsh-rw-row:hover .dsh-rw-rowacts,.dsh-rw-row:focus-within .dsh-rw-rowacts{visibility:visible}",
+			"@media (hover:none){.dsh-rw-rowacts,.dsh-rw-targetacts{visibility:visible}}",
 			".dsh-rw-badge{flex:none;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);border-radius:999px;padding:0 6px}",
 			".dsh-rw-icon{flex:none;width:16px;height:16px;color:currentColor}",
 			".dsh-rw-drift{color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-menuicon--warn{color:var(--dsw-alias-state-warn-primary)}",
 			".dsh-rw-menuicon--error{color:var(--dsw-alias-state-error-primary)}",
-			".dsh-rw-btn{display:inline-flex;align-items:center;gap:4px;flex:none;white-space:nowrap;height:28px;padding:4px 10px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;box-shadow:none}",
+			".dsh-rw-btn{display:inline-flex;align-items:center;gap:4px;flex:none;white-space:nowrap;height:28px;padding:4px 10px;border-radius:var(--dsw-radius-sm,4px);border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;cursor:pointer;box-shadow:none}",
 			".dsh-rw-btn:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
 			".dsh-rw-btn:active:enabled{background:var(--dsw-alias-interactive-bg-active)}",
 			".dsh-rw-btn:disabled{color:var(--dsw-alias-label-dimmed);border-color:var(--dsw-alias-border-l1);cursor:default}",
@@ -217,7 +184,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-btn--danger{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-state-error-primary)}",
 			// T42/V1：`⋯` 与刷新是 flex 子项，**缺 `flex:none` 会被压到 SVG 的 16px 最小宽**
 			//（T40 实测 320→16 / 359/360→21）⇒ 钉 `flex:none` 保证命中区恒 24×24。
-			".dsh-rw-iconbtn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:24px;height:24px;padding:0;border-radius:4px;border:none;background:none;color:var(--dsw-alias-label-secondary);cursor:pointer;box-shadow:none}",
+			".dsh-rw-iconbtn{display:inline-flex;align-items:center;justify-content:center;flex:none;width:24px;height:24px;padding:0;border-radius:var(--dsw-radius-sm,4px);border:none;background:none;color:var(--dsw-alias-label-secondary);cursor:pointer;box-shadow:none}",
 			".dsh-rw-iconbtn:hover:enabled{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-iconbtn:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
 			// 2026-10-26 窄态快捷目录（places）实测：360/320 档 chips 被 flex 默认 `0 1 auto`
@@ -277,7 +244,7 @@ window.__ModuleLoader__.load({
 			// 宽态（≥~560）内容一行放得下 ⇒ 几何与原来一致（min-height 仍 47）。
 			// 2026-10-22 review 修：`row-gap:6px` 必须写在 `gap:8px` **之后** —— 简写 `gap` 会重置行间距，
 			// 原先顺序写反导致注释称 6px、实际生效 8px（review 发现）。
-			".dsh-rw-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;row-gap:6px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:none}",
+			".dsh-rw-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;row-gap:6px;box-sizing:border-box;min-height:47px;height:auto;padding:9px 12px;margin:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-2);flex:none;font-size:12px;line-height:16px;position:relative;box-shadow:var(--dsw-elevation-panel,0 1px 3px rgba(0,0,0,.06))}",
 			// 同一个 `box-sizing` 根因第 2 处：`--stopped/--unknown` 带 1.5px 边框，
 			// 内容盒语义下外径 11 ≠ 实心态 8 ⇒ 加 `box-sizing:border-box` 后两态恒 8×8。
 			".dsh-rw-dot{box-sizing:border-box;width:8px;height:8px;border-radius:50%;flex:none}",
@@ -287,6 +254,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-dot--error{background:var(--dsw-alias-state-error-primary)}",
 			// 2026-10-22 review 修：代理「不可达」改用 warn 圆点（与 `.dsh-rw-proxy--down` 的琥珀色一致）。
 			".dsh-rw-dot--warn{background:var(--dsw-alias-state-warn-primary)}",
+			".dsh-rw-statusitem{display:inline-flex;align-items:center;gap:4px;flex:none}",
 			".dsh-rw-statusword{flex:none;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);white-space:nowrap}",
 			".dsh-rw-extra{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}",
 			// T63：窄态（<420）会话数改由**菜单/诊断**承载 ⇒ 底栏只留状态词 + 主按钮，避免"会话 N 个"被挤成省略号
@@ -296,7 +264,7 @@ window.__ModuleLoader__.load({
 			// T52：规格 §7.2.4 的「宽 240 固定」指**外框**。宿主无全局 box-sizing 重置 ⇒ 不写 border-box 时
 			// `width:240 + padding:4×2 + border:1×2` 按内容盒渲染成 **250**（真实 Chromium 实测，见
 			// client-panel/REPORT-menu-boxsizing.md ①）。与同族 7 条（row/recent-row/menuitem/status/dot/crumb/link）一致。
-			".dsh-rw-menu{position:absolute;bottom:calc(100% + 4px);right:0;box-sizing:border-box;width:240px;z-index:30;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:0;box-shadow:0 4px 12px rgba(0,0,0,.08)}",
+			".dsh-rw-menu{position:absolute;bottom:calc(100% + 4px);right:0;box-sizing:border-box;width:240px;z-index:30;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,6px);padding:4px;display:flex;flex-direction:column;gap:0;box-shadow:var(--dsw-elevation-panel,0 4px 12px rgba(0,0,0,.08))}",
 			".dsh-rw-group{display:flex;flex-direction:column;gap:0}",
 			// T42/R3：组标题取色 `label-secondary` 在 dark 只有 3.85:1（<4.5）⇒ 改 `label-primary`
 			//（实测 15.97 / 5.55 ✓✓；17 token 闭集内没有第三个选项，`brand-primary` 与它 RGB 相同）。
@@ -307,7 +275,7 @@ window.__ModuleLoader__.load({
 			".dsh-rw-menuitem:focus-visible{outline-offset:-2px;box-shadow:inset 0 0 0 1px var(--dsw-alias-bg-layer-1)}",
 			".dsh-rw-menuitem:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
 			".dsh-rw-menusep{height:1px;background:var(--dsw-alias-border-l1);margin:4px 0}",
-			".dsh-rw-confirm{background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:12px;width:min(360px,100% - 16px);align-self:flex-end;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.16);display:flex;flex-direction:column;gap:8px}",
+			".dsh-rw-confirm{background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,6px);padding:12px;width:min(360px,100% - 16px);align-self:flex-end;z-index:30;box-shadow:var(--dsw-elevation-panel,0 8px 24px rgba(0,0,0,.16));display:flex;flex-direction:column;gap:8px}",
 			".dsh-rw-confirm-title{display:flex;align-items:center;gap:6px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-confirm-body{font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
 			".dsh-rw-confirm-actions{display:flex;justify-content:flex-end;gap:8px}",
@@ -337,7 +305,8 @@ window.__ModuleLoader__.load({
 			".dsh-rw-rowtime{width:116px;text-align:right}",
 			".dsh-rw-rowdir .dsh-rw-rowmeta{opacity:.65}",
 			".dsh-rw-wdialog-overlay{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.36);display:flex;align-items:center;justify-content:center;padding:16px}",
-			".dsh-rw-wdialog{width:min(620px,calc(100vw - 32px));max-height:min(720px,calc(100vh - 48px));display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.28);color:var(--dsw-alias-label-primary);overflow:hidden}",
+			".dsh-rw-wdialog:focus{outline:none}",
+			".dsh-rw-wdialog{width:min(620px,calc(100vw - 32px));max-height:min(720px,calc(100vh - 48px));display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg,12px);box-shadow:var(--dsw-elevation-panel,0 18px 60px rgba(0,0,0,.28));color:var(--dsw-alias-label-primary);overflow:hidden}",
 			".dsh-rw-wdialog-head{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 10px}",
 			".dsh-rw-wdialog-title{font-size:16px;line-height:24px;font-weight:650}",
 			".dsh-rw-wdialog-distro{display:flex;align-items:center;gap:10px;padding:0 18px 8px}",
@@ -371,14 +340,9 @@ window.__ModuleLoader__.load({
 			document.head.appendChild(tag);
 		}
 
-		const chunkCache = new Map();
+		/** 静态 chunk 表（构建期已内联），保留 Promise 接口以复用既有 boot 链。 */
 		function loadChunk(fileName) {
-			let pending = chunkCache.get(fileName);
-			if (pending === undefined) {
-				pending = Promise.resolve().then(() => require.async("./" + fileName));
-				chunkCache.set(fileName, pending);
-			}
-			return pending;
+			return Promise.resolve(__chunkModules[fileName]);
 		}
 
 		/**
@@ -410,7 +374,7 @@ window.__ModuleLoader__.load({
 			}
 			const doc = typeof document === "undefined" ? undefined : document;
 			const t = i18nModule.createTranslator(locale && typeof locale.translate === "function" ? locale : null, doc);
-			const listeners = new Set();
+			const listeners = new Set<any>();
 			const notify = () => {
 				for (const listener of [...listeners]) {
 					try {
@@ -451,7 +415,7 @@ window.__ModuleLoader__.load({
 		function bootChunks(ctx) {
 			return loadChunk(CHUNK_I18N).then((i18nModule) => {
 				if (typeof (i18nModule && i18nModule.createTranslator) !== "function") {
-					throw new Error(i18n.t("chunk.notExported", { file: CHUNK_I18N, fn: "createTranslator" }));
+					throw new Error("chunk notExported: " + CHUNK_I18N + " createTranslator");
 				}
 				const i18n = createI18n(ctx, i18nModule);
 				return loadChunk(CHUNK_API).then((apiModule) => {
@@ -488,14 +452,14 @@ window.__ModuleLoader__.load({
 		 * @param ctx - client 受限 cordis 上下文（`slots` 服务由 ui-renderer 提供）。
 		 */
 		function apply(ctx) {
-			const boot = { ready: false, error: null, Panel: null, Icon: null, WorkspaceDialog: null, i18n: null };
+			const boot: any = { ready: false, error: null, Panel: null, Icon: null, WorkspaceDialog: null, i18n: null };
 			/**
 			 * 字典就绪前/未就绪时的翻译：**绝不把键名当文案显示**。
 			 * 只有 rail 名需要提前可用（侧栏可能在 chunk 就绪前就请求标签）。
 			 */
 			const fallbackText = (key) => (key === "panel.title" ? PANEL_LABEL_FALLBACK : key);
-			const tr = (key, params) => (boot.i18n === null ? fallbackText(key) : boot.i18n.t(key, params));
-			const listeners = new Set();
+			const tr = (key: any, params?: any) => (boot.i18n === null ? fallbackText(key) : boot.i18n.t(key, params));
+			const listeners = new Set<any>();
 			const settle = () => {
 				for (const listener of [...listeners]) listener();
 				listeners.clear();
@@ -574,7 +538,7 @@ window.__ModuleLoader__.load({
 				if (!current.ready || current.api === null) return null;
 				const Dialog = current.WorkspaceDialog;
 				if (typeof Dialog !== "function") return null;
-				const translate = (key, params) => (current.i18n && typeof current.i18n.t === "function" ? current.i18n.t(key, params) : fallbackText(key));
+				const translate = (key: any, params?: any) => (current.i18n && typeof current.i18n.t === "function" ? current.i18n.t(key, params) : fallbackText(key));
 				return React.createElement(
 					React.Fragment,
 					null,
@@ -641,128 +605,6 @@ window.__ModuleLoader__.load({
 			bootSettled.then(registerList, registerList);
 		}
 
-		exports.PANEL_ID = PANEL_ID;
-		exports.apply = apply;
-		exports.inject = ["slots"];
-		return module.exports;
-	},
-});
-// T41: 死键清理（client.i18n.js）后触碰入口，按 docs/client-contract.md §11 换 chunk rev
-
-// T41（2026-10-13）：client.panel.js 拆成 5 个子 chunk（helpers / actions / header / browser / tail）。
-// 按 docs/client-contract.md §11：改了 client/** 就必须 bump 入口（rev 取自入口元数据）⇒ 本次同时改本行。
-
-// T42: V1 hit-box also for .dsh-rw-crumb + zero CJK in client.panel.js (bump entry rev, docs/client-contract.md §11).
-//
-// 2026-10-19 UI/UX/性能轮（chunks 全量改动，按 §11 由**本入口**刷新 rev）：
-//   · 新增 2 个 chunk：client.panel.data.js（目录数据层：缓存/单飞/预取/导航）、
-//     client.panel.list.js（窗口化列表：大目录只渲染视口 + 行点击/真实焦点键盘/滚动记忆）；
-//   · 修缺陷：/mnt 盘符 chips 因 const 赋值 TypeError 永不渲染；
-//   · 新增筛选框、目录优先排序、加载骨架、stale-while-revalidate、切换窗口自动刷新；
-//   · 本行是入口 rev 锚点：chunk 有改动就必须动这里（否则 immutable 缓存继续供旧字节）。
-//   · F1–F5 复核修复（2026-10-19 16:2x）：列表改为自身滚动体（SPEC §7.2.2）、刷新/导航竞态守卫、
-//     自动刷新单次节流、菜单打开即聚焦首项且 Esc 关闭、骨架按 §6.3（5 行 + 宽度阶梯）重做。
-
-// 2026-10-21 桌面壳来源闸门修正：client.api.js 注释随 host 判据更新（Origin 缺失 = 桌面壳
-// `dsh-app://app` 转发 ⇒ 放行），按 docs/client-contract.md §11 触碰本入口刷新 chunk rev。
-
-// 2026-10-21「多发行版」：client/** 全量改动（api.setDistro、panel 目标选择器、i18n、CSS），
-// 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
-
-// 2026-10-21 UI 重做：header/browser/tail/CSS/i18n 全量改动（布局三层、列表吃满高度、守护药丸），
-// 按 docs/client-contract.md §11 由本入口刷新 chunk rev。
-
-// 2026-10-22 formatIdle 由 data hook 注入 scope（不再从 helpers 解构）；刷新入口 rev。
-
-// 2026-10-22 formatIdle 移到 data chunk（helpers 触到 400 行门禁）；刷新入口 rev。
-
-// 2026-10-22 会话卡属性兜底后再刷新入口 rev。
-
-// 2026-10-22 会话卡：轮次/空闲元信息 + 复制 sessionId；刷新入口 rev。
-
-// 2026-10-22 重新扫描走 refresh（绕过 host 的 TTL 缓存）；刷新入口 rev。
-
-// 2026-10-22 诊断区显示宿主代理（proxy 段来自 snapshot）；刷新入口 rev。
-
-// 2026-10-22 路径框接受 UNC（data chunk + i18n）；刷新入口 rev。
-
-// 2026-10-22 新会话改走 uiWorkspace.startSession（先登记 UNC 工作区）；刷新入口 rev。
-
-// 2026-10-22 仅支持 WSL2：WSL1 行标灰 + 无动作；刷新入口 rev。
-
-// 2026-10-22 i18n 修正后再次刷新入口 rev。
-
-// 2026-10-22 「在此目录新建会话」改走 sessionController（真 DSH 会话）；API 方法表 7 个。
-
-// 2026-10-22 守护版本进药丸 title 与诊断行；未运行提示补生命周期说明。
-
-// 2026-10-22 结果条收敛、开会话后刷新、最近文件夹显示全路径；刷新入口 rev。
-
-// 2026-10-21 目标切换入口 + 远端会话卡（browser/actions/i18n/CSS）；刷新入口 rev。
-
-// 2026-10-21 最近文件夹按发行版分组（helpers/panel/actions/data/browser/CSS）；刷新入口 rev。
-
-// 2026-10-21 目标行显示 WSL 版本（wsl -l -v 的 VERSION 列）；刷新入口 rev。
-
-// 2026-10-21 目标列表始终显示本机清单 + 数量 + 重新扫描；刷新入口 rev。
-
-// 2026-10-21 目标行去掉「打开」（不再点击即切目标+拉快照）；设为默认不切换。
-
-// 2026-10-21 确认框按目标发行版走：tail 改动，刷新入口 rev。
-
-// 2026-10-21 目标动作：行内打开/默认/停止 + 底栏 WSL chip；刷新入口 rev。
-
-// 2026-10-21 目标列表对齐 VS Code WSL TARGETS：browser/tail/i18n/CSS 改动，刷新入口 rev。
-
-// 2026-10-21 修折叠区崩溃：onToggle 先取 open 再进 updater（currentTarget 会被 React 置空）。
-
-// 2026-10-22 uiWorkspace 端到端验证（web 实例 + CDP）：header chunk 里 startSession 改为按 thenable
-// 兜底（当前实现同步返回 undefined）；刷新入口 rev。
-// 2026-10-22 B1/B2（spike/verify/ui-20261022）：头部加三态「代理可达/不可达/未探测」徽标（header 返回
-// proxyBadge，tail 放进 header-meta；aria/title 带端点与不可达提示；i18n 新增 13 键 zh/en 配对）；
-// 窄态 320/360 修布局（底栏允许折行 + 窄态 chip/漂移/守护短文案 + 根节点 .dsh-rw-root--narrow
-// 让路径行/目标行折行）；CSS 全部在本文件 ⇒ 本轮由本入口刷新 chunk rev。
-// 2026-10-22 review 修：底栏 `row-gap:6px` 挪到 `gap:8px` 之后（原先被简写重置成 8px）；
-// 代理「不可达」从 error 红降为 warn 琥珀（proxyPort 默认 9910，不用代理的用户不该看到故障红）；
-// 新增 `.dsh-rw-dot--warn`（header chunk 的 StatusDot kind 同步改 warn）⇒ 刷新入口 rev。
-// 2026-10-23 清小债（README「仍余」①）：删掉 i18n 里已无引用的 5 组键（stamp.snapshot /
-// stamp.lastSuccessRefreshing / stamp.failedLastSuccess / stamp.none / status.loading）—— 它们对应的
-// 「加载期把『尚未取得快照』渲染两次」与「结果条透传 host note」两条文案瑕早已在 T 系列修掉，
-// 只剩死键误导读者；当前加载期只渲染「远端守护状态未知 + 状态读取中…」一处。改的是 chunk ⇒ 刷新入口 rev。
-// 2026-10-27（task-8 客户端轮，F-34/35/36/37/38/39/40）：
-//   · F-34 切发行版状态机：dirCache 键含 distro、changeDistro bump browseSeq + abort 在飞 listDir、
-//     browseAbort 真正赋值并把 signal 传给 listDir（data chunk / helpers chunk / 本入口的接线）；
-//   · F-35 发行版行可键盘激活：行内主操作改成原生 <button>（aria-pressed / Enter / Space），
-//     删掉藏在 visibility:hidden 容器里的「切换」按钮与残留 stopPropagation；CSS 新增 .dsh-rw-targetmain；
-//   · F-36 ensure/restart 的 HTTP 失败也映射到 failKey（主句用户语言，host 原文进 detail 折叠）；
-//   · F-37 诊断区凭据脱敏：host snapshot.webHosts[].url 打码 token，client 的 <pre> 与"复制诊断"
-//     两个出口再过一遍 api.redactSecrets；
-//   · F-38 加载骨架与错误卡互斥（错误优先）；F-39 根 section 补 aria-label、alertdialog 焦点陷阱、
-//     chip 菜单补键盘模型、footer 的 role=status 不再包可聚焦控件、死键 53→0、硬编码中文 2 处转 i18n；
-//   · F-40 slow/prefetch/copy 定时器在卸载与被取代路径全部清理；
-//   · 新增第 8 个 panel chunk `client.panel.a11y.js`（menu 键盘模型 / alertdialog 焦点陷阱 / details 开合），
-//     因为 actions chunk 已贴 400 行纪律线；客户端 chunk 全量改动 ⇒ 按 docs/client-contract.md §11 刷新入口 rev。
-//   · 顺带 F-26 收口：`.dsh-rw-sessionmeta` 由 label-tertiary 改 label-secondary（该 token 不在 17 token
-//     闭集且实测 3.71:1 < 4.5）；并把注释里的实测对比度改成比值记法 ⇒ css-token-audit C1/C2 全 PASS。
-// 2026-10-27 第四轮（F-50 client 侧接线，服务端字段 `daemon.scan` / `daemon.orphansVerified` 的消费方）：
-//   · header chunk 在事实区顶部新增**常显告警**：`orphansVerified === false` 或 `scan.ok === false` ⇒
-//     「孤儿未核实：/proc 进程扫描失败（{scan.error 原文}）」，不再把扫描失败读成「0 个孤儿」；
-//     `daemon` 缺失时按既有 `daemonKnown` 未知态**不渲染**（不编造已核实/未核实）；
-//   · i18n 新增 `orphans.unverified` / `orphans.errorUnknown`（zh/en 逐键配对）；
-//   · 本入口 CSS 新增 `.dsh-rw-scanwarn`（文字 label-primary，warn 只在边框/圆点）与 `.dsh-rw-scanwarn-text`。
-//   · 改了 `client.panel.header.js` + `client.i18n.js` + 本入口 ⇒ 按 docs/client-contract.md §11 刷新入口 rev（本行）。
-// 2026-10-29 P2（面板「在此目录新建会话」落 WSL preset）：client 侧改动 =
-//   · header chunk：主流程改为 addWorkspace → **host** `explorer.newSession({path, workspaceId})`（host 侧带
-//     `agentPreset:'wsl'` 并返回 presetApplied/agentPreset/presetError 事实）→ `uiWorkspace.openSession(sessionId)`
-//     切主视图（带短重试，因为新行是经 api-session/added 推送到达的）；`uiWorkspace.startSession` 只在宿主没有
-//     sessionController（E_NO_SESSION；review 修复前误用 E_UNAVAILABLE）时作兜底，且显式传 `{agentPreset:'wsl'}`（options 形状已在平台源码核实）；
-//   · 接线层 `client.panel.js` 新增 `newSessionNote`（preset 是否应用 / 主视图是否切换，按事实措辞，
-//     不写伪成功；放接线层是因为 helpers chunk 已贴 400 行门禁）；
-//   · api chunk：`newSession` 支持可选 `workspaceId`；i18n 新增 5 组键（zh/en 逐键配对）。
-//   ⇒ 三个 chunk + 本入口都改了，按 docs/client-contract.md §11 刷新入口 rev（本行）。
-// 2026-10-29 review 修复（在同一 P2 提交线后）：
-//   · header chunk：只有 host 返回 `E_NO_SESSION`（没有 sessionController）才回落 startSession；E_UNAVAILABLE
-//     是"宿主建会话失败"，不再被当成"没有服务"吞掉；
-//   · panel chunk：`newSessionNote` 在 `presetDegraded:true` 时把"已降级"作为独立 detail 行；
-//   · i18n 新增 `session.presetDegradedDetail`（zh/en 逐键配对）。
-//   ⇒ 再次刷新入口 rev（本行）。
+		export { PANEL_ID };
+		export { apply };
+		export const inject = ["slots"];

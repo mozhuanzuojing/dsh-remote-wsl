@@ -1,19 +1,8 @@
-/**
- * client.panel.tail.js —— 最近目录 + 诊断折叠区 + 二次确认 + 底栏与 ⋯ 菜单 + 根元素（返回根元素）
- *
- * T41 机械拆分（生成器 `arch-t6/tools/gen-split2.mjs`，从拆分前备份整块切片）：
- * 被搬动的代码体**逐字不变**；只在本函数开头把上游名字解构回同名局部（显式清单，非正则猜）。
- */
+import React from 'react';
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.tail.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
+		// 官方 UI 原语（经 dsh.client.inject 注入）；不可用时回退本地实现
+		let UI = (typeof window !== "undefined" && window.__dshRwUI) ? window.__dshRwUI : null;
+		if (UI === null) { try { UI = require("@deepseek-ai/dsh-client-ui-primitives"); } catch (e) { UI = null; } }
 
 
 function renderTail(props) {
@@ -33,7 +22,7 @@ function renderTail(props) {
 	lastRun, listPath, load, menuOpen,
 	menuRef, moreRef, mounts, mountsCache,
 	mountsProbed, narrow, newAbortController, normalizeWslPath,
-	onMenuKey, openSessionNote, others, pathError,
+	onMenuKey, onSetDefault, openSessionNote, others, pathError,
 	// F-39：键盘/可访问性原语来自 client.panel.a11y.js（menu 键盘模型 / alertdialog 焦点陷阱 / details 开合）
 	trapTab, menuKeyNav, closeChipMenu,
 	pathInput, pending, pendingFrom, primaryBusyKey,
@@ -50,6 +39,10 @@ function renderTail(props) {
 			} = props;
 			/** 诊断文本的统一脱敏出口（F-37）：优先用 api.redactSecrets；缺省退化为原样（老 api stub 也能渲染）。 */
 			const redact = (text) => (typeof api.redactSecrets === "function" ? api.redactSecrets(text) : String(text === null || text === undefined ? "" : text));
+			/** 状态点：官方 StateDot 可用则用之（映射本面板 kind），否则回退 StatusDot。 */
+			const Dot = (UI !== null && UI.StateDot != null)
+				? function (dp) { const k = dp && dp.kind; return React.createElement(UI.StateDot, { state: k === "running" ? "done" : k === "error" ? "error" : "idle" }); }
+				: StatusDot;
 
 
 				// —— 折叠区：高级 / 诊断（默认收起；收起时内部完全不渲染 ⇒ 不可 Tab 到达） ——
@@ -113,54 +106,28 @@ function renderTail(props) {
 				// —— 二次确认（内联在 body 内；破坏性动作只从 ⋯ 菜单进） ——
 				if (pending !== null) {
 					const isStop = pending.action === "stop";
-					body.push(
-						React.createElement(
-							"div",
-							{ key: "confirm", className: "dsh-rw-confirm", role: "alertdialog", "aria-modal": "true", "aria-label": t("confirm.dialogAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }), "aria-describedby": "dsh-rw-confirm-body", onKeyDown: trapTab },
-							React.createElement("div", { className: "dsh-rw-confirm-title" }, icon("error"), isStop ? t("confirm.stopTitle") : t("confirm.restartTitle")),
-							React.createElement("div", { className: "dsh-rw-confirm-body", id: "dsh-rw-confirm-body" }, t("confirm.body", {
-								distro: typeof pending.distro === "string" && pending.distro.length > 0 ? pending.distro : activeDistro === null ? "?" : activeDistro,
-								count: typeof pending.distro === "string" && pending.distro.length > 0 && pending.distro !== activeDistro ? "?" : pending.sessions,
-								consequence: isStop ? t("confirm.stopConsequence") : t("confirm.restartConsequence"),
-							})),
-							React.createElement(
-								"div",
-								{ className: "dsh-rw-confirm-actions" },
-								React.createElement(
-									"button",
-									{
-										ref: cancelRef,
-										type: "button",
-										"aria-label": t("confirm.cancelAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }),
-										className: "dsh-rw-btn",
-										onClick: () => {
-											setPending(null);
-											if (pendingFrom.current !== null) pendingFrom.current.focus();
-										},
-									},
-									t("confirm.cancel"),
-								),
-								React.createElement(
-									"button",
-									{
-										type: "button",
-										className: "dsh-rw-btn dsh-rw-btn--danger",
-										"aria-label": t("confirm.okAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }),
-										onClick: () => {
-											const asked = pending;
-											setPending(null);
-											run(
-												`daemon:${asked.action}`,
-												(signal) => api.daemon(Object.assign({ action: asked.action, slot: asked.slot }, typeof asked.distro === "string" && asked.distro.length > 0 ? { distro: asked.distro } : {}), signal),
-												{ describe: (result) => daemonNote(t, isStop ? t("daemon.stopped") : t("daemon.restarted"), result), refresh: true, failKey: isStop ? "note.failStop" : "note.failRestart" },
-											);
-										},
-									},
-									isStop ? t("confirm.okStop") : t("confirm.okRestart"),
-								),
-							),
-						),
-					);
+					const confirmTitle = isStop ? t("confirm.stopTitle") : t("confirm.restartTitle");
+					const confirmBody = t("confirm.body", {
+						distro: typeof pending.distro === "string" && pending.distro.length > 0 ? pending.distro : activeDistro === null ? "?" : activeDistro,
+						count: typeof pending.distro === "string" && pending.distro.length > 0 && pending.distro !== activeDistro ? "?" : pending.sessions,
+						consequence: isStop ? t("confirm.stopConsequence") : t("confirm.restartConsequence"),
+					});
+					const CBtn = (UI !== null && UI.Button != null) ? UI.Button : null;
+					const cancelBtn = CBtn !== null ? React.createElement(CBtn, { variant: "outline", "aria-label": t("confirm.cancelAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }), onClick: () => { setPending(null); if (pendingFrom.current !== null) pendingFrom.current.focus(); } }, t("confirm.cancel")) : React.createElement("button", { ref: cancelRef, type: "button", "aria-label": t("confirm.cancelAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }), className: "dsh-rw-btn", onClick: () => { setPending(null); if (pendingFrom.current !== null) pendingFrom.current.focus(); } }, t("confirm.cancel"));
+					const okBtn = CBtn !== null ? React.createElement(CBtn, { variant: "primary", "aria-label": t("confirm.okAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }), onClick: () => { const asked = pending; setPending(null); run(`daemon:${asked.action}`, (signal) => api.daemon(Object.assign({ action: asked.action, slot: asked.slot }, typeof asked.distro === "string" && asked.distro.length > 0 ? { distro: asked.distro } : {}), signal), { describe: (result) => daemonNote(t, isStop ? t("daemon.stopped") : t("daemon.restarted"), result), refresh: true, failKey: isStop ? "note.failStop" : "note.failRestart" }); } }, isStop ? t("confirm.okStop") : t("confirm.okRestart")) : React.createElement("button", { type: "button", className: "dsh-rw-btn dsh-rw-btn--danger", "aria-label": t("confirm.okAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }), onClick: () => { const asked = pending; setPending(null); run(`daemon:${asked.action}`, (signal) => api.daemon(Object.assign({ action: asked.action, slot: asked.slot }, typeof asked.distro === "string" && asked.distro.length > 0 ? { distro: asked.distro } : {}), signal), { describe: (result) => daemonNote(t, isStop ? t("daemon.stopped") : t("daemon.restarted"), result), refresh: true, failKey: isStop ? "note.failStop" : "note.failRestart" }); } }, isStop ? t("confirm.okStop") : t("confirm.okRestart"));
+					if (UI !== null && UI.Modal != null) {
+						body.push(React.createElement(UI.Modal, {
+							key: "confirm", open: true, tone: "warning", title: confirmTitle, closeLabel: t("confirm.cancel"),
+							onClose: () => { setPending(null); if (pendingFrom.current !== null) pendingFrom.current.focus(); },
+							footer: React.createElement(React.Fragment, null, cancelBtn, okBtn),
+						}, React.createElement("p", { className: "dsh-rw-confirm-body", id: "dsh-rw-confirm-body" }, confirmBody)));
+					} else {
+						body.push(React.createElement("div", { key: "confirm", className: "dsh-rw-confirm", role: "alertdialog", "aria-label": t("confirm.dialogAria", { verb: isStop ? t("confirm.verbStop") : t("confirm.verbRestart") }), "aria-describedby": "dsh-rw-confirm-body", onKeyDown: trapTab },
+							React.createElement("div", { className: "dsh-rw-confirm-title" }, icon("error"), confirmTitle),
+							React.createElement("div", { className: "dsh-rw-confirm-body", id: "dsh-rw-confirm-body" }, confirmBody),
+							React.createElement("div", { className: "dsh-rw-confirm-actions" }, cancelBtn, okBtn),
+						));
+					}
 				}
 
 				// —— 底栏（一行） ——
@@ -177,6 +144,12 @@ function renderTail(props) {
 				const conflict = others.some((row) => row.slot !== undefined && row.slot !== null && row.slot === daemonSlot);
 				const drifted = driftKnown && drift.drifted === true;
 				const updated = state.lastSuccessAt === null ? null : t("status.updated", { time: clock(state.lastSuccessAt) });
+				let relUpdated = null;
+				if (updated !== null && state.lastSuccessAt !== null && UI !== null && typeof UI.relativeTime === "function") {
+					const rt = UI.relativeTime(state.lastSuccessAt, Date.now());
+					const relKey = rt.unit === "now" ? "status.relNow" : rt.unit === "minutes" ? "status.relMinutes" : rt.unit === "hours" ? "status.relHours" : rt.unit === "days" ? "status.relDays" : rt.unit === "months" ? "status.relMonths" : "status.relYears";
+					relUpdated = t(relKey, { n: rt.n });
+				}
 
 				const groups = [];
 				// T42/N1：`narrow`（<420）时「添加为 WSL 工作区」原本**头部与 ⋯ 菜单双入口**：
@@ -275,14 +248,6 @@ function renderTail(props) {
 										? t("header.targetUnknown")
 										: t("header.targetPending"),
 							),
-							factsVisible
-								? React.createElement(
-										"span",
-										{ className: "dsh-rw-header-meta" },
-									daemonPill,
-									proxyBadge,
-									)
-								: null,
 						),
 						React.createElement("div", { className: "dsh-rw-header-actions" }, headerButtons),
 					),
@@ -308,7 +273,7 @@ function renderTail(props) {
 								// aria-label/title 上 —— 264px 面板里底栏实测差 127px（见 out-render-before.json）。
 								"aria-label": t("targets.chip", { distro: activeDistro === null ? "?" : activeDistro }),
 							},
-							React.createElement(StatusDot, { kind: stateKind }),
+							React.createElement(Dot, { kind: stateKind }),
 							narrow ? t("targets.chipShort") : t("targets.chip", { distro: activeDistro === null ? "?" : activeDistro }),
 						),
 						React.createElement(
@@ -320,7 +285,7 @@ function renderTail(props) {
 							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: (event) => { closeChipMenu(event.currentTarget); onSetDefault(activeDistro); } }, t("targets.setDefault")),
 						),
 					),
-					React.createElement(StatusDot, { kind: stateKind }),
+					React.createElement(Dot, { kind: stateKind }),
 						React.createElement("span", { className: "dsh-rw-statusword", role: "status", "aria-live": "polite" }, statusWord),
 						// 2026-10-22 B2：漂移提示在窄态只留 ⚠ 图标（16px，title/aria-label 带「配置已漂移」）——
 						// 「配置已漂移」65px + 图标 16px 在 264px 面板里放不进底栏；文字版在宽态保持原样。
@@ -330,8 +295,9 @@ function renderTail(props) {
 								: React.createElement(React.Fragment, null, icon("warn", "dsh-rw-drift"), React.createElement("span", { className: "dsh-rw-statusword" }, t("status.drifted")))
 							: null,
 						extra.length > 0 ? React.createElement("span", { className: "dsh-rw-extra" + (narrow ? " dsh-rw-extra--hidden" : "") }, " · ", extra) : null,
+						factsVisible ? React.createElement("span", { className: "dsh-rw-statusitem" }, proxyBadge) : null,
 						React.createElement("span", { className: "dsh-rw-spacer" }),
-						updated !== null && !hideUpdated ? React.createElement("span", { className: "dsh-rw-updated" }, updated) : null,
+						updated !== null && !hideUpdated ? React.createElement("span", { className: "dsh-rw-updated", title: updated }, relUpdated !== null ? relUpdated : updated) : null,
 						React.createElement(
 							"button",
 							{
@@ -389,8 +355,4 @@ function renderTail(props) {
 				);
 }
 
-		exports.renderTail = renderTail;
-
-		return module.exports;
-	},
-});
+		export { renderTail };

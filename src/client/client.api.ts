@@ -1,35 +1,4 @@
-/**
- * client.api.js —— dsh-remote-wsl client 半的**传输层唯一出口**。
- *
- * 为什么文件名是 `client.api.js` 而不是 `api.ts`：
- * 静态 `dsh.client` bundle 的模块表（@deepseek-ai/dsh-client-modules）只允许两种东西存在——
- * ① 由 `exports["./client"]` 指到的入口脚本；② **包内懒加载 chunk**，而 chunk 的文件名被
- * `CLIENT_CHUNK = /^client\.[A-Za-z0-9][A-Za-z0-9._-]*\.js$/` 钉死，且运行时由
- * `join(dirname(clientPath), fileName)` 定位（client-modules/lib/index.js:168,938；
- * client-modules/lib/client.js:470,717）。所以「一个关注点一个文件」只能以
- * `client.<name>.js` 的形式落地，`api.ts` / `icon.ts` / `panel.ts` 这种文件名**平台不支持**。
- *
- * 通道（由 host 半 src/explorer.ts 提供，见 task-2 交接）：
- *   POST /remote-wsl/api  { method, args }  → 200 { ok: true, result } | { ok: false, error }
- *   GET  /remote-wsl/api                    → 200 { ok: true, methods: string[] }
- * 同源页面直接 fetch（浏览器自带 cookie；webServer 的 Host/Origin 信任闸门照常生效）。
- *
- * 注意：这里**没有** `host.call`。`host.call(method,args)` 是**动态包**浏览器半的内建
- * （见 @deepseek-ai/dsh-cordis-client-runner/lib/client.js:54,157 的 closure 参数表），
- * 静态 `dsh.client` bundle 里不存在；动态包又只能渲染进自己的工具卡、进不了侧栏。
- *
- * ★ 可靠性：每次调用都带**超时**（AbortController + setTimeout；路由被挂住不会让 UI 永久 loading），
- *   并接受调用方传入的 `signal`（面板在卸载/被新读取取代时 abort 在飞请求）。
- *   抛出的 ExplorerApiError 用 `kind` 区分：transport / timeout / aborted / protocol / host / unknown-method / argument。
- */
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.api.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 
 		/** host 半 explorer 路由。改这里就是改全客户端唯一的网络出口。 */
 		const EXPLORER_ROUTE = "/remote-wsl/api";
@@ -74,7 +43,9 @@ window.__ModuleLoader__.load({
 		 * 「协议不成形」，面板据此决定文案与是否重试。
 		 */
 		class ExplorerApiError extends Error {
-			constructor(message, kind, detail) {
+			kind: any;
+			detail: any;
+			constructor(message: any, kind: any = null, detail: any = null) {
 				super(message);
 				this.name = "ExplorerApiError";
 				this.kind = kind;
@@ -169,7 +140,7 @@ window.__ModuleLoader__.load({
 					external.addEventListener("abort", onExternalAbort, { once: true });
 				}
 			}
-			const init = {
+			const init: any = {
 				method: "POST",
 				headers: { "content-type": "application/json", accept: "application/json" },
 				body: JSON.stringify({ method, args: args === undefined ? {} : args }),
@@ -296,15 +267,15 @@ window.__ModuleLoader__.load({
 				 * `workspaceId` 可选：已用 `addWorkspace` 登记过该目录时传它 ⇒ host `create({workspaceId})`
 				 * 把会话挂进该工作区（`create` 只收 `workspaceId` 或 `cwd` 之一）。
 				 */
-				newSession(input, options) {
+				newSession(input: any, options: any) {
 					const path = requireString(input && input.path, "path", t);
-					const args = { path };
+					const args: any = { path };
 					if (input && typeof input.workspaceId === "string" && input.workspaceId.length > 0) args.workspaceId = input.workspaceId;
 					return call(METHODS.newSession, args, options);
 				},
-				addWorkspace(input, options) {
+				addWorkspace(input: any, options: any) {
 					const path = requireString(input && input.path, "path", t);
-					const args = { path };
+					const args: any = { path };
 					if (input && typeof input.title === "string" && input.title.length) args.title = input.title;
 					return call(METHODS.addWorkspace, args, options);
 				},
@@ -322,13 +293,13 @@ window.__ModuleLoader__.load({
 				},
 
 				/** 守护动作。slot 只在明确给出时透传；**没有** all/bulk 语义。 */
-				daemon(input, options) {
+				daemon(input: any, options: any) {
 					const action = input && input.action;
 					if (DAEMON_ACTIONS.indexOf(action) < 0) {
 						// ★ F-39：这句原本是硬编码中文（英文界面照样出中文）。走 i18n，detail 里带原值。
 						throw new ExplorerApiError(t("api.daemonAction", { action: JSON.stringify(action), allowed: DAEMON_ACTIONS.join("/") }), "argument");
 					}
-					const args = { action };
+					const args: any = { action };
 					if (input && typeof input.slot === "number") args.slot = input.slot;
 					return call(METHODS.daemon, args, options);
 				},
@@ -358,11 +329,11 @@ window.__ModuleLoader__.load({
 					return call(METHODS.listDir, { path }, options);
 				},
 				/** 在 Windows 侧打开 WSL 文件/目录（VS Code Remote-WSL 或资源管理器）。 */
-				openExternal(input, options) {
+				openExternal(input: any, options: any) {
 					const path = requireString(input && input.path, "path", t);
 					const kind = input && input.kind === "file" ? "file" : input && input.kind === "directory" ? "directory" : null;
 					if (kind === null) throw new ExplorerApiError(t("api.argument", { field: "kind" }), "argument");
-					const args = { path, kind };
+					const args: any = { path, kind };
 					if (input && input.app === "explorer") args.app = "explorer";
 					return call(METHODS.openExternal, args, options);
 				},
@@ -370,13 +341,10 @@ window.__ModuleLoader__.load({
 			return Object.freeze(api);
 		}
 
-		exports.ExplorerApiError = ExplorerApiError;
-		exports.EXPLORER_ROUTE = EXPLORER_ROUTE;
-		exports.REQUEST_TIMEOUT_MS = REQUEST_TIMEOUT_MS;
-		exports.EXPLORER_METHODS = METHODS;
-		exports.METHOD_NAMES = METHOD_NAMES;
-		exports.createExplorerApi = createExplorerApi;
-		exports.redactSecrets = redactSecrets;
-		return module.exports;
-	},
-});
+		export { ExplorerApiError };
+		export { EXPLORER_ROUTE };
+		export { REQUEST_TIMEOUT_MS };
+		export { METHODS as EXPLORER_METHODS };
+		export { METHOD_NAMES };
+		export { createExplorerApi };
+		export { redactSecrets };

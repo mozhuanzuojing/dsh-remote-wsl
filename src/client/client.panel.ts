@@ -1,70 +1,29 @@
-/**
- * client.panel.js —— 「远程资源管理器」中央面板入口（T41 拆分后的**接线层**）。
- *
- * 拆分（T41 / 架构债 T6）：原 1293 行单文件 ⇒
- *   · client.panel.helpers.js  常量 / 纯函数 / 文案格式化 / 内联 SVG 图标 / StatusDot
- *   · client.panel.actions.js  usePanelActions：callbacks + 交错的 effects + runDaemon（自定义 hook）
- *   · client.panel.header.js   renderHeader：头部按钮组 + 动作结果/加载/错误三块
- *   · client.panel.browser.js  renderBrowser：目录卡（chips/面包屑/路径输入/条目列表）
- *   · client.panel.tail.js     renderTail：两处折叠区 + 二次确认 + 底栏与 ⋯ 菜单 + 根元素
- *
- * 装载：平台只认包内 `client.*.js`；子 chunk 用 `require.async("./client.panel.<name>.js")`。
- * 子 chunk 必须在**首次渲染前**就绪（组件直接引用它们）⇒ 本模块导出 `whenReady()`，
- * `client/index.js` 在 createPanel() 之前 await 它；createPanel 开头再断言一次（未就绪就抛）。
- *
- * 行为零变化：所有被搬动的代码都是**整块切片**（逐字不变），只在本文件里做接线。
- */
+import React from 'react';
+import * as __helpers from './client.panel.helpers.ts'
+import * as __data from './client.panel.data.ts'
+import * as __actions from './client.panel.actions.ts'
+import * as __header from './client.panel.header.ts'
+import * as __list from './client.panel.list.ts'
+import * as __browser from './client.panel.browser.ts'
+import * as __tail from './client.panel.tail.ts'
+import * as __a11y from './client.panel.a11y.ts'
 
-/**
- * client.panel.js —— 「远程资源管理器」中央面板（`main` 槽 key: 'remote-wsl'）。
- *
- * T30 重设计（按 `docs/panel-ux-redesign.md` + `docs/panel-visual-spec.md` 两份冻结规格）：
- *   头部（标题 + 唯一主按钮 + 次按钮 + 刷新图标）｜主体（**唯一**目录概念：chips + 面包屑 +
- *   常显路径输入 + 条目列表）｜折叠区（最近目录 / 高级·诊断）｜底栏（**一行**：状态点 + 状态词 +
- *   附加信息 + 更新于 + `⋯`）。
- *
- * 规格硬约束（实现自证；判据见规格 §7-M1..M17 / §5.5-N1..N5）：
- * - **M1**：旧树删掉 —— 面板内同一路径只出现一次（没有第二次"工作区树"）。
- * - **M5**：主视线不得出现 `slot/daemonPort/pid/keys/explorer.snapshot/snapshot/systemd-run/unit/版本号`。
- * - **N4**：行内动作不用 `display:none`，用 `visibility` + 常占位（hover 前后几何不变）。
- * - **N5 / §4.2.1**：每个状态 = ①文字状态词 + ②形状/图标，颜色只是第三冗余。
- * - **§3.4**：面板内**零 emoji**，全部内联 SVG（16×16，viewBox 24，stroke 1.5，currentColor）。
- * - **§3.7**：内嵌路径文本一律 `direction:ltr;unicode-bidi:isolate`。
- * - **M12**：最近目录 = `localStorage['dsh-remote-wsl.recent']`，只存路径字符串 ≤8 条，不可用即静默降级。
- * - 文案**全部**来自 `client.i18n.js`（本文件不得出现中文字符串字面量，`console.*`/注释除外）。
- *
- * 保留不回退：三态渲染 / F34 首挂载只显示读取中 / F35 路径 LTR / `others[]` 只读零按钮 /
- * 停止·重启二次确认 / rail 名「远程资源管理器」。
- */
-
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
 
 
 		/** 子 chunk 装载（各自是独立 ModuleLoader 模块）。 */
-		const CHUNKS = ["client.panel.helpers.js", "client.panel.data.js", "client.panel.actions.js", "client.panel.header.js", "client.panel.list.js", "client.panel.browser.js", "client.panel.tail.js", "client.panel.a11y.js"];
+		const __mods: any[] = [__helpers, __data, __actions, __header, __list, __browser, __tail, __a11y];
 		let parts = null;
-		const ready = Promise.all(CHUNKS.map((name) => require.async("./" + name))).then((mods) => {
-			parts = {
-				helpers: mods[0],
-				useDirectoryNavigation: mods[1].useDirectoryNavigation,
-				usePanelActions: mods[2].usePanelActions,
-				renderHeader: mods[3].renderHeader,
-				Entries: mods[4].Entries,
-				renderBrowser: mods[5].renderBrowser,
-				renderTail: mods[6].renderTail,
-				// keyboard/a11y 交互原语（F-39）：menu 键盘模型 / alertdialog 焦点陷阱 / details 开合
-				a11y: mods[7],
-			};
-			return parts;
-		});
+		parts = {
+			helpers: __mods[0],
+			useDirectoryNavigation: __mods[1].useDirectoryNavigation,
+			usePanelActions: __mods[2].usePanelActions,
+			renderHeader: __mods[3].renderHeader,
+			Entries: __mods[4].Entries,
+			renderBrowser: __mods[5].renderBrowser,
+			renderTail: __mods[6].renderTail,
+			a11y: __mods[7],
+		};
+		const ready = Promise.resolve(parts);
 
 		/** 子 chunk 就绪信号：client/index.js 必须在 createPanel() 之前 await 它。 */
 		function whenReady() {
@@ -120,7 +79,7 @@ window.__ModuleLoader__.load({
 			const i18nSubscribe = i18n && typeof i18n.subscribe === "function" ? i18n.subscribe : null;
 
 			// T41：全部子 chunk 已由 whenReady() 保证就绪，这里把它们的导出面解构回**同名局部**。
-			if (parts === null) throw new Error("client.panel.js: sub-chunks are not ready yet (client/index.js must await whenReady() first)");
+			if (parts === null) throw new Error("client.panel.ts: sub-chunks not assembled (build misconfigured)");
 			const {
 				HIDE_UPDATED_PX,
 				NARROW_PX,
@@ -157,7 +116,7 @@ window.__ModuleLoader__.load({
 
 			return function RemoteWslPanel() {
 				const [state, setState] = React.useState({ status: "loading", snapshot: null, error: null, lastSuccessAt: null, lastFailureAt: null });
-				const [collapsed, setCollapsed] = React.useState({});
+				const [collapsed, setCollapsed] = React.useState({ recent: true });
 				const [action, setAction] = React.useState({ busy: null, note: null, detail: null, error: null });
 				const [pending, setPending] = React.useState(null);
 				const [menuOpen, setMenuOpen] = React.useState(false);
@@ -192,6 +151,8 @@ const copySession = React.useCallback((id) => {
 }, []);
 React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(copyTimer.current); copyTimer.current = null; } }, []);
 				const [, forceLocale] = React.useReducer((n) => n + 1, 0);
+				// 相对时间每 30s 重渲染一次（面板静止时"刚刚更新"也会跳），卸载时清理。
+				React.useEffect(() => { const __t = setInterval(() => forceLocale(), 30000); return () => clearInterval(__t); }, []);
 
 				const readSeq = React.useRef(0);
 				const readAbort = React.useRef(null);
@@ -234,7 +195,7 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 				const body = [];
 				// 一个共享 scope 传给四个切片（各自只解构自己需要的名字；多余键无害）——
 				// 这样接线只有一份名单，而不是四处重复。
-				const scope = {
+				const scope: any = {
 	HIDE_UPDATED_PX, NARROW_PX, RECENT_KEY, RECENT_MAX,
 	React, StatusDot, action, actionAbort,
 	actionFailure, actionFailureText, addWorkspaceErrorText, addWorkspaceNote,
@@ -304,7 +265,6 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 						if (typeof localStorage !== "undefined") localStorage.setItem(DISTRO_KEY, name);
 					} catch {}
 					setAction({ busy: null, note: t("targets.defaultSaved", { distro: name }), detail: null, error: null });
-					setAction({ busy: null, note: t("targets.defaultSaved", { distro: name }), detail: null, error: null });
 				};
 				/** 停掉某个目标的守护（destructive ⇒ 走 runDaemon 的二次确认）。 */
 				const stopTarget = (name) => {
@@ -339,7 +299,7 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 		}
 
 		// 模块级 re-export：搬去 helpers 的名字用 getter 保持导出面不变（否则是模块级 ReferenceError）
-		exports.createPanel = createPanel;
+		export { createPanel };
 		Object.defineProperty(exports, "openSessionNote", { enumerable: true, get: () => (parts === null ? undefined : parts.helpers.openSessionNote) });
 		Object.defineProperty(exports, "addWorkspaceNote", { enumerable: true, get: () => (parts === null ? undefined : parts.helpers.addWorkspaceNote) });
 		Object.defineProperty(exports, "addWorkspaceErrorText", { enumerable: true, get: () => (parts === null ? undefined : parts.helpers.addWorkspaceErrorText) });
@@ -347,7 +307,4 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 		Object.defineProperty(exports, "daemonNote", { enumerable: true, get: () => (parts === null ? undefined : parts.helpers.daemonNote) });
 		Object.defineProperty(exports, "RECENT_KEY", { enumerable: true, get: () => (parts === null ? undefined : parts.helpers.RECENT_KEY) });
 
-		exports.whenReady = whenReady;
-		return module.exports;
-	},
-});
+		export { whenReady };

@@ -1,25 +1,4 @@
-/**
- * client.panel.a11y.js —— 面板的**键盘 / 可访问性交互原语**（第 7 个 chunk；F-39 收口）。
- *
- * 为什么单独一个 chunk：`client.panel.actions.js` 已贴 400 行纪律线（panel-smoke-node 的
- * "行数 <400" 门禁），而这三段是**与数据/副作用无关的纯交互函数**，且要被多处复用
- * （⋯ 菜单、底栏 chip 菜单、确认层），整块搬出来最干净、也让它们能被单独断言。
- *
- * 三条规矩：
- * · **只碰 DOM 焦点/开合**，不 setState、不发请求 ⇒ 纯函数，可在任何地方调用；
- * · 不假设 `document` 一定有 `querySelectorAll`（测试 stub 可能给空），取不到就当"没有可聚焦项"；
- * · 一律 `preventDefault()` 只针对自己真正消费的按键，其余按键继续冒泡（Esc 归各调用方）。
- *
- * WAI-ARIA 依据：menu 键盘模型（↑/↓/Home/End + Esc）、alertdialog 焦点陷阱（Tab 环绕）。
- */
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.a11y.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 
 		/** 容器内当前**可聚焦**的菜单项（跳过 disabled；没有 role=menuitem 时退回按钮）。 */
 		function menuItems(container) {
@@ -89,9 +68,6 @@ window.__ModuleLoader__.load({
 			if (summary !== null && typeof summary.focus === "function") summary.focus();
 		}
 
-		exports.menuKeyNav = menuKeyNav;
-		exports.trapTab = trapTab;
-		exports.closeChipMenu = closeChipMenu;
-		return module.exports;
-	},
-});
+		export { menuKeyNav };
+		export { trapTab };
+		export { closeChipMenu };

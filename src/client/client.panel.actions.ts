@@ -1,19 +1,5 @@
-/**
- * client.panel.actions.js —— 面板动作层：load/run/listPath/jumpTo/submitPath/键盘与文档事件/菜单/守护动作（自定义 hook，无渲染）
- *
- * T41 机械拆分（生成器 `arch-t6/tools/gen-split2.mjs`，从拆分前备份整块切片）：
- * 被搬动的代码体**逐字不变**；只在本函数开头把上游名字解构回同名局部（显式清单，非正则猜）。
- */
+import React from 'react';
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.actions.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
 
 
 /**
@@ -384,8 +370,4 @@ function usePanelActions(props) {
 			};
 }
 
-		exports.usePanelActions = usePanelActions;
-
-		return module.exports;
-	},
-});
+		export { usePanelActions };

@@ -1,27 +1,4 @@
-/**
- * client.i18n.js —— dsh-remote-wsl client 半的文案字典 + 翻译器（A4）。
- *
- * 文件名约束见 client.api.js 头部（chunk 名被平台的 CLIENT_CHUNK 正则钉死）。
- *
- * 两条路（T11 实测）：
- *  ① **优先官方 locale 服务**：`ctx.get('locale')` 在 client 侧可用，原型方法含
- *     `register / bind / translate / lookup / getLocale / getSnapshot / subscribe / setLocale`
- *     （@deepseek-ai/dsh-client-locale/lib/client.js:1228-1435）。我们把本包字典 register 进
- *     自己的 ns，再用 `translate(ns, key, params)`（自带 fallback chain 与 `{name}` 插值）。
- *  ② **取不到就回退**：`document.documentElement.lang` + 本文件的**内置字典**。
- *     官方服务缺席、或它没有本 ns 的键（`translate` 会原样回 key）时都走这里 —— **绝不崩、绝不空**。
- *
- * 语言判定：`locale.getSnapshot().active`（实测 `zh-CN`）→ 前缀匹配；否则 `documentElement.lang`；
- * 再否则用 `zh`（本插件的默认语言）。
- */
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.i18n.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 
 		/** 本包在官方 locale 里的命名空间。 */
 		const NS = "dsh-remote-wsl";
@@ -86,12 +63,18 @@ window.__ModuleLoader__.load({
 			// 这里去掉行内的前导 `· `（分隔符只由 JSX 提供一处）。
 			"status.readingExtra": "状态读取中…",
 			"status.updated": "更新于 {time}",
+ "status.relNow": "刚刚更新",
+ "status.relMinutes": "{n} 分钟前",
+ "status.relHours": "{n} 小时前",
+ "status.relDays": "{n} 天前",
+ "status.relMonths": "{n} 个月前",
+ "status.relYears": "{n} 年前",
 			"status.daemonPillOn": "守护运行中 · 版本 {version} · slot {slot} · pid {pid}",
 			"status.daemonPillOff": "守护未运行 —— 点击启动（按需拉起；无会话且无客户端 10 分钟后自动退出）",
 			"load.readingSlow": "网络较慢，仍在读取…",
 			// T63 窄态（面板 <420）短文案：见 usability/p07-narrow/REPORT-narrow320-fix.md
 			"others.item": "实例 #{slot} · {state}",
-			"others.conflictBanner": "检测到另一个实例正在使用同一槽位（{slot}）",
+			"others.conflictBanner": "检测到另一个 DSH 实例正在使用同一槽位",
 			"menu.more": "更多操作",
 			"menu.restart": "重启远端守护…",
 			"menu.stop": "停止远端守护…",
@@ -113,19 +96,19 @@ window.__ModuleLoader__.load({
 			"header.target": "目标 {distro}{cwd}",
 			"header.targetUnknown": "目标未知（读取失败）",
 			"header.targetPending": "尚未取得目标发行版",
-			"header.refreshAria": "重新读取 explorer.snapshot",
+			"header.refreshAria": "刷新远端信息",
 
 			"load.reading": "正在读取远端信息…",
 
 			"error.title": "读取远程资源失败（当前没有可用数据）",
 			"error.titleTimeout": "读取远程资源失败（当前没有可用数据：请求超时）",
 			"error.retry": "重试",
-			"error.retryAria": "重试读取 explorer.snapshot",
+			"error.retryAria": "重试读取远端信息",
 			"error.stale": "面板上的数字已全部撤下：最后一次成功读取是 {time}，那之后的数据无法确认（可能陈旧）。",
 			"error.never": "尚未成功读取过任何快照。",
 
 			"empty.noDistrosField": "快照缺少 distros 段（host 侧 explorer.snapshot 与客户端版本不匹配？），不在此断定“没有发行版”。",
-			"empty.noDistros": "wsl.exe -l -v 没有返回任何发行版（WSL 未安装，或没有已安装的发行版）。",
+			"empty.noDistros": "没有可用的 WSL 发行版（WSL 未安装，或未安装任何发行版）。",
 
 
 			"row.openBusy": "打开中…",
@@ -218,7 +201,7 @@ window.__ModuleLoader__.load({
 			"action.addWorkspace": "添加为 WSL 工作区",
 			"action.addWorkspaceShort": "添加工作区",
 			"action.addWorkspaceBusy": "登记中…",
-			"action.addWorkspaceAria": "把 {path} 登记为 WSL 工作区（路径是 UNC ⇒ 文件工具经 9P；与“远端会话”是两条路）",
+			"action.addWorkspaceAria": "把 {path} 添加为 WSL 工作区",
 			"action.addWorkspaceTitle": "登记为工作区：host 在 WSL 侧登记该目录并返回 UNC 路径 ⇒ 文件工具走 9P。这与上方“在新会话中打开”的远端会话是两条路，互不替代。",
 			"action.addWorkspaceNeedPath": "先在浏览区选定一个目录，再添加为工作区。",
 			"action.addWorkspaceDone": "已登记为工作区：{title}（id={id}）",
@@ -280,7 +263,7 @@ window.__ModuleLoader__.load({
 			"status.daemonOff": "远端守护未运行",
 			"status.start": "启动守护",
 
-			"raw.summary": "诊断信息（与 wsl_status 同源）",
+			"raw.summary": "诊断信息",
 
 			"api.timeout": "explorer 请求超时：{ms}ms 内 {route} 没有响应（路由被挂住，或网关卡住）。",
 			"api.aborted": "{route} 的调用已被取消（面板卸载或已有更新的读取）。",
@@ -355,11 +338,17 @@ window.__ModuleLoader__.load({
 			"status.stateUnknown": "Remote daemon state unknown",
 			"status.readingExtra": "reading state…",
 			"status.updated": "Updated {time}",
+ "status.relNow": "Updated just now",
+ "status.relMinutes": "{n} min ago",
+ "status.relHours": "{n} h ago",
+ "status.relDays": "{n} d ago",
+ "status.relMonths": "{n} mo ago",
+ "status.relYears": "{n} y ago",
 			"status.daemonPillOn": "Daemon running · version {version} · slot {slot} · pid {pid}",
 			"status.daemonPillOff": "Daemon stopped — click to start (lazy; exits 10 min after the last session/client)",
 			"load.readingSlow": "Still loading…",
 			"others.item": "Instance #{slot} · {state}",
-			"others.conflictBanner": "Another instance uses slot {slot}",
+			"others.conflictBanner": "Another DSH instance is using the same slot",
 			"menu.more": "More actions",
 			"menu.restart": "Restart remote daemon…",
 			"menu.stop": "Stop remote daemon…",
@@ -381,19 +370,19 @@ window.__ModuleLoader__.load({
 			"header.target": "Target {distro}{cwd}",
 			"header.targetUnknown": "Target unknown (read failed)",
 			"header.targetPending": "Target distro not loaded yet",
-			"header.refreshAria": "Re-read explorer.snapshot",
+			"header.refreshAria": "Refresh remote info",
 
 			"load.reading": "Loading remote info…",
 
 			"error.title": "Failed to read remote resources (no usable data)",
 			"error.titleTimeout": "Failed to read remote resources (no usable data: request timed out)",
 			"error.retry": "Retry",
-			"error.retryAria": "Retry reading explorer.snapshot",
+			"error.retryAria": "Retry reading remote info",
 			"error.stale": "All figures are withdrawn: the last successful read was {time}, and data after that cannot be confirmed (possibly stale).",
 			"error.never": "No snapshot has been read successfully yet.",
 
 			"empty.noDistrosField": "The snapshot has no distros section (host explorer.snapshot / client version mismatch?). This panel does not claim “no distros”.",
-			"empty.noDistros": "wsl.exe -l -v returned no distros (WSL not installed, or no distro installed).",
+			"empty.noDistros": "No WSL distros available (WSL not installed, or none installed).",
 
 
 			"row.openBusy": "Opening…",
@@ -486,7 +475,7 @@ window.__ModuleLoader__.load({
 			"action.addWorkspace": "Add as WSL workspace",
 			"action.addWorkspaceShort": "Add workspace",
 			"action.addWorkspaceBusy": "Registering…",
-			"action.addWorkspaceAria": "Register {path} as a WSL workspace (UNC path ⇒ file tools go through 9P; a different path from “remote session”)",
+			"action.addWorkspaceAria": "Add {path} as a WSL workspace",
 			"action.addWorkspaceTitle": "Register as a workspace: the host registers the directory inside WSL and returns a UNC path ⇒ file tools use 9P. This is a different path from “Open in new session” above; neither replaces the other.",
 			"action.addWorkspaceNeedPath": "Browse to a directory first, then add it as a workspace.",
 			"action.addWorkspaceDone": "Registered as workspace: {title} (id={id})",
@@ -547,7 +536,7 @@ window.__ModuleLoader__.load({
 			"status.daemonOff": "Remote daemon is not running",
 			"status.start": "Start daemon",
 
-			"raw.summary": "Diagnostics (same source as wsl_status)",
+			"raw.summary": "Diagnostics",
 
 			"api.timeout": "explorer request timed out: no response from {route} within {ms}ms (the route or the gateway is stuck).",
 			"api.aborted": "The call to {route} was cancelled (panel unmounted or superseded by a newer read).",
@@ -640,12 +629,9 @@ window.__ModuleLoader__.load({
 			return t;
 		}
 
-		exports.NS = NS;
-		exports.DICTS = DICTS;
-		exports.normalizeLanguage = normalizeLanguage;
-		exports.resolveLanguage = resolveLanguage;
-		exports.interpolate = interpolate;
-		exports.createTranslator = createTranslator;
-		return module.exports;
-	},
-});
+		export { NS };
+		export { DICTS };
+		export { normalizeLanguage };
+		export { resolveLanguage };
+		export { interpolate };
+		export { createTranslator };

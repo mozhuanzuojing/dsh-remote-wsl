@@ -1,24 +1,5 @@
-/**
- * client.panel.browser.js —— 唯一目录概念的外壳：常去位置 + 面包屑 + 路径输入 + 筛选 + 条目列表容器。
- *
- * 2026-10-21 UI 重做（交互目标：一屏内完成"看清在哪 → 换地方 → 找东西 → 打开"）：
- * · 三行结构压成两层：**常去位置条**（单行横向滚动，不再换行占三行）+ **导航行**（上一级 + 面包屑）
- *   + **输入行**（路径框 + 筛选框同排）。卡片不再有"浏览目录"标题占位。
- * · 列表**吃满剩余高度**（body 不再整页滚动，滚动体是列表自己）——修掉"72 项只显示 6 行、下面一大片空白"。
- * · 隐藏文件开关从卡片头挪到位置条右端，和"位置"同类（视图开关），不再单占一行。
- *
- * 行为由 list.js 承担（窗口化 / 行内动作 / 键盘 / 滚动记忆）；本文件只搭外壳。
- */
+import React from 'react';
 
-window.__ModuleLoader__.load({
-	id: "dsh-remote-wsl",
-	chunk: "client.panel.browser.js",
-	factory: (require) => {
-		var module = { exports: {} };
-		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-
-		const React = require("react");
 
 		function renderBrowser(props) {
 			const {
@@ -131,7 +112,7 @@ window.__ModuleLoader__.load({
 							{ className: "dsh-rw-cardhead" },
 							React.createElement("span", { className: "dsh-rw-grouptitle" }, t("sessions.title")),
 							React.createElement("span", { className: "dsh-rw-hint" }, t("sessions.count", { count: sessions.length })),
-							copyNote ? React.createElement("span", { className: "dsh-rw-hint dsh-rw-copied" }, t("sessions.copied")) : null,
+							copyNote ? React.createElement("span", { className: "dsh-rw-hint dsh-rw-copied", role: "status", "aria-live": "polite" }, t("sessions.copied")) : null,
 						),
 						sessions.map((row, index) =>
 							React.createElement(
@@ -304,7 +285,7 @@ window.__ModuleLoader__.load({
 							if (event.key === "ArrowDown") {
 								event.preventDefault();
 								const first = document.querySelector('.dsh-rw-entries [data-index="0"]');
-								if (first !== null) first.focus();
+								if (first !== null) (first as HTMLElement).focus();
 							}
 						},
 					}),
@@ -388,8 +369,4 @@ window.__ModuleLoader__.load({
 			}
 		}
 
-		exports.renderBrowser = renderBrowser;
-
-		return module.exports;
-	},
-});
+		export { renderBrowser };

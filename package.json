@@ -18,7 +18,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./package.json": "./package.json",
-    "./client": "./client/index.js",
+    "./client": "./lib/client.js",
     "./icon": "./icon.svg",
     "./fs-provider": "./src/fs-provider.ts",
     "./search-tool": "./src/search-tool.ts",
@@ -27,7 +27,7 @@
   },
   "files": [
     "src",
-    "client",
+    "lib",
     "icon.svg",
     "cordis.patch.yml",
     "README.md",
@@ -44,6 +44,10 @@
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.ts",
     "check": "node --experimental-strip-types scripts/check-syntax.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "node build.ts.mjs",
+    "prepare": "node build.ts.mjs",
+    "prepack": "node build.ts.mjs",
     "hooks": "git config core.hooksPath .githooks"
   },
   "engines": {
@@ -56,7 +60,9 @@
     },
     "client": {
       "platform": "web",
-      "inject": []
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ]
     },
     "compatibility": {
       "dshReleases": {
@@ -67,5 +73,9 @@
   "license": "MIT",
   "dependencies": {
     "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
   }
 }

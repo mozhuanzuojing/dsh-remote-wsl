@@ -5,7 +5,7 @@
 - **结论先说（3 条会改变落地方式的硬事实）**
   1. `exports["./client"]` 指向的**文件必须存在**，否则整个 client 组合**激活失败**（不是一个包静默掉线）。⇒ 顺序必须是 **T1 契约 → T3 `client/**` 落盘 → T2 补 `dsh.client` → T4 验证**。
   2. 静态 client 半**没有** `host.call` / `styles.insert`（那是动态包专属）。取数走**host 注册 webServer 路由 + 浏览器同源 `fetch`**。
-  3. 零构建成立：客户端产物就是一个**手写的** `window.__ModuleLoader__.load({...})` 文件，不需要 bundler/JSX/TS。
+  3. （历史）零构建成立：客户端产物是手写 `window.__ModuleLoader__.load({...})` 文件。**2026-11-13 变更**：本插件 client 改为 `src/client/*.ts` 经 esbuild 构建为 `lib/client.js`（devDep: esbuild/typescript；`lib/client.js` 入库随包），此条对本插件不再适用。
 
 **引用约定**：形如 `dsh-client-modules/lib/index.js:713` 的路径，指 **app.asar 内** DSH 实现（解包方法见文末 §9）；插件自己的路径指仓库内路径。凡标注「实测」的都有原始输出留档（§8）。
 
