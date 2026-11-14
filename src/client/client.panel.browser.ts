@@ -20,19 +20,21 @@ import React from 'react';
 				const currentDistro = typeof target.distro === "string" ? target.distro : null;
 				body.push(
 					React.createElement(
-						"section",
-						{ key: "targets", className: "dsh-rw-targets", "aria-label": t("targets.title") },
+						"details",
+						{ key: "targets", className: "dsh-rw-card dsh-rw-manage", "aria-label": t("targets.title") },
 						React.createElement(
-							"div",
-							{ className: "dsh-rw-cardhead" },
+							"summary",
+							{ className: "dsh-rw-cardhead dsh-rw-manage-summary" },
 							React.createElement("span", { className: "dsh-rw-grouptitle" }, t("targets.title")),
 							React.createElement("span", { className: "dsh-rw-hint" }, t("targets.count", { count: targetRows.length })),
 							React.createElement("span", { className: "dsh-rw-spacer" }),
-							React.createElement(
-								"button",
-								{ type: "button", className: "dsh-rw-link", onClick: () => { if (typeof onRescan === "function") onRescan(); }, title: t("targets.rescanTitle") },
-								t("targets.rescan"),
-							),
+							React.createElement("span", { className: "dsh-rw-hint" }, t("targets.manageHint")),
+						),
+						React.createElement(
+							"div",
+							{ className: "dsh-rw-cardhead dsh-rw-manage-actions" },
+							React.createElement("span", { className: "dsh-rw-spacer" }),
+							React.createElement("button", { type: "button", className: "dsh-rw-link", onClick: () => { if (typeof onRescan === "function") onRescan(); }, title: t("targets.rescanTitle") }, t("targets.rescan")),
 						),
 						React.createElement(
 							"div",

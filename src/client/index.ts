@@ -326,7 +326,47 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 			".dsh-rw-wdialog-state--error{color:var(--dsw-alias-state-error-primary);text-align:left;white-space:pre-wrap}",
 			".dsh-rw-wdialog-foot{display:flex;align-items:center;gap:8px;padding:12px 18px 16px}",
 			"@media (max-width: 520px){.dsh-rw-rowtime{display:none}.dsh-rw-wdialog{width:calc(100vw - 20px)}.dsh-rw-wdialog-foot .dsh-rw-hint{display:none}}",
-		].join("\n");
+		
+			// ===== V1 卡片仪表（新增类；走 --dsw 令牌）=====
+			".dsh-rw-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:10px 12px 2px}",
+			".dsh-rw-kpi{display:flex;flex-direction:column;gap:5px;min-width:0;padding:11px 13px;border:1px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-bg-layer-2)}",
+			".dsh-rw-kpi-lab{font-size:11.5px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-kpi-val{font-size:14px;line-height:20px;font-weight:650;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+			".dsh-rw-kpi-meta{font-size:11px;line-height:15px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+			".dsh-rw-kpi-act{margin-top:2px}",
+			".dsh-rw-kpi-btn{align-self:flex-start;height:24px;padding:0 10px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:20px;cursor:pointer}",
+			".dsh-rw-kpi-btn:hover:enabled{background:var(--dsw-alias-interactive-bg-hover)}",
+			".dsh-rw-kpi-btn:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}",
+			".dsh-rw-target-pill{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;margin-right:8px;border:1px solid var(--dsw-alias-border-l1);border-radius:999px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:12.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+			".dsh-rw-root--narrow .dsh-rw-kpis{grid-template-columns:1fr 1fr}",
+
+			// ===== 发行版切换器（A）=====
+			".dsh-rw-target-pill--btn{cursor:pointer}",
+			".dsh-rw-distrosel{position:relative;display:inline-flex}",
+			".dsh-rw-distrosel>summary{list-style:none}",
+			".dsh-rw-distrosel>summary::-webkit-details-marker{display:none}",
+			".dsh-rw-distrosel[open]>summary{border-color:var(--dsw-alias-border-l2)}",
+			".dsh-rw-distrosel-count{color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}",
+			".dsh-rw-distrosel .dsh-rw-menu{position:absolute;top:calc(100% + 6px);bottom:auto;right:0;width:250px;max-height:min(60vh,360px);overflow:auto}",
+			".dsh-rw-distrosel-row{display:flex;align-items:center;gap:4px}",
+			".dsh-rw-distrosel-row>.dsh-rw-menuitem{flex:1;min-width:0}",
+			".dsh-rw-distrosel-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+			".dsh-rw-menuitem.is-current{color:var(--dsw-alias-brand-primary,#4d6bfe)}",
+			".dsh-rw-badge{font-size:10.5px;line-height:15px;padding:0 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-layer-2));color:var(--dsw-alias-label-secondary)}",
+			".dsh-rw-check{color:var(--dsw-alias-brand-primary,#4d6bfe);font-weight:700}",
+			".dsh-rw-menuitem--sub{flex:none!important;font-size:12px;opacity:.85}",
+			".dsh-rw-kpiscope{grid-column:1/-1;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);margin:0 2px 2px}",
+
+			// ===== V1 修复：骨架 / 管理卡 =====
+			".dsh-rw-manage-summary{list-style:none;cursor:pointer}",
+			".dsh-rw-manage-summary::-webkit-details-marker{display:none}",
+			".dsh-rw-manage-actions{padding:2px 12px 4px}",
+			".dsh-rw-kpi--skel{height:74px;background:linear-gradient(90deg,var(--dsw-alias-bg-layer-2) 25%,var(--dsw-alias-interactive-bg-hover) 37%,var(--dsw-alias-bg-layer-2) 63%);background-size:400% 100%;animation:dshRwSkel 1.4s ease infinite}",
+			"@keyframes dshRwSkel{0%{background-position:100% 50%}100%{background-position:0 50%}}",
+
+			".dsh-rw-distrosel .dsh-rw-menuitem{width:auto;flex:1 1 auto;min-width:0}",
+			".dsh-rw-distrosel .dsh-rw-menuitem--sub{flex:0 0 auto;width:auto;opacity:.85}",
+].join("\n");
 
 		// 静态 bundle 的样式注入：手写 <style data-plugin-css>，卸载时由 module system 的
 		// owned-style 清理按 data-plugin 回收（官方 ui-sidebar/lib/client.js:12-21 同形）。

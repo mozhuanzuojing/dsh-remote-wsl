@@ -225,6 +225,57 @@ function renderTail(props) {
 					],
 				});
 
+				// ===== V1 卡片仪表：KPI 行 + 目标胶囊（走 --dsw 令牌；动作：守护启动 / 版本同步）=====
+				const kpiCard = (key, lab, valNode, metaNode, actNode) => React.createElement("div", { key, className: "dsh-rw-kpi" },
+					React.createElement("div", { className: "dsh-rw-kpi-lab" }, lab),
+					React.createElement("div", { className: "dsh-rw-kpi-val" }, valNode),
+					metaNode !== null && metaNode !== undefined ? React.createElement("div", { className: "dsh-rw-kpi-meta" }, metaNode) : null,
+					actNode !== null && actNode !== undefined ? React.createElement("div", { className: "dsh-rw-kpi-act" }, actNode) : null,
+				);
+				const kpiBtn = (label, onAct, disabled) => (UI !== null && typeof UI.Button === "function")
+					? React.createElement(UI.Button, { size: "sm", disabled: disabled === true, onClick: onAct }, label)
+					: React.createElement("button", { type: "button", className: "dsh-rw-kpi-btn", disabled: disabled === true, onClick: onAct }, label);
+				const reachable = snapshot !== null && snapshot.proxy !== null && typeof snapshot.proxy === "object" && typeof snapshot.proxy.reachable === "boolean" ? snapshot.proxy.reachable : null;
+				const proxyText = reachable === true ? t("kpi.reachable") : reachable === false ? t("kpi.unreachable") : t("kpi.unknown");
+				const proxyMeta = snapshot !== null && snapshot.proxy !== null && typeof snapshot.proxy === "object" ? String((snapshot.proxy.host === undefined ? "?" : snapshot.proxy.host) + ":" + (snapshot.proxy.port === undefined ? "?" : snapshot.proxy.port)) : null;
+				const driftedNow = driftKnown && drift.drifted === true;
+				const kpiRow = factsVisible
+					? React.createElement("div", { className: "dsh-rw-kpis" },
+						React.createElement("div", { className: "dsh-rw-kpiscope" }, t("kpi.scope")),
+						kpiCard("daemon", t("kpi.daemon"),
+							React.createElement("span", { role: "status", "aria-live": "polite" }, statusWord),
+							!daemonKnown ? t("status.stateUnknown") : daemon !== null && daemon.running === true ? t("kpi.daemonOn") : t("kpi.daemonOffHint"),
+							!daemonKnown ? null : daemon !== null && daemon.running === true
+								? kpiBtn(t("kpi.stop"), () => runDaemon("stop", undefined, { distro: activeDistro }), action.busy !== null)
+								: kpiBtn(t("status.start"), () => runDaemon("ensure", undefined, { distro: activeDistro }), action.busy !== null)),
+						kpiCard("proxy", t("kpi.proxy"), proxyText, proxyMeta, null),
+						kpiCard("version", t("kpi.version"), driftedNow ? t("kpi.versionDrift") : t("status.aligned"),
+							!driftKnown ? null : driftedNow ? t("kpi.driftHint") : t("kpi.alignedHint"),
+							driftKnown && driftedNow ? kpiBtn(action.busy !== null ? t("kpi.syncing") : t("kpi.sync"), () => run("syncPin", (signal) => api.fixPin(signal), { describe: () => t("note.syncOk"), refresh: true }), action.busy !== null) : null),
+						kpiCard("sessions", t("kpi.sessions"), keysKnown ? String(keys.length) : "—", keysKnown ? t("kpi.sessionsMeta") : null, null),
+					)
+					: React.createElement("div", { className: "dsh-rw-kpis dsh-rw-kpis--skel" },
+						[0, 1, 2, 3].map((i) => React.createElement("div", { key: "sk" + i, className: "dsh-rw-kpi dsh-rw-kpi--skel" })));
+				// 发行版切换器（A：多 WSL 发行版）。复用 onDistroChange/onSetDefault，纯客户端。
+				const distroRows = Array.isArray(distros) ? distros.filter((row) => isRecord(row) && typeof row.name === "string") : [];
+				const curDistro = activeDistro === null ? (typeof target.distro === "string" ? target.distro : null) : activeDistro;
+				const targetPill = factsVisible && curDistro
+					? distroRows.length > 1
+						? React.createElement("details", { className: "dsh-rw-distrosel" },
+							React.createElement("summary", { className: "dsh-rw-target-pill dsh-rw-target-pill--btn", title: t("targets.chipTitle"), "aria-label": t("targets.chip", { distro: curDistro }), "aria-haspopup": "true" },
+								React.createElement(Dot, { kind: stateKind }), curDistro, React.createElement("span", { className: "dsh-rw-distrosel-count" }, "(" + distroRows.length + ")")),
+							React.createElement("div", { className: "dsh-rw-menu", "aria-label": t("targets.title"), onKeyDown: (event) => { if (event.key === "Escape") { event.preventDefault(); const _d = event.currentTarget.closest("details"); if (_d) _d.removeAttribute("open"); const _s = _d && _d.querySelector("summary"); if (_s) _s.focus(); } } },
+								distroRows.map((row) => React.createElement("div", { key: "dd-" + row.name, className: "dsh-rw-distrosel-row" },
+									React.createElement("button", { type: "button", "aria-pressed": String(row.name === curDistro), className: "dsh-rw-menuitem" + (row.name === curDistro ? " is-current" : ""), onClick: (event) => { const d = event.currentTarget.closest("details"); if (d) d.removeAttribute("open"); if (row.name !== curDistro && typeof onDistroChange === "function") onDistroChange(row.name); } },
+										React.createElement(Dot, { kind: row.running === true ? "on" : row.name === curDistro ? stateKind : "unknown" }),
+										React.createElement("span", { className: "dsh-rw-distrosel-name" }, row.name),
+										row.default === true ? React.createElement("span", { className: "dsh-rw-badge" }, t("targets.defaultBadge")) : null,
+										row.name === curDistro ? React.createElement("span", { className: "dsh-rw-check", "aria-hidden": "true" }, "✓") : null),
+									row.default === true ? null : React.createElement("button", { type: "button", className: "dsh-rw-menuitem dsh-rw-menuitem--sub", onClick: (event) => { const d = event.currentTarget.closest("details"); if (d) d.removeAttribute("open"); if (typeof onSetDefault === "function") onSetDefault(row.name); } }, t("targets.setDefault")),
+								)),
+							))
+						: React.createElement("span", { className: "dsh-rw-target-pill" }, React.createElement(Dot, { kind: stateKind }), curDistro)
+					: null;
 				return React.createElement(
 					"section",
 					// 2026-10-22 B2：窄态语义类（面板实宽 <420）。CSS 只在窄态做三处**分档**：
@@ -249,8 +300,9 @@ function renderTail(props) {
 										: t("header.targetPending"),
 							),
 						),
-						React.createElement("div", { className: "dsh-rw-header-actions" }, headerButtons),
+						React.createElement("div", { className: "dsh-rw-header-actions" }, targetPill, headerButtons),
 					),
+					kpiRow,
 					React.createElement(
 						"div",
 						{ className: "dsh-rw-body" },
@@ -285,17 +337,7 @@ function renderTail(props) {
 							React.createElement("button", { type: "button", role: "menuitem", className: "dsh-rw-menuitem", onClick: (event) => { closeChipMenu(event.currentTarget); onSetDefault(activeDistro); } }, t("targets.setDefault")),
 						),
 					),
-					React.createElement(Dot, { kind: stateKind }),
-						React.createElement("span", { className: "dsh-rw-statusword", role: "status", "aria-live": "polite" }, statusWord),
-						// 2026-10-22 B2：漂移提示在窄态只留 ⚠ 图标（16px，title/aria-label 带「配置已漂移」）——
-						// 「配置已漂移」65px + 图标 16px 在 264px 面板里放不进底栏；文字版在宽态保持原样。
-						drifted
-							? narrow
-								? React.createElement("span", { className: "dsh-rw-driftmark", title: t("status.drifted"), "aria-label": t("status.drifted"), role: "img" }, icon("warn", "dsh-rw-drift"))
-								: React.createElement(React.Fragment, null, icon("warn", "dsh-rw-drift"), React.createElement("span", { className: "dsh-rw-statusword" }, t("status.drifted")))
-							: null,
-						extra.length > 0 ? React.createElement("span", { className: "dsh-rw-extra" + (narrow ? " dsh-rw-extra--hidden" : "") }, " · ", extra) : null,
-						factsVisible ? React.createElement("span", { className: "dsh-rw-statusitem" }, proxyBadge) : null,
+					
 						React.createElement("span", { className: "dsh-rw-spacer" }),
 						updated !== null && !hideUpdated ? React.createElement("span", { className: "dsh-rw-updated", title: updated }, relUpdated !== null ? relUpdated : updated) : null,
 						React.createElement(

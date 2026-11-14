@@ -136,7 +136,7 @@
 			"targets.switchAria": "切换到 {distro}",
 			"targets.currentTitle": "当前正在浏览这个发行版",
 			"targets.switchTitle": "切换到 {distro}（只影响本面板，不改插件配置）",
-			"targets.setDefault": "设为默认",
+			"targets.setDefault": "设为默认", "targets.defaultBadge": "默认", "targets.manageHint": "展开管理（设为默认 / 停止 / 最近）", "kpi.scope": "状态作用域：当前发行版",
 			"targets.stop": "停止",
 			"targets.defaultSaved": "已把 {distro} 记为面板默认目标",
 			"targets.chip": "WSL: {distro}",
@@ -262,6 +262,10 @@
 
 			"status.daemonOff": "远端守护未运行",
 			"status.start": "启动守护",
+ "kpi.daemon": "守护", "kpi.proxy": "代理", "kpi.version": "版本", "kpi.sessions": "会话",
+ "kpi.reachable": "可达", "kpi.unreachable": "不可达", "kpi.unknown": "未知",
+ "kpi.daemonOn": "运行中", "kpi.daemonOffHint": "按需启动", "kpi.driftHint": "desktop 与 pin 不一致", "kpi.alignedHint": "已与 pin 对齐",
+ "kpi.sync": "同步", "kpi.syncing": "同步中…", "kpi.stop": "停止", "kpi.versionDrift": "版本漂移", "kpi.sessionsMeta": "活动会话", "status.aligned": "已对齐", "note.syncOk": "版本已对齐",
 
 			"raw.summary": "诊断信息",
 
@@ -410,7 +414,7 @@
 			"targets.switchAria": "Switch to {distro}",
 			"targets.currentTitle": "This distro is the current target",
 			"targets.switchTitle": "Switch to {distro} (this panel only; plugin config is unchanged)",
-			"targets.setDefault": "Set default",
+			"targets.setDefault": "Set default", "targets.defaultBadge": "default", "targets.manageHint": "Manage (set default / stop / recent)", "kpi.scope": "Scope: current distro",
 			"targets.stop": "Stop",
 			"targets.defaultSaved": "{distro} is now the panel default target",
 			"targets.chip": "WSL: {distro}",
@@ -535,6 +539,10 @@
 
 			"status.daemonOff": "Remote daemon is not running",
 			"status.start": "Start daemon",
+ "kpi.daemon": "Daemon", "kpi.proxy": "Proxy", "kpi.version": "Version", "kpi.sessions": "Sessions",
+ "kpi.reachable": "Reachable", "kpi.unreachable": "Unreachable", "kpi.unknown": "Unknown",
+ "kpi.daemonOn": "Running", "kpi.daemonOffHint": "Starts on demand", "kpi.driftHint": "desktop ≠ pin", "kpi.alignedHint": "Aligned to pin",
+ "kpi.sync": "Sync", "kpi.syncing": "Syncing…", "kpi.stop": "Stop", "kpi.versionDrift": "Version drift", "kpi.sessionsMeta": "active sessions", "status.aligned": "Aligned", "note.syncOk": "Version aligned",
 
 			"raw.summary": "Diagnostics",
 
