@@ -32,6 +32,7 @@ import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
 // 与上一行同型：T5 拆分时漏了 import，`{stop:true}` 真调（**已起过一个 web host** 之后）才炸 ReferenceError。
 import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble, writeScript, removeScript, reapWsl, sleep, renderText, resolveVersion, readPin, writePin } from './wsl-io.ts';
 import { installCommandGate } from './command-policy.ts';
+import { doctorReport } from './doctor.ts';
 
 // ── 远端 UI：WSL 跑 `dsh web`，Windows 开应用窗口 ─────────────────────────────
 
@@ -340,6 +341,54 @@ export function registerTools(deps) {
     // 2026-10-30：在**同一个 tools 上下文**挂 pre-execute 门禁（不能挂到父 ctx：
     // tools 服务事件在子上下文里；父层 listener 是否收到取决于 Cordis 事件传播，不能赌）。
     installCommandGate(toolsCtx, { toolNames: ['wsl_exec'], commandPolicy: config.commandPolicy });
+
+    tools.register({
+      name: 'wsl_doctor',
+      description:
+        'One-shot, READ-ONLY WSL plugin diagnosis. Aggregates the plugin\'s own probes (distros, target, DSH version, version drift, resident daemon, proxy, config warnings) into a verdict — ready / degraded / blocked — with per-check detail and concrete remedies (which tool to call or which config to set). Call it first when something feels wrong on the remote side, instead of guessing. It does NOT start the daemon or modify anything.',
+      parameters: {
+        type: 'object',
+        properties: {
+          redetect: {
+            type: 'boolean',
+            description: 'Re-run target auto-detection once before diagnosing (same semantics as wsl_status redetect).',
+          },
+        },
+      },
+      output: { schema: { type: 'string' }, render: renderText },
+      execute: async (args, exec) => {
+        if (args?.redetect === true) { try { redetectTarget(); } catch { /* ignore */ } }
+        const facts: any = {
+          platform: process.platform,
+          distros: null, distrosReadFailed: false,
+          targetIssue: null, targetMissing: false,
+          distro: config.distro || null, wslHome: config.wslHome || null, cwd: config.cwd || null,
+          versionResolved: null, versionIssue: null, drift: null,
+          daemon: null, proxy: null, configWarnings: [],
+        };
+        try { const ds = listDistrosAsync ? await listDistrosAsync() : listDistros(); facts.distros = Array.isArray(ds) ? ds : null; facts.distrosReadFailed = Array.isArray(ds) && ds.length === 0; } catch { facts.distrosReadFailed = true; }
+        try { facts.targetIssue = targetProblem(config); } catch (e: any) { facts.targetIssue = String((e && e.message) || e); }
+        try { facts.targetMissing = !facts.targetIssue && Array.isArray(facts.distros) && facts.distros.length > 0 && !!config.distro && !facts.distros.includes(config.distro); } catch { /* ignore */ }
+        try {
+          const v: any = resolveVersion(config);
+          if (v) {
+            facts.versionResolved = v.version || (v.resolved && v.resolved.version) || null;
+            if (v.issue) facts.versionIssue = String(v.issue);
+            if (v.drift) facts.drift = v.drift;
+            else if (typeof v.drifted === 'boolean') facts.drift = { drifted: v.drifted, desktop: v.desktop, pin: v.pin };
+          }
+        } catch (e: any) { facts.versionIssue = String((e && e.message) || e); }
+        try { facts.configWarnings = configWarnings(config) || []; } catch { /* ignore */ }
+        try {
+          if (typeof readDaemonMeta === 'function') {
+            const m: any = await readDaemonMeta(config);
+            if (m && typeof m === 'object') facts.daemon = { present: true, running: m.running !== false, reachable: m.reachable, detail: `slot=${m.slot ?? '?'} pid=${m.pid ?? '?'} version=${m.version ?? '?'}` };
+            else facts.daemon = { present: false };
+          }
+        } catch { /* daemon unknown -> skip */ }
+        return doctorReport(facts).text;
+      },
+    });
 
     tools.register({
       name: 'wsl_status',
