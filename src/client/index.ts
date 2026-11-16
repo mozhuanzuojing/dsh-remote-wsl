@@ -366,6 +366,29 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 
 			".dsh-rw-distrosel .dsh-rw-menuitem{width:auto;flex:1 1 auto;min-width:0}",
 			".dsh-rw-distrosel .dsh-rw-menuitem--sub{flex:0 0 auto;width:auto;opacity:.85}",
+
+			// ===== UI 打磨：KPI 状态色 + 响应式 + 胶囊对比 + 标题 =====
+			".dsh-rw-root{container-type:inline-size}",
+			"@container (max-width: 760px){.dsh-rw-kpis{grid-template-columns:1fr 1fr}}",
+			"@container (max-width: 430px){.dsh-rw-kpis{grid-template-columns:1fr}}",
+			".dsh-rw-kpi-lab{display:flex;align-items:center}",
+			".dsh-rw-kpi-dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block;margin-right:6px;background:var(--dsw-alias-label-dimmed)}",
+			".dsh-rw-kpi-dot--ok{background:var(--dsw-alias-state-success-primary)}",
+			".dsh-rw-kpi-dot--err{background:var(--dsw-alias-state-error-primary)}",
+			".dsh-rw-kpi-dot--warn{background:var(--dsw-alias-state-warn-primary)}",
+			".dsh-rw-kpi-dot--idle{background:var(--dsw-alias-state-idle-primary)}",
+			".dsh-rw-kpi-dot--unknown{background:var(--dsw-alias-label-dimmed)}",
+			".dsh-rw-kpi--warn{border-color:var(--dsw-alias-state-warn-primary)}",
+			".dsh-rw-title{font-size:18px;line-height:26px;font-weight:700}",
+			".dsh-rw-target-pill{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);height:30px}",
+			".dsh-rw-target-pill--btn{cursor:pointer}",
+			".dsh-rw-target-pill--btn:hover{background:var(--dsw-alias-interactive-bg-hover)}",
+
+			// ===== P2：选中 + 右键菜单 =====
+			".dsh-rw-row--selected{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-interactive-bg-hover))}",
+			".dsh-rw-ctxmenu{position:fixed;z-index:70;min-width:184px;padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-1);box-shadow:0 10px 30px rgba(0,0,0,.18)}",
+			".dsh-rw-ctxitem{display:flex;align-items:center;width:100%;height:32px;padding:0 10px;border:none;background:transparent;border-radius:7px;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;text-align:left;cursor:pointer}",
+			".dsh-rw-ctxitem:hover{background:var(--dsw-alias-interactive-bg-hover)}",
 ].join("\n");
 
 		// 静态 bundle 的样式注入：手写 <style data-plugin-css>，卸载时由 module system 的

@@ -96,6 +96,21 @@ import React from 'react';
 				icon, t, errorText, listPath, showHidden, hiddenCount, homePathOf,
 				VIRTUAL_MIN_ROWS, prefetchDir, cancelPrefetch, run, clearSearch, searchRef, api,
 			} = props;
+			// ===== P2：行选中 + 右键上下文菜单（VS Code Explorer 风格）=====
+			const [selected, setSelected] = React.useState(-1);
+			const [ctxMenu, setCtxMenu] = React.useState(null);
+			React.useEffect(function () {
+				if (ctxMenu === null) return undefined;
+				const close = function () { setCtxMenu(null); };
+				const onKey = function (e) { if (e.key === "Escape") { e.preventDefault(); setCtxMenu(null); } };
+				const timer = window.setTimeout(function () { window.addEventListener("click", close); window.addEventListener("contextmenu", close); }, 0);
+				window.addEventListener("keydown", onKey);
+				window.addEventListener("scroll", close, true);
+				return function () { window.clearTimeout(timer); window.removeEventListener("click", close); window.removeEventListener("contextmenu", close); window.removeEventListener("keydown", onKey); window.removeEventListener("scroll", close, true); };
+			}, [ctxMenu]);
+			const openCtx = function (event, index, childPath, isDir) { event.preventDefault(); event.stopPropagation(); setSelected(index); setCtxMenu({ x: event.clientX, y: event.clientY, childPath: childPath, isDir: isDir }); };
+			const ctxDo = function (fn) { return function (event) { event.stopPropagation(); setCtxMenu(null); fn(); }; };
+
 			// 大目录窗口化：只有条目数超过阈值才启用（hook 必须无条件调用）
 			const listRef = React.useRef(null);
 			const virtual = VIRTUAL_MIN_ROWS !== undefined && visibleEntries.length > VIRTUAL_MIN_ROWS;
@@ -175,7 +190,8 @@ import React from 'react';
 							"dsh-rw-row" +
 							(isDir ? " dsh-rw-row--dir" : "") +
 							(isCurrent ? " dsh-rw-row--current dsh-rw-current" : "") +
-							(focused ? " dsh-rw-row--focus" : ""),
+							(focused ? " dsh-rw-row--focus" : "") +
+							(selected === index ? " dsh-rw-row--selected" : ""),
 						tabIndex: focused ? 0 : -1,
 						role: "listitem",
 						"aria-label": t(isDir ? "browser.rowAriaDir" : "browser.rowAriaFile", { name: entry.name }),
@@ -187,13 +203,12 @@ import React from 'react';
 						onFocus: function () {
 							if (focusIndex !== index) setFocusIndex(index);
 						},
-						onClick: isDir
-							? function (event) {
-									if (event.defaultPrevented) return;
-									event.preventDefault();
-									jumpTo(childPath);
-								}
-							: undefined,
+						onClick: function (event) {
+								if (event.defaultPrevented) return;
+								setSelected(index);
+								if (isDir) { event.preventDefault(); jumpTo(childPath); }
+							},
+							onContextMenu: function (event) { openCtx(event, index, childPath, isDir); },
 						onKeyDown: function (event) {
 							onListKey(event, index);
 						},
@@ -317,6 +332,23 @@ import React from 'react';
 					clearSearch();
 				}
 			};
+			const buildCtxMenu = function () {
+				if (ctxMenu === null) return null;
+				const c = ctxMenu;
+				const items = [
+					{ key: "open", label: c.isDir ? t("menu.open") : t("row.open"), on: function () { if (c.isDir) jumpTo(c.childPath); else copyPath(c.childPath); } },
+					{ key: "vscode", label: t("menu.openInEditor"), on: function () { if (typeof api.openExternal === "function") run("open:" + c.childPath, function () { return api.openExternal({ path: c.childPath, kind: c.isDir ? "directory" : "file", app: "vscode" }); }, { describe: function () { return t("row.opened", { path: c.childPath }); } }); } },
+					{ key: "copy", label: t("menu.copyPath"), on: function () { copyPath(c.childPath); } },
+					{ key: "refresh", label: t("menu.refresh"), on: function () { if (cwd !== null) listPath(cwd, { force: true }); } },
+				];
+				const vw = typeof window !== "undefined" ? window.innerWidth : 9999;
+				const vh = typeof window !== "undefined" ? window.innerHeight : 9999;
+				const left = Math.min(c.x, vw - 210);
+				const top = Math.min(c.y, vh - 170);
+				return React.createElement("div", { className: "dsh-rw-ctxmenu", role: "menu", "aria-label": t("menu.title"), style: { left: left + "px", top: top + "px" }, onContextMenu: function (e) { e.preventDefault(); } },
+					items.map(function (it) { return React.createElement("button", { key: it.key, type: "button", role: "menuitem", className: "dsh-rw-ctxitem", onClick: ctxDo(it.on) }, it.label); }),
+				);
+			};
 			const homePath = homePathOf(props.target, cwd);
 			let content;
 			if (browse.status === "loading" && browse.entries.length === 0) {
@@ -403,6 +435,7 @@ import React from 'react';
 					"aria-busy": browse.status === "loading" ? "true" : undefined,
 				},
 				content,
+				ctxMenu === null ? null : buildCtxMenu(),
 			);
 		}
 		/**

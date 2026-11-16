@@ -226,8 +226,8 @@ function renderTail(props) {
 				});
 
 				// ===== V1 卡片仪表：KPI 行 + 目标胶囊（走 --dsw 令牌；动作：守护启动 / 版本同步）=====
-				const kpiCard = (key, lab, valNode, metaNode, actNode) => React.createElement("div", { key, className: "dsh-rw-kpi" },
-					React.createElement("div", { className: "dsh-rw-kpi-lab" }, lab),
+				const kpiCard = (key, tone, lab, valNode, metaNode, actNode) => React.createElement("div", { key, className: "dsh-rw-kpi" + (tone === "warn" ? " dsh-rw-kpi--warn" : "") },
+					React.createElement("div", { className: "dsh-rw-kpi-lab" }, React.createElement("span", { className: "dsh-rw-kpi-dot dsh-rw-kpi-dot--" + tone, "aria-hidden": "true" }), lab),
 					React.createElement("div", { className: "dsh-rw-kpi-val" }, valNode),
 					metaNode !== null && metaNode !== undefined ? React.createElement("div", { className: "dsh-rw-kpi-meta" }, metaNode) : null,
 					actNode !== null && actNode !== undefined ? React.createElement("div", { className: "dsh-rw-kpi-act" }, actNode) : null,
@@ -242,17 +242,17 @@ function renderTail(props) {
 				const kpiRow = factsVisible
 					? React.createElement("div", { className: "dsh-rw-kpis" },
 						React.createElement("div", { className: "dsh-rw-kpiscope" }, t("kpi.scope")),
-						kpiCard("daemon", t("kpi.daemon"),
+						kpiCard("daemon", !daemonKnown ? "unknown" : daemon !== null && daemon.running === true ? "ok" : "idle", t("kpi.daemon"),
 							React.createElement("span", { role: "status", "aria-live": "polite" }, statusWord),
 							!daemonKnown ? t("status.stateUnknown") : daemon !== null && daemon.running === true ? t("kpi.daemonOn") : t("kpi.daemonOffHint"),
 							!daemonKnown ? null : daemon !== null && daemon.running === true
 								? kpiBtn(t("kpi.stop"), () => runDaemon("stop", undefined, { distro: activeDistro }), action.busy !== null)
 								: kpiBtn(t("status.start"), () => runDaemon("ensure", undefined, { distro: activeDistro }), action.busy !== null)),
-						kpiCard("proxy", t("kpi.proxy"), proxyText, proxyMeta, null),
-						kpiCard("version", t("kpi.version"), driftedNow ? t("kpi.versionDrift") : t("status.aligned"),
+						kpiCard("proxy", reachable === true ? "ok" : reachable === false ? "err" : "unknown", t("kpi.proxy"), proxyText, proxyMeta, null),
+						kpiCard("version", !driftKnown ? "unknown" : driftedNow ? "warn" : "ok", t("kpi.version"), driftedNow ? t("kpi.versionDrift") : t("status.aligned"),
 							!driftKnown ? null : driftedNow ? t("kpi.driftHint") : t("kpi.alignedHint"),
 							driftKnown && driftedNow ? kpiBtn(action.busy !== null ? t("kpi.syncing") : t("kpi.sync"), () => run("syncPin", (signal) => api.fixPin(signal), { describe: () => t("note.syncOk"), refresh: true }), action.busy !== null) : null),
-						kpiCard("sessions", t("kpi.sessions"), keysKnown ? String(keys.length) : "—", keysKnown ? t("kpi.sessionsMeta") : null, null),
+						kpiCard("sessions", "idle", t("kpi.sessions"), keysKnown ? String(keys.length) : "—", keysKnown ? t("kpi.sessionsMeta") : null, null),
 					)
 					: React.createElement("div", { className: "dsh-rw-kpis dsh-rw-kpis--skel" },
 						[0, 1, 2, 3].map((i) => React.createElement("div", { key: "sk" + i, className: "dsh-rw-kpi dsh-rw-kpi--skel" })));
