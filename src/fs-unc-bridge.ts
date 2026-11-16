@@ -32,6 +32,7 @@
  * @module dsh-remote-wsl/fs-unc-bridge
  */
 import { createWslFileSystem, parseUnc, uncPath } from './fs-provider.ts';
+import { diag } from './diag.ts';
 
 /** 已挂载标记（Symbol.for：同一进程内 HMR / 多份配置不会重复包一层）。 */
 const BRIDGE_KEY = Symbol.for('dsh-remote-wsl.fs-unc-bridge');
@@ -324,27 +325,32 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   };
 
   const bridgedReadText = async function (target: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalReadText.call(fsService, target, signal);
+    if (!isBridgeTarget(target, distro)) return originalReadText.call(fsService, target, signal);
+    diag('fs-route', 'readText ' + String(target && target.targetKey));
     return callWsl('readText', toWslTarget(target), signal);
   };
 
   const bridgedStreamText = function (target: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalStreamText.call(fsService, target, signal);
+    if (!isBridgeTarget(target, distro)) return originalStreamText.call(fsService, target, signal);
+    diag('fs-route', 'streamText ' + String(target && target.targetKey));
     return callWsl('streamText', toWslTarget(target), signal);
   };
 
   const bridgedReadBytes = async function (target: any, signal: any, maxBytes: any) {
-    if (!isMntTarget(target, distro)) return originalReadBytes.call(fsService, target, signal, maxBytes);
+    if (!isBridgeTarget(target, distro)) return originalReadBytes.call(fsService, target, signal, maxBytes);
+    diag('fs-route', 'readBytes ' + String(target && target.targetKey));
     return callWsl('readBytes', toWslTarget(target), signal, maxBytes);
   };
 
   const bridgedReadByteRange = async function (target: any, range: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalReadByteRange.call(fsService, target, range, signal);
+    if (!isBridgeTarget(target, distro)) return originalReadByteRange.call(fsService, target, range, signal);
+    diag('fs-route', 'readByteRange ' + String(target && target.targetKey));
     return callWsl('readByteRange', toWslTarget(target), range, signal);
   };
 
   const bridgedListDir = async function (target: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalListDir.call(fsService, target, signal);
+    if (!isBridgeTarget(target, distro)) return originalListDir.call(fsService, target, signal);
+    diag('fs-route', 'listDir ' + String(target && target.targetKey));
     const entries = await callWsl('listDir', toWslTarget(target), signal);
     const parentDisplay = String(target?.displayPath ?? '');
     return entries.map((entry: any) => ({

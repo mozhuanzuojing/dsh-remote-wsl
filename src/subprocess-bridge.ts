@@ -31,6 +31,8 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { parseWslUncPath } from './unc-path.ts';
+import { gitSpawnRewrite, translateGitEnv } from './git-route.ts';
+import { diag } from './diag.ts';
 
 /** Windows 侧合法 cwd（终端进程在这里启动，Linux 目录由 wsl.exe 决定）。 */
 const WINDOWS_CWD = process.env.SystemRoot ?? 'C:\\Windows';
@@ -67,6 +69,7 @@ export function installSubprocessBridge(host, cfg = {}) {
   const distro = typeof cfg.distro === 'string' ? cfg.distro.trim() : '';
   const wrapped = function spawnTerminalFromWsl(spec = {}) {
     if (!isWslUncCwd(spec.cwd)) return original.call(host, spec);
+    diag('terminal-route', 'wsl bash cwd=' + String(spec.cwd));
     // UNC cwd 同时给出真实发行版与 Linux 路径：优先用 cwd 里的 distro（比配置更准），
     // 并把 Linux 路径作为 `--cd`；否则 bash 会落在宿主 cwd 映射出的 /mnt/c/Windows。
     const unc = parseWslUncPath(spec.cwd);
@@ -97,8 +100,30 @@ export function installSubprocessBridge(host, cfg = {}) {
     });
   };
   host.spawnTerminal = wrapped;
+  // git spawn 路由：仅重写"git + distro UNC cwd"的 spawn，其余原样透传；不碰 @deepseek-ai 内部类。
+  const originalSpawn = typeof host.spawn === 'function' ? host.spawn : null;
+  let wrappedSpawn = null;
+  if (originalSpawn) {
+    const wslPath = wslExecutable();
+    wrappedSpawn = function spawnRoutedGit(spec = {}) {
+      let rw;
+      try {
+        rw = gitSpawnRewrite({ argv: spec.argv, cwd: spec.cwd, wslPath });
+      } catch {
+        rw = undefined;
+      }
+      if (rw === undefined) return originalSpawn.call(host, spec);
+      diag('git-route', 'git ' + rw.gitArgv.join(' ') + ' cwd=' + String(spec.cwd) + ' distro=' + rw.distro);
+      const { env, wslenv } = translateGitEnv(spec.env);
+      const baseWslenv = typeof spec.env?.WSLENV === 'string' ? spec.env.WSLENV.split(':').filter(Boolean) : [];
+      const env2 = { ...env, WSLENV: [...baseWslenv, ...wslenv].join(':') };
+      return originalSpawn.call(host, { ...spec, argv: rw.wslArgv, cwd: WINDOWS_CWD, env: env2 });
+    };
+    host.spawn = wrappedSpawn;
+  }
   return () => {
     if (host.spawnTerminal === wrapped) host.spawnTerminal = original;
+    if (wrappedSpawn !== null && host.spawn === wrappedSpawn) host.spawn = originalSpawn;
   };
 }
 
