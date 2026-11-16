@@ -120,6 +120,8 @@ export function installSubprocessBridge(host, cfg = {}) {
       return originalSpawn.call(host, { ...spec, argv: rw.wslArgv, cwd: WINDOWS_CWD, env: env2 });
     };
     host.spawn = wrappedSpawn;
+  } else {
+    diag('git-route', 'skipped: host subprocess.spawn 不可用，git 路由未启用');
   }
   return () => {
     if (host.spawnTerminal === wrapped) host.spawnTerminal = original;

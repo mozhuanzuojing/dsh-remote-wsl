@@ -315,3 +315,55 @@ test('加固：普通 UNC 的 readText/listDir 走 WSL(ext4)；stat 仍走 host 
   const st = await host.stat(target);
   assert.equal(st.version, '0:11:3:100:100'); // 版本基线仍来自 host
 });
+
+
+test('读 fail-open：守护不可用(FS_IO_ERROR)时回退宿主读，不抛错', async () => {
+  const host: any = {
+    stat: async () => undefined,
+    readText: async () => 'host-content',
+    listDir: async () => [{ name: 'h', type: 'file', target: { targetKey: 'D:\\h', displayPath: 'D:\\h' } }],
+    writeText: async () => ({}), editText: async () => ({}),
+  };
+  const wsl: any = {
+    readText: async () => { const e: any = new Error('remote-wsl: 启动 WSL 守护失败：x'); e.code = 'FS_IO_ERROR'; throw e; },
+    listDir: async () => { const e: any = new Error('remote-wsl: 守护元数据缺失（WSL 侧守护不在）'); e.code = 'FS_IO_ERROR'; throw e; },
+    stat: async () => ({ version: 'v' }), writeText: async () => ({}), editText: async () => ({}),
+  };
+  attachUncWriteBridge(host, { distro: 'debian-u8-1', wslFs: wsl });
+  const t = { targetKey: UNC, displayPath: UNC };
+  assert.equal(await host.readText(t), 'host-content');
+  const list = await host.listDir(t);
+  assert.equal(list[0].name, 'h');
+});
+
+test('读 listDir：丢弃 WSL entry.version，避免与 host 版本基线混用', async () => {
+  const host: any = { stat: async () => undefined, readText: async () => '', listDir: async () => [], writeText: async () => ({}), editText: async () => ({}) };
+  const wsl: any = {
+    listDir: async () => [{ name: 'x.txt', type: 'file', version: '2096:1:1:1:1', size: 3, target: { targetKey: '/home/g/proj/x.txt', displayPath: '/home/g/proj/x.txt' } }],
+    stat: async () => ({ version: 'v' }), writeText: async () => ({}), editText: async () => ({}),
+  };
+  attachUncWriteBridge(host, { distro: 'debian-u8-1', wslFs: wsl });
+  const list = await host.listDir({ targetKey: UNC, displayPath: UNC });
+  assert.equal(list[0].version, undefined); // 已丢弃 WSL 令牌
+  assert.equal(list[0].size, 3);
+  assert.equal(list[0].target.targetKey, '\\\\wsl.localhost\\debian-u8-1\\home\\g\\proj\\x.txt');
+});
+
+test('非发行版 UNC 的 readText 走宿主原方法，不碰 WSL', async () => {
+  const host: any = { stat: async () => undefined, readText: async () => 'host', listDir: async () => [], writeText: async () => ({}), editText: async () => ({}) };
+  let wslHit = 0;
+  const wsl: any = { readText: async () => { wslHit++; return 'wsl'; }, listDir: async () => [], stat: async () => ({}), writeText: async () => ({}), editText: async () => ({}) };
+  attachUncWriteBridge(host, { distro: 'debian-u8-1', wslFs: wsl });
+  assert.equal(await host.readText({ targetKey: '\\\\wsl.localhost\\OTHER\\x', displayPath: 'x' }), 'host');
+  assert.equal(wslHit, 0);
+});
+
+
+test('普通 UNC 的 streamText 走 WSL（async iterable），可消费', async () => {
+  const host: any = { stat: async () => undefined, readText: async () => '', listDir: async () => [], streamText: function () { return (async function* () {})(); }, writeText: async () => ({}), editText: async () => ({}) };
+  const wsl: any = { streamText: function () { return (async function* () { yield 'w1'; yield 'w2'; })(); }, stat: async () => ({}), listDir: async () => [], writeText: async () => ({}), editText: async () => ({}) };
+  attachUncWriteBridge(host, { distro: 'debian-u8-1', wslFs: wsl });
+  const chunks: string[] = [];
+  for await (const c of host.streamText({ targetKey: UNC, displayPath: UNC }, undefined)) chunks.push(c);
+  assert.deepEqual(chunks, ['w1', 'w2']);
+});

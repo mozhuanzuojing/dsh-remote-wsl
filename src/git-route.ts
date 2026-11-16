@@ -46,12 +46,27 @@ export function windowsToLinuxMount(value: unknown): string | undefined {
 }
 
 /** 单个 `GIT_*` 值 → distro 坐标；UNC→Linux、盘符→/mnt；其它原样。 */
-export function translateGitEnvValue(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
+function translateSinglePathValue(value: string): string {
   const unc = parseWslUncPath(value);
   if (unc !== null && typeof unc.linuxPath === 'string') return unc.linuxPath.length > 0 ? unc.linuxPath : '/';
   const mounted = windowsToLinuxMount(value);
   return mounted === undefined ? value : mounted;
+}
+
+export function translateGitEnvValue(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  // 多路径列表（Windows 用 `;` 分隔）：逐段翻译后用 POSIX 的 `:` 连接；任一段非路径则整体原样。
+  if (value.indexOf(';') >= 0) {
+    const parts = value.split(';');
+    let changed = false;
+    const mapped = parts.map((part) => {
+      const t = translateSinglePathValue(part);
+      if (t !== part) changed = true;
+      return t;
+    });
+    if (changed) return mapped.join(':');
+  }
+  return translateSinglePathValue(value);
 }
 
 /** 翻译 git spawn 的环境；返回要随 WSLENV 透传的键名。 */
@@ -60,7 +75,7 @@ export function translateGitEnv(env: Record<string, string | undefined> | undefi
   const names: string[] = [];
   for (const [name, value] of Object.entries(env ?? {})) {
     out[name] = name.startsWith('GIT_') ? (translateGitEnvValue(value) as string | undefined) : value;
-    names.push(name);
+    if (name.startsWith('GIT_')) names.push(name);
   }
   return { env: out, wslenv: names };
 }

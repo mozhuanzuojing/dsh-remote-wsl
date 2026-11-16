@@ -28,12 +28,16 @@ test('translateGitEnvValue: UNC→Linux / 盘符→/mnt / 其它原样', () => {
   assert.equal(translateGitEnvValue(undefined), undefined);
 });
 
+test('translateGitEnvValue: 多路径列表 ; -> : 翻译', () => {
+  assert.equal(translateGitEnvValue('C:\\a;D:\\b'), '/mnt/c/a:/mnt/d/b');
+});
+
 test('translateGitEnv: 仅 GIT_* 值翻译，其余原样，wslenv 收集全部键', () => {
   const { env, wslenv } = translateGitEnv({ GIT_INDEX_FILE: 'D:\\s\\idx', GIT_CONFIG_COUNT: '0', PATH: 'x' });
   assert.equal(env.GIT_INDEX_FILE, '/mnt/d/s/idx');
   assert.equal(env.GIT_CONFIG_COUNT, '0');
   assert.equal(env.PATH, 'x');
-  assert.deepEqual(wslenv.sort(), ['GIT_CONFIG_COUNT', 'GIT_INDEX_FILE', 'PATH']);
+  assert.deepEqual(wslenv.sort(), ['GIT_CONFIG_COUNT', 'GIT_INDEX_FILE']); // 仅 GIT_* 进 WSLENV
 });
 
 test('gitSpawnRewrite: git + UNC cwd 重写为 wsl.exe，discovery/非 git/host cwd 不重写', () => {
