@@ -345,12 +345,12 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   };
 
   const bridgedReadText = async function (target: any, signal: any) {
-    if (!isBridgeTarget(target, distro)) return originalReadText.call(fsService, target, signal);
+    if (!isMntTarget(target, distro)) return originalReadText.call(fsService, target, signal);
     return routeRead('readText', target, () => callWsl('readText', toWslTarget(target), signal), () => originalReadText.call(fsService, target, signal));
   };
 
   const bridgedStreamText = function (target: any, signal: any) {
-    if (!isBridgeTarget(target, distro)) return originalStreamText.call(fsService, target, signal);
+    if (!isMntTarget(target, distro)) return originalStreamText.call(fsService, target, signal);
     diag('fs-route', 'streamText ' + String(target && target.targetKey));
     if (isMntTarget(target, distro)) return callWsl('streamText', toWslTarget(target), signal);
     return (async function* () {
@@ -372,17 +372,17 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   };
 
   const bridgedReadBytes = async function (target: any, signal: any, maxBytes: any) {
-    if (!isBridgeTarget(target, distro)) return originalReadBytes.call(fsService, target, signal, maxBytes);
+    if (!isMntTarget(target, distro)) return originalReadBytes.call(fsService, target, signal, maxBytes);
     return routeRead('readBytes', target, () => callWsl('readBytes', toWslTarget(target), signal, maxBytes), () => originalReadBytes.call(fsService, target, signal, maxBytes));
   };
 
   const bridgedReadByteRange = async function (target: any, range: any, signal: any) {
-    if (!isBridgeTarget(target, distro)) return originalReadByteRange.call(fsService, target, range, signal);
+    if (!isMntTarget(target, distro)) return originalReadByteRange.call(fsService, target, range, signal);
     return routeRead('readByteRange', target, () => callWsl('readByteRange', toWslTarget(target), range, signal), () => originalReadByteRange.call(fsService, target, range, signal));
   };
 
   const bridgedListDir = async function (target: any, signal: any) {
-    if (!isBridgeTarget(target, distro)) return originalListDir.call(fsService, target, signal);
+    if (!isMntTarget(target, distro)) return originalListDir.call(fsService, target, signal);
     diag('fs-route', 'listDir ' + String(target && target.targetKey));
     let entries: any[];
     try {

@@ -11,7 +11,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.5.1** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.5.2** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -444,5 +444,5 @@ $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-r
 - 仅把 `workspace-changes` 的 git **快照**调用（`add` / `write-tree` / `ls-files` / `diff-tree` / `cat-file` 等）在 WSL 工作区里重写进发行版（`wsl.exe --exec git …`）；**discovery** 调用（`--show-toplevel` / `--absolute-git-dir` / `--git-path`）仍用宿主 git（WSL 共享需要 `safe.directory`）。
 - 因此"变更审查更快、不再受 9P 拖慢"成立；但 **Windows 侧没有 git 时 discovery 仍会失败**（本版未覆盖 sentinel + stdout 回译）。
 - host `subprocess.spawn` 不可用时 git 路由不生效（启动日志会出现 `[diag] git-route: skipped …`）。
-- fs 读/列（`readText/streamText/readBytes/readByteRange/listDir`）对发行版 UNC 走 ext4，**守护不可用时 fail-open 回退宿主读**；`stat`/写/版本基线仍走宿主。
+- 文件读/列（`readText/streamText/readBytes/readByteRange/listDir`）**维持宿主 9P**（不依赖守护）；仅**写**与 **git** 走 WSL。ext4 读/列加速**暂缓**——避免把被动读变成守护依赖（待守护健康门控方案）。
 
