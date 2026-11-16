@@ -200,13 +200,18 @@ import React from 'react';
 						"aria-posinset": index + 1,
 						"data-index": index,
 						"data-path": childPath,
-						onFocus: function () {
-							if (focusIndex !== index) setFocusIndex(index);
-						},
+						onFocus: function () { if (focusIndex !== index) setFocusIndex(index); setSelected(index); },
 						onClick: function (event) {
 								if (event.defaultPrevented) return;
 								setSelected(index);
-								if (isDir) { event.preventDefault(); jumpTo(childPath); }
+								if (typeof setFocusIndex === "function") setFocusIndex(index);
+							},
+							onDoubleClick: function (event) {
+								if (event.defaultPrevented) return;
+								event.preventDefault();
+								setSelected(-1);
+								if (isDir) { jumpTo(childPath); return; }
+								if (typeof api.openExternal === "function") run("open:" + childPath, function () { return api.openExternal({ path: childPath, kind: "file", app: "vscode" }); }, { describe: function () { return t("row.opened", { path: childPath }); } });
 							},
 							onContextMenu: function (event) { openCtx(event, index, childPath, isDir); },
 						onKeyDown: function (event) {
@@ -313,8 +318,8 @@ import React from 'react';
 					const entry = visibleEntries[targetIndex];
 					if (entry === undefined) return;
 					event.preventDefault();
-					if (entry.kind === "dir") jumpTo(joinWslPath(cwd, entry.name));
-					else copyPath(joinWslPath(cwd, entry.name));
+					if (entry.kind === "dir") { setSelected(-1); jumpTo(joinWslPath(cwd, entry.name)); }
+					else { const fp = joinWslPath(cwd, entry.name); if (typeof api.openExternal === "function") run("open:" + fp, function () { return api.openExternal({ path: fp, kind: "file", app: "vscode" }); }, { describe: function () { return t("row.opened", { path: fp }); } }); }
 					return;
 				}
 				if (event.key === "Backspace" && cwd !== null && cwd !== "/") {
