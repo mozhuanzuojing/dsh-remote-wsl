@@ -3,8 +3,7 @@ import * as __apiMod from './client.api.ts'
 import * as __i18nMod from './client.i18n.ts'
 import * as __panelMod from './client.panel.ts'
 import * as __iconMod from './client.icon.ts'
-import * as __workspaceMod from './client.panel.workspace.ts'
-const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod, "client.panel.js": __panelMod, "client.icon.js": __iconMod, "client.panel.workspace.js": __workspaceMod };
+const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod, "client.panel.js": __panelMod, "client.icon.js": __iconMod };
 
 		// 官方 UI 原语：在入口（entry）作用域加载一次，暴露到 window 供各 chunk 复用
 		let UI = null;
@@ -31,7 +30,6 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 		const CHUNK_API = "client.api.js";
 		const CHUNK_PANEL = "client.panel.js";
 		const CHUNK_ICON = "client.icon.js";
-		const CHUNK_WORKSPACE = "client.panel.workspace.js";
 
 		const CSS = [
 			".dsh-rw-root{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;box-shadow:none}",
@@ -297,35 +295,12 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 			".dsh-rw-root--narrow .dsh-rw-targetname{flex:1 1 auto}",
 			// ③ 窄态底栏：折行后各段自己成行，不再靠压缩命中盒/裁字来"塞进一行"。
 			".dsh-rw-root--narrow .dsh-rw-updated{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}",
-			// ── 2026-10-30 UI/UX：紧凑文件表 + WSL 工作区弹窗 ─────────────────────────
-			".dsh-rw-footer-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:0 10px;margin:2px 4px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}",
-			".dsh-rw-footer-action:hover{background:var(--dsw-alias-interactive-bg-hover)}",
+			// ── 2026-10-30 UI/UX：紧凑文件表 ─────────────────────────
 			".dsh-rw-rowmeta{flex:none;display:flex;align-items:center;gap:12px;color:var(--dsw-alias-label-secondary);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}",
 			".dsh-rw-rowsize{width:70px;text-align:right}",
 			".dsh-rw-rowtime{width:116px;text-align:right}",
 			".dsh-rw-rowdir .dsh-rw-rowmeta{opacity:.65}",
-			".dsh-rw-wdialog-overlay{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.36);display:flex;align-items:center;justify-content:center;padding:16px}",
-			".dsh-rw-wdialog:focus{outline:none}",
-			".dsh-rw-wdialog{width:min(620px,calc(100vw - 32px));max-height:min(720px,calc(100vh - 48px));display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg,12px);box-shadow:var(--dsw-elevation-panel,0 18px 60px rgba(0,0,0,.28));color:var(--dsw-alias-label-primary);overflow:hidden}",
-			".dsh-rw-wdialog-head{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 10px}",
-			".dsh-rw-wdialog-title{font-size:16px;line-height:24px;font-weight:650}",
-			".dsh-rw-wdialog-distro{display:flex;align-items:center;gap:10px;padding:0 18px 8px}",
-			".dsh-rw-wdialog-distro select{min-width:180px;max-width:260px}",
-			".dsh-rw-wdialog-chips{display:flex;align-items:center;gap:6px;padding:0 18px 8px;overflow-x:auto;scrollbar-width:none}",
-			".dsh-rw-wdialog-chips::-webkit-scrollbar{height:0}",
-			".dsh-rw-wdialog-path{display:flex;align-items:center;gap:8px;padding:0 18px 8px}",
-			".dsh-rw-wdialog-crumbs{display:flex;align-items:center;gap:2px;padding:0 18px 8px;color:var(--dsw-alias-label-secondary);font-size:12px;overflow-x:auto;white-space:nowrap}",
-			".dsh-rw-wdialog-list{flex:1;min-height:180px;max-height:380px;overflow:auto;padding:4px 10px;border-top:1px solid var(--dsw-alias-border-l1);border-bottom:1px solid var(--dsw-alias-border-l1)}",
-			".dsh-rw-wdialog-row{display:flex;align-items:center;gap:10px;width:100%;height:32px;padding:4px 8px;border:0;border-radius:5px;background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;text-align:left;cursor:default}",
-			".dsh-rw-wdialog-row--dir{cursor:pointer}",
-			".dsh-rw-wdialog-row:hover{background:var(--dsw-alias-interactive-bg-hover)}",
-			".dsh-rw-wdialog-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:left}",
-			".dsh-rw-wdialog-meta{flex:none;color:var(--dsw-alias-label-secondary);font-size:11px;font-variant-numeric:tabular-nums}",
-			".dsh-rw-wdialog-arrow{flex:none;width:14px;color:var(--dsw-alias-label-secondary);text-align:center;font-size:18px;line-height:18px}",
-			".dsh-rw-wdialog-state{padding:24px 10px;color:var(--dsw-alias-label-secondary);font-size:13px;text-align:center}",
-			".dsh-rw-wdialog-state--error{color:var(--dsw-alias-state-error-primary);text-align:left;white-space:pre-wrap}",
-			".dsh-rw-wdialog-foot{display:flex;align-items:center;gap:8px;padding:12px 18px 16px}",
-			"@media (max-width: 520px){.dsh-rw-rowtime{display:none}.dsh-rw-wdialog{width:calc(100vw - 20px)}.dsh-rw-wdialog-foot .dsh-rw-hint{display:none}}",
+			"@media (max-width: 520px){.dsh-rw-rowtime{display:none}}",
 		
 			// ===== V1 卡片仪表（新增类；走 --dsw 令牌）=====
 			".dsh-rw-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:10px 12px 2px}",
@@ -487,13 +462,11 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 						throw new Error(i18n.t("chunk.notExported", { file: CHUNK_API, fn: "createExplorerApi" }));
 					}
 					const api = createExplorerApi(i18n);
-					return Promise.all([loadChunk(CHUNK_PANEL), loadChunk(CHUNK_ICON), loadChunk(CHUNK_WORKSPACE)]).then(([panelModule, iconModule, workspaceModule]) => {
+					return Promise.all([loadChunk(CHUNK_PANEL), loadChunk(CHUNK_ICON)]).then(([panelModule, iconModule]) => {
 						const createPanel = panelModule && panelModule.createPanel;
 						const createIcon = iconModule && iconModule.createIcon;
-						const WorkspaceDialog = workspaceModule && workspaceModule.WorkspaceDialog;
 						if (typeof createPanel !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_PANEL, fn: "createPanel" }));
 						if (typeof createIcon !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_ICON, fn: "createIcon" }));
-						if (typeof WorkspaceDialog !== "function") throw new Error(i18n.t("chunk.notExported", { file: CHUNK_WORKSPACE, fn: "WorkspaceDialog" }));
 						// T41：面板自己被拆成了子 chunk（client.panel.helpers.js 等）。组件在**首次渲染**里直接
 						// 引用那些纯函数，所以必须在 createPanel() 之前 await 面板的 whenReady()；
 						// 否则 createPanel 内部的就绪断言会抛（宁可显式失败，也不做一个"少功能的面板"）。
@@ -502,7 +475,6 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 							api,
 							i18n,
 							Panel: createPanel(ctx, api, i18n),
-							WorkspaceDialog,
 							Icon: createIcon(ctx),
 						}));
 					});
@@ -515,12 +487,12 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 		 * @param ctx - client 受限 cordis 上下文（`slots` 服务由 ui-renderer 提供）。
 		 */
 		function apply(ctx) {
-			const boot: any = { ready: false, error: null, Panel: null, Icon: null, WorkspaceDialog: null, i18n: null };
+			const boot: any = { ready: false, error: null, Panel: null, Icon: null, i18n: null };
 			/**
 			 * 字典就绪前/未就绪时的翻译：**绝不把键名当文案显示**。
 			 * 只有 rail 名需要提前可用（侧栏可能在 chunk 就绪前就请求标签）。
 			 */
-			const fallbackText = (key) => (key === "panel.title" ? PANEL_LABEL_FALLBACK : key);
+			const fallbackText = (key) => (key === "panel.title" ? PANEL_LABEL_FALLBACK : key === "view.title" ? "WSL" : key);
 			const tr = (key: any, params?: any) => (boot.i18n === null ? fallbackText(key) : boot.i18n.t(key, params));
 			const listeners = new Set<any>();
 			const settle = () => {
@@ -532,7 +504,6 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 					boot.api = product.api;
 					boot.i18n = product.i18n;
 					boot.Panel = product.Panel;
-					boot.WorkspaceDialog = product.WorkspaceDialog;
 					boot.Icon = product.Icon;
 					boot.ready = true;
 				},
@@ -595,39 +566,6 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 			}
 
 			// 每个槽都要等父 entry 的 children 表声明它（否则 register 会 throw）。
-			function FooterSlot() {
-				const current = useBoot();
-				const [open, setOpen] = React.useState(false);
-				if (!current.ready || current.api === null) return null;
-				const Dialog = current.WorkspaceDialog;
-				if (typeof Dialog !== "function") return null;
-				const translate = (key: any, params?: any) => (current.i18n && typeof current.i18n.t === "function" ? current.i18n.t(key, params) : fallbackText(key));
-				return React.createElement(
-					React.Fragment,
-					null,
-					React.createElement(
-						"button",
-						{
-							type: "button",
-							className: "dsh-rw-footer-action",
-							title: translate("workspace.title"),
-							"aria-label": translate("workspace.title"),
-							onClick: () => setOpen(true),
-						},
-						"WSL",
-					),
-					open
-						? React.createElement(Dialog, {
-							api: current.api,
-							ctx,
-							t: translate,
-							onClose: () => setOpen(false),
-						})
-						: null,
-				);
-			}
-
-			// 每个槽都要等父 entry 的 children 表声明它（否则 register 会 throw）。
 			// ★ rail 名**必须等字典就绪后再注册**：实测冷加载时侧栏请求 label 的时机早于
 			//   chunk 就绪 ⇒ 拿到 fallback 语言并一直留着（英文界面里 rail 名仍是中文的缺陷）。
 			//   注册幂等，所以成功/失败两条路径都在这之后注册一次。
@@ -647,15 +585,26 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 					),
 				);
 			};
-			ctx.slots.inject("sidebar.footer.action", () =>
-				ctx.slots.register(
-					{
-						name: "sidebar.footer.action",
-						id: PANEL_ID + "-workspace",
-					},
-					FooterSlot,
-				),
-			);
+
+			// 顶部「会话 View」标签：排在「统计」（order 40）右侧，内容是同一个 WSL 工作区面板。
+			// 与 rail 同理，等字典就绪后再注册——冷加载时标签栏会先请求 label。
+			let viewRegistered = false;
+			const registerView = () => {
+				if (viewRegistered) return;
+				viewRegistered = true;
+				ctx.slots.inject("conversation.view", () =>
+					ctx.slots.register(
+						{
+							name: "conversation.view",
+							id: PANEL_ID,
+							order: 50,
+							label: () => tr("view.title"),
+						},
+						PanelSlot,
+					),
+				);
+			};
+
 			ctx.slots.inject("main", () =>
 				ctx.slots.register(
 					{
@@ -666,6 +615,7 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 				),
 			);
 			bootSettled.then(registerList, registerList);
+			bootSettled.then(registerView, registerView);
 		}
 
 		export { PANEL_ID };

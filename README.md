@@ -11,7 +11,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.6.0** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.6.1** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -55,7 +55,7 @@ flowchart LR
 - **同 key 串行**：并发 prompt 在守护里 FIFO；超过 `daemonQueueLimit`（默认 4）明确拒绝，不静默排队——上游 SDK 没有 cancel。
 - **七个工具**：诊断、一次性命令、常驻 agent、守护生命周期、远程 UI、版本对齐、路径互转，详见下方表格。
 - **WSL 工作区**：左侧栏「插件」下的面板。
-  - **快速添加（2026-10-30 UI 重构）**：侧栏 footer 的 `WSL` 按钮打开聚焦的「添加 WSL 工作区」弹窗：发行版选择、路径输入、快捷位置、breadcrumb、目录列表与「创建并打开」；不再要求先进入面板再找按钮。
+  - **入口位置（2026-11-18）**：已移除左下角 footer 的 `WSL` 按钮（及其「添加 WSL 工作区」弹窗）；同一面板改为注册为**会话 View 标签**，出现在会话顶部标签栏、「统计」右侧（`conversation.view`，order 50）。添加工作区仍用面板头部的「添加为 WSL 工作区」把当前浏览目录登记为工作区。
   - **紧凑文件表（2026-10-30）**：文件行显示名称、大小、修改时间（目录不显示大小）；窄态隐藏时间列；单发行版时隐藏重复的 WSL 目标大卡，减少顶部噪声。
   - **WSL 目标**：发行版列表（状态点 + 默认/当前徽标 + WSL 版本），点行内「切换」换目标；切换只影响本面板的请求，不改插件配置。WSL1 行标「仅支持 WSL2」，面板的 host 方法会拒绝。
   - **目录浏览**：路径框 / 面包屑 / Home / 最近目录，支持隐藏文件与筛选。

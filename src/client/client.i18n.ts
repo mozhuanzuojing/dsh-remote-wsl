@@ -6,6 +6,7 @@
 		/** 中文（= 现有文案，保持现状）。 */
 		const ZH = {
 			"panel.title": "WSL 工作区",
+			"view.title": "WSL",
 			"workspace.title": "添加 WSL 工作区",
 			"workspace.subtitle": "选择一个 Linux 目录，创建并打开 WSL 工作区",
 			"workspace.distro": "发行版",
@@ -288,6 +289,7 @@
 		/** English. */
 		const EN = {
 			"panel.title": "WSL Workspace",
+			"view.title": "WSL",
 			"workspace.title": "Add WSL workspace",
 			"workspace.subtitle": "Choose a Linux directory to create and open a WSL workspace",
 			"workspace.distro": "Distro",
