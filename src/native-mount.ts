@@ -89,6 +89,22 @@ export function toWindowsPath(linuxPath: any): string | null {
   return `${m.letter}:\\${segs.join('\\')}`;
 }
 
+/**
+ * 一个 Linux 绝对路径是否可被 Windows 路径**无歧义地**表示（逐段：无 `\ : * ? " < > |`、无控制字符、
+ * 无尾点/尾空格、非保留设备名）。用于 fail-open 回退宿主 9P 前的安全检查——不可表示就 fail-closed，
+ * 绝不把 ext4 合法名塞进 Windows 语义后读到"另一个对象"（ADS/尾点/保留名）。
+ */
+export function isWindowsRepresentable(linuxPath: any): boolean {
+  const segs = String(linuxPath ?? '').split('/').filter((s) => s.length > 0);
+  for (const seg of segs) {
+    if (/[\\:*?"<>|]/.test(seg)) return false;
+    if (/[\x00-\x1f]/.test(seg)) return false;
+    if (/[. ]$/.test(seg)) return false;
+    if (RESERVED.test(seg)) return false;
+  }
+  return true;
+}
+
 /** `X:\a\b` → `/mnt/x/a/b`；无法映射（UNC/相对/`\\?\` 异常）返回 null。 */
 export function winToLinux(win: any): string | null {
   let p = String(win ?? '');
@@ -99,17 +115,22 @@ export function winToLinux(win: any): string | null {
   return rest ? `/mnt/${m[1].toLowerCase()}/${rest}` : `/mnt/${m[1].toLowerCase()}`;
 }
 
-// ── 挂载真实性校验（fail-closed，TTL 缓存） ─────────────────────────────────
+// ── 挂载真实性校验（fail-closed；确认为真后低频复核，失败短缓存） ─────────────
 let mountProbe: ((letter: string, distro: string) => Promise<boolean>) | null = null;
 const mountCache = new Map<string, { ok: boolean; at: number }>();
-const MOUNT_TTL_MS = 60_000;
+/** 已确认为真后的复核间隔（缩小"运行期重映射仍按原生盘符"的窗口；1min 最多一次 wsl.exe）。 */
+const MOUNT_RECHECK_MS = 60_000;
+/** in-flight 去重：同一 `letter|distro` 并发探测只跑一次 wsl.exe（防 watchTick 并发抖动）。 */
+const mountInflight = new Map<string, Promise<boolean | null>>();
 
 export function _setMountProbe(fn: ((letter: string, distro: string) => Promise<boolean>) | null): void {
   mountProbe = fn;
   mountCache.clear();
+  mountInflight.clear();
 }
 export function _resetMountCache(): void {
   mountCache.clear();
+  mountInflight.clear();
 }
 
 function runWslCat(distro: string, file: string): Promise<string> {
@@ -149,15 +170,41 @@ export async function verifyMount(letter: string, distro: string): Promise<boole
   const key = `${letter}|${distro}`;
   const now = Date.now();
   const hit = mountCache.get(key);
-  if (hit && now - hit.at < MOUNT_TTL_MS) return hit.ok;
-  let ok = false;
-  try {
-    ok = await (mountProbe ?? defaultMountProbe)(letter, distro);
-  } catch {
-    ok = false;
+  // 已确认为真：5min 内直接粘滞（避免令牌平面 原生↔WSL 翻转 → 误报 stale / watch 抖动）；到期复核一次。
+  if (hit && hit.ok && now - hit.at < MOUNT_RECHECK_MS) return true;
+  // 明确失败：5s 短缓存，尽快重试（不长期停用原生）。
+  if (hit && !hit.ok && now - hit.at < 5000) return false;
+  const res = await probeMount(letter, distro); // true / false / null(=探测异常)
+  if (res === true) {
+    mountCache.set(key, { ok: true, at: now });
+    return true;
   }
-  mountCache.set(key, { ok, at: now });
-  return ok;
+  if (res === false) {
+    mountCache.set(key, { ok: false, at: now });
+    return false;
+  }
+  // 复核时探测异常：若此前已确认为真则保持（不因瞬时抖动切平面）；否则短期停用。
+  if (hit && hit.ok) return true;
+  mountCache.set(key, { ok: false, at: now });
+  return false;
+}
+
+/** 探测一次挂载（并发去重）；异常返回 null，以便与"明确不匹配(false)"区分。 */
+function probeMount(letter: string, distro: string): Promise<boolean | null> {
+  const key = `${letter}|${distro}`;
+  const existing = mountInflight.get(key);
+  if (existing) return existing;
+  const p = (async (): Promise<boolean | null> => {
+    try {
+      return await (mountProbe ?? defaultMountProbe)(letter, distro);
+    } catch {
+      return null;
+    }
+  })().finally(() => {
+    mountInflight.delete(key);
+  });
+  mountInflight.set(key, p);
+  return p;
 }
 
 /** `/mnt/<letter>/...` 是否走原生（非 Windows / 非盘映射 / 不安全段 / 挂载不符 → false）。 */
@@ -252,13 +299,15 @@ export const nativeFs = {
     if (tail.length > 0) yield tail;
   },
 
-  /** listDir：返回 fs-provider.listDir 同形结构（targetKey 为 Linux 身份、含原生 version）；子项无法映射回 /mnt → null（回落 RPC）。 */
+  /** listDir：返回 fs-provider.listDir 同形结构（targetKey 为 Linux 身份、含原生 version）；子项无法映射回 /mnt → null（整目录回落 RPC）。 */
   async listDir(target: any): Promise<any[] | null> {
     const parentKey = String(target?.targetKey ?? '/');
     const parentDisplay = String(target?.displayPath ?? parentKey);
     const r = await listDirOp({ path: winOf(parentKey) });
     const out: any[] = [];
     for (const e of r.entries ?? []) {
+      // 子项解析到"映射不回 /mnt 盘符"的目标（如 junction→UNC/网络）→ 不用词法键冒充真实身份（F-25），
+      // 整目录回落 RPC（罕见，正确优先）。
       const lin = winToLinux(e.targetKey);
       if (lin === null) return null;
       out.push({

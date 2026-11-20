@@ -31,7 +31,8 @@
  *
  * @module dsh-remote-wsl/fs-unc-bridge
  */
-import { createWslFileSystem, parseUnc, uncPath } from './fs-provider.ts';
+import { createWslFileSystem, parseUnc, uncPath, DAEMON_DOWN_CODE } from './fs-provider.ts';
+import { isWindowsRepresentable } from './native-mount.ts';
 import { diag } from './diag.ts';
 
 /** 已挂载标记（Symbol.for：同一进程内 HMR / 多份配置不会重复包一层）。 */
@@ -53,12 +54,6 @@ function isBridgeTarget(target: any, distro: string): boolean {
 
 function isMntLinuxPath(path: string): boolean {
   return path === '/mnt' || path.startsWith('/mnt/');
-}
-
-/** target 是否落在 WSL 的 /mnt（DrvFs）下——Windows 9P 访问这里会 EPERM。 */
-function isMntTarget(target: any, distro: string): boolean {
-  const unc = parseUnc(String(target?.targetKey ?? ''));
-  return unc !== null && unc.distro.toLowerCase() === distro.toLowerCase() && isMntLinuxPath(unc.linuxPath);
 }
 
 /** UNC target → WSL 侧 Linux target。 */
@@ -132,30 +127,6 @@ function normalizeBridgeInput(input: any, opts: any, distro: string): string {
   return raw;
 }
 
-/** 解析 `dev:ino:size:mtimeNs:ctimeNs`；失败返回 null。 */
-function parseVersion(version: any): { ino: string; size: string; mtimeNs: bigint } | null {
-  const parts = String(version ?? '').split(':');
-  if (parts.length !== 5) return null;
-  try {
-    return { ino: parts[1], size: parts[2], mtimeNs: BigInt(parts[3]) };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 宿主 9P 的版本与 WSL ext4 的版本不能逐字比较：dev 不同（9P 常报 0）、mtime 纳秒可能差几十纳秒。
- * 用 inode + size + mtime（10ms 容差）判断“还是同一份内容”。真正变化（原子替换/写入）会换 inode
- * 或改动 mtime，足以被拒绝。
- */
-function versionsEquivalent(hostVersion: any, wslVersion: any): boolean {
-  const h = parseVersion(hostVersion);
-  const w = parseVersion(wslVersion);
-  if (h === null || w === null) return false;
-  const delta = h.mtimeNs > w.mtimeNs ? h.mtimeNs - w.mtimeNs : w.mtimeNs - h.mtimeNs;
-  return h.ino === w.ino && h.size === w.size && delta <= 10_000_000n;
-}
-
 /** 不带 WSL 类型依赖的 stat（fake 测试只需提供这个方法）；缺方法给稳定 FS_IO_ERROR。 */
 async function wslStat(wslFs: any, target: any, signal: any): Promise<any> {
   if (typeof wslFs?.stat !== 'function') throw fsError('remote-wsl: WSL fs 缺少 stat()', 'FS_IO_ERROR');
@@ -223,14 +194,12 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   };
 
   /**
-   * 用宿主/ WSL stat 校验 observation-policy 的意图，并把版本翻译成 WSL 侧版本（供 fs-rpc 原子 CAS）。
+   * 写前用 WSL stat 校验 observation-policy 的意图（本发行版 UNC 统一 WSL 平面，不再做宿主↔WSL 令牌翻译）。
    * `edit` 的 intent 是 `{version}`（没有 kind）；`write` 可能是 `createIfAbsent` / `replaceIfVersion`。
    */
-  const assertExpected = async (target: any, expected: any, signal: any, native: boolean): Promise<any> => {
+  const assertExpected = async (target: any, expected: any, signal: any): Promise<any> => {
     if (!expected) return null;
-    const live = native
-      ? await wslStat(wslFs, toWslTarget(target), signal)
-      : await originalStat.call(fsService, target, signal);
+    const live = await wslStat(wslFs, toWslTarget(target), signal);
     if (expected.kind === 'createIfAbsent') {
       if (live) {
         throw fsError(`cannot overwrite existing "${target.displayPath}" without reading it first`, 'FS_NOT_OBSERVED');
@@ -242,101 +211,44 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
     if (expected.version !== undefined && live.version !== expected.version) {
       throw fsError(`cannot write "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION');
     }
-    if (native) return { kind: 'replaceIfVersion', version: live.version };
-    const wslLive = await wslStat(wslFs, toWslTarget(target), signal);
-    if (!wslLive || !versionsEquivalent(live.version, wslLive.version)) {
-      throw fsError(`cannot write "${target.displayPath}": file changed since it was read`, 'FS_STALE_VERSION');
-    }
-    return { kind: 'replaceIfVersion', version: wslLive.version };
+    return { kind: 'replaceIfVersion', version: live.version };
   };
 
-  /** 普通 UNC 写后从宿主侧取版本；/mnt 写后从 WSL 侧取版本。 */
-  const versionAfter = async (target: any, signal: any, native: boolean): Promise<string> => {
-    if (native) {
-      const live = await wslStat(wslFs, toWslTarget(target), signal);
-      return live?.version ?? `missing:${String(target?.targetKey ?? '')}`;
-    }
-    const live = await originalStat.call(fsService, target, signal);
+  /** 写后版本：统一回取 WSL stat 版本（本发行版 UNC 始终在同一平面）。 */
+  const versionAfter = async (target: any, signal: any): Promise<string> => {
+    const live = await wslStat(wslFs, toWslTarget(target), signal);
     return live?.version ?? `missing:${String(target?.targetKey ?? '')}`;
   };
 
   const bridgedResolve = async function (input: any, opts: any = {}) {
     if (!isBridgeInput(input, opts, distro)) return originalResolve.call(fsService, input, opts);
-    // /mnt 与 POSIX 路径在 Windows 9P 上没有可靠 realpath；直接以 WSL 原生解析为准。
-    if (isMntInput(input, opts, distro) || isPosixAbsolute(input)) return resolveViaWsl(input, opts);
-    // 普通 UNC 先保留宿主 9P 语义；host stat 看不到（典型：symlink → /mnt/d 被 fs-local
-    // 词法化成不存在的 leaf）时，再用 WSL realpath + WSL stat 确认是否真实存在。
-    let hostResult;
-    try {
-      hostResult = await originalResolve.call(fsService, input, opts);
-    } catch (error: any) {
-      // 9P 对某些 symlink/DrvFs 组合会直接抛 EPERM/EACCES；这类错误回退 WSL，
-      // 其它错误保持原有失败语义。
-      if (!['EPERM', 'EACCES', 'ENOENT', 'EISDIR'].includes(String(error?.code))) throw error;
-      return resolveViaWsl(input, opts);
-    }
-    let hostLive;
-    try {
-      hostLive = await originalStat.call(fsService, hostResult, opts?.signal);
-    } catch (error: any) {
-      // fs-local 的 probe 通常把 ENOENT 吞成 undefined；某些 9P 权限/链接错误会直接抛。
-      if (error?.code !== 'EPERM' && error?.code !== 'EACCES' && error?.code !== 'ENOENT') throw error;
-      hostLive = undefined;
-    }
-    if (hostLive !== undefined) return hostResult;
-    try {
-      const wslResult = await resolveViaWsl(input, opts);
-      // symlink→/mnt 下的新文件：WSL stat 也返回 undefined，但目标身份已经是 /mnt，
-      // 必须采用 WSL targetKey，后续 write 才会走 native /mnt 分支。
-      if (isMntTarget(wslResult, distro)) return wslResult;
-      if (await wslStat(wslFs, toWslTarget(wslResult), opts?.signal)) return wslResult;
-    } catch (error) {
-      // WSL 解析/读取失败不能被静默改写成宿主词法路径（否则 symlink→/mnt 会伪报 not found）。
-      throw error;
-    }
-    return hostResult;
+    // 本发行版 UNC（含 ext4 与 /mnt）以 WSL realpath 为准（免宿主 9P，身份与 stat/listDir 同源）；
+    // 守护不可用时回退宿主 resolve（不把被动读变成硬依赖）。
+    return routeRead('resolve', null, () => resolveViaWsl(input, opts), () => originalResolve.call(fsService, input, opts));
   };
 
   const bridgedLstat = async function (input: any, opts: any = {}, signal: any) {
     if (!isBridgeInput(input, opts, distro)) return originalLstat.call(fsService, input, opts, signal);
-    if (isMntInput(input, opts, distro) || isPosixAbsolute(input)) {
-      return callWsl('lstat', normalizeBridgeInput(input, opts, distro), opts, signal);
-    }
-    let hostResult;
-    try {
-      hostResult = await originalLstat.call(fsService, input, opts, signal);
-    } catch (error: any) {
-      // Windows 对 symlink 目录本身可能报 EISDIR；9P 可能报 EPERM。仅这些可回退，
-      // 真正的权限拒绝（其它 EACCES）保持原样。
-      if (!['EPERM', 'EACCES', 'EISDIR', 'ENOENT'].includes(String(error?.code))) throw error;
-      hostResult = undefined;
-    }
-    if (hostResult !== undefined) return hostResult;
-    try {
-      return await callWsl('lstat', normalizeBridgeInput(input, opts, distro), opts, signal);
-    } catch (error) {
-      throw error;
-    }
+    return routeRead('lstat', null, () => callWsl('lstat', normalizeBridgeInput(input, opts, distro), opts, signal), () => originalLstat.call(fsService, input, opts, signal));
   };
 
   const bridgedStat = async function (target: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalStat.call(fsService, target, signal);
-    diag('fs-route', 'stat ' + String(target && target.targetKey));
-    return callWsl('stat', toWslTarget(target), signal);
+    if (!isBridgeTarget(target, distro)) return originalStat.call(fsService, target, signal);
+    return routeRead('stat', target, () => callWsl('stat', toWslTarget(target), signal), () => originalStat.call(fsService, target, signal));
   };
 
-  const isDaemonDown = (e: any) => {
-    const code = String((e && e.code) || '');
-    const msg = String((e && e.message) || '');
-    return code === 'FS_IO_ERROR' && /守护|daemon|启动 WSL|元数据|调用失败|不在|不可用/i.test(msg);
-  };
-  // 读/列路径：优先 WSL(ext4)；守护不可用时 fail-open 回退宿主（不把被动读变成硬依赖）。
+  const isDaemonDown = (e: any) => !!e && (e.code === DAEMON_DOWN_CODE || e.fsCode === DAEMON_DOWN_CODE);
+  // 读/列路径：优先 WSL(ext4)；守护不可用（**结构化错误码**，不靠文案）时 fail-open 回退宿主。
   const routeRead = async (method: string, target: any, nativeCall: () => any, hostCall: () => any) => {
     diag('fs-route', method + ' ' + String(target && target.targetKey));
     try {
       return await nativeCall();
     } catch (e) {
       if (isDaemonDown(e)) {
+        // 回退前校验 Windows 可表示性：ext4 合法但 Windows 有歧义的段（ADS/尾点/保留名…）→ fail-closed。
+        const unc = target ? parseUnc(String(target.targetKey)) : null;
+        const linuxPath = unc ? unc.linuxPath : null;
+        if (linuxPath !== null && !isWindowsRepresentable(linuxPath)) throw e;
         diag('fs-route', 'fallback-host:' + method + ' ' + String(target && target.targetKey));
         return await hostCall();
       }
@@ -345,25 +257,28 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   };
 
   const bridgedReadText = async function (target: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalReadText.call(fsService, target, signal);
+    if (!isBridgeTarget(target, distro)) return originalReadText.call(fsService, target, signal);
     return routeRead('readText', target, () => callWsl('readText', toWslTarget(target), signal), () => originalReadText.call(fsService, target, signal));
   };
 
   const bridgedStreamText = function (target: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalStreamText.call(fsService, target, signal);
+    if (!isBridgeTarget(target, distro)) return originalStreamText.call(fsService, target, signal);
     diag('fs-route', 'streamText ' + String(target && target.targetKey));
-    if (isMntTarget(target, distro)) return callWsl('streamText', toWslTarget(target), signal);
+    const unc = parseUnc(String(target.targetKey));
+    const linuxPath = unc ? unc.linuxPath : null;
     return (async function* () {
       let got = false;
       try {
-        for await (const chunk of callWsl('streamText', toWslTarget(target), signal)) {
+        const iterable = await callWsl('streamText', toWslTarget(target), signal);
+        for await (const chunk of iterable) {
           got = true;
           yield chunk;
         }
       } catch (e) {
-        if (!got && isDaemonDown(e)) {
+        if (!got && isDaemonDown(e) && (linuxPath === null || isWindowsRepresentable(linuxPath))) {
           diag('fs-route', 'fallback-host:streamText ' + String(target && target.targetKey));
-          for await (const chunk of originalStreamText.call(fsService, target, signal)) yield chunk;
+          const hostIterable = await originalStreamText.call(fsService, target, signal);
+          for await (const chunk of hostIterable) yield chunk;
           return;
         }
         throw e;
@@ -372,25 +287,32 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
   };
 
   const bridgedReadBytes = async function (target: any, signal: any, maxBytes: any) {
-    if (!isMntTarget(target, distro)) return originalReadBytes.call(fsService, target, signal, maxBytes);
+    if (!isBridgeTarget(target, distro)) return originalReadBytes.call(fsService, target, signal, maxBytes);
     return routeRead('readBytes', target, () => callWsl('readBytes', toWslTarget(target), signal, maxBytes), () => originalReadBytes.call(fsService, target, signal, maxBytes));
   };
 
   const bridgedReadByteRange = async function (target: any, range: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalReadByteRange.call(fsService, target, range, signal);
+    if (!isBridgeTarget(target, distro)) return originalReadByteRange.call(fsService, target, range, signal);
     return routeRead('readByteRange', target, () => callWsl('readByteRange', toWslTarget(target), range, signal), () => originalReadByteRange.call(fsService, target, range, signal));
   };
 
   const bridgedListDir = async function (target: any, signal: any) {
-    if (!isMntTarget(target, distro)) return originalListDir.call(fsService, target, signal);
+    if (!isBridgeTarget(target, distro)) return originalListDir.call(fsService, target, signal);
     diag('fs-route', 'listDir ' + String(target && target.targetKey));
+    const unc = parseUnc(String(target.targetKey));
+    const linuxPath = unc ? unc.linuxPath : null;
     let entries: any[];
     try {
       entries = await callWsl('listDir', toWslTarget(target), signal);
     } catch (e) {
-      if (isDaemonDown(e)) {
+      if (isDaemonDown(e) && (linuxPath === null || isWindowsRepresentable(linuxPath))) {
         diag('fs-route', 'fallback-host:listDir ' + String(target && target.targetKey));
-        return originalListDir.call(fsService, target, signal);
+        const hostEntries = await originalListDir.call(fsService, target, signal);
+        // 回落也统一形状并**丢弃 entry.version**（宿主令牌与 WSL 写基线混用会误报 stale）。
+        return (hostEntries || []).map((entry: any) => {
+          const { version, ...rest } = entry || {};
+          return rest;
+        });
       }
       throw e;
     }
@@ -414,18 +336,16 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
     return original.apply(fsService, args);
   };
 
-  /** 一次桥接写操作共用的前置：策略 / 是否 /mnt / expected 版本翻译。 */
+  /** 一次桥接写操作共用的前置：策略 + WSL 平面 expected 校验。 */
   const bridgeContext = async (target: any, expected: any, signal: any, sandboxPolicy: any) => {
     const policy = sandboxPolicy ?? fsService?.ctx?.sandboxPolicy?.resolve?.();
-    const native = isMntTarget(target, distro);
-    const wslExpected = await assertExpected(target, expected, signal, native);
-    return { policy, native, wslExpected };
+    const wslExpected = await assertExpected(target, expected, signal);
+    return { policy, wslExpected };
   };
 
-  /** 写后版本：普通 UNC 回取宿主 stat，/mnt 用 WSL stat。 */
-  const withBridgeVersion = async (target: any, signal: any, native: boolean, outcome: any) => ({
+  const withBridgeVersion = async (target: any, signal: any, outcome: any) => ({
     ...outcome,
-    version: await versionAfter(target, signal, native),
+    version: await versionAfter(target, signal),
   });
 
   const bridgedWrite = async function (target: any, content: any, expected: any, signal: any, sandboxPolicy: any) {
@@ -433,27 +353,27 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
     diag('fs-route', 'writeText ' + String(target && target.targetKey));
     // 不经过 SandboxedFileSystem.checkedTarget 时仍要拿到会话默认策略；tool-fs 会显式传，
     // 其它调用方没传时用 fs-sandbox 的默认 resolve()，不能静默变成无围栏。
-    const { policy, native, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
+    const { policy, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
     const outcome = await callWsl('writeText', toWslTarget(target), content, wslExpected, signal, policy);
-    return withBridgeVersion(target, signal, native, outcome);
+    return withBridgeVersion(target, signal, outcome);
   };
 
   const bridgedEdit = async function (target: any, edit: any, expected: any, signal: any, sandboxPolicy: any) {
     if (!isBridgeTarget(target, distro)) return callOriginal('editText', originalEdit, [target, edit, expected, signal, sandboxPolicy]);
     diag('fs-route', 'editText ' + String(target && target.targetKey));
-    const { policy, native, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
+    const { policy, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
     // edit 的 expected 是 `{version}`（fs-rpc 只读 version）；把 WSL 版本交给它做原子 CAS。
     const editExpected = wslExpected?.version !== undefined ? { version: wslExpected.version } : null;
     const outcome = await callWsl('editText', toWslTarget(target), edit, editExpected, signal, policy);
-    return withBridgeVersion(target, signal, native, outcome);
+    return withBridgeVersion(target, signal, outcome);
   };
 
   const bridgedPatch = async function (target: any, hunks: any, expected: any, signal: any, sandboxPolicy: any) {
     if (!isBridgeTarget(target, distro)) return callOriginal('patchText', originalPatch, [target, hunks, expected, signal, sandboxPolicy]);
     diag('fs-route', 'patchText ' + String(target && target.targetKey));
-    const { policy, native, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
+    const { policy, wslExpected } = await bridgeContext(target, expected, signal, sandboxPolicy);
     const outcome = await callWsl('patchText', toWslTarget(target), hunks, wslExpected, signal, policy);
-    return withBridgeVersion(target, signal, native, outcome);
+    return withBridgeVersion(target, signal, outcome);
   };
 
   const bridgedDelete = async function (target: any, expected: any, signal: any, sandboxPolicy: any) {
@@ -469,10 +389,8 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
     }
     diag('fs-route', 'moveFile ' + String(source && source.targetKey));
     const policy = sandboxPolicy ?? fsService?.ctx?.sandboxPolicy?.resolve?.();
-    const sourceNative = isMntTarget(source, distro);
-    const destinationNative = isMntTarget(destination, distro);
-    const sourceExpected = await assertExpected(source, options?.expectedSource, signal, sourceNative);
-    const destinationExpected = await assertExpected(destination, options?.expectedDestination, signal, destinationNative);
+    const sourceExpected = await assertExpected(source, options?.expectedSource, signal);
+    const destinationExpected = await assertExpected(destination, options?.expectedDestination, signal);
     const outcome = await callWsl('moveFile', toWslTarget(source), toWslTarget(destination), {
       ...(options?.hunks === undefined ? {} : { hunks: options.hunks }),
       ...(sourceExpected === null ? {} : { expectedSource: sourceExpected }),
@@ -482,7 +400,7 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
       ...outcome,
       destination: {
         ...outcome?.destination,
-        version: await versionAfter(destination, signal, destinationNative),
+        version: await versionAfter(destination, signal),
       },
     };
   };

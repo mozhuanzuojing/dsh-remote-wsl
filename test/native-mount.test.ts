@@ -11,6 +11,7 @@ import {
   safeRestSegments,
   toWindowsPath,
   isNativeMountPath,
+  verifyMount,
   _setMountProbe,
   _resetMountCache,
 } from '../src/native-mount.ts';
@@ -56,5 +57,41 @@ test('isNativeMountPath（Windows）：受挂载探测门控 + 缓存，且不�
   assert.equal(await isNativeMountPath('/mnt/c/x', 'debian'), false, 'C 未被探测为真');
   assert.equal(await isNativeMountPath('/home/g', 'debian'), false, '非 /mnt');
   assert.equal(await isNativeMountPath('/mnt/d/../x', 'debian'), false, '危险段直接 false');
+  _resetMountCache();
+});
+
+test('verifyMount：一旦确认为真则粘滞（非 Windows 恒 false；Windows 上二次命中不再探测）', async () => {
+  if (process.platform !== 'win32') {
+    _setMountProbe(async () => true);
+    assert.equal(await verifyMount('D', 'd'), false);
+    return;
+  }
+  let calls = 0;
+  _setMountProbe(async () => {
+    calls++;
+    return calls === 1;
+  });
+  assert.equal(await verifyMount('D', 'd'), true);
+  assert.equal(await verifyMount('D', 'd'), true, '确认后应粘滞为真');
+  assert.equal(calls, 1, '粘滞后不应再次探测');
+  _resetMountCache();
+});
+
+test('verifyMount：同 key 并发探测只跑一次（in-flight 去重）', async () => {
+  if (process.platform !== 'win32') {
+    _setMountProbe(async () => true);
+    assert.equal(await verifyMount('D', 'd'), false);
+    return;
+  }
+  let calls = 0;
+  _setMountProbe(async () => {
+    calls++;
+    await new Promise((r) => setTimeout(r, 20));
+    return true;
+  });
+  const [a, b] = await Promise.all([verifyMount('D', 'd'), verifyMount('D', 'd')]);
+  assert.equal(a, true);
+  assert.equal(b, true);
+  assert.equal(calls, 1, '并发应去重为一次探测');
   _resetMountCache();
 });

@@ -56,7 +56,9 @@
  * @module dsh-remote-wsl/explorer
  */
 import { execFile, spawn, spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { toWindowsPath, isNativeMountPath } from './native-mount.ts';
 import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 import { parseWslUncPath } from './unc-path.ts';
 import { invalidateProxyCache, resolveWslProxy } from './wsl-proxy.ts';
@@ -66,6 +68,8 @@ import { targetProblem, NO_DISTRO_REASON, NO_HOME_REASON } from './config.ts';
 import { asConfigText } from './target-detect.ts';
 import { WSL_PRESET_ID } from './preset.ts';
 import { buildVsCodeOpenArgs, buildVsCodeWslUri, buildWslUncCandidates } from './open-editor.ts';
+import { createWslRpc } from './fs-provider.ts';
+import { readDaemonRecord } from './daemon-protocol.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -291,6 +295,58 @@ function entryKindOf(dirent) {
  * 边界：**只用于读**（explorer.listDir 全文只读）。设计稿 §7 警告的是"在 UNC 上跑写型 Windows
  * 工具会写坏 ext4 属主/权限"，那条针对发行版内的 ext4 路径；`/mnt/c` 恰恰是 Windows 卷。
  */
+/** 定位本机 VS Code 的 Code.exe（用直接 spawn，避免经 cmd 拼 raw 路径导致 `%` 展开/命令注入）。找不到返回 null。 */
+function resolveCodeExe() {
+  try {
+    const where = spawnSync('where.exe', ['code'], { encoding: 'utf8', windowsHide: true });
+    if (where.status === 0) {
+      for (const line of String(where.stdout ?? '').split(/\r?\n/)) {
+        const p = line.trim();
+        if (!p) continue;
+        const exe = path.win32.join(path.win32.dirname(p), '..', 'Code.exe');
+        if (existsSync(exe)) return exe;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  const env = process.env;
+  const cands = [
+    env.LOCALAPPDATA ? path.win32.join(env.LOCALAPPDATA, 'Programs', 'Microsoft VS Code', 'Code.exe') : '',
+    env.ProgramFiles ? path.win32.join(env.ProgramFiles, 'Microsoft VS Code', 'Code.exe') : '',
+    env['ProgramFiles(x86)'] ? path.win32.join(env['ProgramFiles(x86)'], 'Microsoft VS Code', 'Code.exe') : '',
+  ].filter(Boolean);
+  for (const c of cands) {
+    try {
+      if (existsSync(c)) return c;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+/** 宿主 UNC/盘符 列目录（9P，慢但只读）；抛出原始 fs 错误由调用方映射。 */
+function listDirHostEntries(winPath) {
+  const dirents = readdirSync(winPath, { withFileTypes: true });
+  const out = dirents.map((dirent) => {
+    let info = null;
+    try {
+      info = statSync(`${winPath}\\${dirent.name}`);
+    } catch {
+      info = null;
+    }
+    return {
+      name: dirent.name,
+      kind: entryKindOf(dirent),
+      hidden: dirent.name.startsWith('.'),
+      size: info && info.isFile() ? info.size : null,
+      mtimeMs: info ? info.mtimeMs : null,
+    };
+  });
+  return out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+}
+
 function windowsDriveForMount(path) {
   const match = /^\/mnt\/([a-z])(\/.*)?$/.exec(path);
   if (match === null) return null;
@@ -451,6 +507,19 @@ function readWorkspaces(cfg) {
  */
 export function createExplorerHandlers(deps) {
   const cfg = deps.config;
+  /** 供 explorer 走守护的原生 fs 调用（ext4 listDir 等；免宿主 9P）。按 distro 缓存。 */
+  const fsRpcCache = new Map();
+  const fsRpcFor = (distro) => {
+    // 与其它 handler 同口径：换发行版要同时换 wslHome/cwd（否则守护状态目录错位）。
+    const distroCfg = cfgFor(distro);
+    const key = `${String(distro ?? '')}|${String(distroCfg.wslHome ?? '')}`;
+    let rpc = fsRpcCache.get(key);
+    if (!rpc) {
+      rpc = createWslRpc(distroCfg);
+      fsRpcCache.set(key, rpc);
+    }
+    return rpc;
+  };
   const log = (m) => process.stderr.write(`remote-wsl(explorer): ${m}\n`);
 
   /**
@@ -1003,37 +1072,83 @@ export function createExplorerHandlers(deps) {
       );
     }
 
-    const winPath = windowsDriveForMount(path) ?? unc(distro, path);
-    let dirents;
-    try {
-      dirents = readdirSync(winPath, { withFileTypes: true });
-    } catch (e) {
-      const code = str(e?.code);
-      const detail = `${code || 'no-code'}: ${e?.message ?? String(e)}`;
-      if (code === 'ENOENT' || code === 'ENOTDIR') {
-        failNotFound(`remote-wsl: 列目录失败：路径 ${path} 不存在或不是目录（${detail}）`);
-      }
-      failUnavailable(`remote-wsl: 列目录失败：无法读取 ${path}（${detail}）`);
-    }
-
-    const entries = dirents
-      .map((dirent) => {
-        // 文件表的可选元数据：只读、逐项 best-effort；9P/drvfs 上 stat 失败不应让整个目录列表失败。
-        let info = null;
-        try {
-          info = statSync(`${winPath}\\${dirent.name}`);
-        } catch {
-          info = null;
+    const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+    // 与 openExternal 同口径：经 verifyMount 判定是否原生盘；不成立走守护 daemon（反映实际挂载，fail-closed）。
+    const nativeWin = (await isNativeMountPath(path, distro)) ? toWindowsPath(path) : null;
+    let entries;
+    if (nativeWin !== null) {
+      // /mnt：原生盘符直读（免 9P），保留 size/mtime。
+      let dirents;
+      try {
+        dirents = readdirSync(nativeWin, { withFileTypes: true });
+      } catch (e) {
+        const code = str(e?.code);
+        const detail = `${code || 'no-code'}: ${e?.message ?? String(e)}`;
+        if (code === 'ENOENT' || code === 'ENOTDIR') {
+          failNotFound(`remote-wsl: 列目录失败：路径 ${path} 不存在或不是目录（${detail}）`);
         }
-        return {
-          name: dirent.name,
-          kind: entryKindOf(dirent),
-          hidden: dirent.name.startsWith('.'),
-          size: info && info.isFile() ? info.size : null,
-          mtimeMs: info ? info.mtimeMs : null,
-        };
-      })
-      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+        failUnavailable(`remote-wsl: 列目录失败：无法读取 ${path}（${detail}）`);
+      }
+      entries = dirents
+        .map((dirent) => {
+          let info = null;
+          try {
+            info = statSync(`${nativeWin}\\${dirent.name}`);
+          } catch {
+            info = null;
+          }
+          return {
+            name: dirent.name,
+            kind: entryKindOf(dirent),
+            hidden: dirent.name.startsWith('.'),
+            size: info && info.isFile() ? info.size : null,
+            mtimeMs: info ? info.mtimeMs : null,
+          };
+        })
+        .sort(byName);
+    } else {
+      // ext4：优先走 WSL 守护原生 listDir（免宿主 9P）。但面板必须"零副作用"：
+      // 守护没起时**不去拉起它**，回退宿主 UNC（9P，慢但只读）；守护已在跑才用原生。
+      let daemonRec = null;
+      try {
+        daemonRec = readDaemonRecord(cfgFor(distro));
+      } catch {
+        daemonRec = null;
+      }
+      if (daemonRec === null) {
+        try {
+          entries = listDirHostEntries(unc(distro, path));
+        } catch (e) {
+          const code = str(e?.code);
+          const detail = `${code || 'no-code'}: ${e?.message ?? String(e)}`;
+          if (code === 'ENOENT' || code === 'ENOTDIR') {
+            failNotFound(`remote-wsl: 列目录失败：路径 ${path} 不存在或不是目录（${detail}）`);
+          }
+          failUnavailable(`remote-wsl: 列目录失败：无法读取 ${path}（${detail}）`);
+        }
+      } else {
+        let r;
+        try {
+          r = await fsRpcFor(distro).call('fs', 'listDir', { path }, undefined);
+        } catch (e) {
+          const code = str(e?.code);
+          if (code === 'FS_NOT_FOUND' || code === 'FS_NOT_REGULAR_FILE') {
+            failNotFound(`remote-wsl: 列目录失败：路径 ${path} 不存在或不是目录`);
+          }
+          failUnavailable(`remote-wsl: 列目录失败：无法读取 ${path}（${code || 'no-code'}: ${e?.message ?? String(e)}）`);
+        }
+        const list = Array.isArray(r?.entries) ? r.entries : [];
+        entries = list
+          .map((e) => ({
+            name: e.name,
+            kind: e.type === 'directory' ? 'dir' : e.type === 'file' ? 'file' : 'other',
+            hidden: String(e.name ?? '').startsWith('.'),
+            size: e.type === 'file' && typeof e.size === 'number' ? e.size : null,
+            // ext4 经守护 listDir 不含 mtime；**省略字段** → 面板时间列留空（写 null 会被 Number(null)=0 显示成 1970）。
+          }))
+          .sort(byName);
+      }
+    }
 
     return { path, distro, entries };
   }
@@ -1286,13 +1401,22 @@ async function newSession(args) {
     if (kind === null) failArg('remote-wsl: explorer.openExternal 的 kind 必须是 file 或 directory');
     const app = args?.app === 'explorer' ? 'explorer' : 'vscode';
     const primaryUnc = unc(distro, path);
+    // /mnt（Windows 卷）直接用盘符路径打开：本地 VS Code / 资源管理器直读 D:\…，免 Remote-WSL/9P（扩大原生范围）。
+    const nativeWin = (await isNativeMountPath(path, distro)) ? toWindowsPath(path) : null;
 
     if (app === 'explorer') {
-      const candidates = buildWslUncCandidates(primaryUnc, path);
+      const candidates = nativeWin !== null ? [nativeWin] : buildWslUncCandidates(primaryUnc, path);
       let lastError = '';
       for (const candidate of candidates) {
         try {
-          const child = spawn('explorer.exe', [kind === 'file' ? `/select,${candidate}` : candidate], {
+          // /select, 里含逗号的路径会被 explorer 误解析 → 退化为打开其所在目录（不做选择）。
+          const dirOf = (p) => {
+            const s = String(p);
+            const i = Math.max(s.lastIndexOf('\\'), s.lastIndexOf('/'));
+            return i > 0 ? s.slice(0, i) : s;
+          };
+          const selectArg = kind === 'file' && !String(candidate).includes(',') ? `/select,${candidate}` : kind === 'file' ? dirOf(candidate) : candidate;
+          const child = spawn('explorer.exe', [selectArg], {
             detached: true,
             stdio: 'ignore',
             windowsHide: true,
@@ -1304,6 +1428,21 @@ async function newSession(args) {
         }
       }
       failUnavailable(`remote-wsl: 打开资源管理器失败：${lastError || 'explorer.exe 不可用'}`);
+    }
+
+    // /mnt：用本地 Code.exe 直接打开 D:\…（不经 cmd、免 9P、免路径拼接注入）。
+    if (nativeWin !== null) {
+      const codeExe = resolveCodeExe();
+      if (codeExe !== null) {
+        try {
+          const child = spawn(codeExe, [nativeWin], { detached: true, stdio: 'ignore', windowsHide: true });
+          child.unref();
+          return { ok: true, app: 'vscode', path: nativeWin };
+        } catch (error) {
+          failUnavailable('remote-wsl: 启动 VS Code 失败：' + String(error?.message ?? error));
+        }
+      }
+      // 找不到 Code.exe：不冒险用 cmd 拼 raw 路径，落回下面已编码的 URI 分支（安全，远端打开）。
     }
 
     const where = spawnSync('where.exe', ['code'], { encoding: 'utf8', windowsHide: true });

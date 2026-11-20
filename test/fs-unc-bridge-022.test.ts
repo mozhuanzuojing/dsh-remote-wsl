@@ -59,8 +59,8 @@ test('patchText：UNC 走 WSL，expected 版本从宿主 token 翻译成 WSL tok
   const wsl = fakeFs({ [LINUX_SRC]: WSL_V }, 'wsl');
   attachUncWriteBridge(host, { distro: DISTRO, wslFs: wsl });
   const hunks = [{ lineNumber: 1, oldLines: ['a'], newLines: ['b'] }];
-  const out = await host.patchText({ targetKey: UNC_SRC, displayPath: UNC_SRC }, hunks, { kind: 'replaceIfVersion', version: HOST_V }, undefined, policy);
-  assert.equal(out.version, HOST_V, '返回给宿主的是宿主 9P 版本');
+  const out = await host.patchText({ targetKey: UNC_SRC, displayPath: UNC_SRC }, hunks, { kind: 'replaceIfVersion', version: WSL_V }, undefined, policy);
+  assert.equal(out.version, WSL_V, '本发行版 UNC 统一 WSL 平面：返回 WSL 版本');
   assert.equal(wsl.calls.length, 1);
   assert.deepEqual(wsl.calls[0][1], { targetKey: LINUX_SRC, displayPath: UNC_SRC });
   assert.deepEqual(wsl.calls[0][2], hunks);
@@ -72,7 +72,7 @@ test('deleteFile：UNC 走 WSL，返回删除前基线', async () => {
   const host = fakeFs({ [UNC_SRC]: HOST_V }, 'host');
   const wsl = fakeFs({ [LINUX_SRC]: WSL_V }, 'wsl');
   attachUncWriteBridge(host, { distro: DISTRO, wslFs: wsl });
-  const out = await host.deleteFile({ targetKey: UNC_SRC, displayPath: UNC_SRC }, { kind: 'replaceIfVersion', version: HOST_V }, undefined, policy);
+  const out = await host.deleteFile({ targetKey: UNC_SRC, displayPath: UNC_SRC }, { kind: 'replaceIfVersion', version: WSL_V }, undefined, policy);
   assert.deepEqual(out, { before: 'gone\n' });
   assert.equal(wsl.calls.length, 1);
   assert.deepEqual(wsl.calls[0][1], { targetKey: LINUX_SRC, displayPath: UNC_SRC });
@@ -86,11 +86,11 @@ test('moveFile：两个 UNC 目标都走 WSL，源/目标 expected 各自翻译'
   const out = await host.moveFile(
     { targetKey: UNC_SRC, displayPath: UNC_SRC },
     { targetKey: UNC_DST, displayPath: UNC_DST },
-    { expectedSource: { version: HOST_V }, expectedDestination: { kind: 'replaceIfVersion', version: HOST_V } },
+    { expectedSource: { version: WSL_V }, expectedDestination: { kind: 'replaceIfVersion', version: WSL_V } },
     undefined,
     policy,
   );
-  assert.equal(out.destination.version, HOST_V, '目标版本回取宿主 stat');
+  assert.equal(out.destination.version, WSL_V, '目标版本回取 WSL');
   assert.equal(out.sourceDeleted, true);
   assert.equal(wsl.calls.length, 1);
   assert.deepEqual(wsl.calls[0][1], { targetKey: LINUX_SRC, displayPath: UNC_SRC });

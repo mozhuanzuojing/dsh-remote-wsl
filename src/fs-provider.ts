@@ -41,6 +41,9 @@ import { isNativeMountPath, nativeFs } from './native-mount.ts';
 export const name = 'dsh-remote-wsl-fs';
 export const inject = [];
 
+/** 守护"不可用"类失败的**稳定错误码**（桥按码判定 fail-open，绝不靠中文文案匹配）。 */
+export const DAEMON_DOWN_CODE = 'FS_DAEMON_UNAVAILABLE';
+
 /** 与 index.ts 的 DEFAULTS 同形（只取 fs provider 需要的）。 */
 
 
@@ -104,10 +107,10 @@ export function createWslRpc(rawConfig = {}, deps = {}) {
     if (targetIssue) throw fsErr(targetIssue, 'FS_IO_ERROR');
     if (daemonReady === null) {
       const version = resolveVersion(config);
-      if (!version.version) throw fsErr('remote-wsl: 无法确定 dsh 版本（desktop runtime.json 不可读且未配 dshVersion）', 'FS_IO_ERROR');
+      if (!version.version) throw fsErr('remote-wsl: 无法确定 dsh 版本（desktop runtime.json 不可读且未配 dshVersion）', DAEMON_DOWN_CODE);
       daemonReady = ensureDaemonFn(config, { version: version.version, log: () => {} }).catch((e) => {
         daemonReady = null;
-        throw fsErr(`remote-wsl: 启动 WSL 守护失败：${e?.message ?? String(e)}`, 'FS_IO_ERROR');
+        throw fsErr(`remote-wsl: 启动 WSL 守护失败：${e?.message ?? String(e)}`, DAEMON_DOWN_CODE);
       });
     }
     return daemonReady;
@@ -129,7 +132,7 @@ export function createWslRpc(rawConfig = {}, deps = {}) {
     };
     const requireRec = () => {
       const rec = readRec();
-      if (!rec) throw fsErr('remote-wsl: 守护元数据缺失（WSL 侧守护不在）', 'FS_IO_ERROR');
+      if (!rec) throw fsErr('remote-wsl: 守护元数据缺失（WSL 侧守护不在）', DAEMON_DOWN_CODE);
       return rec;
     };
     let rec = readRec();
@@ -153,7 +156,7 @@ export function createWslRpc(rawConfig = {}, deps = {}) {
       r = await callOnce(rec);
     }
     signal?.throwIfAborted?.();
-    if (!r?.msg) throw fsErr(`remote-wsl: 守护调用失败（${r?.kind ?? 'unknown'}）：${r?.error ?? '没有回包'}`, 'FS_IO_ERROR');
+    if (!r?.msg) throw fsErr(`remote-wsl: 守护调用失败（${r?.kind ?? 'unknown'}）：${r?.error ?? '没有回包'}`, DAEMON_DOWN_CODE);
     if (r.msg.ok !== true) throw fsErr(String(r.msg.error ?? 'operation failed'), String(r.msg.code ?? 'FS_IO_ERROR'));
     return r.msg.result;
   };
@@ -619,6 +622,8 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
 
     async listDir(target, signal) {
       if (await isNativeMountPath(target.targetKey, distro)) {
+        // 原生 listDir 只会因映射失败/真实 FS 错误抛出；"子项映射不回 /mnt" 已在 nativeFs.listDir 内返回 null。
+        // 因此这里**不吞异常**（禁静默吞错）：null → 回落 RPC；异常按原样抛（避免把 404/权限错改写成 503 并静默降级）。
         const native = await nativeFs.listDir(target);
         if (native !== null) return native;
       }
