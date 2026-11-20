@@ -33,6 +33,7 @@ import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
 import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble, writeScript, removeScript, reapWsl, sleep, renderText, resolveVersion, readPin, writePin } from './wsl-io.ts';
 import { installCommandGate } from './command-policy.ts';
 import { doctorReport } from './doctor.ts';
+import { collectDoctorFacts } from './doctor-facts.ts';
 
 // ── 远端 UI：WSL 跑 `dsh web`，Windows 开应用窗口 ─────────────────────────────
 
@@ -357,58 +358,14 @@ export function registerTools(deps) {
       },
       output: { schema: { type: 'string' }, render: renderText },
       execute: async (args, exec) => {
-        if (args?.redetect === true) { try { redetectTarget(); } catch { /* ignore */ } }
-        const facts: any = {
-          platform: process.platform,
-          distros: null, distrosReadFailed: false,
-          targetIssue: null, targetMissing: false,
-          distro: config.distro || null, wslHome: config.wslHome || null, cwd: config.cwd || null,
-          versionResolved: null, versionIssue: null, drift: null,
-          daemon: null, proxy: null, configWarnings: [],
-        };
-        try { const ds = listDistrosAsync ? await listDistrosAsync() : listDistros(); facts.distros = Array.isArray(ds) ? ds : null; facts.distrosReadFailed = Array.isArray(ds) && ds.length === 0; } catch { facts.distrosReadFailed = true; }
-        try { facts.targetIssue = targetProblem(config); } catch (e: any) { facts.targetIssue = String((e && e.message) || e); }
-        try { facts.targetMissing = !facts.targetIssue && Array.isArray(facts.distros) && facts.distros.length > 0 && !!config.distro && !facts.distros.includes(config.distro); } catch { /* ignore */ }
-        try {
-          const v: any = resolveVersion(config);
-          if (v) {
-            facts.versionResolved = v.version || (v.resolved && v.resolved.version) || null;
-            if (v.issue) facts.versionIssue = String(v.issue);
-            if (v.drift) facts.drift = v.drift;
-            else if (typeof v.drifted === 'boolean') facts.drift = { drifted: v.drifted, desktop: v.desktop, pin: v.pin };
-          }
-        } catch (e: any) { facts.versionIssue = String((e && e.message) || e); }
-        try { facts.configWarnings = configWarnings(config) || []; } catch { /* ignore */ }
-        // WSL 内存/swap：真机教训（swap 100% ⇒ 守护瞬断、重启失败）。只读、3s 超时。
-        try {
-          if (config.distro) {
-            const memText: string = await new Promise((resolve, reject) => {
-              const child = spawn('wsl.exe', ['-d', config.distro, '--exec', 'sh', '-c', 'free -m'], { windowsHide: true });
-              let out = '';
-              let err = '';
-              const timer = setTimeout(() => { try { child.kill(); } catch { /* ignore */ } reject(new Error('timeout')); }, 3000);
-              child.stdout.on('data', (d) => (out += d.toString('utf8')));
-              child.stderr.on('data', (d) => (err += d.toString('utf8')));
-              child.on('error', (e) => { clearTimeout(timer); reject(e); });
-              child.on('close', () => { clearTimeout(timer); out ? resolve(out) : reject(new Error(err || 'empty')); });
-            });
-            const pick = (label) => {
-              const line = memText.split('\n').find((l) => l.trim().startsWith(label));
-              const p = (line || '').trim().split(/\s+/);
-              return { total: Number(p[1]) || 0, used: Number(p[2]) || 0, free: Number(p[3]) || 0 };
-            };
-            const mem = pick('Mem:');
-            const swap = pick('Swap:');
-            facts.memory = { totalMB: mem.total, freeMB: mem.free, swapUsedPct: swap.total ? Math.round((swap.used / swap.total) * 100) : 0 };
-          }
-        } catch { /* memory unknown -> skip */ }
-        try {
-          if (typeof readDaemonMeta === 'function') {
-            const m: any = await readDaemonMeta(config);
-            if (m && typeof m === 'object') facts.daemon = { present: true, running: m.running !== false, reachable: m.reachable, detail: `slot=${m.slot ?? '?'} pid=${m.pid ?? '?'} version=${m.version ?? '?'}` };
-            else facts.daemon = { present: false };
-          }
-        } catch { /* daemon unknown -> skip */ }
+        const facts = await collectDoctorFacts(
+          { config, distro: null, redetect: args?.redetect === true, resetTarget: redetectTarget },
+          {
+            listDistros: async () => (listDistrosAsync ? await listDistrosAsync() : listDistros()),
+            resolveVersion,
+            readDaemonMeta,
+          },
+        );
         return doctorReport(facts).text;
       },
     });

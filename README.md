@@ -446,9 +446,17 @@ $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-r
 - host `subprocess.spawn` 不可用时 git 路由不生效（启动日志会出现 `[diag] git-route: skipped …`）。
 - 文件读/列（`readText/streamText/readBytes/readByteRange/listDir`）与 `stat/lstat/resolve`：ext4 也**改走 WSL 守护原生**（免宿主 9P）；守护不可用时 **fail-closed**（`FS_DAEMON_UNAVAILABLE` + `wsl_daemon start`/`wsl_doctor` 指引），不回退宿主 9P（决策 A）。面板 `explorer.listDir` 的 ext4 分支要求**守护已在跑**（面板不主动拉起守护；未起则同一确定性错误）。标准 preset 的 ext4 文件读/stat 因此**依赖守护**（用户已确认的取舍）。
 
-## 诊断：`wsl_doctor`（只读，v0.6.0+）
+## 诊断：`wsl_doctor`（只读，v0.6.0+；面板入口 v0.9.0+）
 
-一次调用聚合本插件自带探针（发行版 / 目标 / DSH 版本 / 版本漂移 / 守护 / 代理 / 配置告警）为
-**verdict（就绪 / 可用有警告 / 被阻塞）+ 逐项 check + 修复命令**（该调哪个工具、改哪项配置）。
-只读、不启守护、不改任何东西；排障先跑它，别猜。等价信息也可从面板「诊断信息」与 `wsl_status` 取得。
+一次调用聚合本插件自带探针（平台 / 发行版 / 目标 / DSH 版本 / 版本漂移 / 守护 / **WSL 内存·swap** / 配置告警）为
+**verdict（就绪 / 可用有警告 / 被阻塞）+ 逐项 check + 修复命令**。排障先跑它，别猜。
+
+- **模型侧**：调用工具 `wsl_doctor`（或直接说「诊断一下 WSL」）。
+- **面板侧**：`⋯` →「诊断」→「运行只读诊断」（`explorer.diagnose`）：一句话结论（verdict + 阻塞/警告计数），
+  完整报告进折叠区。
+
+**只读承诺（结构保证，不是口头约定）**：诊断路径**不启动发行版、不启动/停止守护、不写盘**——
+WSL 内事实走 UNC 读 `/proc/meminfo`（**没有 `wsl -d`**，所以停着的发行版不会被拉起），
+守护事实只读元数据文件；探针失败一律落成 `skip`/`fail`（`skip ≠ ok`，UI 单独列「未探测」）。
+工具与面板共用 `src/doctor-facts.ts` 的同一份事实，保证两侧 verdict 一致。
 

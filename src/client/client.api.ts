@@ -24,6 +24,7 @@
 			addWorkspace: "explorer.addWorkspace",
 			newSession: "explorer.newSession",
 			openExternal: "explorer.openExternal",
+			diagnose: "explorer.diagnose",
 		});
 
 		/** 上表的**投影视图**（唯一用途：让自检/探针脚本按同一来源比对 host 的 `EXPLORER_METHODS`）。 */
@@ -336,6 +337,15 @@
 					const args: any = { path, kind };
 					if (input && input.app === "explorer") args.app = "explorer";
 					return call(METHODS.openExternal, args, options);
+				},
+				/**
+				 * 只读诊断：`{redetect?}` → `{verdict, checks, text, generatedAt, distro, redetect}`。
+				 * 探针失败会 200 回来（看 `checks[].status`），**别把 200 当"一切正常"**。
+				 */
+				diagnose(input: any, options: any) {
+					const args: any = {};
+					if (input && input.redetect === true) args.redetect = true;
+					return call(METHODS.diagnose, args, options);
 				},
 			};
 			return Object.freeze(api);

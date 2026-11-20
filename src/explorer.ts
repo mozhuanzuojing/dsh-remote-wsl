@@ -59,7 +59,8 @@ import { execFile, spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { isNativeMountPath } from './native-mount.ts';
-import { identityFromWire, wireFromIdentity, nativeWireFromIdentity } from './path-identity.ts';import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
+import { identityFromWire, wireFromIdentity, nativeWireFromIdentity } from './path-identity.ts';
+import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 import { parseWslUncPath } from './unc-path.ts';
 import { invalidateProxyCache, resolveWslProxy } from './wsl-proxy.ts';
 import { readWslOutput } from './wsl-output.ts';
@@ -70,6 +71,8 @@ import { WSL_PRESET_ID } from './preset.ts';
 import { buildVsCodeOpenArgs, buildVsCodeWslUri, buildWslUncCandidates } from './open-editor.ts';
 import { createWslRpc } from './fs-provider.ts';
 import { readDaemonRecord } from './daemon-protocol.ts';
+import { doctorReport } from './doctor.ts';
+import { collectDoctorFacts } from './doctor-facts.ts';
 
 /** RPC 的**逐字**方法名（client 半按这些字符串调用）。 */
 export const EXPLORER_METHODS = [
@@ -81,6 +84,7 @@ export const EXPLORER_METHODS = [
   'explorer.addWorkspace',
   'explorer.newSession',
   'explorer.openExternal',
+  'explorer.diagnose',
 ];
 
 /**
@@ -1483,6 +1487,46 @@ async function newSession(args) {
     }
   }
 
+  /**
+   * `explorer.diagnose({distro?, redetect?})` —— **只读**诊断报告（verdict + checks + text）。
+   *
+   * 只读承诺：
+   *  · **不启动发行版**：不执行 `wsl -d …`（内存走 UNC 读 `/proc/meminfo`；非配置发行版不解析 `$HOME`）；
+   *  · **不启动/停止/重启守护**：只读守护元数据文件（活体真相以 `explorer.snapshot().daemon` 为准）；
+   *  · **不写盘**；`redetect:true` 只在内存里重探。
+   * 探针失败不抛错 —— 一律成为 `checks` 里的一条（`skip` ≠ `ok`）。
+   */
+  async function diagnose(args) {
+    const requested = str(args?.distro).trim();
+    // 非配置发行版：**不用 cfgFor**（它会 distroHome → `wsl -d` 拉起发行版），wslHome/cwd 置空。
+    const eff = requested && requested !== cfg.distro ? { ...cfg, distro: requested, wslHome: null, cwd: null } : cfg;
+    const facts = await collectDoctorFacts(
+      {
+        config: eff,
+        distro: requested || null,
+        redetect: args?.redetect === true,
+        resetTarget: typeof deps?.redetectTarget === 'function' ? deps.redetectTarget : undefined,
+      },
+      {
+        listDistros: async () =>
+          typeof deps?.listDistrosAsync === 'function'
+            ? await deps.listDistrosAsync()
+            : typeof deps?.listDistros === 'function'
+              ? deps.listDistros()
+              : null,
+        resolveVersion: typeof deps?.resolveVersion === 'function' ? deps.resolveVersion : undefined,
+        readDaemonMeta: (c) => readDaemonMeta(c),
+      },
+    );
+    const report = doctorReport(facts);
+    return {
+      ...report,
+      generatedAt: new Date().toISOString(),
+      distro: requested || str(cfg.distro) || null,
+      redetect: args?.redetect === true,
+    };
+  }
+
   const handlers = {
     'explorer.snapshot': snapshot,
     'explorer.openSession': openSession,
@@ -1492,6 +1536,7 @@ async function newSession(args) {
     'explorer.addWorkspace': addWorkspace,
     'explorer.newSession': newSession,
     'explorer.openExternal': openExternal,
+    'explorer.diagnose': diagnose,
   };
   return { handlers, log };
 }

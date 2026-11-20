@@ -198,6 +198,32 @@ function renderTail(props) {
 					label: t("menu.group.diagnostics"),
 					items: [
 						{
+							key: "doctor",
+							label: t("menu.runDoctor"),
+							iconName: "warn",
+							onSelect: () => {
+								setMenuOpen(false);
+								run("diagnose", (signal) => api.diagnose(undefined, signal), {
+									describe: (result) => {
+										const checks = Array.isArray(result && result.checks) ? result.checks : [];
+										const count = (s) => checks.filter((c) => c && c.status === s).length;
+										const verdict = result && result.verdict;
+										const label =
+											verdict === "blocked"
+												? t("diag.verdict.blocked")
+												: verdict === "degraded"
+													? t("diag.verdict.degraded")
+													: t("diag.verdict.ready");
+										return {
+											text: t("diag.done", { verdict: label, fail: count("fail"), warn: count("warn") }),
+											detail: result && typeof result.text === "string" ? result.text : null,
+										};
+									},
+									failKey: "note.failDoctor",
+								});
+							},
+						},
+						{
 							key: "view",
 							label: t("menu.diagnostics"),
 							iconName: "file",
