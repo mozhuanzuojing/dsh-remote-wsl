@@ -32,7 +32,6 @@
  * @module dsh-remote-wsl/fs-unc-bridge
  */
 import { createWslFileSystem, parseUnc, uncPath, DAEMON_DOWN_CODE } from './fs-provider.ts';
-import { isWindowsRepresentable } from './native-mount.ts';
 import { diag } from './diag.ts';
 
 /** 已挂载标记（Symbol.for：同一进程内 HMR / 多份配置不会重复包一层）。 */
@@ -222,65 +221,54 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
 
   const bridgedResolve = async function (input: any, opts: any = {}) {
     if (!isBridgeInput(input, opts, distro)) return originalResolve.call(fsService, input, opts);
-    // 本发行版 UNC（含 ext4 与 /mnt）以 WSL realpath 为准（免宿主 9P，身份与 stat/listDir 同源）；
-    // 守护不可用时回退宿主 resolve（不把被动读变成硬依赖）。
-    return routeRead('resolve', null, () => resolveViaWsl(input, opts), () => originalResolve.call(fsService, input, opts));
+    // 统一 WSL 平面（决策 A：守护不可用 → 明确失败，不回退宿主 9P）。
+    return guardPlane({ displayPath: String(input ?? '') }, () => resolveViaWsl(input, opts));
   };
 
   const bridgedLstat = async function (input: any, opts: any = {}, signal: any) {
     if (!isBridgeInput(input, opts, distro)) return originalLstat.call(fsService, input, opts, signal);
-    return routeRead('lstat', null, () => callWsl('lstat', normalizeBridgeInput(input, opts, distro), opts, signal), () => originalLstat.call(fsService, input, opts, signal));
+    return guardPlane({ displayPath: String(input ?? '') }, () => callWsl('lstat', normalizeBridgeInput(input, opts, distro), opts, signal));
   };
 
   const bridgedStat = async function (target: any, signal: any) {
     if (!isBridgeTarget(target, distro)) return originalStat.call(fsService, target, signal);
-    return routeRead('stat', target, () => callWsl('stat', toWslTarget(target), signal), () => originalStat.call(fsService, target, signal));
+    return guardPlane(target, () => callWsl('stat', toWslTarget(target), signal));
   };
 
   const isDaemonDown = (e: any) => !!e && (e.code === DAEMON_DOWN_CODE || e.fsCode === DAEMON_DOWN_CODE);
-  // 读/列路径：优先 WSL(ext4)；守护不可用（**结构化错误码**，不靠文案）时 fail-open 回退宿主。
-  const routeRead = async (method: string, target: any, nativeCall: () => any, hostCall: () => any) => {
-    diag('fs-route', method + ' ' + String(target && target.targetKey));
+  /**
+   * 决策 A：本发行版 UNC 统一 **WSL 平面**；守护不可用 → **确定性失败**（附可执行修复），
+   * **不回退宿主 9P**（避免同一路径出现"两个真相源"/混平面令牌）。
+   */
+  const daemonDownError = (what: any) =>
+    fsError(
+      `remote-wsl: WSL 守护不可用，无法访问 "${String((what && (what.displayPath ?? what.targetKey)) ?? '')}"。` +
+        `ext4 路径依赖守护（不回退宿主 9P）；请先启动守护：wsl_daemon action=start；或用 wsl_doctor 诊断。`,
+      DAEMON_DOWN_CODE,
+    );
+  const guardPlane = async (what: any, thunk: () => any) => {
     try {
-      return await nativeCall();
+      return await thunk();
     } catch (e) {
-      if (isDaemonDown(e)) {
-        // 回退前校验 Windows 可表示性：ext4 合法但 Windows 有歧义的段（ADS/尾点/保留名…）→ fail-closed。
-        const unc = target ? parseUnc(String(target.targetKey)) : null;
-        const linuxPath = unc ? unc.linuxPath : null;
-        if (linuxPath !== null && !isWindowsRepresentable(linuxPath)) throw e;
-        diag('fs-route', 'fallback-host:' + method + ' ' + String(target && target.targetKey));
-        return await hostCall();
-      }
+      if (isDaemonDown(e)) throw daemonDownError(what);
       throw e;
     }
   };
 
   const bridgedReadText = async function (target: any, signal: any) {
     if (!isBridgeTarget(target, distro)) return originalReadText.call(fsService, target, signal);
-    return routeRead('readText', target, () => callWsl('readText', toWslTarget(target), signal), () => originalReadText.call(fsService, target, signal));
+    return guardPlane(target, () => callWsl('readText', toWslTarget(target), signal));
   };
 
   const bridgedStreamText = function (target: any, signal: any) {
     if (!isBridgeTarget(target, distro)) return originalStreamText.call(fsService, target, signal);
     diag('fs-route', 'streamText ' + String(target && target.targetKey));
-    const unc = parseUnc(String(target.targetKey));
-    const linuxPath = unc ? unc.linuxPath : null;
     return (async function* () {
-      let got = false;
       try {
         const iterable = await callWsl('streamText', toWslTarget(target), signal);
-        for await (const chunk of iterable) {
-          got = true;
-          yield chunk;
-        }
+        for await (const chunk of iterable) yield chunk;
       } catch (e) {
-        if (!got && isDaemonDown(e) && (linuxPath === null || isWindowsRepresentable(linuxPath))) {
-          diag('fs-route', 'fallback-host:streamText ' + String(target && target.targetKey));
-          const hostIterable = await originalStreamText.call(fsService, target, signal);
-          for await (const chunk of hostIterable) yield chunk;
-          return;
-        }
+        if (isDaemonDown(e)) throw daemonDownError(target);
         throw e;
       }
     })();
@@ -288,34 +276,18 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
 
   const bridgedReadBytes = async function (target: any, signal: any, maxBytes: any) {
     if (!isBridgeTarget(target, distro)) return originalReadBytes.call(fsService, target, signal, maxBytes);
-    return routeRead('readBytes', target, () => callWsl('readBytes', toWslTarget(target), signal, maxBytes), () => originalReadBytes.call(fsService, target, signal, maxBytes));
+    return guardPlane(target, () => callWsl('readBytes', toWslTarget(target), signal, maxBytes));
   };
 
   const bridgedReadByteRange = async function (target: any, range: any, signal: any) {
     if (!isBridgeTarget(target, distro)) return originalReadByteRange.call(fsService, target, range, signal);
-    return routeRead('readByteRange', target, () => callWsl('readByteRange', toWslTarget(target), range, signal), () => originalReadByteRange.call(fsService, target, range, signal));
+    return guardPlane(target, () => callWsl('readByteRange', toWslTarget(target), range, signal));
   };
 
   const bridgedListDir = async function (target: any, signal: any) {
     if (!isBridgeTarget(target, distro)) return originalListDir.call(fsService, target, signal);
     diag('fs-route', 'listDir ' + String(target && target.targetKey));
-    const unc = parseUnc(String(target.targetKey));
-    const linuxPath = unc ? unc.linuxPath : null;
-    let entries: any[];
-    try {
-      entries = await callWsl('listDir', toWslTarget(target), signal);
-    } catch (e) {
-      if (isDaemonDown(e) && (linuxPath === null || isWindowsRepresentable(linuxPath))) {
-        diag('fs-route', 'fallback-host:listDir ' + String(target && target.targetKey));
-        const hostEntries = await originalListDir.call(fsService, target, signal);
-        // 回落也统一形状并**丢弃 entry.version**（宿主令牌与 WSL 写基线混用会误报 stale）。
-        return (hostEntries || []).map((entry: any) => {
-          const { version, ...rest } = entry || {};
-          return rest;
-        });
-      }
-      throw e;
-    }
+    const entries: any[] = await guardPlane(target, () => callWsl('listDir', toWslTarget(target), signal));
     const parentDisplay = String(target && target.displayPath !== undefined ? target.displayPath : '');
     // 只透传 name/type/target/size；**丢弃 entry.version（WSL 令牌）**——否则与写/stat 的 host 版本基线混用会 FS_STALE_VERSION。
     return entries.map((entry: any) => ({

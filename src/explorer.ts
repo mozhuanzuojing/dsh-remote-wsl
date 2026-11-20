@@ -58,8 +58,8 @@
 import { execFile, spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { toWindowsPath, isNativeMountPath } from './native-mount.ts';
-import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
+import { isNativeMountPath } from './native-mount.ts';
+import { identityFromWire, wireFromIdentity, nativeWireFromIdentity } from './path-identity.ts';import { daemonSnapshot, ensureDaemon, stopDaemon, readDaemonMeta, daemonPrompt, unc } from './daemon-client.ts';
 import { parseWslUncPath } from './unc-path.ts';
 import { invalidateProxyCache, resolveWslProxy } from './wsl-proxy.ts';
 import { readWslOutput } from './wsl-output.ts';
@@ -326,18 +326,7 @@ function resolveCodeExe() {
   return null;
 }
 
-/** 宿主 UNC/盘符 列目录（9P，慢但只读）；抛出原始 fs 错误由调用方映射。
- * 回退态**不逐项 stat**（否则列 N 项目录 = 1 次 readdir + N 次 9P 往返）；size/mtime 省略。 */
-function listDirHostEntries(winPath) {
-  const dirents = readdirSync(winPath, { withFileTypes: true });
-  return dirents
-    .map((dirent) => ({
-      name: dirent.name,
-      kind: entryKindOf(dirent),
-      hidden: dirent.name.startsWith('.'),
-    }))
-    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-}
+/** 宿主 UNC/盘符 列目录（9P，慢但只读）；抛出原始 fs 错误由调用方映射。 */
 
 function windowsDriveForMount(path) {
   const match = /^\/mnt\/([a-z])(\/.*)?$/.exec(path);
@@ -513,6 +502,19 @@ function readWorkspaces(cfg) {
 export function createExplorerHandlers(deps) {
   const cfg = deps.config;
   /** 供 explorer 走守护的原生 fs 调用（ext4 listDir 等；免宿主 9P）。按 distro 缓存。 */
+  /** 身份 → 宿主 wire（UNC）；含反斜杠等无法在 Windows 侧无歧义表达时报错，绝不生成错路径。 */
+  const wireFor = (distro, linuxPath, hint) => {
+    const id = identityFromWire(linuxPath, distro);
+    if (id === null) failArg(`remote-wsl: ${hint} 不是可识别的 WSL 绝对路径：${String(linuxPath)}`);
+    try {
+      return wireFromIdentity(id);
+    } catch (e) {
+      failArg(`remote-wsl: ${hint} 无法在 Windows 侧无歧义表达（${String(e?.message ?? e)}）`);
+    }
+  };
+  /** 身份 → 原生盘符（仅 `/mnt/<letter>`）；不可映射返回 null。 */
+  const nativeWireFor = (distro, linuxPath) => nativeWireFromIdentity({ distro, linuxPath: String(linuxPath) });
+
   const fsRpcCache = new Map();
   const fsRpcFor = (distro) => {
     // 与其它 handler 同口径：换发行版要同时换 wslHome/cwd（否则守护状态目录错位）。
@@ -1098,7 +1100,7 @@ export function createExplorerHandlers(deps) {
 
     const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     // 与 openExternal 同口径：经 verifyMount 判定是否原生盘；不成立走守护 daemon（反映实际挂载，fail-closed）。
-    const nativeWin = (await isNativeMountPath(path, distro)) ? toWindowsPath(path) : null;
+    const nativeWin = (await isNativeMountPath(path, distro)) ? nativeWireFor(distro, path) : null;
     let entries;
     if (nativeWin !== null) {
       // /mnt：原生盘符直读（免 9P），保留 size/mtime。
@@ -1135,17 +1137,13 @@ export function createExplorerHandlers(deps) {
       // 守护没起时**不去拉起它**，回退宿主 UNC（9P，慢但只读）；守护已在跑才用原生。
       const daemonRec = daemonRecFor(distro);
       if (daemonRec === null) {
-        try {
-          entries = listDirHostEntries(unc(distro, path));
-        } catch (e) {
-          const code = str(e?.code);
-          const detail = `${code || 'no-code'}: ${e?.message ?? String(e)}`;
-          if (code === 'ENOENT' || code === 'ENOTDIR') {
-            failNotFound(`remote-wsl: 列目录失败：路径 ${path} 不存在或不是目录（${detail}）`);
-          }
-          failUnavailable(`remote-wsl: 列目录失败：无法读取 ${path}（${detail}）`);
-        }
-      } else {
+        // 决策 A：ext4 走守护原生，**不回退宿主 UNC(9P)**；守护没起就给确定性错误 + 可执行修复。
+        failUnavailable(
+          `remote-wsl: 无法浏览 ext4 目录 "${path}" —— WSL 守护未运行（面板不主动拉起守护）。` +
+            `请先启动守护：wsl_daemon action=start；或用 wsl_doctor 诊断。`,
+        );
+      }
+      {
         let r;
         try {
           r = await fsRpcFor(distro).call('fs', 'listDir', { path }, undefined);
@@ -1234,7 +1232,7 @@ const isPresetRejection = (e) => {
  */
 async function newSession(args) {
   const { distro, path } = await resolveTarget(args, 'explorer.newSession');
-  const uncPath = unc(distro, path);
+  const uncPath = wireFor(distro, path, '会话 cwd');
   const ctl = typeof deps.sessionController === 'function' ? deps.sessionController() : undefined;
   if (!ctl || typeof ctl.create !== 'function') {
     failNoSession('remote-wsl: 宿主没有 sessionController 服务（当前 profile 不是 Web 应用？）⇒ 无法创建 DSH 会话');
@@ -1346,7 +1344,7 @@ async function newSession(args) {
       );
     }
 
-    const uncPath = unc(distro, path);
+    const uncPath = wireFor(distro, path, '工作区路径');
     // 存在性前置判定：Windows 侧经 9p stat（与上游 realpath 的要求一致），但把 ENOENT 变成**可读 404**
     try {
       const st = statSync(uncPath);
@@ -1419,9 +1417,9 @@ async function newSession(args) {
     const kind = args?.kind === 'file' ? 'file' : args?.kind === 'directory' ? 'directory' : null;
     if (kind === null) failArg('remote-wsl: explorer.openExternal 的 kind 必须是 file 或 directory');
     const app = args?.app === 'explorer' ? 'explorer' : 'vscode';
-    const primaryUnc = unc(distro, path);
+    const primaryUnc = wireFor(distro, path, '路径');
     // /mnt（Windows 卷）直接用盘符路径打开：本地 VS Code / 资源管理器直读 D:\…，免 Remote-WSL/9P（扩大原生范围）。
-    const nativeWin = (await isNativeMountPath(path, distro)) ? toWindowsPath(path) : null;
+    const nativeWin = (await isNativeMountPath(path, distro)) ? nativeWireFor(distro, path) : null;
 
     if (app === 'explorer') {
       const candidates = nativeWin !== null ? [nativeWin] : buildWslUncCandidates(primaryUnc, path);

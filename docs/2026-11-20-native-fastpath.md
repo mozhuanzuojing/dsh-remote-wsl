@@ -31,9 +31,9 @@
 | `/mnt` 文件 I/O | 宿主原生 `fs-rpc` 复用，`/mnt/x` ↔ `X:\` | 9P 往返慢；同一卷 Windows 原生最快 | 盘符错映射 → `verifyMount` 校验 `/proc/mounts`（fail-closed，60s 复核） |
 | `/mnt` 搜索 | 宿主自带 `rg.exe`（`@vscode/ripgrep-win32-x64`） | 在 Windows 卷上原生 rg | 需定位 rg 路径；缺失回落 RPC |
 | `/mnt` git | 宿主 `git.exe` + `D:\` cwd | 跨 9P 的 git 元数据扫描极慢 | 无 Windows git 时回落 WSL git |
-| ext4 文件读/写/stat/resolve/list | `fs-unc-bridge` 全量转 `wslFs`（daemon） | ext4 归 WSL；宿主 UNC 9P 既慢又会 `GetFileSecurityW EIO` | 依赖守护；内容读在 `FS_DAEMON_UNAVAILABLE` 时 fail-open 回宿主 9P（仅可被 Windows 无歧义表示时） |
+| ext4 文件读/写/stat/resolve/list | `fs-unc-bridge` 全量转 `wslFs`（daemon） | ext4 归 WSL；宿主 UNC 9P 既慢又会 `GetFileSecurityW EIO` | 依赖守护；**决策 A**：`FS_DAEMON_UNAVAILABLE` 即明确失败（不回退宿主 9P） |
 | 令牌平面 | 统一 WSL/ext4 令牌 | 同平面逐字 CAS，比"跨平面翻译+10ms 容差"更严 | 令牌值变化（不透明，仅相等比较） |
-| ext4 面板列目录 | 守护**已在跑**才用原生；否则回退宿主 UNC | 面板承诺零副作用（不拉起守护） | 回退态仍 9P；**只做 1 次 readdir，不逐项 stat** |
+| ext4 面板列目录 | 守护**已在跑**才用原生；未运行 → **确定性错误**（不回退 UNC） | 面板承诺零副作用（不拉起守护）+ 决策 A（无两个真相源） | 面板浏览 ext4 依赖守护；`identity⇄wire` 统一生成 UNC/盘符 |
 | ext4 打开编辑器 | 默认 `vscode`（Remote-WSL 在 WSL 内原生读）；`explorer` 为次要并附 `note` | 与 VS Code 架构对齐 | 资源管理器看 ext4 只能 9P（Windows 无 ext4 挂载） |
 
 ## 5. 参考依据（"参考什么做的"）
@@ -53,7 +53,47 @@
 - **引导链小文件**（守护 `meta/token/log`、`/tmp` 启动脚本、`.desktop-version-pin`、`/etc/wsl.conf`）：**保留 UNC**——小文件 9P 比 `wsl.exe` 启动快，且守护起来之前必须先读，不能依赖守护。
 
 ## 7. 验证方式（可复核）
-- 单测：`node --experimental-strip-types --test test/*.test.ts`（含令牌平面、fail-open、不可表示 fail-closed、挂载粘滞/去重用例）。
+- 单测：`node --experimental-strip-types --test test/*.test.ts`（含令牌平面、**守护不可用不回退宿主**、身份往返、挂载粘滞/去重用例）。
 - 语法门：`node --experimental-strip-types scripts/check-syntax.ts`。
 - 真机冒烟：`_work/smoke-native.ts`（宿主原生 fs）、`_work/smoke-search.ts`（宿主 rg）。
 - 边界：`wsl_daemon action=status` 看守护；`wsl_path`/`wsl_status` 交叉核对。
+
+## 8. 对标 VS Code Remote-WSL
+**它的范式**：远端进程（VS Code Server）**拥有字节并原生执行**（extension host / ripgrep / git / 终端都在 WSL 内），Windows 侧只做 UI + 窄 RPC 通道；**身份是远端 URI**（`vscode-remote://wsl+<distro>/<path>`），**UNC 只是"在 Windows shell 打开"的导出**，不进文件身份。
+
+**我们已对齐**：daemon 原生读写 ext4；`/mnt` 走宿主原生（VS Code 同样把 `/mnt` 视为 Windows 侧）；rg/git 各自归位；端口转发式 Web UI；版本配套检查；doctor 式诊断。
+
+**尚未对齐（P2/P3）**：内部仍用 UNC 字符串当路径（桥/面板）。→ 计划改成 `{distro, linuxPath}` 身份、UNC 只在边界生成，见 `docs/2026-11-21-path-identity.md`。
+
+**不适用**：VS Code 的 UI/工作区双 extension host 模型；DSH 没有对应物（我们是宿主插件 + WSL daemon）。
+
+## 9. DSH 特殊性（决定"照抄 VS Code"的边界）
+- **宿主 fs 是可注入服务，合约吃字符串 `targetKey`** → URI 只能内部用，wire 仍是 UNC。
+- **没有 extension host/server 二分** → "authority 决定 provider"翻译成"preset + bridge attach 时锁定平面"。
+- **两个 preset 可指向同一工作区** → 结构上就有两个 provider（改不掉），只能在 token 平面与文档上保证一致。
+- **守护不保证存在** → 不能像 VS Code 那样"server 一定在"；因此必须有确定性错误 + 可执行修复。
+- **读不加围栏**（上游 fs-sandbox）→ fail-open 不是越权，只是**视图不一致**；但按决策 A 仍改为 fail-closed。
+- **插件热重载/多会话** → 平面与缓存按 fs 服务实例，不全局。
+- **版本可漂移** → 身份/契约演进必须可加版本（`plugin-version.ts` 已有 v2 先例）。
+
+## 10. 决策 A（已确认）：ext4 读 fail-closed
+守护不可用时 **明确失败**（`FS_DAEMON_UNAVAILABLE` + 修复指引），**移除静默回退宿主 9P**；`allowHost9pFallback` 默认 `false` 仅作显式逃生口。理由与影响见 `docs/2026-11-21-path-identity.md` §决策 A。
+
+## 11. 实测指标（2026-11-20 本机，debian-u8-1）
+
+目标目录 `/home/g/.local/bin`（20 项），文件 `sd`（2.4 MB）。同机、热缓存、取中位数。
+
+| 操作 | 宿主 UNC（9P） | WSL 内原生 | 倍数 |
+|---|---|---|---|
+| readdir（20 项） | 1.1 ms | 0.009 ms | ~120× |
+| stat（每项） | 0.79 ms | 0.0008 ms | ~1000× |
+| read 2.4 MB | 8.9 ms | 0.169 ms | ~53× |
+
+**另一个反直觉但重要的数**：`wsl.exe` 单次启动基线 **≈104 ms**。所以：
+- **单次**小操作走 `wsl.exe`（104ms 起）**远慢于** 9P（1–9ms）——这就是"引导链小文件保留 UNC、不要把 9P 回退换成 wsl.exe"的数据依据；
+- 真正快的是**常驻守护**（≈ WSL 内原生，无启动开销），即 daemon 路径；
+- 9P 的代价主要在**每操作往返与元数据量**，不是带宽 → 面板"1 次 readdir + N 次 stat" 的 N 倍放大最致命（已改为 0 次）。
+
+**附带事实**：`\\wsl.localhost\<distro>\mnt\d\…` 从 Windows 访问是 **Access denied**（PowerShell `Test-Path` 为 False）——历史上"`/mnt` 回退宿主 UNC"本来就不可用，这也印证 `/mnt` 必须走盘符原生。
+
+

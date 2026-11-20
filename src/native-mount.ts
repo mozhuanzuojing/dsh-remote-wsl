@@ -91,19 +91,11 @@ export function toWindowsPath(linuxPath: any): string | null {
 
 /**
  * 一个 Linux 绝对路径是否可被 Windows 路径**无歧义地**表示（逐段：无 `\ : * ? " < > |`、无控制字符、
- * 无尾点/尾空格、非保留设备名）。用于 fail-open 回退宿主 9P 前的安全检查——不可表示就 fail-closed，
- * 绝不把 ext4 合法名塞进 Windows 语义后读到"另一个对象"（ADS/尾点/保留名）。
+ * 无尾点/尾空格、非保留设备名）。
+ *
+ * @deprecated 2026-11-21（决策 A）：ext4 读已改为 fail-closed，不再回退宿主 9P，故本函数无调用点；
+ * 保留仅为历史文档/外部引用可读，后续可删。
  */
-export function isWindowsRepresentable(linuxPath: any): boolean {
-  const segs = String(linuxPath ?? '').split('/').filter((s) => s.length > 0);
-  for (const seg of segs) {
-    if (/[\\:*?"<>|]/.test(seg)) return false;
-    if (/[\x00-\x1f]/.test(seg)) return false;
-    if (/[. ]$/.test(seg)) return false;
-    if (RESERVED.test(seg)) return false;
-  }
-  return true;
-}
 
 /** `X:\a\b` → `/mnt/x/a/b`；无法映射（UNC/相对/`\\?\` 异常）返回 null。 */
 export function winToLinux(win: any): string | null {

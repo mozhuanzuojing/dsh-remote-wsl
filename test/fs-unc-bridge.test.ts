@@ -333,15 +333,20 @@ test('普通 UNC 的 stat 走 WSL（宿主 stat 不被调用）', async () => {
   assert.equal(hostStat, 0);
 });
 
-test('读 fail-open：守护不可用（结构化码）时 readText 回退宿主', async () => {
+test('决策 A：守护不可用 ⇒ 不回退宿主 9P，抛 FS_DAEMON_UNAVAILABLE + 修复指引', async () => {
   const err = Object.assign(new Error('daemon down'), { code: 'FS_DAEMON_UNAVAILABLE' });
-  const fs: any = { stat: async () => ({}), readText: async () => 'host-9p', writeText: async () => ({}), editText: async () => ({}) };
+  let hostRead = 0;
+  const fs: any = { stat: async () => ({}), readText: async () => { hostRead++; return 'host-9p'; }, writeText: async () => ({}), editText: async () => ({}) };
   const wsl: any = { readText: async () => { throw err; }, writeText: async () => ({}), editText: async () => ({}) };
   attachUncWriteBridge(fs, { distro: 'debian-u8-1', wslFs: wsl });
-  assert.equal(await fs.readText({ targetKey: UNC, displayPath: UNC }), 'host-9p');
+  await assert.rejects(
+    () => fs.readText({ targetKey: UNC, displayPath: UNC }),
+    (e: any) => e.code === 'FS_DAEMON_UNAVAILABLE' && /wsl_daemon action=start/.test(String(e.message)),
+  );
+  assert.equal(hostRead, 0, '不得回退宿主 9P');
 });
 
-test('读 fail-open：路径不可被 Windows 无歧义表示时不回退（fail-closed）', async () => {
+test('决策 A：含 Windows 歧义字符的路径同样不回退（fail-closed）', async () => {
   const err = Object.assign(new Error('daemon down'), { code: 'FS_DAEMON_UNAVAILABLE' });
   const badUnc = '\\\\wsl.localhost\\debian-u8-1\\home\\g\\a:b';
   let hostRead = 0;
