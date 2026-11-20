@@ -326,25 +326,17 @@ function resolveCodeExe() {
   return null;
 }
 
-/** 宿主 UNC/盘符 列目录（9P，慢但只读）；抛出原始 fs 错误由调用方映射。 */
+/** 宿主 UNC/盘符 列目录（9P，慢但只读）；抛出原始 fs 错误由调用方映射。
+ * 回退态**不逐项 stat**（否则列 N 项目录 = 1 次 readdir + N 次 9P 往返）；size/mtime 省略。 */
 function listDirHostEntries(winPath) {
   const dirents = readdirSync(winPath, { withFileTypes: true });
-  const out = dirents.map((dirent) => {
-    let info = null;
-    try {
-      info = statSync(`${winPath}\\${dirent.name}`);
-    } catch {
-      info = null;
-    }
-    return {
+  return dirents
+    .map((dirent) => ({
       name: dirent.name,
       kind: entryKindOf(dirent),
       hidden: dirent.name.startsWith('.'),
-      size: info && info.isFile() ? info.size : null,
-      mtimeMs: info ? info.mtimeMs : null,
-    };
-  });
-  return out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    }))
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
 function windowsDriveForMount(path) {
@@ -449,6 +441,10 @@ async function probeDistroState() {
  * 都没有时**回落到配置里的 `cwd` 一条**，这样面板第一次打开就至少显示"当前目标目录"，
  * 而不是空树 —— 这个回落是本次引入的约定，已写进交付报告，等 lead/client 半确认。
  */
+/** 收藏夹短 TTL 缓存（ext4 小文件；避免 snapshot 每次刷新都经 UNC 9P 读一次）。 */
+const FAVORITES_TTL_MS = 2000;
+const favoritesCache = new Map();
+
 function readWorkspaces(cfg) {
   // 2026-10-28（零评审 nit）：面板显式切到 B 发行版、而 B 的 `$HOME` 读不到时，`cfgFor(B)` 的
   // `wslHome`/`cwd` 会回落成空串 —— 那会生成 `{path:'', label:''}` 这种伪条目（点进去只会得到
@@ -464,11 +460,20 @@ function readWorkspaces(cfg) {
   const fallback = [
     { distro: cfg.distro, path: cfg.cwd, label: baseName(cfg.cwd) || cfg.cwd, kind: kindOf(cfg.cwd) },
   ];
+  // 收藏夹是 ext4 上的小文件，snapshot 每次刷新都会读；短 TTL 缓存避免每次刷新一次 UNC(9P) 读。
+  const favKey = `${String(cfg.distro ?? '')}|${String(cfg.cwd ?? '')}`;
+  const favHit = favoritesCache.get(favKey);
+  const now = Date.now();
   let parsed;
-  try {
-    parsed = JSON.parse(readFileSync(unc(cfg.distro, favoritesLinux(cfg)), 'utf8'));
-  } catch {
-    return fallback;
+  if (favHit && now - favHit.at < FAVORITES_TTL_MS) {
+    parsed = favHit.value;
+  } else {
+    try {
+      parsed = JSON.parse(readFileSync(unc(cfg.distro, favoritesLinux(cfg)), 'utf8'));
+      favoritesCache.set(favKey, { at: now, value: parsed });
+    } catch {
+      return fallback;
+    }
   }
   const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.paths) ? parsed.paths : [];
   const out = [];
@@ -519,6 +524,25 @@ export function createExplorerHandlers(deps) {
       fsRpcCache.set(key, rpc);
     }
     return rpc;
+  };
+
+  /** 面板"守护在不在"探测：短 TTL 缓存，避免每次 ext4 列目录都经 UNC 读守护状态目录（9P 往返）。 */
+  const DAEMON_PROBE_TTL_MS = 2000;
+  const daemonProbeCache = new Map();
+  const daemonRecFor = (distro) => {
+    const dc = cfgFor(distro);
+    const key = `${String(distro ?? '')}|${String(dc.wslHome ?? '')}`;
+    const now = Date.now();
+    const hit = daemonProbeCache.get(key);
+    if (hit && now - hit.at < DAEMON_PROBE_TTL_MS) return hit.rec;
+    let rec = null;
+    try {
+      rec = readDaemonRecord(dc);
+    } catch {
+      rec = null;
+    }
+    daemonProbeCache.set(key, { at: now, rec });
+    return rec;
   };
   const log = (m) => process.stderr.write(`remote-wsl(explorer): ${m}\n`);
 
@@ -1109,12 +1133,7 @@ export function createExplorerHandlers(deps) {
     } else {
       // ext4：优先走 WSL 守护原生 listDir（免宿主 9P）。但面板必须"零副作用"：
       // 守护没起时**不去拉起它**，回退宿主 UNC（9P，慢但只读）；守护已在跑才用原生。
-      let daemonRec = null;
-      try {
-        daemonRec = readDaemonRecord(cfgFor(distro));
-      } catch {
-        daemonRec = null;
-      }
+      const daemonRec = daemonRecFor(distro);
       if (daemonRec === null) {
         try {
           entries = listDirHostEntries(unc(distro, path));
@@ -1422,7 +1441,7 @@ async function newSession(args) {
             windowsHide: true,
           });
           child.unref();
-          return { ok: true, app: 'explorer', path: candidate };
+          return { ok: true, app: 'explorer', path: candidate, ...(nativeWin === null ? { note: 'ext4 经 \\\\wsl.localhost 9P 打开（Windows 资源管理器无 ext4 原生挂载）；如需原生，改用 app="vscode"（Remote-WSL 在 WSL 内原生读）。' } : {}) };
         } catch (error) {
           lastError = String(error?.message ?? error);
         }
