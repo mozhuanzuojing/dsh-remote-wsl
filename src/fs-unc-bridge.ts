@@ -240,17 +240,19 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
    * 决策 A：本发行版 UNC 统一 **WSL 平面**；守护不可用 → **确定性失败**（附可执行修复），
    * **不回退宿主 9P**（避免同一路径出现"两个真相源"/混平面令牌）。
    */
-  const daemonDownError = (what: any) =>
+  const daemonDownError = (what: any, cause?: any) =>
     fsError(
       `remote-wsl: WSL 守护不可用，无法访问 "${String((what && (what.displayPath ?? what.targetKey)) ?? '')}"。` +
-        `ext4 路径依赖守护（不回退宿主 9P）；请先启动守护：wsl_daemon action=start；或用 wsl_doctor 诊断。`,
+        `${cause && cause.message ? `原因：${String(cause.message)} ` : ''}` +
+        `ext4 路径依赖守护（不回退宿主 9P）；先 wsl_daemon action=status 看状态，必要时 action=restart，` +
+        `或 wsl_doctor 诊断（WSL 内存/swap 紧张也会导致瞬断）。`,
       DAEMON_DOWN_CODE,
     );
   const guardPlane = async (what: any, thunk: () => any) => {
     try {
       return await thunk();
     } catch (e) {
-      if (isDaemonDown(e)) throw daemonDownError(what);
+      if (isDaemonDown(e)) throw daemonDownError(what, e);
       throw e;
     }
   };
@@ -268,7 +270,7 @@ export function attachUncBridge(fsService: any, options: { distro: string; wslFs
         const iterable = await callWsl('streamText', toWslTarget(target), signal);
         for await (const chunk of iterable) yield chunk;
       } catch (e) {
-        if (isDaemonDown(e)) throw daemonDownError(target);
+        if (isDaemonDown(e)) throw daemonDownError(target, e);
         throw e;
       }
     })();

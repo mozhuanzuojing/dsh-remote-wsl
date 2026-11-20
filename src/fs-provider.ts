@@ -103,20 +103,41 @@ export function createWslRpc(rawConfig = {}, deps = {}) {
 
   /** 懒起守护：第一次操作时确保 WSL 侧守护在跑（失败要明确报，不许假装成功）。 */
   let daemonReady = null;
+  let ensureFailedAt = 0;
+  let ensureFailure = null;
   const ensure = async () => {
     if (targetIssue) throw fsErr(targetIssue, 'FS_IO_ERROR');
-    if (daemonReady === null) {
-      const version = resolveVersion(config);
-      if (!version.version) throw fsErr('remote-wsl: 无法确定 dsh 版本（desktop runtime.json 不可读且未配 dshVersion）', DAEMON_DOWN_CODE);
-      daemonReady = ensureDaemonFn(config, { version: version.version, log: () => {} }).catch((e) => {
-        daemonReady = null;
-        throw fsErr(`remote-wsl: 启动 WSL 守护失败：${e?.message ?? String(e)}`, DAEMON_DOWN_CODE);
-      });
+    if (daemonReady !== null) return daemonReady;
+    // 断路器：刚失败过 ⇒ 1s 内直接复用该失败（瞬断期并发调用不再各起一个 wsl.exe / 守护）。
+    if (ensureFailure !== null && Date.now() - ensureFailedAt < 1000) throw ensureFailure;
+    const version = resolveVersion(config);
+    if (!version.version) {
+      ensureFailedAt = Date.now();
+      ensureFailure = fsErr('remote-wsl: 无法确定 dsh 版本（desktop runtime.json 不可读且未配 dshVersion）', DAEMON_DOWN_CODE);
+      throw ensureFailure;
     }
+    daemonReady = ensureDaemonFn(config, { version: version.version, log: () => {} })
+      .then((r) => {
+        ensureFailure = null;
+        return r;
+      })
+      .catch((e) => {
+        daemonReady = null;
+        ensureFailedAt = Date.now();
+        ensureFailure = fsErr(`remote-wsl: 启动 WSL 守护失败：${e?.message ?? String(e)}`, DAEMON_DOWN_CODE);
+        throw ensureFailure;
+      });
     return daemonReady;
   };
 
-  const call = async (op, method, args, signal) => {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  /** 只读/幂等 op：失败可安全重试（**写操作绝不重放**，避免重复副作用）。 */
+  const READ_ONLY_OPS = new Set(['stat', 'statMany', 'listDir', 'readText', 'readBytes', 'readByteRange', 'readChunk', 'resolve', 'lstat']);
+  /** 读操作重试退避（总 ~1.1s）：覆盖“守护重启 / WSL 内存紧张”这类秒级瞬断。 */
+  const READ_BACKOFF_MS = [100, 300, 700];
+  const isDaemonDownErr = (e) => String(e?.code ?? e?.fsCode ?? '') === DAEMON_DOWN_CODE;
+
+  const attemptCall = async (op, method, args, signal) => {
     signal?.throwIfAborted?.();
     await ensure();
     /**
@@ -159,6 +180,30 @@ export function createWslRpc(rawConfig = {}, deps = {}) {
     if (!r?.msg) throw fsErr(`remote-wsl: 守护调用失败（${r?.kind ?? 'unknown'}）：${r?.error ?? '没有回包'}`, DAEMON_DOWN_CODE);
     if (r.msg.ok !== true) throw fsErr(String(r.msg.error ?? 'operation failed'), String(r.msg.code ?? 'FS_IO_ERROR'));
     return r.msg.result;
+  };
+
+  const call = async (op, method, args, signal) => {
+    const idempotent = READ_ONLY_OPS.has(String(method));
+    const attempts = idempotent ? READ_BACKOFF_MS.length + 1 : 1;
+    let last;
+    for (let i = 0; i < attempts; i++) {
+      if (i > 0) {
+        await sleep(READ_BACKOFF_MS[i - 1] ?? 700);
+        daemonReady = null; // 强制下一轮重新 ensure（守护可能正在重启）
+      }
+      try {
+        return await attemptCall(op, method, args, signal);
+      } catch (e) {
+        last = e;
+        if (!idempotent || !isDaemonDownErr(e)) throw e;
+      }
+    }
+    throw fsErr(
+      `remote-wsl: WSL 守护不可用（已重试 ${attempts} 次）：${String(last?.message ?? last)}。` +
+        `常见原因：守护正在重启，或 WSL 内存/swap 紧张（wsl -d <distro> --exec free -m 看 swap）。` +
+        `先 wsl_daemon action=status 看状态，必要时 wsl_daemon action=restart 或 wsl --shutdown；wsl_doctor 可诊断。`,
+      DAEMON_DOWN_CODE,
+    );
   };
 
   return { config, distro, ensure, call };

@@ -379,6 +379,29 @@ export function registerTools(deps) {
           }
         } catch (e: any) { facts.versionIssue = String((e && e.message) || e); }
         try { facts.configWarnings = configWarnings(config) || []; } catch { /* ignore */ }
+        // WSL 内存/swap：真机教训（swap 100% ⇒ 守护瞬断、重启失败）。只读、3s 超时。
+        try {
+          if (config.distro) {
+            const memText: string = await new Promise((resolve, reject) => {
+              const child = spawn('wsl.exe', ['-d', config.distro, '--exec', 'sh', '-c', 'free -m'], { windowsHide: true });
+              let out = '';
+              let err = '';
+              const timer = setTimeout(() => { try { child.kill(); } catch { /* ignore */ } reject(new Error('timeout')); }, 3000);
+              child.stdout.on('data', (d) => (out += d.toString('utf8')));
+              child.stderr.on('data', (d) => (err += d.toString('utf8')));
+              child.on('error', (e) => { clearTimeout(timer); reject(e); });
+              child.on('close', () => { clearTimeout(timer); out ? resolve(out) : reject(new Error(err || 'empty')); });
+            });
+            const pick = (label) => {
+              const line = memText.split('\n').find((l) => l.trim().startsWith(label));
+              const p = (line || '').trim().split(/\s+/);
+              return { total: Number(p[1]) || 0, used: Number(p[2]) || 0, free: Number(p[3]) || 0 };
+            };
+            const mem = pick('Mem:');
+            const swap = pick('Swap:');
+            facts.memory = { totalMB: mem.total, freeMB: mem.free, swapUsedPct: swap.total ? Math.round((swap.used / swap.total) * 100) : 0 };
+          }
+        } catch { /* memory unknown -> skip */ }
         try {
           if (typeof readDaemonMeta === 'function') {
             const m: any = await readDaemonMeta(config);

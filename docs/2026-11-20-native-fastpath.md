@@ -96,4 +96,16 @@
 
 **附带事实**：`\\wsl.localhost\<distro>\mnt\d\…` 从 Windows 访问是 **Access denied**（PowerShell `Test-Path` 为 False）——历史上"`/mnt` 回退宿主 UNC"本来就不可用，这也印证 `/mnt` 必须走盘符原生。
 
+## 12. 守护瞬断的恢复语义（2026-11-20 真机复盘）
+**真机事实**：WSL `free -m` 显示 `free 534MB`、**swap 3072/3072 用满**；守护 node 仅 119MB，是**WSL VM 内存被其它进程（java/tsc）压满** ⇒ 守护调用瞬间 reset/超时；用户手动重启守护也失败（内存不足 + 端口/旧进程未退）。决策 A 的 fail-closed 把这次瞬断放大成整轮失败，且日志被 8220 次重试连接刷爆。
+
+**修复（v0.8.1）**：
+1. **幂等读自动重试**：`stat/statMany/listDir/readText/readBytes/readByteRange/readChunk/resolve/lstat` 失败后 `re-ensure` 重试，退避 100/300/700ms（共 ~1.1s）；**写操作绝不重放**（保护副作用）。
+2. **断路器**：`ensure()` 失败后 1s 内复用同一失败（不再并发起多个 `wsl.exe`/守护）；在飞时共享同一 promise。
+3. **错误分档**：读重试耗尽才报 `FS_DAEMON_UNAVAILABLE`，消息含“已重试 N 次 + 常见原因（守护重启 / WSL 内存·swap 紧张）+ `wsl_daemon action=status` / `wsl_doctor`”；桥的错误也带底层原因。
+4. **`wsl_doctor` 新增「WSL 内存」检查**：swap ≥95% 或 free <300MB ⇒ `fail`，给出 `wsl --shutdown` 与 `.wslconfig`（`memory=10GB` / `swap=4GB`）建议，并指向 `free -m` / `ps` 自查。
+
+**教训**：`fail-closed` 只应针对"持续不可用"；"瞬断"必须**可重试**，否则用户点一次重启守护就能让整轮工作失败。
+
+
 

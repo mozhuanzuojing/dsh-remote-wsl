@@ -30,6 +30,7 @@ export interface DoctorFacts {
   drift?: { drifted?: boolean; desktop?: string; pin?: string } | null;
   daemon?: { present?: boolean; running?: boolean; reachable?: boolean; detail?: string } | null;
   proxy?: { reachable?: boolean | null; host?: string | null; port?: number | null } | null;
+  memory?: { totalMB?: number; freeMB?: number; swapUsedPct?: number } | null;
   configWarnings?: string[];
 }
 export interface DoctorReport {
@@ -108,6 +109,25 @@ export function doctorReport(facts: DoctorFacts = {}): DoctorReport {
     add({ id: 'proxy', status: 'ok', title: '代理', detail: `${facts.proxy.host ?? '?'}:${facts.proxy.port ?? '?'}` });
   } else {
     add({ id: 'proxy', status: 'skip', title: '代理', detail: '未探测/发行版未运行' });
+  }
+
+  // 7.5) WSL 内存 / swap（2026-11-20 真机：swap 100% + free 534MB ⇒ 守护瞬断、重启也起不来）
+  if (facts.memory === null || facts.memory === undefined) {
+    add({ id: 'memory', status: 'skip', title: 'WSL 内存', detail: '未探测' });
+  } else if ((facts.memory.swapUsedPct ?? 0) >= 95 || (facts.memory.freeMB ?? 999) < 300) {
+    add({
+      id: 'memory',
+      status: 'fail',
+      title: 'WSL 内存',
+      detail: `内存紧张：free ${facts.memory.freeMB ?? '?'}MB · swap ${facts.memory.swapUsedPct ?? '?'}%（total ${facts.memory.totalMB ?? '?'}MB）—— 守护/文件读会瞬断，重启守护也可能失败`,
+      remedy: [
+        'wsl --shutdown 清 VM（会杀掉发行版内所有进程）',
+        '在 %UserProfile%\\.wslconfig 设 [wsl2] memory=10GB / swap=4GB（默认 memory 是宿主 ~50%）',
+        'wsl -d <distro> --exec free -m 自查；ps -eo rss,comm --sort=-rss | head 看谁吃内存',
+      ],
+    });
+  } else {
+    add({ id: 'memory', status: 'ok', title: 'WSL 内存', detail: `free ${facts.memory.freeMB ?? '?'}MB · swap ${facts.memory.swapUsedPct ?? 0}%` });
   }
 
   // 8) 配置告警

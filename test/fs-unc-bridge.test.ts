@@ -341,7 +341,7 @@ test('决策 A：守护不可用 ⇒ 不回退宿主 9P，抛 FS_DAEMON_UNAVAILA
   attachUncWriteBridge(fs, { distro: 'debian-u8-1', wslFs: wsl });
   await assert.rejects(
     () => fs.readText({ targetKey: UNC, displayPath: UNC }),
-    (e: any) => e.code === 'FS_DAEMON_UNAVAILABLE' && /wsl_daemon action=start/.test(String(e.message)),
+    (e: any) => e.code === 'FS_DAEMON_UNAVAILABLE' && /wsl_daemon action=|wsl_doctor/.test(String(e.message)),
   );
   assert.equal(hostRead, 0, '不得回退宿主 9P');
 });
