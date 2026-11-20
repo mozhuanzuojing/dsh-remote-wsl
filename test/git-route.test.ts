@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isGitProgram, windowsToLinuxMount, translateGitEnvValue, translateGitEnv, gitSpawnRewrite } from '../src/git-route.ts';
+import { isGitProgram, windowsToLinuxMount, translateGitEnvValue, translateGitEnv, gitSpawnRewrite, nativeGitRewrite } from '../src/git-route.ts';
 
 const UNC = '\\\\wsl.localhost\\debian-u8-1\\home\\g\\proj';
 
@@ -54,4 +54,17 @@ test('gitSpawnRewrite: git + UNC cwd 重写为 wsl.exe，discovery/非 git/host 
   assert.equal(gitSpawnRewrite({ argv: ['rg', 'x'], cwd: UNC, wslPath: 'wsl.exe' }), undefined);
   // host cwd
   assert.equal(gitSpawnRewrite({ argv: ['git', 'add', '--all'], cwd: 'C:\\proj', wslPath: 'wsl.exe' }), undefined);
+});
+
+test('nativeGitRewrite: /mnt 工作区 → 宿主 git + D:\\ cwd；ext4 不重写', () => {
+  const uncMnt = '\\\\wsl.localhost\\debian-u8-1\\mnt\\d\\proj';
+  const n = nativeGitRewrite({ argv: ['git', 'add', '--all'], cwd: uncMnt });
+  assert.ok(n);
+  assert.equal(n!.windowsCwd, 'D:\\proj');
+  assert.deepEqual(n!.gitArgv, ['git', 'add', '--all']);
+  // ext4 UNC 不归原生（交给 gitSpawnRewrite 走 WSL）
+  assert.equal(nativeGitRewrite({ argv: ['git', 'add', '--all'], cwd: UNC }), undefined);
+  // 非 git / Windows cwd
+  assert.equal(nativeGitRewrite({ argv: ['rg', 'x'], cwd: uncMnt }), undefined);
+  assert.equal(nativeGitRewrite({ argv: ['git', 'status'], cwd: 'C:\\x' }), undefined);
 });

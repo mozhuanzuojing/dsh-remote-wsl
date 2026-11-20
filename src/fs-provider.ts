@@ -37,6 +37,7 @@ import { callDaemon, isRecoverableDaemonTransport, readDaemonRecord, winToWsl } 
 import { resolveVersion } from './wsl-io.ts';
 
 import { normalizeConfig, targetProblem } from './config.ts';
+import { isNativeMountPath, nativeFs } from './native-mount.ts';
 export const name = 'dsh-remote-wsl-fs';
 export const inject = [];
 
@@ -363,6 +364,15 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
    * 必须让写入失败，不允许静默按词法放行。
    */
   const canonical = async (linuxPath) => {
+    // /mnt：围栏解析必须与写入**同引擎（原生）**；realpath 映射不回 /mnt → fail-closed，绝不回落 RPC 造词法
+    // 路径（否则围栏用 RPC 词法、写用原生 ⇒ 符号链接/junction 可被判"在 roots 内"却写到别处，F1）。
+    if (await isNativeMountPath(linuxPath, distro)) {
+      const nativeResolved = await nativeFs.realpath(linuxPath);
+      if (nativeResolved === null) {
+        throw fsErr(`cannot resolve "${linuxPath}" against the native mount: sandbox fence cannot be verified`, 'FS_SANDBOX_DENIED');
+      }
+      return nativeResolved;
+    }
     const resolved = await resolveIdentity(linuxPath);
     if (resolved === null) {
       // fail-closed：围栏无法验证真实路径时，宁可直接拒绝写，也不按词法放行（P0 F-01）。
@@ -406,8 +416,19 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     }
     const paths = [...watchers.keys()];
     try {
-      const r = await call('statMany', { paths });
-      const items = Array.isArray(r?.items) ? r.items : [];
+      // /mnt 走原生 statMany（免 9P），其余仍走 RPC；同一文件不会跨平面（各自平面令牌一致）。
+      const nativePaths = [];
+      const rpcPaths = [];
+      for (const p of paths) {
+        if (await isNativeMountPath(p, distro)) nativePaths.push(p);
+        else rpcPaths.push(p);
+      }
+      const items = [];
+      if (nativePaths.length > 0) items.push(...(await nativeFs.statMany(nativePaths)));
+      if (rpcPaths.length > 0) {
+        const r = await call('statMany', { paths: rpcPaths });
+        if (Array.isArray(r?.items)) items.push(...r.items);
+      }
       for (const item of items) {
         const set = watchers.get(item.path);
         if (!set) continue;
@@ -478,6 +499,11 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     async resolve(input, opts = {}) {
       opts.signal?.throwIfAborted?.();
       const { linuxPath } = translate(input, opts.cwd);
+      // /mnt 原生 realpath（含最近存在祖先+拼接缺失后缀），失败再回落 RPC resolveIdentity。
+      if (await isNativeMountPath(linuxPath, distro)) {
+        const nativeKey = await nativeFs.realpath(linuxPath, opts.signal);
+        if (nativeKey !== null) return { targetKey: nativeKey, displayPath: linuxPath };
+      }
       const targetKey = await resolveIdentity(linuxPath, opts.signal);
       if (targetKey === null) {
         // 连 `/` 都解析不出：宿主守护/发行版层面出了问题。明确失败，不退回未解析路径（fail-closed）。
@@ -507,12 +533,18 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     },
 
     async stat(target, signal) {
+      if (await isNativeMountPath(target.targetKey, distro)) {
+        return nativeFs.stat(target.targetKey, true, signal);
+      }
       const r = await call('stat', { path: target.targetKey }, signal);
       return r?.exists ? { version: r.version, type: r.type, size: r.size } : undefined;
     },
 
     async lstat(input, opts = {}, signal) {
       const { linuxPath } = translate(input, opts?.cwd);
+      if (await isNativeMountPath(linuxPath, distro)) {
+        return nativeFs.stat(linuxPath, false, signal);
+      }
       const r = await call('lstat', { path: linuxPath }, signal);
       return r?.exists ? { version: r.version, type: r.type, size: r.size } : undefined;
     },
@@ -521,6 +553,10 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
       // 上限可配（默认 16MiB，见 config.ts 的 readTextMaxBytes）：宿主 readText 的区间是 <10MiB
       // （≥10MiB 走 streamText），所以 16MiB 覆盖该区间；超限报 FS_TOO_LARGE 且不暴露实现字节数。
       const maxBytes = Math.max(config.readTextMaxBytes, 1);
+      // /mnt/<盘符> 走原生 Windows node:fs（9P 慢 ~10×）；配额令牌全平面原生。
+      if (await isNativeMountPath(target.targetKey, distro)) {
+        return nativeFs.readText(target.targetKey, maxBytes);
+      }
       const r = await call('readText', { path: target.targetKey, maxBytes }, signal);
       return r.text;
     },
@@ -533,9 +569,12 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
      * 内存占用与文件大小解耦（消费方可以只取前几块，例如 dsh-tool-fs 的 read 窗口）。
      * RPC 发生在**迭代时**（与上游 async generator 一致），所以守护不可用不会在调用时同步抛错。
      */
-    streamText(target, signal) {
+    async streamText(target, signal) {
       const targetKey = target.targetKey;
       const displayPath = target.displayPath;
+      if (await isNativeMountPath(targetKey, distro)) {
+        return nativeFs.streamText(targetKey, signal, displayPath);
+      }
       // 旧守护兼容（2026-10-27 换角度评审第 1 条）：v0.1.1 之前起的守护不认识 `readChunk`。
       // 守护是 detached 的 —— 宿主升级后旧守护还会继续活着，所以"协议换了一版"不能变成"大文件读不出来"。
       // 第一次拿到 unknown method/op 就退回整段 `readText`（单块），牺牲流式但保持可读。
@@ -559,11 +598,17 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     },
 
     async readBytes(target, signal, maxBytes) {
+      if (await isNativeMountPath(target.targetKey, distro)) {
+        return nativeFs.readBytes(target.targetKey, maxBytes);
+      }
       const r = await call('readBytes', { path: target.targetKey, maxBytes: Math.min(Number(maxBytes) || 8 * 1024 * 1024, 8 * 1024 * 1024) }, signal);
       return Buffer.from(r.base64, 'base64');
     },
 
     async readByteRange(target, range, signal) {
+      if (await isNativeMountPath(target.targetKey, distro)) {
+        return nativeFs.readByteRange(target.targetKey, range);
+      }
       const r = await call(
         'readRange',
         { path: target.targetKey, offset: Number(range?.offset) || 0, length: Number(range?.length) || 0 },
@@ -573,6 +618,10 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     },
 
     async listDir(target, signal) {
+      if (await isNativeMountPath(target.targetKey, distro)) {
+        const native = await nativeFs.listDir(target);
+        if (native !== null) return native;
+      }
       const r = await call('listDir', { path: target.targetKey }, signal);
       // 2026-10-27 第三轮（HANDOFF 遗留项）：子项身份必须用**守护解析出的 targetKey**（链接已被 realpath），
       // 不能再拿 `path.posix.join(parent, name)` 现拼 —— 那会让「链接到本目录外」的子项得到一个
@@ -594,6 +643,9 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     async writeText(target, content, expected, signal, sandboxPolicy) {
       // P0（F-01）：围栏检查与写入使用**同一个**解析后路径（别名/符号链接不再有机会换目标）。
       const writePath = await writablePath(target, sandboxPolicy);
+      if (await isNativeMountPath(writePath, distro)) {
+        return nativeFs.writeText(writePath, content, expected ? { kind: expected.kind, version: expected.version } : null);
+      }
       const r = await call(
         'writeText',
         { path: writePath, content, expected: expected ? { kind: expected.kind, version: expected.version } : null },
@@ -604,6 +656,9 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
 
     async editText(target, edit, expected, signal, sandboxPolicy) {
       const writePath = await writablePath(target, sandboxPolicy);
+      if (await isNativeMountPath(writePath, distro)) {
+        return nativeFs.editText(writePath, edit, expected?.version ?? null);
+      }
       const r = await call(
         'editText',
         {
@@ -624,6 +679,9 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
      */
     async patchText(target, hunks, expected, signal, sandboxPolicy) {
       const writePath = await writablePath(target, sandboxPolicy);
+      if (await isNativeMountPath(writePath, distro)) {
+        return nativeFs.patchText(writePath, Array.isArray(hunks) ? hunks : [], expected?.version ?? null);
+      }
       const r = await call(
         'patchText',
         {
@@ -639,6 +697,9 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     /** 0.2.2 `FileSystem.deleteFile`：返回删除前的 diff 基线（非文本/超限时为 null）。 */
     async deleteFile(target, expected, signal, sandboxPolicy) {
       const writePath = await writablePath(target, sandboxPolicy);
+      if (await isNativeMountPath(writePath, distro)) {
+        return nativeFs.deleteFile(writePath, expected?.version ?? null);
+      }
       const r = await call('deleteFile', { path: writePath, expectedVersion: expected?.version ?? null }, signal);
       return { before: r?.before ?? null };
     },
@@ -650,6 +711,9 @@ export function createWslFileSystem(rawConfig = {}, internals = {}) {
     async moveFile(source, destination, options, signal, sandboxPolicy) {
       const sourcePath = await writablePath(source, sandboxPolicy);
       const destinationPath = await writablePath(destination, sandboxPolicy);
+      if ((await isNativeMountPath(sourcePath, distro)) && (await isNativeMountPath(destinationPath, distro))) {
+        return nativeFs.moveFile(sourcePath, destinationPath, options);
+      }
       const r = await call(
         'moveFile',
         {

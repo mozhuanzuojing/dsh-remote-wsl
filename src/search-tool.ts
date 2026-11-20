@@ -25,8 +25,31 @@ import { parseUnc, createWslRpc } from './fs-provider.ts';
 import { renderText } from './wsl-io.ts';
 
 import { normalizeConfig, targetProblem } from './config.ts';
+import { isNativeMountPath } from './native-mount.ts';
+import { nativeGrep, nativeGlob } from './native-search.ts';
 export const name = 'dsh-remote-wsl-search';
 export const inject = [];
+
+/** `/mnt` 目标优先用 Windows rg 原生搜索；非 /mnt / 无 rg / 出错 → null 回落 WSL 搜索（搜索永不比原来更差）。 */
+async function tryNativeSearch(kind, path, config, args, exec) {
+  try {
+    if (!(await isNativeMountPath(path, config.distro))) return null;
+    if (kind === 'grep') {
+      return await nativeGrep({
+        pattern: String(args.pattern ?? ''),
+        rootLinux: path,
+        fixedString: args.fixed_string === true,
+        ignoreCase: args.ignore_case === true,
+        maxMatches: args.max_matches,
+        signal: exec?.signal,
+      });
+    }
+    return await nativeGlob({ pattern: String(args.pattern ?? ''), rootLinux: path, maxResults: args.max_results, signal: exec?.signal });
+  } catch (e) {
+    if (e && e.code === 'E_CANCELLED') throw e;
+    return null;
+  }
+}
 
 
 
@@ -162,14 +185,14 @@ export function apply(ctx, rawConfig = {}) {
       output: { schema: { type: 'string' }, render: renderText },
       execute: async (args, exec) => {
         const path = await resolveLinuxPath(ctx, config, args.path, exec);
-        const r = await rpc.call('search', 'grep', {
+        const r = (await tryNativeSearch('grep', path, config, args, exec)) ?? (await rpc.call('search', 'grep', {
           pattern: String(args.pattern ?? ''),
           path,
           fixedString: args.fixed_string === true,
           ignoreCase: args.ignore_case === true,
           maxMatches: args.max_matches,
           autoInstall: config.searchAutoInstall !== false,
-        }, exec?.signal);
+        }, exec?.signal));
         const matches = Array.isArray(r?.matches) ? r.matches : [];
         const hints = hintsOf(r);
         if (matches.length === 0) return `no matches for ${JSON.stringify(String(args.pattern ?? ''))} in ${path}${hints}`;
@@ -194,12 +217,12 @@ export function apply(ctx, rawConfig = {}) {
       output: { schema: { type: 'string' }, render: renderText },
       execute: async (args, exec) => {
         const path = await resolveLinuxPath(ctx, config, args.path, exec);
-        const r = await rpc.call('search', 'glob', {
+        const r = (await tryNativeSearch('glob', path, config, args, exec)) ?? (await rpc.call('search', 'glob', {
           pattern: String(args.pattern ?? ''),
           path,
           maxResults: args.max_results,
           autoInstall: config.searchAutoInstall !== false,
-        }, exec?.signal);
+        }, exec?.signal));
         const files = Array.isArray(r?.files) ? r.files : [];
         const hint = `${provisionHint(r?.provision)}${warningHint(r)}`;
         if (files.length === 0) return `no files match ${JSON.stringify(String(args.pattern ?? ''))} under ${path}${hint}`;

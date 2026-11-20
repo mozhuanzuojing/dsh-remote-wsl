@@ -32,6 +32,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
+/**
+ * 路径助手：本文件既要跑在 **WSL 守护（linux）**，也要被宿主 **原生快路径**（win32）复用去操作
+ * `X:\` 盘。所以路径拼接/取目录按平台选 posix/win32 —— linux 下与旧的 `path.posix` 逐字一致，
+ * win32 下用 `path.win32` 处理 `D:\a\b` 这类路径（forward-slash 混用会算错 dirname）。
+ */
+const PATH = process.platform === 'win32' ? path.win32 : path.posix;
+
 /** 单次 readBytes/readRange 的字节上限（base64 JSON 帧的传输上限，不是产品契约）。 */
 export const FS_MAX_READ_BYTES = 8 * 1024 * 1024;
 
@@ -101,6 +108,13 @@ function typeOf(info) {
 /** 断言是绝对 Linux 路径（拒绝 UNC / 盘符 / 相对路径 —— 调用方必须先 resolve）。 */
 export function assertLinuxAbsolute(p) {
   if (typeof p !== 'string' || p.length === 0) throw fsError('path must be a non-empty string', 'FS_NOT_FOUND');
+  if (process.platform === 'win32') {
+    // 宿主进程里两种都合法：(a) POSIX 绝对路径（保持旧语义/既有测试，Node 在 Windows 上按当前盘解析）；
+    // (b) 盘符绝对路径（宿主原生快路径 X:\…）。**拒绝 UNC(\\server\share) 与相对路径**——原生从不需要 UNC。
+    if (p.startsWith('/') && !p.startsWith('//')) return;
+    if (/^[A-Za-z]:[\\/]/.test(p)) return;
+    throw fsError(`path must be a POSIX-absolute or drive-absolute path on the host: ${p}`, 'FS_IO_ERROR');
+  }
   if (!p.startsWith('/')) throw fsError(`path must be absolute inside the distribution: ${p}`, 'FS_IO_ERROR');
   if (p.startsWith('//')) throw fsError(`UNC path is not an in-distribution path: ${p}`, 'FS_IO_ERROR');
 }
@@ -335,7 +349,7 @@ export async function listDirOp(args) {
   const entries = await fs.promises.readdir(abs, { withFileTypes: true });
   const out = [];
   for (const entry of entries) {
-    const child = path.posix.join(abs, entry.name);
+    const child = PATH.join(abs, entry.name);
     // 1) 身份：链接 ⇒ 目标是身份；悬空/无权限 ⇒ 退回链接自身（上游 ENOENT 走「最近存在祖先」同义）。
     let targetKey = child;
     if (entry.isSymbolicLink()) {
@@ -679,9 +693,9 @@ async function writeTextLocked(args) {
   const expected = args?.expected ?? null;
   // 合法性判定在 mkdir 之前：被拒绝的写不该在盘上留下新建的父目录（审查 F-32 记录的副作用顺序问题）。
   const existing = await writeTarget(abs, expected);
-  const dir = path.posix.dirname(abs);
+  const dir = PATH.dirname(abs);
   await fs.promises.mkdir(dir, { recursive: true });
-  const tmp = path.posix.join(dir, `.${path.posix.basename(abs)}.${process.pid}.${randomUUID()}.tmp`);
+  const tmp = PATH.join(dir, `.${PATH.basename(abs)}.${process.pid}.${randomUUID()}.tmp`);
   const mode = typeof args?.mode === 'number' ? args.mode : existing === null ? 0o666 : Number(existing.mode & 0o7777n);
   try {
     await fs.promises.writeFile(tmp, content, { encoding: 'utf8', mode });

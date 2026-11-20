@@ -31,12 +31,38 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { parseWslUncPath } from './unc-path.ts';
-import { gitSpawnRewrite, translateGitEnv } from './git-route.ts';
+import { gitSpawnRewrite, translateGitEnv, nativeGitRewrite } from './git-route.ts';
 import { diag } from './diag.ts';
 
 /** Windows 侧合法 cwd（终端进程在这里启动，Linux 目录由 wsl.exe 决定）。 */
 const WINDOWS_CWD = process.env.SystemRoot ?? 'C:\\Windows';
 const SYSTEM32 = `${WINDOWS_CWD}\\System32`;
+
+/** 宿主是否有可用的 Windows git（native git 路由前置；缺则回落 WSL git，避免 spawn ENOENT 回归）。 */
+let _hasWinGit;
+function hasWindowsGit() {
+  if (_hasWinGit !== undefined) return _hasWinGit;
+  _hasWinGit = false;
+  if (process.platform !== 'win32') return false;
+  try {
+    for (const dir of String(process.env.PATH ?? '').split(';')) {
+      if (!dir) continue;
+      for (const name of ['git.exe', 'git.cmd', 'git.bat']) {
+        try {
+          if (fs.existsSync(path.join(dir, name))) {
+            _hasWinGit = true;
+            return true;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return _hasWinGit;
+}
 
 /**
  * wsl.exe 的绝对路径；非 Windows 退回 PATH 上的名字（仅测试用）。
@@ -106,6 +132,18 @@ export function installSubprocessBridge(host, cfg = {}) {
   if (originalSpawn) {
     const wslPath = wslExecutable();
     wrappedSpawn = function spawnRoutedGit(spec = {}) {
+      // 优先：/mnt 工作区的 git 用宿主 git.exe 以 D:\ 为 cwd 原生跑（免 9P）。
+      let native;
+      try {
+        native = nativeGitRewrite({ argv: spec.argv, cwd: spec.cwd });
+      } catch {
+        native = undefined;
+      }
+      if (native !== undefined && hasWindowsGit()) {
+        diag('git-route', 'native git ' + native.gitArgv.join(' ') + ' cwd=' + native.windowsCwd);
+        // 不翻译 env：宿主 git 直接吃调用方的 Windows 语义。
+        return originalSpawn.call(host, { ...spec, argv: native.gitArgv, cwd: native.windowsCwd, env: spec.env });
+      }
       let rw;
       try {
         rw = gitSpawnRewrite({ argv: spec.argv, cwd: spec.cwd, wslPath });

@@ -20,6 +20,7 @@
  * @module dsh-remote-wsl/git-route
  */
 import { parseWslUncPath } from './unc-path.ts';
+import { toWindowsPath } from './native-mount.ts';
 
 const GIT_PROGRAM = 'git';
 const DISCOVERY_FLAGS = ['--show-toplevel', '--absolute-git-dir', '--git-path'];
@@ -95,4 +96,21 @@ export function gitSpawnRewrite(input: { argv?: readonly string[]; cwd?: string;
     gitArgv,
     wslArgv: [input.wslPath, '-d', named.distro, '--cd', linuxCwd, '--exec', ...gitArgv],
   };
+}
+
+/**
+ * `/mnt/<盘符>` 工作区的 git：**用宿主 git.exe 直接以 `D:\…` 为 cwd 原生跑**——不进 WSL、不碰
+ * drvfs/9P（`git add --all` 是全工作树扫描，9P 上最慢）。
+ *
+ * 返回 `undefined` = 非 `/mnt` 工作区：ext4 UNC 交给 {@link gitSpawnRewrite} 走 WSL；Windows cwd 原样。
+ * env **不翻译**（宿主 git 直接吃调用方的 Windows 语义）。
+ */
+export function nativeGitRewrite(input: { argv?: readonly string[]; cwd?: string }): { windowsCwd: string; gitArgv: string[] } | undefined {
+  const argv = input.argv;
+  if (!Array.isArray(argv) || !isGitProgram(argv[0])) return undefined;
+  const named = parseWslUncPath(input.cwd);
+  if (named === null) return undefined;
+  const win = toWindowsPath(named.linuxPath);
+  if (win === null) return undefined;
+  return { windowsCwd: win, gitArgv: [GIT_PROGRAM, ...argv.slice(1)] };
 }
