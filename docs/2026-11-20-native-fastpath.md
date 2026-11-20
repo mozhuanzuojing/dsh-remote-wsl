@@ -107,5 +107,51 @@
 
 **教训**：`fail-closed` 只应针对"持续不可用"；"瞬断"必须**可重试**，否则用户点一次重启守护就能让整轮工作失败。
 
+## 13. 附：WSL 内存根因复盘与 `.wslconfig` 正确写法（2026-11-20）
+### 现象
+会话中途报 `FS_DAEMON_UNAVAILABLE`；用户随后**手动重启守护也失败**；日志显示 102 秒内 **8220 次** `op=fs` 连接（≈80/s）。
+
+### 定位（证据）
+```
+WSL:  free 347MB / 17988MB · available 2559MB
+Swap: 3071MB / 3072MB  ← 100%
+RSS:  redhat.java 1.99GB · u8cloud Java 1.65GB（跑了 2 天） · VS Code server 1.28GB
+      · Spring(redhat.java 子进程) 0.83GB · Cursor server 0.7GB
+daemon(node): 119MB  ← 不是插件吃内存
+```
+⇒ 是**宿主机的开发负载（两个 IDE server + Java 语言服务 + 常驻 Spring/JDK8 应用 + Maven `-Xmx4g`）把 WSL VM 撑满**，swap 打满后守护调用被 reset/超时；重启守护在内存不足时也起不来。
+
+### 两个容易踩的配置坑
+1. **`.wslconfig` 只在 `wsl --shutdown` 后重读**。本次文件 `memory=16GB` 写于 11-20 11:09，而 VM 还是 11-15 启的（`MemTotal 17988MB`）⇒ 一直没生效。**判断方法**：比对 `.wslconfig` mtime 与 `/proc/uptime` 推出的 boot 时间。
+2. **`.wslconfig` 不支持行内注释**：`autoMemoryReclaim=gradual # 注释` 会把值解析成 `gradual # …`，该项被静默忽略。注释必须**单独成行**。
+
+### 正确写法（16GB 场景）
+```ini
+[wsl2]
+processors=4
+memory=16GB
+swap=8GB                    ; 4GB 不够：本次就是 swap 先满
+# 让 WSL 把 buff/cache 逐步还给 Windows（WSL 3.0+）
+autoMemoryReclaim=gradual
+localhostForwarding=true
+ipv6=true
+autoProxy=false
+firewall=false
+```
+
+### 生效后实测（重启 VM）
+| 项 | 改前 | 改后 |
+|---|---|---|
+| MemTotal | 17988MB | **16380MB** |
+| Swap total / used | 3072 / 3071MB | **8192 / 0MB** |
+| Mem free / available | 347 / 2559MB | **12659 / 14128MB** |
+| 宿主 free | 6.8GB | **25.4GB** |
+| 最大进程 RSS | java 1.99GB | 737MB |
+
+### 取舍
+- `memory` 是**硬上限**，WSL 会一直长到上限、不主动归还（除非 `autoMemoryReclaim`）；给太大 Windows 会被挤压，给太小必然 swap。
+- 经验值：宿主 63.5GB → WSL **16GB / swap 8GB**（约 25%）；若还要跑重构建，**不要同时开两个 IDE server**，并限制 `java.jdt.ls.vmargs=-Xmx1g`、`MAVEN_OPTS=-Xmx2g`。
+
+
 
 
