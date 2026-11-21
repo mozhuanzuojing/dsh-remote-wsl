@@ -319,7 +319,10 @@ openError: openError === null ? null : String(openError && openError.message ? o
 								? t("status.daemonPillOn", { slot: daemonSlot === null ? "?" : daemonSlot, pid: typeof daemon.pid === "number" ? daemon.pid : "?", version: typeof daemon.version === "string" && daemon.version.length ? daemon.version : "?" })
 								: t("status.daemonPillOff"),
 						onClick: () => {
-							if (daemon.running !== true && action.busy === null) runDaemon("ensure");
+							// 与状态卡 / 底栏 chip 同一口径：带上当前选中的发行版，否则切过目标时会启错发行版的守护。
+							if (daemon.running !== true && action.busy === null) {
+								runDaemon("ensure", undefined, typeof activeDistro === "string" && activeDistro.length > 0 ? { distro: activeDistro } : undefined);
+							}
 						},
 					},
 					React.createElement(StatusDot, { kind: daemon.running === true ? "running" : "stopped" }),

@@ -95,6 +95,7 @@ import React from 'react';
 				focusIndex, setFocusIndex, jumpTo, joinWslPath, normalizeWslPath,
 				icon, t, errorText, listPath, showHidden, hiddenCount, homePathOf,
 				VIRTUAL_MIN_ROWS, prefetchDir, cancelPrefetch, run, clearSearch, searchRef, api,
+				runDaemon, daemonKnown, daemon, action, activeDistro,
 			} = props;
 			// ===== P2：行选中 + 右键上下文菜单（VS Code Explorer 风格）=====
 			const [selected, setSelected] = React.useState(-1);
@@ -372,10 +373,31 @@ import React from 'react';
 					React.createElement("span", { className: "dsh-rw-hint" }, t("browser.listing", { path: cwd === null ? "" : cwd })),
 				);
 			} else if (browse.status === "error") {
+				// 守护未运行 ⇒ 错误块里直接给「启动守护」：用户看到报错的这一处就是修复入口，
+				// 点完 ensure 成功再自动重试列目录 —— 不必让用户去别处找按钮，或跑去执行 wsl_daemon 工具。
+				// 判据优先 host 的 `detail.reason==='daemon-down'`，旧宿主则按"已知守护未运行 + 非 /mnt"兜底。
+				const daemonDown = typeof api.isDaemonDownError === "function" && api.isDaemonDownError(browse.error, {
+					daemonDown: daemonKnown === true && !(daemon !== null && daemon !== undefined && daemon.running === true),
+					path: cwd === null ? "" : cwd,
+				});
+				const starting = action !== null && action !== undefined && action.busy === "daemon:ensure";
+				const startDaemon = function () {
+					// 必须带上面板当前选中的发行版：面板切过目标时，api 的读请求走 setDistro 的那个，
+					// 这里若不带 distro 就只启"配置默认发行版"的守护 —— 启动成功了、重试列目录仍然失败（假成功）。
+					const wantDistro = typeof activeDistro === "string" && activeDistro.length > 0 ? { distro: activeDistro } : undefined;
+					const pendingRun = runDaemon("ensure", undefined, wantDistro);
+					if (pendingRun !== null && pendingRun !== undefined && typeof pendingRun.then === "function") {
+						pendingRun.then(function (result) {
+							// 只有真的成功才重试列目录；失败时主句由动作结果条（failStart）给出，这里不抢话。
+							if (result !== null && result !== undefined && result.ok !== false && cwd !== null) listPath(cwd, { force: true });
+						});
+					}
+				};
 				content = React.createElement(
 					"div",
 					{ className: "dsh-rw-error", role: "alert" },
 					React.createElement("div", { className: "dsh-rw-error-title" }, icon("error"), t("browser.listError", { path: cwd === null ? "?" : cwd })),
+					daemonDown ? React.createElement("div", { className: "dsh-rw-error-body" }, t("browser.daemonDownHint")) : null,
 					React.createElement(
 						"details",
 						{ className: "dsh-rw-note-details" },
@@ -383,9 +405,20 @@ import React from 'react';
 						React.createElement("pre", { className: "dsh-rw-note-detail" }, errorText(browse.error)),
 					),
 					React.createElement(
-						"button",
-						{ type: "button", className: "dsh-rw-btn", onClick: () => cwd !== null && listPath(cwd, { force: true }), "aria-label": t("browser.listRetry"), title: t("browser.listRetry") },
-						t("error.retry"),
+						"div",
+						{ className: "dsh-rw-error-actions" },
+						daemonDown
+							? React.createElement(
+									"button",
+									{ type: "button", className: "dsh-rw-btn", disabled: starting === true, onClick: startDaemon, "aria-label": t("browser.startDaemonAria"), title: t("browser.startDaemonAria") },
+									starting === true ? t("status.startBusy") : t("status.start"),
+								)
+							: null,
+						React.createElement(
+							"button",
+							{ type: "button", className: "dsh-rw-btn", onClick: () => cwd !== null && listPath(cwd, { force: true }), "aria-label": t("browser.listRetry"), title: t("browser.listRetry") },
+							t("error.retry"),
+						),
 					),
 				);
 			} else if (browse.status === "ready" && rows.length === 0) {

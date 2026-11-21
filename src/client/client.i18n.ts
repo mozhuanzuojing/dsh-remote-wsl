@@ -185,6 +185,8 @@
 			"browser.listing": "正在列目录 {path}…",
 			"browser.listError": "列目录失败（{path}）",
 			"browser.listRetry": "重试列目录",
+			"browser.daemonDownHint": "ext4 目录由 WSL 守护读取；面板不会为浏览自动拉起守护。可直接启动后再试。",
+			"browser.startDaemonAria": "启动 WSL 守护，成功后自动重试列目录",
 			"browser.emptyAll": "该目录为空。",
 			"browser.emptyVisible": "该目录没有非隐藏条目{hidden}。",
 			"browser.emptyHiddenHint": "（还有 {count} 个隐藏条目，可打开「隐藏文件」查看）",
@@ -269,6 +271,7 @@
 
 			"status.daemonOff": "远端守护未运行",
 			"status.start": "启动守护",
+			"status.startBusy": "正在启动守护…",
  "kpi.daemon": "守护", "kpi.proxy": "代理", "kpi.version": "版本", "kpi.sessions": "会话",
  "kpi.reachable": "可达", "kpi.unreachable": "不可达", "kpi.unknown": "未知",
  "kpi.daemonOn": "运行中", "kpi.daemonOffHint": "按需启动", "kpi.driftHint": "desktop 与 pin 不一致", "kpi.alignedHint": "已与 pin 对齐",
@@ -470,6 +473,8 @@
 			"browser.listing": "Listing {path}…",
 			"browser.listError": "Failed to list ({path})",
 			"browser.listRetry": "Retry listing",
+			"browser.daemonDownHint": "ext4 directories are read through the WSL daemon, which the panel never starts just for browsing. Start it and try again.",
+			"browser.startDaemonAria": "Start the WSL daemon, then retry listing automatically",
 			"browser.emptyAll": "This directory is empty.",
 			"browser.emptyVisible": "No non-hidden entries here{hidden}.",
 			"browser.emptyHiddenHint": " ({count} hidden entries exist; turn on “Hidden files” to see them)",
@@ -553,6 +558,7 @@
 
 			"status.daemonOff": "Remote daemon is not running",
 			"status.start": "Start daemon",
+			"status.startBusy": "Starting daemon…",
  "kpi.daemon": "Daemon", "kpi.proxy": "Proxy", "kpi.version": "Version", "kpi.sessions": "Sessions",
  "kpi.reachable": "Reachable", "kpi.unreachable": "Unreachable", "kpi.unknown": "Unknown",
  "kpi.daemonOn": "Running", "kpi.daemonOffHint": "Starts on demand", "kpi.driftHint": "desktop ≠ pin", "kpi.alignedHint": "Aligned to pin",

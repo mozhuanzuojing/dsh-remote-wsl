@@ -10,6 +10,7 @@ import React from 'react';
 				setCollapsed, setPathError, setPathInput, setShowHidden, showHidden,
 				snapshot, submitPath, t, target, totalEntries, visibleEntries, onDistroChange,
 				copyNote, onCopySession, formatIdle,
+				runDaemon, daemonKnown, daemon, activeDistro, action,
 			} = props;
 
 
@@ -314,6 +315,28 @@ import React from 'react';
 						: null,
 				);
 
+				/**
+				 * stale 横幅里的「启动守护」：列表还在、只是刷新失败（`status:'ready'+stale`）。
+				 * 这条路径**不进** `.dsh-rw-error` 块，所以错误块里的入口覆盖不到它（审查 P3-2）；
+				 * 判据与错误块完全一致（host `reason==='daemon-down'` / 旧宿主兜底），避免 /mnt 上给错建议。
+				 */
+				const staleDaemonDown =
+					typeof api.isDaemonDownError === "function" &&
+					api.isDaemonDownError(browse.error, {
+						daemonDown: daemonKnown === true && !(daemon !== null && daemon !== undefined && daemon.running === true),
+						path: cwd === null ? "" : cwd,
+					});
+				const staleStarting = action !== null && action !== undefined && action.busy === "daemon:ensure";
+				const startFromStale = function () {
+					const wantDistro = typeof activeDistro === "string" && activeDistro.length > 0 ? { distro: activeDistro } : undefined;
+					const pendingRun = runDaemon("ensure", undefined, wantDistro);
+					if (pendingRun !== null && pendingRun !== undefined && typeof pendingRun.then === "function") {
+						pendingRun.then(function (result) {
+							if (result !== null && result !== undefined && result.ok !== false && cwd !== null) listPath(cwd, { force: true });
+						});
+					}
+				};
+
 				body.push(
 					React.createElement(
 						"section",
@@ -329,6 +352,13 @@ import React from 'react';
 									icon("warn", "dsh-rw-drift"),
 									React.createElement("span", { className: "dsh-rw-hint", title: errorText(browse.error) }, t("browser.staleNote")),
 									React.createElement("span", { className: "dsh-rw-spacer" }),
+									staleDaemonDown
+										? React.createElement(
+												"button",
+												{ type: "button", className: "dsh-rw-link", disabled: staleStarting === true, "aria-label": t("browser.startDaemonAria"), title: t("browser.startDaemonAria"), onClick: startFromStale },
+												staleStarting === true ? t("status.startBusy") : t("status.start"),
+											)
+										: null,
 									React.createElement(
 										"button",
 										{ type: "button", className: "dsh-rw-link", "aria-label": t("browser.listRetry"), title: t("browser.listRetry"), onClick: () => cwd !== null && listPath(cwd, { force: true }) },

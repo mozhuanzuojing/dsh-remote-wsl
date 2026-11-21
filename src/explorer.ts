@@ -553,6 +553,18 @@ export function createExplorerHandlers(deps) {
   const log = (m) => process.stderr.write(`remote-wsl(explorer): ${m}\n`);
 
   /**
+   * 丢掉某发行版的"守护在不在"探测缓存。
+   *
+   * 为什么需要：`daemonRecFor` 有 2s TTL（避免每次 ext4 列目录都经 UNC 读状态目录）。`ensure`/`stop`
+   * 成功后若不清，紧接着的那次重试仍可能命中旧的 `null` ⇒ 面板重试又报 `daemon-down`（假失败）。
+   * 只清被操作的那个 (distro, wslHome)，不碰别的槽位/发行版。
+   */
+  const dropDaemonProbe = (distro) => {
+    const dc = cfgFor(distro);
+    daemonProbeCache.delete(`${String(distro ?? '')}|${String(dc.wslHome ?? '')}`);
+  };
+
+  /**
    * 发行版事实的**短 TTL 缓存**（每个 handler 实例一份；生产里 index.ts 只建一个实例）。
    *
    * 缓存对象：`{ names, flags }` —— `names` 来自注入的 `deps.listDistros()`（`wsl -l -q`），
@@ -990,6 +1002,9 @@ export function createExplorerHandlers(deps) {
         const notes = Array.isArray(r.notes) ? r.notes.filter((line) => typeof line === 'string' && line.length > 0) : [];
         failUnavailable(why, notes.length > 0 ? notes.join('\n') : null);
       }
+      // 启动/复用成功后立刻作废本发行版的探测缓存：面板"启动→自动重试列目录"若在 2s 内发生，
+      // 不能还读旧 null 再报一次 daemon-down（冷启动 22s 天然超 TTL，热启动 2s 才有这个窗口）。
+      dropDaemonProbe(distro);
       return {
         action,
         ok: true,
@@ -1012,6 +1027,8 @@ export function createExplorerHandlers(deps) {
     }
     if (action === 'stop') {
       const r = await stopDaemon(eff, slot === undefined ? { log } : { log, slot });
+      // 停止后同样作废探测缓存（下一次列目录必须重新读真实状态，而不是 2s 内仍说"在跑"）。
+      if (r.ok !== false) dropDaemonProbe(distro);
       // T30/T26 定位的缺陷：这里曾硬编码 `ok: true`，且只取 `r.note` ——
       // P1 保护路径下 `stopDaemon` 返回 `ok:false` + 可读 `error` 时会被**静默丢弃**，
       // 调用方（面板/脚本）被告知"成功"。现在如实透传，并把失败原因带进 notes。
@@ -1137,14 +1154,17 @@ export function createExplorerHandlers(deps) {
         })
         .sort(byName);
     } else {
-      // ext4：优先走 WSL 守护原生 listDir（免宿主 9P）。但面板必须"零副作用"：
-      // 守护没起时**不去拉起它**，回退宿主 UNC（9P，慢但只读）；守护已在跑才用原生。
+      // ext4：走 WSL 守护原生 listDir（免宿主 9P）。面板**零副作用**：守护没起就**不拉起**它，
+      // 也不回退宿主 9P（决策 A，2026-11-20）—— 给确定性错误 + 可执行修复；拉起的入口在 UI 上（显式点击）。
       const daemonRec = daemonRecFor(distro);
       if (daemonRec === null) {
-        // 决策 A：ext4 走守护原生，**不回退宿主 UNC(9P)**；守护没起就给确定性错误 + 可执行修复。
+        // `reason:'daemon-down'` 是给 client 的**机器判据**（不再靠匹配中文句子）：错误块据此露出
+        // 「启动守护 → 成功后重试列目录」。见 client.api.ts `isDaemonDownError` 与 explorerError 的 reason 说明。
         failUnavailable(
-          `remote-wsl: 无法浏览 ext4 目录 "${path}" —— WSL 守护未运行（面板不主动拉起守护）。` +
-            `请先启动守护：wsl_daemon action=start；或用 wsl_doctor 诊断。`,
+          `remote-wsl: 无法浏览 ext4 目录 "${path}" —— WSL 守护未运行（面板不会为浏览自动拉起它）。` +
+            `请在面板里点「启动守护」；或执行 wsl_daemon action=start；也可用 wsl_doctor 诊断。`,
+          null,
+          'daemon-down',
         );
       }
       {

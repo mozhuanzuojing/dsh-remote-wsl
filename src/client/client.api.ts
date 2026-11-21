@@ -7,6 +7,31 @@
 		const REQUEST_TIMEOUT_MS = 9000;
 
 		/**
+		 * `explorer.daemon` 的**独立预算**：守护启动不是"读一下"。
+		 *
+		 * host 侧 `ensure` 的耗时结构（`src/daemon-lifecycle.ts`）：等启动锁最多
+		 * `daemonLockWaitMs=45000` + 启动并轮询握手最多 `daemonStartTimeoutMs=20000`，冷启动还要
+		 * 先把发行版/运行时拉起来。实测（2026-11-21，本机 debian-u8-1）：冷启动 22s（13:50:50 发起 →
+		 * 13:51:06 守护 listening，pid 289126），热启动 2s（stop 后 ensure，pid 289985）。
+		 *
+		 * 为什么必须单独给：9s 的读超时会把**成功但慢**的启动判成失败 —— 面板弹
+		 * 「远端守护没有启动起来」，而 20s 后守护其实已经在了（用户视角就是"插件启动不了守护"）。
+		 * 读动作仍保持 9s：它们不该等这么久，超时就该快速失败。
+		 */
+		const DAEMON_TIMEOUT_MS = 120000;
+
+		/** 方法名 → 请求预算（缺省 `REQUEST_TIMEOUT_MS`）。新增长耗时动作时在这里点名，不要动全局值。 */
+		const TIMEOUT_BY_METHOD = Object.freeze({
+			"explorer.daemon": DAEMON_TIMEOUT_MS,
+		});
+
+		/** 取某方法的请求预算（导出以便单测锁死"daemon ≠ 读动作"这条约束）。 */
+		function timeoutForMethod(method) {
+			const budget = TIMEOUT_BY_METHOD[method];
+			return typeof budget === "number" && budget > 0 ? budget : REQUEST_TIMEOUT_MS;
+		}
+
+		/**
 		 * 契约里的方法名（逐字）。
 		 * ⚠ **这里不是权威**：权威是 host 的 `src/explorer.ts` → `EXPLORER_METHODS`（T4，2026-10-13）。
 		 * 手写 bundle 有**零构建**约束（不能 import host、不能跑生成器），所以这里只能保留一份
@@ -104,6 +129,33 @@
 		}
 
 		/**
+		 * 列目录失败是不是「WSL 守护未运行」——决定错误块里要不要露出「启动守护」按钮。
+		 *
+		 * 判据（按权威度降序）：
+		 *  1. host 结构化原因 `detail.reason === 'daemon-down'`（新宿主的唯一权威判据）；
+		 *  2. **旧宿主没有 reason** ⇒ 只在"面板已知守护未运行 且 路径不在 /mnt"时兜底：
+		 *     `/mnt/*` 走 Windows 原生盘直读，本来就不需要守护，那里失败给「启动守护」是错误建议。
+		 *
+		 * 为什么不匹配中文句子（"守护未运行"）：`explorerError` 的 `reason` 注释已写明 —— 句子会随
+		 * 文案改而漂移，客户端一旦靠句子判断就会静默失效。
+		 *
+		 * @param error - `ExplorerApiError`（`detail` 是 host 的 `{code,message,detail,reason}` 原体）
+		 * @param opts - 兜底信息 `{ daemonDown: boolean, path: string }`
+		 */
+		function isDaemonDownError(error, opts) {
+			const detail = error && typeof error === "object" ? error.detail : null;
+			const reason = detail && typeof detail === "object" && typeof detail.reason === "string" ? detail.reason : null;
+			if (reason !== null) return reason === "daemon-down";
+			// 兜底只对"host 真的回了话"的失败生效：传输失败/超时/取消时连 host 都没读到，
+			// 这种时候给「启动守护」是把责任推错地方（启动也会同样连不上）。
+			const kind = error && typeof error.kind === "string" ? error.kind : "host";
+			const hostAnswered = kind === "host" || kind === "unknown-method";
+			const path = opts && typeof opts.path === "string" ? opts.path : "";
+			if (opts && opts.daemonDown === true && hostAnswered && path.length > 0) return !/^\/mnt(\/|$)/.test(path);
+			return false;
+		}
+
+		/**
 		 * 发一次请求并归一化结果。
 		 *
 		 * 只用 POST：面板与 host 的契约是"POST 调用 + GET 只做方法发现"，换通道要同时改方法表、
@@ -118,8 +170,9 @@
 		 * @param args - 命名参数对象（host 侧按名字取）。
 		 * @param options - 可选 `{ signal }`：调用方生命周期（面板卸载/被新读取取代时 abort）。
 		 */
-		async function request(method, args, options, translate) {
+		async function request(method, args, options, translate, budgetMs) {
 			const tr = typeof translate === "function" ? translate : fallbackTranslate;
+			const budget = typeof budgetMs === "number" && budgetMs > 0 ? budgetMs : REQUEST_TIMEOUT_MS;
 			const external = options && options.signal ? options.signal : undefined;
 			if (external !== undefined && external.aborted) {
 				throw new ExplorerApiError(tr("api.abortedBeforeStart", { route: EXPLORER_ROUTE }), "aborted");
@@ -136,7 +189,7 @@
 				timer = setTimeout(() => {
 					timedOut = true;
 					if (!controller.signal.aborted) controller.abort();
-				}, REQUEST_TIMEOUT_MS);
+				}, budget);
 				if (external !== undefined && typeof external.addEventListener === "function") {
 					external.addEventListener("abort", onExternalAbort, { once: true });
 				}
@@ -153,7 +206,7 @@
 			} catch (error) {
 				if (timedOut) {
 					throw new ExplorerApiError(
-						tr("api.timeout", { ms: REQUEST_TIMEOUT_MS, route: EXPLORER_ROUTE }),
+						tr("api.timeout", { ms: budget, route: EXPLORER_ROUTE }),
 						"timeout",
 						error,
 					);
@@ -209,17 +262,22 @@
 			 * 语义：只影响本面板的请求，不写 host 配置（host 侧对每个请求各自校验名字）。
 			 */
 			let distro = null;
-			/** 统一入口：把本包的 t 与当前目标发行版透给 request。 */
+			/** 统一入口：把本包的 t、当前目标发行版与**按方法定的请求预算**透给 request。 */
 			const call = (method, args, options) => {
 				const base = args && typeof args === "object" ? args : {};
 				const merged = distro === null ? base : Object.assign({}, base, { distro });
-				return request(method, merged, options, t);
+				return request(method, merged, options, t, timeoutForMethod(method));
 			};
 			const api = {
 				route: EXPLORER_ROUTE,
 				methods: METHODS,
 				daemonActions: DAEMON_ACTIONS,
 				timeoutMs: REQUEST_TIMEOUT_MS,
+				/** 守护动作的独立预算（见 `DAEMON_TIMEOUT_MS`）；面板据此显示"启动中"而不是 9s 误判失败。 */
+				daemonTimeoutMs: DAEMON_TIMEOUT_MS,
+				timeoutForMethod,
+				/** 列目录失败是否"守护未运行"（决定错误块里要不要给「启动守护」）。 */
+				isDaemonDownError,
 				/** 诊断/剪贴板出口的凭据脱敏（F-37）：面板渲染 `<pre>` 与"复制诊断"都用同一个实现。 */
 				redactSecrets,
 
@@ -354,6 +412,9 @@
 		export { ExplorerApiError };
 		export { EXPLORER_ROUTE };
 		export { REQUEST_TIMEOUT_MS };
+		export { DAEMON_TIMEOUT_MS };
+		export { timeoutForMethod };
+		export { isDaemonDownError };
 		export { METHODS as EXPLORER_METHODS };
 		export { METHOD_NAMES };
 		export { createExplorerApi };

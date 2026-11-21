@@ -212,6 +212,7 @@ const __chunkModules = { "client.api.js": __apiMod, "client.i18n.js": __i18nMod,
 			// 2026-10-29 检查：状态色只做边框/圆点；标题正文用 label-primary（与 scanwarn 同一条对比度纪律）。
 			".dsh-rw-error-title{display:flex;align-items:center;gap:6px;font-size:13px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}",
 			".dsh-rw-error-body{font-size:12px;line-height:16px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word;direction:ltr;unicode-bidi:isolate;text-align:left}",
+			".dsh-rw-error-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}",
 			".dsh-rw-empty{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:8px 0}",
 			".dsh-rw-conflict{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);border:1px solid var(--dsw-alias-border-l1);border-radius:4px;padding:6px 8px}",
 			// F-50（client 接线）：`/proc` 扫描失败 ⇒ 孤儿数量「未核实」的常显告警（header chunk 渲染）。

@@ -354,7 +354,9 @@ function usePanelActions(props) {
 						return;
 					}
 					const args = wants === null ? { action: "ensure" } : { action: "ensure", distro: wants };
-					run("daemon:ensure", (signal) => api.daemon(args, signal), { describe: (result) => daemonNote(t, t("daemon.started"), result), refresh: true, failKey: "note.failStart" });
+					// 返回 promise：调用方（如列目录错误块里的「启动守护」）要"启动成功后再重试列目录"。
+					// stop/restart 走确认层、不需要尾随动作，故不返回。
+					return run("daemon:ensure", (signal) => api.daemon(args, signal), { describe: (result) => daemonNote(t, t("daemon.started"), result), refresh: true, failKey: "note.failStart" });
 				};
 
 			return {
