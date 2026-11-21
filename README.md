@@ -11,7 +11,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.9.0** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.10.0** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -388,9 +388,11 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 node --experimental-strip-types scripts/check-syntax.ts
 node --experimental-strip-types --test test/*.test.ts
 
-# 一次性跑完（等价于上面两条）
-npm run check
-npm test
+# 契约门禁（方法表 host≡client、bundle 同步、i18n 中英逐键相等/无重复、静态 t() 键可达）
+node --experimental-strip-types scripts/check-contract.ts
+
+# 一次性跑完全部门禁（语法 + 契约 + 类型 + 测试）
+npm run verify
 
 # 真实 WSL /mnt 读桥探针（可复现；会启动守护，需 WSL 侧可用）
 node --experimental-strip-types scripts/probe-unc-bridge.ts "\\\\wsl.localhost\\debian-u8-1\\mnt\\d\\path\\to\\file"
@@ -444,7 +446,7 @@ $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-r
 - 仅把 `workspace-changes` 的 git **快照**调用（`add` / `write-tree` / `ls-files` / `diff-tree` / `cat-file` 等）在 WSL 工作区里重写进发行版（`wsl.exe --exec git …`）；**discovery** 调用（`--show-toplevel` / `--absolute-git-dir` / `--git-path`）仍用宿主 git（WSL 共享需要 `safe.directory`）。
 - 因此"变更审查更快、不再受 9P 拖慢"成立；但 **Windows 侧没有 git 时 discovery 仍会失败**（本版未覆盖 sentinel + stdout 回译）。
 - host `subprocess.spawn` 不可用时 git 路由不生效（启动日志会出现 `[diag] git-route: skipped …`）。
-- 文件读/列（`readText/streamText/readBytes/readByteRange/listDir`）与 `stat/lstat/resolve`：ext4 也**改走 WSL 守护原生**（免宿主 9P）；守护不可用时 **fail-closed**（`FS_DAEMON_UNAVAILABLE` + `wsl_daemon start`/`wsl_doctor` 指引），不回退宿主 9P（决策 A）。面板 `explorer.listDir` 的 ext4 分支要求**守护已在跑**（面板不主动拉起守护；未起则同一确定性错误）。标准 preset 的 ext4 文件读/stat 因此**依赖守护**（用户已确认的取舍）。
+- 文件读/列（`readText/streamText/readBytes/readByteRange/listDir`）与 `stat/lstat/resolve`：ext4 也**改走 WSL 守护原生**（免宿主 9P）；守护不可用时 **fail-closed**（`FS_DAEMON_UNAVAILABLE` + `wsl_daemon start`/`wsl_doctor` 指引），不回退宿主 9P（决策 A）。面板 `explorer.listDir` 的 ext4 分支要求**守护已在跑**（面板不主动拉起守护；未起时错误块直接给「启动守护」入口，成功后自动重试列目录；守护动作超时 120s，其它读动作仍 9s）。标准 preset 的 ext4 文件读/stat 因此**依赖守护**（用户已确认的取舍）。
 
 ## 诊断：`wsl_doctor`（只读，v0.6.0+；面板入口 v0.9.0+）
 
