@@ -20,9 +20,16 @@
 		 */
 		const DAEMON_TIMEOUT_MS = 120000;
 
+		/**
+		 * `explorer.redetect` 的**独立预算**：它同步重探目标（`wsl -l -v` 8s + `$HOME` 10s = 最坏 18s），
+		 * 远超读动作的 9s。用读超时会把重探判成"超时失败"⇒ 面板自愈永远失败。给 30s 覆盖最坏情形 + 余量。
+		 */
+		const REDETECT_TIMEOUT_MS = 30000;
+
 		/** 方法名 → 请求预算（缺省 `REQUEST_TIMEOUT_MS`）。新增长耗时动作时在这里点名，不要动全局值。 */
 		const TIMEOUT_BY_METHOD = Object.freeze({
 			"explorer.daemon": DAEMON_TIMEOUT_MS,
+			"explorer.redetect": REDETECT_TIMEOUT_MS,
 		});
 
 		/** 取某方法的请求预算（导出以便单测锁死"daemon ≠ 读动作"这条约束）。 */
@@ -50,6 +57,7 @@
 			newSession: "explorer.newSession",
 			openExternal: "explorer.openExternal",
 			diagnose: "explorer.diagnose",
+			redetect: "explorer.redetect",
 		});
 
 		/** 上表的**投影视图**（唯一用途：让自检/探针脚本按同一来源比对 host 的 `EXPLORER_METHODS`）。 */
@@ -143,8 +151,7 @@
 		 * @param opts - 兜底信息 `{ daemonDown: boolean, path: string }`
 		 */
 		function isDaemonDownError(error, opts) {
-			const detail = error && typeof error === "object" ? error.detail : null;
-			const reason = detail && typeof detail === "object" && typeof detail.reason === "string" ? detail.reason : null;
+			const reason = hostReason(error);
 			if (reason !== null) return reason === "daemon-down";
 			// 兜底只对"host 真的回了话"的失败生效：传输失败/超时/取消时连 host 都没读到，
 			// 这种时候给「启动守护」是把责任推错地方（启动也会同样连不上）。
@@ -153,6 +160,45 @@
 			const path = opts && typeof opts.path === "string" ? opts.path : "";
 			if (opts && opts.daemonDown === true && hostAnswered && path.length > 0) return !/^\/mnt(\/|$)/.test(path);
 			return false;
+		}
+
+		/**
+		 * snapshot 失败是否「**目标未解析**」（需要重探目标才能恢复）。
+		 *
+		 * 与 `isDaemonDownError` 同口径：**只认 host 的机器可读 `reason`**（`no-distro` / `no-wsl-home`），
+		 * 不匹配中文句子（文案一改就失效）。超时/传输错误的 `detail` 是 Error 对象、无 `reason` ⇒ 返回 false，
+		 * 因此不会把网络失败误判成"该重探目标"而反复触发。
+		 * 面板的自动重探与「重新探测目标」按钮共用这一处判定（与 host `resolveDistro` 的 failArg 同源）。
+		 *
+		 * @param error - `ExplorerApiError`（`detail` 是 host 的 `{code,error,detail,reason}` 原体）
+		 */
+		function isTargetResolutionError(error) {
+			const reason = hostReason(error);
+			return reason === "no-distro" || reason === "no-wsl-home";
+		}
+
+		/** 从 ExplorerApiError 取 host 机器可读 `reason`（`detail.reason`）；无则 null。isDaemonDownError / isTargetResolutionError 共用。 */
+		function hostReason(error) {
+			const detail = error && typeof error === "object" ? error.detail : null;
+			return detail && typeof detail === "object" && typeof detail.reason === "string" ? detail.reason : null;
+		}
+
+		/**
+		 * 面板「自动启动守护」的纯判定（可单测）：是否应**自动 ensure 一次**。
+		 * 仅**已知未运行**（`daemon.running === false`）才拉；未知/缺字段、扫描未核实、已有动作在跑、本段已试过、用户已停止 —— 都不拉。
+		 * @param input `{ daemon, actionBusy, busy, attempted, userStopped }`
+		 */
+		function shouldAutoStartDaemon(input) {
+			const d = input && input.daemon;
+			if (!d || typeof d !== "object") return false;
+			if (d.running !== false) return false;
+			if (input.actionBusy === true) return false;
+			if (input.busy === true || input.attempted === true) return false;
+			if (input.userStopped === true) return false;
+			if (d.orphansVerified === false) return false;
+			const scan = d.scan;
+			if (scan && typeof scan === "object" && scan.ok === false) return false;
+			return true;
 		}
 
 		/**
@@ -278,6 +324,10 @@
 				timeoutForMethod,
 				/** 列目录失败是否"守护未运行"（决定错误块里要不要给「启动守护」）。 */
 				isDaemonDownError,
+				/** snapshot 失败是否"目标未解析"（决定是否自动重探 / 显示「重新探测目标」）。 */
+				isTargetResolutionError,
+				/** 面板「自动启动守护」纯判定（含 scan/动作/用户停止等守卫）。 */
+				shouldAutoStartDaemon,
 				/** 诊断/剪贴板出口的凭据脱敏（F-37）：面板渲染 `<pre>` 与"复制诊断"都用同一个实现。 */
 				redactSecrets,
 
@@ -405,6 +455,14 @@
 					if (input && input.redetect === true) args.redetect = true;
 					return call(METHODS.diagnose, args, options);
 				},
+
+				/**
+				 * 清进程缓存后**重探目标**（distro/wslHome/cwd），原地更新 host live cfg；面板失败自愈用。
+				 * 返回 `{ok, problem, notes, previous, current, changed, auto, target}`；探不到目标时 ok:false（不抛）。
+				 */
+				redetect(options) {
+					return call(METHODS.redetect, {}, options);
+				},
 			};
 			return Object.freeze(api);
 		}
@@ -413,8 +471,11 @@
 		export { EXPLORER_ROUTE };
 		export { REQUEST_TIMEOUT_MS };
 		export { DAEMON_TIMEOUT_MS };
+		export { REDETECT_TIMEOUT_MS };
 		export { timeoutForMethod };
 		export { isDaemonDownError };
+		export { isTargetResolutionError };
+		export { shouldAutoStartDaemon };
 		export { METHODS as EXPLORER_METHODS };
 		export { METHOD_NAMES };
 		export { createExplorerApi };

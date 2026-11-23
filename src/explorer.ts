@@ -65,7 +65,7 @@ import { parseWslUncPath } from './unc-path.ts';
 import { invalidateProxyCache, resolveWslProxy } from './wsl-proxy.ts';
 import { readWslOutput } from './wsl-output.ts';
 import { parseWslDistroTable } from './distro-table.ts';
-import { targetProblem, NO_DISTRO_REASON, NO_HOME_REASON } from './config.ts';
+import { targetProblem, NO_DISTRO_REASON, NO_HOME_REASON, refreshAutoTarget } from './config.ts';
 import { asConfigText } from './target-detect.ts';
 import { WSL_PRESET_ID } from './preset.ts';
 import { buildVsCodeOpenArgs, buildVsCodeWslUri, buildWslUncCandidates } from './open-editor.ts';
@@ -85,6 +85,7 @@ export const EXPLORER_METHODS = [
   'explorer.newSession',
   'explorer.openExternal',
   'explorer.diagnose',
+  'explorer.redetect',
 ];
 
 /**
@@ -1547,6 +1548,52 @@ async function newSession(args) {
     };
   }
 
+  /**
+   * `explorer.redetect()` —— 清进程缓存后**重探目标**（`distro`/`wslHome`/`cwd`），原地更新 live cfg。
+   *
+   * 这是面板失败自愈（A+B）的后端能力：`snapshot` 因 `no-distro` / `no-wsl-home` 失败时，客户端不必
+   * 知道去调 `wsl_status`，直接调本方法即可重探。只读语义：不启动/停止守护、不写盘；自动探测需要的
+   * `wsl -d` 会把发行版拉起（WSL 自身行为，与 `wsl_status redetect` 同源）。
+   *
+   * 复用 `refreshAutoTarget()`（`wsl_status` 的同一函数），**显式配置（distro+wslHome 都写死）时
+   * `auto:false`、不发起探测**，值原样不动。返回 `{ok, problem, notes, previous, current, changed, auto, target}`；
+   * 探不到目标时 `ok:false`（**不抛**，供面板据此决定是否重载）。
+   *
+   * `deps.redetectTarget` 是**测试缝**（同 `diagnose` 的 `resetTarget`）：注入 `() => refreshAutoTarget(cfg)`；
+   * 缺省即用 `refreshAutoTarget(cfg)`（cfg = `deps.config`，原地更新）。
+   *
+   * ⚠ 代价（如实记录）：`refreshAutoTarget()` 内部是**同步 `spawnSync` 探测**（`wsl -l -v` 8s + `$HOME` 10s =
+   * 最坏 ~18s），会**阻塞 host 事件循环**。面板自动重探已用 15s 冷却 + 模块级节流限频；WSL 真卡死时仍可能
+   * 单次卡顿，彻底的异步化是后续项（不在本改动内）。
+   */
+  const redetectTarget = typeof deps?.redetectTarget === 'function' ? deps.redetectTarget : () => refreshAutoTarget(cfg);
+  async function redetect() {
+    try {
+      const result = redetectTarget();
+      return {
+        ok: result?.ok === true,
+        problem: typeof result?.problem === 'string' ? result.problem : null,
+        notes: Array.isArray(result?.notes) ? result.notes : [],
+        previous: result?.previous ?? null,
+        current: result?.current ?? null,
+        changed: result?.changed === true,
+        auto: result?.auto === true,
+        target: { distro: cfg.distro || null, wslHome: cfg.wslHome || null, cwd: cfg.cwd || null },
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        problem: `remote-wsl: 重新探测异常：${String(e?.message ?? e)}`,
+        notes: [],
+        previous: null,
+        current: null,
+        changed: false,
+        auto: null,
+        target: { distro: cfg.distro || null, wslHome: cfg.wslHome || null, cwd: cfg.cwd || null },
+      };
+    }
+  }
+
   const handlers = {
     'explorer.snapshot': snapshot,
     'explorer.openSession': openSession,
@@ -1557,6 +1604,7 @@ async function newSession(args) {
     'explorer.newSession': newSession,
     'explorer.openExternal': openExternal,
     'explorer.diagnose': diagnose,
+    'explorer.redetect': redetect,
   };
   return { handlers, log };
 }

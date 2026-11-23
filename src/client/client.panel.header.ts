@@ -31,7 +31,7 @@ function renderHeader(props) {
 	jumpTo, keys, keysKnown, lastRun,
 	listPath, load, menuOpen, menuRef,
 	moreRef, mounts, mountsCache, mountsProbed,
-	narrow, newAbortController, normalizeWslPath, onMenuKey,
+	narrow, newAbortController, normalizeWslPath, onMenuKey, onRedetectTarget,
 	openSessionNote, newSessionNote, others, pathError, pathInput,
 	pending, pendingFrom, pushRecent, readAbort,
 	readRecent, readSeq, recent, recentOk,
@@ -280,6 +280,9 @@ openError: openError === null ? null : String(openError && openError.message ? o
 								{ type: "button", className: "dsh-rw-btn", onClick: () => load({ alsoList: true, path: cwd }), "aria-label": t("error.retryAria"), title: t("error.retryAria") },
 								t("error.retry"),
 							),
+							api.isTargetResolutionError(state.error)
+								? React.createElement("button", { type: "button", className: "dsh-rw-btn", style: { marginInlineStart: 8 }, onClick: () => { if (typeof onRedetectTarget === "function") onRedetectTarget(); }, "aria-label": t("error.redetect"), title: t("error.redetect") }, t("error.redetect"))
+								: null,
 						),
 					);
 				}

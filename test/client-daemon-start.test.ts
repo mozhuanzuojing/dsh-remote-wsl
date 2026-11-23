@@ -18,8 +18,11 @@ import assert from 'node:assert/strict';
 import {
   DAEMON_TIMEOUT_MS,
   REQUEST_TIMEOUT_MS,
+  REDETECT_TIMEOUT_MS,
   timeoutForMethod,
   isDaemonDownError,
+  isTargetResolutionError,
+  shouldAutoStartDaemon,
   createExplorerApi,
 } from '../src/client/client.api.ts';
 
@@ -111,4 +114,40 @@ test('api 句柄把同一套判据与预算暴露给面板（单一口径）', (
   assert.equal(api.timeoutForMethod('explorer.daemon'), DAEMON_TIMEOUT_MS);
   assert.equal(api.isDaemonDownError({ detail: { reason: 'daemon-down' } }), true);
   assert.equal(api.timeoutMs, 9000);
+});
+
+test('redetect 有独立预算：覆盖最坏 8s(列表)+10s($HOME) 探测，且 api 暴露 redetect', () => {
+  assert.ok(REDETECT_TIMEOUT_MS >= 18000, `redetect 预算需覆盖 8s+10s，实际 ${REDETECT_TIMEOUT_MS}`);
+  assert.equal(timeoutForMethod('explorer.redetect'), REDETECT_TIMEOUT_MS);
+  const api = createExplorerApi(null);
+  assert.equal(typeof api.redetect, 'function');
+});
+
+test('接线锁定：api.redetect() 实际按 REDETECT_TIMEOUT_MS 超时（撤掉接线即变红）', async () => {
+  const { budget } = await actualBudgetOf((api) => api.redetect());
+  assert.equal(budget, REDETECT_TIMEOUT_MS);
+});
+
+test('isTargetResolutionError：只认机器可读 no-distro/no-wsl-home（不靠中文；其它错误不误判）', () => {
+  assert.equal(isTargetResolutionError({ detail: { reason: 'no-distro' } }), true);
+  assert.equal(isTargetResolutionError({ detail: { reason: 'no-wsl-home' } }), true);
+  assert.equal(isTargetResolutionError({ detail: { reason: 'unknown-distro' } }), false);
+  assert.equal(isTargetResolutionError({ detail: { reason: 'daemon-down' } }), false);
+  // 超时/传输错误的 detail 是 Error（无 reason）⇒ 不得当成"该重探目标"
+  assert.equal(isTargetResolutionError({ kind: 'timeout' }), false);
+  assert.equal(isTargetResolutionError(null), false);
+});
+
+test('shouldAutoStartDaemon：仅“已知未运行且各项就绪”才 true（未知/运行中/扫描未核实/有动作/已试/用户已停 都不拉）', () => {
+  const base = { daemon: { running: false, orphansVerified: true, scan: { ok: true } }, actionBusy: false };
+  assert.equal(shouldAutoStartDaemon(base), true);
+  assert.equal(shouldAutoStartDaemon({ ...base, daemon: { ...base.daemon, running: true } }), false); // 运行中不拉
+  assert.equal(shouldAutoStartDaemon({ ...base, daemon: { running: undefined } }), false); // 未知/缺字段不拉
+  assert.equal(shouldAutoStartDaemon({ ...base, actionBusy: true }), false); // 有其它动作不抢
+  assert.equal(shouldAutoStartDaemon({ ...base, busy: true }), false); // 本次已在拉
+  assert.equal(shouldAutoStartDaemon({ ...base, attempted: true }), false); // 本段已试过
+  assert.equal(shouldAutoStartDaemon({ ...base, userStopped: true }), false); // 用户手动停止后不拉
+  assert.equal(shouldAutoStartDaemon({ ...base, daemon: { ...base.daemon, orphansVerified: false } }), false); // 扫描未核实
+  assert.equal(shouldAutoStartDaemon({ ...base, daemon: { ...base.daemon, scan: { ok: false } } }), false); // 扫描失败
+  assert.equal(shouldAutoStartDaemon(null), false);
 });

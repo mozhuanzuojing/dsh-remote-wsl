@@ -8,6 +8,12 @@ import * as __browser from './client.panel.browser.ts'
 import * as __tail from './client.panel.tail.ts'
 import * as __a11y from './client.panel.a11y.ts'
 
+/** 面板自动重探的跨重挂载节流状态（模块级：重挂载不重置，避免反复触发同步探测）。 */
+const autoRedetectState = { at: 0, busy: false };
+
+/** 面板「自动启动守护」的节流/防误触状态（模块级：重挂载不重置；按发行版分键，避免跨 distro 误伤）。 */
+const autoDaemonState = { attemptedDistros: new Set(), busy: false, userStoppedDistros: new Set() };
+
 
 
 		/** 子 chunk 装载（各自是独立 ModuleLoader 模块）。 */
@@ -225,6 +231,8 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 				Object.assign(scope, parts.useDirectoryNavigation(scope));
 				// 列表组件（窗口化/行/键盘）注入 scope，供 browser 外壳以 React.createElement 挂载
 				scope.Entries = parts.Entries;
+				/** 用户点「停止守护」时置位：本会话不再自动拉起（避免与用户意图对抗）。 */
+				scope.onDaemonStopIntended = (distro) => { autoDaemonState.userStoppedDistros.add(typeof distro === "string" ? distro : ""); };
 				const actions = parts.usePanelActions(scope);
 				Object.assign(scope, actions);
 				/**
@@ -274,6 +282,27 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 				scope.onStopTarget = stopTarget;
 				/** 「重新扫描本机发行版」= 只重拉快照，不切换目标。 */
 				scope.onRescan = () => actions.load({ refresh: true });
+				/**
+				 * A（自愈入口）：「重新探测目标」= 调 host `explorer.redetect` 清缓存重探目标，成功再重载快照。
+				 * 面向 snapshot 因 `no-distro` / `no-wsl-home` 失败的场景（面板里没人知道要去调 wsl_status）。
+				 */
+				scope.onRedetectTarget = () => {
+					if (autoRedetectState.busy) return; // 防连点叠加同步探测（host 侧最坏 ~18s）
+					autoRedetectState.busy = true;
+					Promise.resolve(api.redetect()).then(
+						(res) => {
+							autoRedetectState.busy = false;
+							autoRedetectState.at = Date.now(); // 与自动路径共用冷却：手动完成也刷新，避免手动成功后 B 立刻再探
+							const ok = res && res.ok === true;
+							const auto = res && res.auto === true;
+							const distro = ok && res.target && typeof res.target.distro === "string" ? res.target.distro : "";
+							const note = ok ? (auto ? t("error.redetectOk", { distro: distro || "?" }) : t("error.redetectExplicit")) : null;
+							setAction({ busy: null, note, detail: null, error: ok ? null : { message: t("error.redetectFail") } });
+							if (ok) actions.load();
+						},
+						(err) => { autoRedetectState.busy = false; autoRedetectState.at = Date.now(); setAction({ busy: null, note: null, detail: null, error: { message: errorText(err) } }); },
+					);
+				};
 
 				scope.onDistroChange = changeDistro;
 				/**
@@ -291,6 +320,52 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 					distroResetRef.current = true;
 					changeDistro(null);
 				}, [state.status, state.error, chosenDistro]);
+				/**
+				 * B（自动后台重探）：snapshot 因**目标探测失败**（no-distro / no-wsl-home）报错时，
+				 * 自动调一次 `explorer.redetect` 重探（带 15s 冷却 + in-flight 锁，防循环），成功后重载。
+				 * 用户无感；典型场景 = WSL 冷启动时首次探测超时被冻结进配置。
+				 */
+				React.useEffect(() => {
+					if (state.status !== "error") return;
+					if (!(api && typeof api.isTargetResolutionError === "function" && api.isTargetResolutionError(state.error))) return;
+					if (autoRedetectState.busy || Date.now() - autoRedetectState.at < 15000) return;
+					autoRedetectState.busy = true;
+					Promise.resolve(api.redetect()).then(
+						(res) => {
+							autoRedetectState.busy = false;
+							autoRedetectState.at = Date.now(); // 冷却从“完成时”记（覆盖 redetect 同步阻塞时长）
+							if (res && res.ok === true) actions.load();
+						},
+						() => { autoRedetectState.busy = false; autoRedetectState.at = Date.now(); },
+					);
+				}, [state.status, state.error]);
+				/**
+				 * C（自动启动守护）：面板读到守护**已知未运行**时自动 `ensure` 一次（用户选定口径）。
+				 * 防误触：① 每段“未运行”只自动一次（运行恢复后重置 attempted）；② 用户手动停止后 userStopped（模块级，本会话不再自动拉起）；
+				 * ③ 扫描未核实（scan.ok===false / orphansVerified===false）不自动拉；④ 有其它动作在跑（action.busy）时不抢占，空闲后再评估。
+				 */
+				React.useEffect(() => {
+					if (state.status !== "ready") return;
+					const d = actions.daemonKnown ? actions.daemon : null;
+					if (!d) return;
+					const activeKey = typeof actions.activeDistro === "string" ? actions.activeDistro : "";
+					if (d.running === true) { autoDaemonState.attemptedDistros.delete(activeKey); return; }
+					const shouldStart = api.shouldAutoStartDaemon({
+						daemon: d,
+						actionBusy: action.busy !== null,
+						busy: autoDaemonState.busy,
+						attempted: autoDaemonState.attemptedDistros.has(activeKey),
+						userStopped: autoDaemonState.userStoppedDistros.has(activeKey),
+					});
+					if (!shouldStart) return;
+					autoDaemonState.attemptedDistros.add(activeKey);
+					autoDaemonState.busy = true;
+					const distroOpt = activeKey !== "" ? { distro: activeKey } : undefined;
+					Promise.resolve(actions.runDaemon("ensure", undefined, distroOpt)).then(
+						() => { autoDaemonState.busy = false; },
+						() => { autoDaemonState.busy = false; },
+					);
+				}, [state.status, state.snapshot, action.busy]);
 				const headerOut = parts.renderHeader(scope);
 				Object.assign(scope, headerOut);
 				parts.renderBrowser(scope);

@@ -113,6 +113,10 @@
 			"error.retryAria": "重试读取远端信息",
 			"error.stale": "面板上的数字已全部撤下：最后一次成功读取是 {time}，那之后的数据无法确认（可能陈旧）。",
 			"error.never": "尚未成功读取过任何快照。",
+			"error.redetect": "重新探测目标",
+			"error.redetectOk": "已重新探测目标：{distro}",
+			"error.redetectFail": "重新探测仍失败：WSL 可能尚未就绪，稍后再试。",
+			"error.redetectExplicit": "目标来自显式配置，无需重新探测",
 
 			"empty.noDistrosField": "快照缺少 distros 段（host 侧 explorer.snapshot 与客户端版本不匹配？），不在此断定“没有发行版”。",
 			"empty.noDistros": "没有可用的 WSL 发行版（WSL 未安装，或未安装任何发行版）。",
@@ -401,6 +405,10 @@
 			"error.retryAria": "Retry reading remote info",
 			"error.stale": "All figures are withdrawn: the last successful read was {time}, and data after that cannot be confirmed (possibly stale).",
 			"error.never": "No snapshot has been read successfully yet.",
+			"error.redetect": "Re-detect target",
+			"error.redetectOk": "Re-detected target: {distro}",
+			"error.redetectFail": "Re-detect still failed — WSL may not be ready; try again shortly.",
+			"error.redetectExplicit": "Target comes from explicit config; no re-detect needed",
 
 			"empty.noDistrosField": "The snapshot has no distros section (host explorer.snapshot / client version mismatch?). This panel does not claim “no distros”.",
 			"empty.noDistros": "No WSL distros available (WSL not installed, or none installed).",
