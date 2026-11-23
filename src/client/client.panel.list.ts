@@ -397,7 +397,7 @@ import React from 'react';
 					"div",
 					{ className: "dsh-rw-error", role: "alert" },
 					React.createElement("div", { className: "dsh-rw-error-title" }, icon("error"), t("browser.listError", { path: cwd === null ? "?" : cwd })),
-					daemonDown ? React.createElement("div", { className: "dsh-rw-error-body" }, t("browser.daemonDownHint")) : null,
+					daemonDown ? React.createElement("div", { className: "dsh-rw-error-body" }, starting === true ? t("browser.daemonStartingHint") : t("browser.daemonDownHint")) : null,
 					React.createElement(
 						"details",
 						{ className: "dsh-rw-note-details" },

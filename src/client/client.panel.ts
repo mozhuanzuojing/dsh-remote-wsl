@@ -366,6 +366,19 @@ React.useEffect(() => () => { if (copyTimer.current !== null) { clearTimeout(cop
 						() => { autoDaemonState.busy = false; },
 					);
 				}, [state.status, state.snapshot, action.busy]);
+				/**
+				 * 守护「未运行→运行」过渡：若目录浏览因 daemon-down 失败，自动重跑 listDir（自愈闭环：
+				 * C 自动拉起守护成功后，之前失败的目录自动恢复；手动启动也顺带受益）。
+				 */
+				const prevDaemonRunningRef = React.useRef(null);
+				React.useEffect(() => {
+					const running = actions.daemonKnown === true && actions.daemon !== null && actions.daemon !== undefined && actions.daemon.running === true;
+					const prev = prevDaemonRunningRef.current;
+					prevDaemonRunningRef.current = running;
+					if (running === true && prev === false && browse.status === "error" && typeof browse.cwd === "string" && browse.cwd.length > 0 && typeof actions.listPath === "function") {
+						actions.listPath(browse.cwd, { force: true });
+					}
+				}, [state.snapshot, browse.status, browse.cwd]);
 				const headerOut = parts.renderHeader(scope);
 				Object.assign(scope, headerOut);
 				parts.renderBrowser(scope);
