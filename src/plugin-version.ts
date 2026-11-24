@@ -32,8 +32,22 @@ import { readFileSync } from 'node:fs';
  * 三个方法（上游 0.2.2 的 `dsh-fs-local` 新增，`apply_patch` 的 update/delete/move 操作直接消费它们）。
  * 仍是**加法**：旧守护不认识这些 op 时宿主拿到 `unknown fs method`；`applyPatch` 默认关闭，
  * 因此不影响既有读写。新宿主 + 旧守护按 `configCompat` 的 soft 处理（restart 后生效）。
+ *
+ * v5（0.12.0，2026-11-24 连接churn 根因）：宿主侧改**长连接复用**（一条连接多请求，按 `id` 配对），
+ * `fs` 新增 `batch` 方法（一帧带 N 条只读调用，`args.calls`，逐条独立成败，上限 64 条）。
+ * 动机有实测数字：旧实现每 op 一条 TCP 连接，一次文件密集回合 1106 次 RPC / 8.3s；Windows 每个关闭的
+ * 连接占本地临时端口约 120s，而本机动态端口范围只有 16384 个 ⇒ 持续 130+/s 两分钟就把池子打光，
+ * 之后**全机**新建连接都拿 `EADDRINUSE`（WinError 10048），用户看到的就是「WSL 插件有时候报错、
+ * 状态却正常」。隔离守护实测：300 次 `fs.stat`，旧路径 300 条连接 / 622ms，池化 1 条 / 127ms，
+ * 池化+批量 1 条 / 14ms。
+ *
+ * 兼容性（仍是加法）：
+ *  · 旧守护本来就支持"一条连接多帧"，所以**池化对旧守护可用**；
+ *  · 旧守护不认识 `batch` ⇒ 回 `unknown fs method`，宿主把该连接标记为 `batchUnsupported` 并逐条退回
+ *    单发（不重试 batch，不慌报成功）；
+ *  · 旧宿主 + 新守护：完全不碰新 op，行为不变。
  */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /**
  * 插件自身版本（取自本仓 package.json；`link:` 安装时就是工作树那一份）。

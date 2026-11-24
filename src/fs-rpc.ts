@@ -903,11 +903,58 @@ export async function moveFileOp(args) {
   });
 }
 
+/**
+ * 一帧能带走多少条批量调用（协议 v5）。
+ *
+ * 为什么要有上限：batch 是"把 N 次往返压成 1 次"的手段，不是让一帧无限大的通道 —— 无上限时一次
+ * 误用就能让守护按批大小吃内存（每条都可能是一次 8MiB 读）。64 足够覆盖宿主侧一个 tick 里并发
+ * 发出的只读调用（多文件并行读/stat），超过就由宿主分帧。
+ */
+export const FS_BATCH_LIMIT = 64;
+
+/** 批内并发度：太小没收益，太大把守护的 fd/内存顶起来。 */
+const FS_BATCH_CONCURRENCY = 8;
+
+/**
+ * 批量执行（协议 v5，`{op:'fs', method:'batch', args:{calls:[{method,args},…]}}`）。
+ *
+ * 语义：**逐条独立成败** —— 一条失败只写进它自己的结果位，绝不整帧失败（否则一次 ENOENT 会把同批
+ * 其它调用一起带走，调用方还得重发一遍）。批内不嵌套 batch。
+ */
+async function batchOp(args) {
+  const calls = Array.isArray(args?.calls) ? args.calls : [];
+  if (calls.length === 0) throw fsError('batch requires a non-empty "calls" array', 'FS_BATCH_INVALID');
+  if (calls.length > FS_BATCH_LIMIT) {
+    throw fsError(`batch too large (${calls.length} > ${FS_BATCH_LIMIT})`, 'FS_BATCH_INVALID');
+  }
+  for (const c of calls) {
+    if (String(c?.method ?? '') === 'batch') throw fsError('batch cannot nest', 'FS_BATCH_INVALID');
+  }
+  const results = new Array(calls.length);
+  let next = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= calls.length) return;
+      const call = calls[i];
+      try {
+        results[i] = { ok: true, result: await handleFsOp({ method: call?.method, args: call?.args }) };
+      } catch (e) {
+        results[i] = { ok: false, code: e?.fsCode ?? e?.code ?? 'FS_IO_ERROR', error: e?.message ?? String(e) };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(FS_BATCH_CONCURRENCY, calls.length) }, worker));
+  return { results };
+}
+
 /** 统一入口：`{op:'fs', method, args}` → `{result}`（抛错由 daemon 的 handle 包成错误帧）。 */
 export async function handleFsOp(req) {
   const method = String(req?.method ?? '');
   const args = req?.args ?? {};
   switch (method) {
+    case 'batch':
+      return batchOp(args);
     case 'stat':
       return statOp(args, { follow: true });
     case 'statMany':

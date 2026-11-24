@@ -12,6 +12,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
+import { pooledCall, pooledCallBatch, poolStats, disposePool } from './daemon-conn.ts';
 
 // ── 原 daemon-client.ts 第 25-25 行 ──
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -547,6 +548,16 @@ export function isRecoverableDaemonTransport(kind) {
  */
 export function transportErrorAdvice(kind, error) {
   const text = String(error ?? '');
+  // 2026-11-24 根因：`connect EADDRINUSE 127.0.0.1:<port>` **不是**目的端口被占，而是 Windows 给这条
+  // 出站连接分配不到**本地临时端口**（WinError 10048）。旧实现把这一类落到最后那句通用提示，把人往
+  // "WSL 内存/swap"上引，方向是错的。
+  if (/EADDRINUSE|EADDRNOTAVAIL/i.test(text)) {
+    return (
+      '；Windows 临时端口不够用了（不是守护挂了、也不是目的端口被占）：本机动态端口范围 16384 个' +
+      '（49152–65535），每条连接关闭后占约 120s。等 1–2 分钟端口回收即可恢复；' +
+      '频繁复现说明短连接太多 —— 升级到支持长连接复用（协议 v5）的宿主+守护，或减少大范围文件扫描'
+    );
+  }
   if (/ECONNRESET|ECONNABORTED|EPIPE|socket hang up|closed before reply/i.test(text)) {
     return '；Windows→WSL socket 被重置：WSL 可能卡死/OOM；先关掉 WSL 内重负载并执行 wsl --shutdown 后重试（插件不会自动杀 WSL 或守护）';
   }
@@ -567,6 +578,40 @@ export async function callDaemon(cfg, { port, token, req, timeoutMs }) {
     error: `守护调用失败(${r.kind}): ${r.error}（Windows 侧 ${hsTimeout}ms 握手判据）${transportErrorAdvice(r.kind, r.error)}`,
   };
 }
+
+/**
+ * 池化调用（协议 v5 的宿主侧新能力）：语义与 {@link callDaemon} 逐字相同，只是复用一条长连接。
+ *
+ * 为什么必须保留 `callDaemon`（短连接）而不是全改成池化：
+ *  · `handshake` / `stop` / `prompt` 要的是"一条连接只承载一次交互"，它们的取消/超时/长任务语义与池化
+ *    冲突（一次 prompt 可能几分钟，池里的空闲关闭和超时断开会把语义搅乱）。
+ *  · 池只服务 `fs` / `search` / `status` 这类短请求 —— 也正是旧实现"每 op 一条连接"把 Windows 临时
+ *    端口池打光的那些调用。
+ */
+export async function callDaemonPooled(cfg, { port, token, req, timeoutMs }) {
+  const hsTimeout = Number(cfg.daemonHandshakeTimeoutMs ?? 3000);
+  const r = await pooledCall(cfg, { port, token, req, timeoutMs });
+  if (r.msg !== undefined) return r;
+  return {
+    ...r,
+    ok: false,
+    error: `守护调用失败(${r.kind}): ${r.error}（Windows 侧 ${hsTimeout}ms 握手判据）${transportErrorAdvice(r.kind, r.error)}`,
+  };
+}
+
+/**
+ * 池化批量调用：一次帧带走多条**只读** fs 调用（`{op:'fs', method:'batch'}`）。
+ *
+ * @returns `{ms, msg}`（`msg.result.results[i]` 逐条成败）或传输失败形状；
+ *          `batchUnsupported: true` 表示守护协议 < 5，调用方必须退回逐条发送。
+ */
+export async function callDaemonPooledBatch(cfg, { port, token, calls, timeoutMs }) {
+  const r = await pooledCallBatch(cfg, { port, token, calls, timeoutMs });
+  return r;
+}
+
+/** 连接池读数（诊断/测试）。 */
+export { poolStats, disposePool };
 
 /**
  * 用 WSL 侧的一次性命令干掉指定 pid —— **先验身份再杀**。

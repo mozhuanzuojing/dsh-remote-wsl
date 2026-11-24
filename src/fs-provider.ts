@@ -33,7 +33,14 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ensureDaemon } from './daemon-client.ts';
-import { callDaemon, isRecoverableDaemonTransport, readDaemonRecord, winToWsl } from './daemon-protocol.ts';
+import {
+  callDaemon,
+  callDaemonPooled,
+  callDaemonPooledBatch,
+  isRecoverableDaemonTransport,
+  readDaemonRecord,
+  winToWsl,
+} from './daemon-protocol.ts';
 import { resolveVersion } from './wsl-io.ts';
 
 import { normalizeConfig, targetProblem } from './config.ts';
@@ -96,6 +103,9 @@ export function createWslRpc(rawConfig = {}, deps = {}) {
   const ensureDaemonFn = typeof deps.ensureDaemon === 'function' ? deps.ensureDaemon : ensureDaemon;
   const readDaemonRecordFn = typeof deps.readDaemonRecord === 'function' ? deps.readDaemonRecord : readDaemonRecord;
   const callDaemonFn = typeof deps.callDaemon === 'function' ? deps.callDaemon : callDaemon;
+  /** 池化/批量的测试缝：注入后与生产同路径，只是不碰真 socket。 */
+  const callDaemonPooledFn = typeof deps.callDaemonPooled === 'function' ? deps.callDaemonPooled : callDaemonPooled;
+  const callDaemonPooledBatchFn = typeof deps.callDaemonPooledBatch === 'function' ? deps.callDaemonPooledBatch : callDaemonPooledBatch;
   const distro = String(config.distro);
   // 2026-10-28（零配置）：自动探测失败 ⇒ 这个 provider 的每一个操作都无处可去。把原因钉住，
   // 在**首次调用**时明确拒绝（不在 apply 抛：那会让整个 WSL preset 变 broken，连别的工具都看不到）。
@@ -137,6 +147,105 @@ export function createWslRpc(rawConfig = {}, deps = {}) {
   const READ_BACKOFF_MS = [100, 300, 700];
   const isDaemonDownErr = (e) => String(e?.code ?? e?.fsCode ?? '') === DAEMON_DOWN_CODE;
 
+  /**
+   * 长连接 + 批量（协议 v5）。
+   *
+   * 为什么要池化：旧实现每 op 一条 TCP 连接（`tcpCall` 里 connect→destroy）。一次文件密集回合实测
+   * 1106 次 RPC / 8.3s，每次关闭占 Windows 本地临时端口约 120s，而本机只有 16384 个（实测 1200 次
+   * connect/close 后 TIME_WAIT 4058）—— 持续 130+/s 两分钟就把池子耗光，之后全机 `EADDRINUSE`。
+   *
+   * 为什么要批量：DSH 的并行工具调用/多文件读会在同一个 tick 里发出多条只读请求；把同 tick 的请求
+   * 合成一帧（`{op:'fs', method:'batch'}`）就把"N 次往返"变成"1 次往返"。
+   *
+   * 关掉的办法（诊断/对比用）：`DSH_RWSL_FS_POOL=0`（退回短连接）、`DSH_RWSL_FS_BATCH=0`（只池化不批量）。
+   * 注入 `callDaemon` 测试缝时两者都自动关闭，保证离线测试仍按"一条连接一个请求"断言。
+   */
+  const poolEnabled = process.env.DSH_RWSL_FS_POOL !== '0' && (deps.callDaemon === undefined || typeof deps.callDaemonPooled === 'function');
+  const batchEnabled = poolEnabled && process.env.DSH_RWSL_FS_BATCH !== '0';
+  /**
+   * 只有**元数据类**只读方法进批。
+   *
+   * 两个理由，都是可测的边界：
+   *  · **写操作**绝不能因为"同一帧里别人失败"而重放/乱序 ⇒ 永不进批；
+   *  · **大载荷读**（`readText` 单次上限 16MiB、`readChunk` 1MiB）一帧装 64 条就可能把一帧顶到上百 MB，
+   *    而协议帧本来是按"小请求"设计的 ⇒ 这类留在池化单发里（它们不是 churn 的来源：一个文件读一次）。
+   *    真正放大往返数的是 `resolve`+`stat`+`listDir` 这种每个文件都要来一遍的小调用。
+   */
+  const BATCHABLE_OPS = new Set(['stat', 'statMany', 'lstat', 'listDir', 'resolve', 'realpath']);
+
+  /** 一帧最多几条（与守护侧 `FS_BATCH_LIMIT` 对齐；超出的在宿主侧分帧，绝不让守护整帧拒绝）。 */
+  const BATCH_MAX = 64;
+
+  const singleCall = (target, op, method, args) =>
+    callDaemonFn(config, {
+      port: target.meta?.port ?? target.slot,
+      token: target.token,
+      req: { op, id: 1, method, args },
+      timeoutMs: Number(config.fsTimeoutMs) || 60000,
+    });
+
+  /** 同一 tick 里攒起来的只读请求（setImmediate 冲刷，几乎不增加单次调用延迟）。 */
+  let batchQueue = [];
+  let batchScheduled = false;
+
+  const flushBatch = async () => {
+    batchScheduled = false;
+    const items = batchQueue;
+    batchQueue = [];
+    if (items.length === 0) return;
+    // 超过一帧上限就分帧发（守护侧对 >64 条整帧拒绝；在宿主侧分帧才是"省往返"，不是"换成报错"）。
+    for (let start = 0; start < items.length; start += BATCH_MAX) {
+      const chunk = items.slice(start, start + BATCH_MAX);
+      const rec = chunk[0].rec;
+      const r = await callDaemonPooledBatchFn(config, {
+        port: rec.meta?.port ?? rec.slot,
+        token: rec.token,
+        calls: chunk.map((it) => ({ method: it.method, args: it.args })),
+        timeoutMs: Number(config.fsTimeoutMs) || 60000,
+      });
+      const results = Array.isArray(r?.msg?.result?.results) ? r.msg.result.results : null;
+      if (results === null) {
+        // 批量不可用（旧守护）/传输失败：**逐条退回单发**，不吞错也不伪造成功。
+        for (const it of chunk) it.resolve(await singleCall(it.rec, 'fs', it.method, it.args));
+        continue;
+      }
+      chunk.forEach((it, i) => {
+        const one = results[i];
+        if (one && one.ok === true) it.resolve({ ms: r.ms, msg: { ok: true, result: one.result } });
+        else if (one) it.resolve({ ms: r.ms, msg: { ok: false, code: one.code, error: one.error } });
+        else it.resolve({ ms: r.ms, msg: { ok: false, code: 'FS_IO_ERROR', error: 'batch result missing' } });
+      });
+    }
+  };
+
+  const batchedCall = (target, method, args) =>
+    new Promise((resolve) => {
+      batchQueue.push({ rec: target, method, args, resolve });
+      if (!batchScheduled) {
+        batchScheduled = true;
+        setImmediate(() => {
+          flushBatch().catch((e) => {
+            // 冲刷本身炸了：把异常摊回给每个等待者（不能让 Promise 永远挂着）。
+            const items = batchQueue;
+            batchQueue = [];
+            for (const it of items) it.resolve({ ms: 0, ok: false, kind: 'error', error: e?.message ?? String(e) });
+          });
+        });
+      }
+    });
+
+  /** 一条 RPC 的实际发送路径：可池化 → 可批量（仅 `op:'fs'` 的只读方法）→ 否则短连接单发。 */
+  const dispatch = (target, op, method, args) => {
+    if (!poolEnabled) return singleCall(target, op, method, args);
+    if (op === 'fs' && batchEnabled && BATCHABLE_OPS.has(String(method))) return batchedCall(target, method, args);
+    return callDaemonPooledFn(config, {
+      port: target.meta?.port ?? target.slot,
+      token: target.token,
+      req: { op, id: 1, method, args },
+      timeoutMs: Number(config.fsTimeoutMs) || 60000,
+    });
+  };
+
   const attemptCall = async (op, method, args, signal) => {
     signal?.throwIfAborted?.();
     await ensure();
@@ -162,13 +271,7 @@ export function createWslRpc(rawConfig = {}, deps = {}) {
       await ensure();
       rec = requireRec();
     }
-    const callOnce = (target) =>
-      callDaemonFn(config, {
-        port: target.meta?.port ?? target.slot,
-        token: target.token,
-        req: { op, id: 1, method, args },
-        timeoutMs: Number(config.fsTimeoutMs) || 60000,
-      });
+    const callOnce = (target) => dispatch(target, op, method, args);
     let r = await callOnce(rec);
     if (!r?.msg && isRecoverableDaemonTransport(r.kind)) {
       daemonReady = null;
