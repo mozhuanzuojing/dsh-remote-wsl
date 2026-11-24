@@ -28,6 +28,7 @@ import { resolveVersion, writePin, runWsl, sweepOwnTempFiles, shellPreamble, sle
 import { createInHostPool } from './in-host-runtime.ts';
 import { registerTools, sweepStaleRuntimes } from './register-tools.ts';
 import { apply as applyWslPreset } from './preset.ts';
+import { apply as applyWorldRoute } from './world-route.ts';
 import { installSubprocessBridgeFromContext } from './subprocess-bridge.ts';
 import { installUncWriteBridge } from './fs-unc-bridge.ts';
 
@@ -287,6 +288,10 @@ export function apply(ctx, rawConfig = {}) {
   // 挂上本插件的 `ctx.fs` provider（src/fs-provider.ts），读写走 WSL 原生 node:fs，不碰 9P。
   // 服务不可用时 preset.ts 会明确打一行，不静默跳过。
   applyWslPreset(ctx, config);
+  // 2026-11-24：世界路由 —— cwd 在 WSL 里的**空白会话**自动落到 `wsl-<mode>` / `wsl`。
+  // 不做这一步，宿主平面的 grep/glob 永远只在 Windows ripgrep + 9P 上跑，守护侧"一次扫一棵树"的能力
+  // 对这些会话根本没接线（实测守护 RPC 增量 = 0）。
+  applyWorldRoute(ctx, config);
   // 2026-10-29：standard preset 在 UNC 工作区里的 write/edit 仍走 fs-local（9P）⇒
   // GetFileSecurityW EIO。把 host fs 服务实例的写/编辑桥到 WSL fs-rpc；非 UNC 路径原样放行。
   installUncWriteBridge(ctx, config);

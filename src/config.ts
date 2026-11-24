@@ -92,6 +92,17 @@ export const DEFAULTS = {
   /** readText 的字节上限：宿主 readText 区间 <10MiB，16MiB 覆盖并留余量；更大的走真流式。 */
   readTextMaxBytes: 16 * 1024 * 1024,
 
+  /**
+   * 世界路由（默认开）：cwd 落在本发行版 UNC 路径上的**空白会话**自动落到 WSL 执行世界
+   * （`wsl-<默认模式>` 变体优先，其次 `wsl`）。
+   *
+   * 为什么要有它（2026-11-24 根因）：宿主平面（standard preset）在 UNC 工作区里只有一条补丁通路
+   * （`fs-unc-bridge`），grep/glob 仍然是宿主自带的 Windows ripgrep 走 9P —— 守护侧的
+   * `{op:'search'}` 一次扫完整棵树的能力**根本到不了**这类会话。用户看到的那条
+   * "WSL 插件有时候报错、状态却正常"就是这套错配的下游。关掉它（`worldRoute: false`）则维持旧行为。
+   */
+  worldRoute: true,
+
   // ── 搜索 / 远程 UI ──────────────────────────────────────────────────────────
   /** 缺 rg/fd 时是否自动安装（装失败会把原因与手动命令带回来，不静默降级）。 */
   searchAutoInstall: true,
