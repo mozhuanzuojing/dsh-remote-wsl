@@ -15,7 +15,7 @@
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
-**它是什么**：DSH 桌面壳的 host 由本机启动，没有「连远端 host」的开关（实测与机制见 [docs/2026-10-10-wsl-dsh-sdk-bridge.md](docs/2026-10-10-wsl-dsh-sdk-bridge.md)）。这个插件不假装有——它从 Windows 宿主侧驱动 WSL 里那份 dsh，提供七个工具、一个「WSL 工作区」面板，以及一个把文件工具搬进 WSL 的 agent preset，并把会话持久性、版本一致性和关停边界一起管起来。
+**它是什么**：DSH 桌面壳的 host 由本机启动，没有「连远端 host」的开关（实测与机制见 [docs/2026-10-10-wsl-dsh-sdk-bridge.md](docs/2026-10-10-wsl-dsh-sdk-bridge.md)）。这个插件不假装有——它从 Windows 宿主侧驱动 WSL 里那份 dsh，提供九个工具、一个「WSL 工作区」面板，以及一个把文件工具搬进 WSL 的 agent preset，并把会话持久性、版本一致性和关停边界一起管起来。
 
 ## 30 秒上手
 
@@ -39,7 +39,7 @@
 
 ```mermaid
 flowchart LR
-  H["DSH 宿主进程<br/>Windows · 面板 / 七个工具"] -- "wsl.exe + TCP 127.0.0.1" --> D["常驻守护<br/>WSL2 · 状态目录"]
+  H["DSH 宿主进程<br/>Windows · 面板 / 九个工具"] -- "wsl.exe + TCP 127.0.0.1" --> D["常驻守护<br/>WSL2 · 状态目录"]
   D --> R["SDK 运行时<br/>每个 key+cwd 一个"]
   D --> F["WSL 文件世界<br/>fs / search RPC"]
 ```
@@ -53,7 +53,7 @@ flowchart LR
 - **常驻会话**：`wsl_agent` 的运行时由 WSL 侧守护持有。关掉 DSH 客户端，会话不会结束；再开一个宿主进程，用同一个 `key` 和同一个 `cwd` 还能接上之前的上下文。回复会带 `sessionId` / `runtimePid` / `turns`。
 - **会话结束只有三种方式**：显式 `wsl_daemon action=stop`（`restart` 也会先结束）；空闲 `daemonIdleMs`（默认 30 分钟）回收；守护或运行时死亡。守护在无 key 且无客户端持续 `daemonLingerMs`（默认 10 分钟）后自退，有会话时不会触发。
 - **同 key 串行**：并发 prompt 在守护里 FIFO；超过 `daemonQueueLimit`（默认 4）明确拒绝，不静默排队——上游 SDK 没有 cancel。
-- **七个工具**：诊断、一次性命令、常驻 agent、守护生命周期、远程 UI、版本对齐、路径互转，详见下方表格。
+- **九个工具**：诊断、一次性命令、常驻 agent、守护生命周期、远程 UI、版本对齐、路径互转、WSL 内 grep/glob，详见下方表格。
 - **WSL 工作区**：左侧栏「插件」下的面板。
   - **入口位置（2026-11-18）**：已移除左下角 footer 的 `WSL` 按钮（及其「添加 WSL 工作区」弹窗）；同一面板改为注册为**会话 View 标签**，出现在会话顶部标签栏、「统计」右侧（`conversation.view`，order 50）。添加工作区仍用面板头部的「添加为 WSL 工作区」把当前浏览目录登记为工作区。
   - **紧凑文件表（2026-10-30）**：文件行显示名称、大小、修改时间（目录不显示大小）；窄态隐藏时间列；单发行版时隐藏重复的 WSL 目标大卡，减少顶部噪声。
@@ -93,7 +93,7 @@ flowchart LR
 
 <img width="360" height="900" alt="360px 窄态面板：完整快捷目录 chips 与折行布局" src="assets/screenshot-narrow.webp">
 
-### 七个工具
+### 九个工具
 
 | 工具 | 做什么 |
 |---|---|
@@ -104,6 +104,8 @@ flowchart LR
 | `wsl_open_ui` | 在 WSL 里起 `dsh web`，在 Windows 开应用窗口；`stop=true` 停掉 |
 | `wsl_sync_version` | 读桌面版本 → 比对 WSL pin → 可选预热 → 修复 pin；`warm=true` 物化该版本 |
 | `wsl_path` | 包一层发行版的 `wslpath`：`D:\...` ⇄ `/mnt/d/...`；`direction` 可选 `to-wsl` / `to-windows` / `both` |
+| `wsl_grep` | **在发行版里** grep：一帧 `{op:'search'}` 由守护扫完整棵树（不走 `\\wsl.localhost` 的 9P、不 spawn Windows ripgrep）。标准 preset 的会话里遇到 WSL 路径就用它代替 `grep` |
+| `wsl_glob` | 同上，列出发行版内匹配 glob 的文件（`fd`/`find`，一次 RPC） |
 
 ## 安装
 
@@ -308,6 +310,44 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 新建会话时把 preset 选成「WSL（远程执行世界）」，**文件工具与 `bash` 都落到配置的发行版里**（`bash` 走 `src/shell-provider.ts`：每条命令一次 `wsl.exe`、独立进程组、超时/中止按组回收；终端 PTY 仍是宿主工具）；`wsl_tools` 可以列/装这些 WSL 侧 CLI 工具。面板里「在此目录新建会话」默认就落这个 preset。想跑一次性体检仍可用 `wsl_exec`，要跨宿主持久会话用 `wsl_agent`。
 
+#### 世界路由（v0.12.0+）
+
+cwd 落在 WSL 里的**空白会话**（`source=startup` 且 header 里还没有 preset）会自动落到 WSL 世界：
+优先 `wsl-<默认模式>` 变体，其次 `wsl`。规则很短，但**越界的口子一个不留**：`resume`/`clear`/`compact`
+不动、用户显式选过的 preset 一律不覆盖、别的发行版的 cwd 不碰、宿主没注册 WSL 预设就明确放过。
+关掉它：`worldRoute: false`。
+
+为什么要有它：宿主平面（standard preset）在 UNC 工作区里只有一条补丁通路（`fs-unc-bridge`），
+`grep`/`glob` 仍是宿主自带的 Windows ripgrep 走 9P —— 守护侧"一次扫完一棵树"的 `{op:'search'}`
+对这类会话**根本没接线**（实测守护 RPC 增量 = 0）。落进 WSL 世界后，同样的 grep 变成 1 次 RPC。
+对不能改世界的会话（用户显式选了别的 preset），逃生口是 `wsl_grep` / `wsl_glob`。
+
+#### 传输层：长连接复用 + 批量帧（协议 v5，v0.12.0+）
+
+旧实现**每个 op 一条 TCP 连接**。实测一次文件密集回合能到 1106 次 RPC / 8.3 秒（峰值 165/s），
+而 Windows 每个关闭的连接会占本地临时端口约 120 秒（默认 `TcpTimedWaitDelay`），本机动态端口范围
+只有 16384 个（49152–65535）—— 持续 130+/s 两分钟就把池子打光，之后**全机**新建连接都会拿到
+`EADDRINUSE`（WinError 10048）。用户看到的那条 `connect EADDRINUSE 127.0.0.1:8731` 就是这么来的：
+**不是目的端口被占，是本机临时端口没了**；而 `wsl_daemon status` 只做一次握手，自然是"正常"的。
+
+v5 的两条改动：
+
+- **长连接复用**：`fs`/`search`/`status` 走池化连接（一连接多请求、按 `id` 配对、空闲 45s 关闭、
+  超时/断开即重连）。旧守护本来就支持一条连接多帧 ⇒ **池化对旧守护也能用**。
+- **批量帧**：同一 tick 内的多条**只读** fs 调用合成一帧 `{op:'fs', method:'batch'}`（上限 64 条，
+  逐条独立成败；写操作永不进批）。旧守护回 `unknown fs method: batch` ⇒ 该连接标记 `batchUnsupported`
+  并逐条退回单发（不重试、不慌报成功）。
+
+隔离守护实测（Windows→WSL，同样的 300 次 `fs.stat`）：
+
+| 路径 | 连接数 | 耗时 |
+|---|---|---|
+| 旧（每 op 一条连接） | 300 | 622ms |
+| 池化 | 1 | 127ms |
+| 池化 + 批量（60 条/帧） | 1 | 14ms |
+
+诊断开关：`DSH_RWSL_FS_POOL=0` 退回短连接、`DSH_RWSL_FS_BATCH=0` 只池化不批量。
+
 ## 数据存在哪里
 
 - **Windows 侧配置**：`%USERPROFILE%\.dsh\profiles\<profile>\package.json` 与 `cordis.patch.yml`。
@@ -361,11 +401,11 @@ wsl -d $distro --exec bash -lc 'echo $HOME'
 
 | 路径 | 作用 |
 |---|---|
-| `src/index.ts` | 插件入口：注册七个工具 / 面板数据面 / preset（默认值已收敛到 `src/config.ts`） |
+| `src/index.ts` | 插件入口：注册九个工具 / 面板数据面 / preset（默认值已收敛到 `src/config.ts`） |
 | `src/config.ts` | **唯一一份**默认配置 + `normalizeConfig()` + 目标可用性判据（`targetProblem()`） |
 | `src/target-detect.ts` | 零配置目标探测：`wsl -l -v` 的默认发行版 + 它的 `$HOME`（纯函数 + 注入式 probe） |
 | `src/distro-table.ts` | `wsl -l -v` 表解析（面板与探测共用一份） |
-| `src/register-tools.ts` | 七个工具的实现 |
+| `src/register-tools.ts` | 九个工具的实现 |
 | `src/daemon.ts`、`src/daemon-*.ts` | WSL 侧常驻守护、协议、launcher 与生命周期 |
 | `src/explorer.ts` | 面板数据面 `POST /remote-wsl/api`（同源 + 硬白名单） |
 | `src/open-editor.ts` | VS Code Remote-WSL URI 与资源管理器 UNC 候选纯函数 |
