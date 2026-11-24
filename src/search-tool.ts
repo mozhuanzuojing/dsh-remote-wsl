@@ -53,8 +53,10 @@ async function tryNativeSearch(kind, path, config, args, exec) {
 
 
 
-/** 把模型给的路径解析成发行版内绝对路径：优先走 realm 的 ctx.fs，其次自己按 UNC/cwd 推导。 */
-async function resolveLinuxPath(ctx, config, rawPath, exec) {
+/**
+ * 把模型给的路径解析成发行版内绝对路径：优先走 realm 的 ctx.fs，其次按 UNC/cwd 推导。
+ */
+export async function resolveLinuxPath(ctx, config, rawPath, exec) {
   // 2026-10-28（零配置）：目标未确定时先给根因 —— 否则 UNC 路径会先撞上「只服务 ""」的伪错误。
   const issue = targetProblem(config);
   if (issue) throw new Error(issue);
@@ -64,17 +66,97 @@ async function resolveLinuxPath(ctx, config, rawPath, exec) {
     const target = await fsSvc.resolve(rawPath ?? cwd, { cwd });
     return String(target.targetKey);
   }
-  const raw = String(rawPath ?? cwd ?? '/').trim();
+  return resolveSearchRoot(config, rawPath, cwd);
+}
+
+/**
+ * 无 ctx 版本的路径解析（宿主平面工具用）：UNC / POSIX 绝对 / 相对 cwd。
+ *
+ * 与 {@link resolveLinuxPath} 的区别只在于**不做 realpath**（宿主平面的 `wsl_grep`/`wsl_glob`
+ * 直接吃 Linux 路径，与 WSL 世界的 `grep`/`glob` 语义一致：daemon 侧自己按真实路径遍历）。
+ *
+ * @param config - 插件配置（只用来校验发行版归属）
+ * @param rawPath - 模型给的路径（UNC / POSIX 绝对 / 相对）
+ * @param cwd - 会话 cwd（缺省 config.cwd）
+ * @returns 发行版内绝对路径
+ */
+export function resolveSearchRoot(config, rawPath, cwd) {
+  const issue = targetProblem(config);
+  if (issue) throw new Error(issue);
+  const base = cwd ?? config.cwd;
+  const raw = String(rawPath ?? base ?? '/').trim();
   const unc = parseUnc(raw);
   if (unc !== null) {
     if (unc.distro !== config.distro) throw new Error(`remote-wsl search: 路径属于发行版 "${unc.distro}"，只服务 "${config.distro}"`);
     return unc.linuxPath;
   }
   if (raw.startsWith('/')) return raw;
-  const baseUnc = parseUnc(String(cwd ?? ''));
+  const baseUnc = parseUnc(String(base ?? ''));
   if (baseUnc !== null) return `${baseUnc.linuxPath.replace(/\/$/, '')}/${raw}`;
-  throw new Error(`remote-wsl search: 无法解析相对路径 "${raw}"（cwd=${String(cwd)} 不是 WSL 路径）`);
+  const basePosix = String(base ?? '');
+  if (basePosix.startsWith('/')) return `${basePosix.replace(/\/$/, '')}/${raw}`;
+  throw new Error(`remote-wsl search: 无法解析相对路径 "${raw}"（cwd=${String(base)} 不是 WSL 路径）`);
 }
+
+/**
+ * 一次 grep（daemon 侧 `{op:'search', method:'grep'}`），返回**给模型看的文本**。
+ *
+ * 抽成导出函数是为了让两个入口共用同一条实现：WSL 世界里的 `grep` 工具（preset 内），
+ * 以及宿主平面的 `wsl_grep`（标准 preset 会话的逃生口，见 register-tools.ts）。
+ */
+export async function searchGrep(config, { pattern, path, fixedString = false, ignoreCase = false, maxMatches, signal } = {}) {
+  const config_ = config;
+  const args = { pattern, fixed_string: fixedString, ignore_case: ignoreCase, max_matches: maxMatches };
+  const r =
+    (await tryNativeSearch('grep', path, config_, args, { signal })) ??
+    (await createWslRpc(config_).call(
+      'search',
+      'grep',
+      {
+        pattern: String(pattern ?? ''),
+        path,
+        fixedString: fixedString === true,
+        ignoreCase: ignoreCase === true,
+        maxMatches,
+        autoInstall: config_.searchAutoInstall !== false,
+      },
+      signal,
+    ));
+  const matches = Array.isArray(r?.matches) ? r.matches : [];
+  const hints = hintsOf(r);
+  if (matches.length === 0) return `no matches for ${JSON.stringify(String(pattern ?? ''))} in ${path}${hints}`;
+  // 单行预览裁剪（2026-11-24 实测）：压缩过的 .js 一行就有 35KB，原样回给模型会把一条匹配撑成整段
+  // 泄洪（上游 `GREP_MAX_LINE_BYTES` 也是这个意图，只是它按字节裁）。行号与路径仍逐条保留。
+  const MAX_LINE_CHARS = 500;
+  const clip = (text) => {
+    const s = String(text ?? '');
+    return s.length > MAX_LINE_CHARS ? `${s.slice(0, MAX_LINE_CHARS)}…` : s;
+  };
+  const lines = matches.map((m) => `${m.path}:${m.line}: ${clip(m.text)}`);
+  const via = r?.backend ? ` via ${r.backend}` : '';
+  const head = `${matches.length} match(es) in ${path}${via}${r?.truncated ? ' (truncated)' : ''}`;
+  return `${head}\n${lines.join('\n')}${hints}`;
+}
+
+/** 一次 glob（daemon 侧 `{op:'search', method:'glob'}`），返回给模型看的文本。 */
+export async function searchGlob(config, { pattern, path, maxResults, signal } = {}) {
+  const config_ = config;
+  const args = { pattern, max_results: maxResults };
+  const r =
+    (await tryNativeSearch('glob', path, config_, args, { signal })) ??
+    (await createWslRpc(config_).call(
+      'search',
+      'glob',
+      { pattern: String(pattern ?? ''), path, maxResults, autoInstall: config_.searchAutoInstall !== false },
+      signal,
+    ));
+  const files = Array.isArray(r?.files) ? r.files : [];
+  const hint = `${provisionHint(r?.provision)}${warningHint(r)}`;
+  if (files.length === 0) return `no files match ${JSON.stringify(String(pattern ?? ''))} under ${path}${hint}`;
+  const via = r?.backend ? ` via ${r.backend}` : '';
+  return `${files.length} file(s) under ${path}${via}${r?.truncated ? ' (truncated)' : ''}\n${files.join('\n')}${hint}`;
+}
+
 
 /**
  * daemon 返回的 provision 状态 → 给模型的提示（F-12）。
@@ -185,21 +267,14 @@ export function apply(ctx, rawConfig = {}) {
       output: { schema: { type: 'string' }, render: renderText },
       execute: async (args, exec) => {
         const path = await resolveLinuxPath(ctx, config, args.path, exec);
-        const r = (await tryNativeSearch('grep', path, config, args, exec)) ?? (await rpc.call('search', 'grep', {
-          pattern: String(args.pattern ?? ''),
+        return searchGrep(config, {
+          pattern: args.pattern,
           path,
           fixedString: args.fixed_string === true,
           ignoreCase: args.ignore_case === true,
           maxMatches: args.max_matches,
-          autoInstall: config.searchAutoInstall !== false,
-        }, exec?.signal));
-        const matches = Array.isArray(r?.matches) ? r.matches : [];
-        const hints = hintsOf(r);
-        if (matches.length === 0) return `no matches for ${JSON.stringify(String(args.pattern ?? ''))} in ${path}${hints}`;
-        const lines = matches.map((m) => `${m.path}:${m.line}: ${m.text}`);
-        const via = r?.backend ? ` via ${r.backend}` : '';
-        const head = `${matches.length} match(es) in ${path}${via}${r?.truncated ? ' (truncated)' : ''}`;
-        return `${head}\n${lines.join('\n')}${hints}`;
+          signal: exec?.signal,
+        });
       },
     });
 
@@ -217,17 +292,12 @@ export function apply(ctx, rawConfig = {}) {
       output: { schema: { type: 'string' }, render: renderText },
       execute: async (args, exec) => {
         const path = await resolveLinuxPath(ctx, config, args.path, exec);
-        const r = (await tryNativeSearch('glob', path, config, args, exec)) ?? (await rpc.call('search', 'glob', {
-          pattern: String(args.pattern ?? ''),
+        return searchGlob(config, {
+          pattern: args.pattern,
           path,
           maxResults: args.max_results,
-          autoInstall: config.searchAutoInstall !== false,
-        }, exec?.signal));
-        const files = Array.isArray(r?.files) ? r.files : [];
-        const hint = `${provisionHint(r?.provision)}${warningHint(r)}`;
-        if (files.length === 0) return `no files match ${JSON.stringify(String(args.pattern ?? ''))} under ${path}${hint}`;
-        const via = r?.backend ? ` via ${r.backend}` : '';
-        return `${files.length} file(s) under ${path}${via}${r?.truncated ? ' (truncated)' : ''}\n${files.join('\n')}${hint}`;
+          signal: exec?.signal,
+        });
       },
     });
     tools.register({

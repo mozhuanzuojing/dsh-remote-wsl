@@ -32,6 +32,7 @@ import { PLUGIN_VERSION, PROTOCOL_VERSION } from './plugin-version.ts';
 // 与上一行同型：T5 拆分时漏了 import，`{stop:true}` 真调（**已起过一个 web host** 之后）才炸 ReferenceError。
 import { runWsl, wslPathConvert, sweepOwnTempFiles, readLogViaWsl, shellPreamble, writeScript, removeScript, reapWsl, sleep, renderText, resolveVersion, readPin, writePin } from './wsl-io.ts';
 import { installCommandGate } from './command-policy.ts';
+import { resolveSearchRoot, searchGlob, searchGrep } from './search-tool.ts';
 import { doctorReport } from './doctor.ts';
 import { collectDoctorFacts } from './doctor-facts.ts';
 
@@ -342,6 +343,74 @@ export function registerTools(deps) {
     // 2026-10-30：在**同一个 tools 上下文**挂 pre-execute 门禁（不能挂到父 ctx：
     // tools 服务事件在子上下文里；父层 listener 是否收到取决于 Cordis 事件传播，不能赌）。
     installCommandGate(toolsCtx, { toolNames: ['wsl_exec'], commandPolicy: config.commandPolicy });
+
+    /**
+     * 宿主平面的 WSL 树搜索（B）：**标准 preset 会话的逃生口**。
+     *
+     * 为什么不"劫持"宿主自带的 `grep`/`glob`：那两个工具的 schema、结果保留（output-retention）、
+     * spill 落盘与 `presentResult` 卡片全在 `@deepseek-ai/dsh-tool-fs-search` 里 —— 从外面替换它的
+     * 返回值意味着要把这些语义整套复制一遍（否则模型拿到文本、UI 卡片炸）；而"同名工具"在本层
+     * 注册会被 registry 判为同层重名（scoped 才能遮蔽 global，而 scoped 属于**执行世界**，那正是
+     * `world-route.ts` 的路子）。所以这里的做法是**给一个不同名的确定性入口**，描述里写清"路径在
+     * WSL 里就用我，别用宿主 grep"，由模型按路径选择，而不是插件偷偷改写别人的工具。
+     *
+     * 收益是可测的：这条路径只发**一个** `{op:'search'}` 帧，守护在发行版里扫完整棵树；而宿主自带
+     * grep 会 spawn Windows ripgrep 去 walk `\\wsl.localhost\…` 的 9P 共享（实测守护 RPC 增量 0）。
+     */
+    const searchRootOf = (args, exec) => {
+      const cwd = exec?.agent?.session?.header?.cwd ?? config.cwd;
+      return resolveSearchRoot(config, args?.path, cwd);
+    };
+    tools.register({
+      name: 'wsl_grep',
+      description:
+        'Search file contents **inside the WSL distribution** with the resident daemon: one RPC scans the whole tree in the distro (no 9P walk, no Windows ripgrep). Use this INSTEAD of `grep` whenever the path is a WSL path (`\\\\\\\\wsl.localhost\\\\<distro>\\\\…`, a Linux absolute path, or a relative path under a WSL cwd). `pattern` is a POSIX ERE, plus \\\\d \\\\w \\\\s and a leading (?i); .git and node_modules are always skipped and .gitignore is NOT honored (same on every backend). Result caps apply; narrow `path` when truncated.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'Regular expression (POSIX ERE; \\d \\w \\s and a leading (?i) are translated for portability). Required.' },
+          path: { type: 'string', description: 'Directory or file to search inside the distribution (UNC, Linux absolute, or relative to the session cwd). Defaults to the session cwd.' },
+          fixed_string: { type: 'boolean', description: 'Treat the pattern as literal text (no shorthand translation).' },
+          ignore_case: { type: 'boolean', description: 'Case-insensitive match (equivalent to a leading (?i)).' },
+          max_matches: { type: 'integer', description: 'Cap on returned matches (default 500).' },
+        },
+        required: ['pattern'],
+      },
+      output: { schema: { type: 'string' }, render: renderText },
+      execute: async (args, exec) =>
+        searchGrep(config, {
+          pattern: args.pattern,
+          path: await searchRootOf(args, exec),
+          fixedString: args.fixed_string === true,
+          ignoreCase: args.ignore_case === true,
+          maxMatches: args.max_matches,
+          signal: exec?.signal,
+        }),
+    });
+
+    tools.register({
+      name: 'wsl_glob',
+      description:
+        'List files **inside the WSL distribution** matching a glob, executed by the resident daemon in one RPC (fd/find inside the distro; no 9P walk from Windows). Use this INSTEAD of `glob` when the path is a WSL path (`\\\\\\\\wsl.localhost\\\\<distro>\\\\…`, Linux absolute, or relative under a WSL cwd). `*` does not cross "/", `**` crosses directories, `?` matches one character, `[abc]` is a class, `[!abc]` negates. .git and node_modules are skipped; .gitignore is NOT honored. Results are capped.',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'Glob pattern, e.g. **/*.ts or src/*.js. Required.' },
+          path: { type: 'string', description: 'Root directory inside the distribution (UNC, Linux absolute, or relative to the session cwd). Defaults to the session cwd.' },
+          max_results: { type: 'integer', description: 'Cap on returned paths (default 1000).' },
+        },
+        required: ['pattern'],
+      },
+      output: { schema: { type: 'string' }, render: renderText },
+      execute: async (args, exec) =>
+        searchGlob(config, {
+          pattern: args.pattern,
+          path: await searchRootOf(args, exec),
+          maxResults: args.max_results,
+          signal: exec?.signal,
+        }),
+    });
+
 
     tools.register({
       name: 'wsl_doctor',
