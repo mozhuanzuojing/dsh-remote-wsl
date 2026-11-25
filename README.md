@@ -6,6 +6,9 @@
 >
 > 常驻守护让「关掉客户端 ≠ 会话结束」；换一个宿主进程，用同一个 `key` 还能接上之前的上下文。
 
+[![npm](https://img.shields.io/npm/v/dsh-remote-wsl?color=6f42c1&label=npm)](https://www.npmjs.com/package/dsh-remote-wsl)
+[![downloads](https://img.shields.io/npm/dm/dsh-remote-wsl)](https://www.npmjs.com/package/dsh-remote-wsl)
+[![node](https://img.shields.io/badge/node-%E2%89%A524-339933)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.2-6f42c1)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
@@ -117,12 +120,12 @@ flowchart LR
 - **WSL 侧凭据**：`~/.dsh/.credentials.yaml`。WSL 与 Windows 是两份独立的 `~/.dsh`，**不要复制任何 key**。
 - 代理：`proxyPort` 默认 `9910`。插件先探测再使用；不用代理也可以，探测失败只会显示「不可达 / 未探测」，不阻断直连。
 
-### 从 npm 安装（0.12.0+）
+### 从 npm 安装（0.12.1+）
 
 ```powershell
 # 1) 让 profile 依赖到 npm 版本（不要再用 link:）
 #    %USERPROFILE%\.dsh\profiles\<profile>\package.json
-"dependencies": { "dsh-remote-wsl": "0.12.0" }
+"dependencies": { "dsh-remote-wsl": "^0.12.1" }
 
 # 2) 把包名追加到 dsh.profile.bundles 末尾（同上文件），再重启 DSH
 ```
