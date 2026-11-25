@@ -11,7 +11,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.10.0** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 未发布 npm，按 `link:` 装进 profile
+当前版本 **0.12.1** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 支持 npm 安装（0.12.0+）或 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -117,7 +117,22 @@ flowchart LR
 - **WSL 侧凭据**：`~/.dsh/.credentials.yaml`。WSL 与 Windows 是两份独立的 `~/.dsh`，**不要复制任何 key**。
 - 代理：`proxyPort` 默认 `9910`。插件先探测再使用；不用代理也可以，探测失败只会显示「不可达 / 未探测」，不阻断直连。
 
-### 装进 profile
+### 从 npm 安装（0.12.0+）
+
+```powershell
+# 1) 让 profile 依赖到 npm 版本（不要再用 link:）
+#    %USERPROFILE%\.dsh\profiles\<profile>\package.json
+"dependencies": { "dsh-remote-wsl": "0.12.0" }
+
+# 2) 把包名追加到 dsh.profile.bundles 末尾（同上文件），再重启 DSH
+```
+
+> 为什么包要自带 `lib/*.js`：Node 的类型擦除**拒绝 `node_modules` 里的 `.ts`**
+> （`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`）。`link:` 装的是工作树路径，所以 `src/*.ts` 能跑；
+> 从 npm 装文件落进 `node_modules/`，宿主半与 WSL 侧守护半都会拒绝加载 —— 因此 `main`/`exports`/
+> 守护脚本一律指向构建产物 `lib/*.js`（`npm run build` 产出，`npm run check:pack` 逐条真加载验证）。
+
+### 装进 profile（源码方式 / 开发用）
 
 仓库必须放在 **Windows 能访问的路径**（host 半在 Windows 跑，WSL 侧会经 `/mnt/<盘符>` 读同一份源码）：
 
@@ -371,7 +386,7 @@ v5 的两条改动：
 - **WSL 侧运行时**：Node ≥ 26.10（实测 26.10.0）、pnpm（实测 12.6.0）、mise（实测 2026.9.7）。Windows 侧使用 DSH 自带运行时。
 - **systemd**：推荐启用；不启用时走兼容回退，可能弹出可见控制台窗口。
 - **面板**：中文 / English 跟随宿主语言；320–1280 七档无横向溢出。
-- **分发**：`private: true`，未发布 npm；按 `link:` 装进 profile。
+- **分发**：npm 包（`main` / `exports` 指向 `lib/*.js` 构建产物）；也可按 `link:` 装进 profile。**发布前必须先 `npm run build`**，否则 `lib/` 缺失会让安装形态加载失败（`npm run check:pack` 就是拦这个的）。
 
 ## 已知边界（不假装有）
 
@@ -397,7 +412,7 @@ v5 的两条改动：
 
 ## 开发
 
-**客户端构建**：client 已从手写 chunk 迁到 `src/client/*.ts`，用 `esbuild` 打成单文件 `lib/client.js`（`devDependencies`: esbuild；`lib/client.js` 随包入库）。`npm run build` 重建。这些 `.ts` 有 **tsc 类型检查**（`npm run typecheck`；devDependency: typescript），`npm run check` 另做零依赖语法校验；host 仍零构建（Node 原生 type stripping），无 `@deepseek-ai/*` 运行时依赖。Windows 侧用 DSH 自带的 Node 即可跑 `.ts`（实测 24.21.0）；WSL 侧守护按 `engines.node` 需要 ≥ 26.10。
+**构建**：`npm run build` 做两件事 —— ① 把 `src/client/*.ts` 用 `esbuild` 打成单文件 `lib/client.js`；② 把 host 半（`src/` 除 client）用 `tsc -p tsconfig.build.json`（`--noCheck` + `rewriteRelativeImportExtensions`，只转译并把 `./x.ts` 改写成 `./x.js`）转译成 `lib/*.js`。产物**随包入库**，也是 npm 安装形态的唯一入口（`main`/`exports` 全指向 `lib/`）。改 `src/` 后要么 `npm run build`、要么另开一个 `npm run dev`（`tsc --watch`）——**因为 `main`/`exports` 已经指向 `lib/`，宿主不会再直接读 `src/*.ts`**；发布前必须 build：Node 拒绝 `node_modules` 里的 `.ts`，`npm run check:pack` 会把 tarball 解开、逐个 entry 真加载来拦这件事。`src/client/*.ts` 有 tsc 类型检查（`npm run typecheck`），`npm run check` 做零依赖语法校验；无 `@deepseek-ai/*` 运行时依赖。Windows 侧用 DSH 自带 Node 跑 `.ts`（实测 24.21.0）；WSL 侧守护按 `engines.node` 需要 ≥ 26.10。
 
 | 路径 | 作用 |
 |---|---|
@@ -414,7 +429,8 @@ v5 的两条改动：
 | `src/preset.ts`、`src/search-tool.ts` | `wsl` preset、WSL 内 `grep` / `glob` 与 `wsl_tools` |
 | `src/shell-provider.ts` | WSL preset 里的 `ctx.shell` 替代实现（原生 `bash`：cwd 翻译 / 输出上限 / 超时 / 进程组回收） |
 | `src/client/` | client 半源码（TS；含 i18n 与全部 CSS） |
-| `lib/client.js` | client 构建产物（`npm run build` 产出，随包入库） |
+| `lib/client.js` | client 构建产物（esbuild，`npm run build`，随包入库） |
+| `lib/*.js` | host 半构建产物（`tsc -p tsconfig.build.json`，随包入库；npm 安装形态的入口） |
 | `test/` | 可重跑的回归用例（Node 内置 test runner，直接跑 `.ts`） |
 | `scripts/check-syntax.ts` | 零依赖语法门禁（`src` 用 Node type stripping 解析、`client` 用 `node --check`） |
 | `assets/` | README 配图：banner、宽态 / 深色 / 窄态 / 头部截图 |

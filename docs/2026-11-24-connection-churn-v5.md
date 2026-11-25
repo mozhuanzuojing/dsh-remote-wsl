@@ -93,3 +93,48 @@ scoped 属于**执行世界** —— 那正是 A 的路子，且 A 已经做掉�
 
 附带修掉一个实测暴露的小缺陷：单行匹配预览原来原样回给模型（压缩过的 `.js` 一行 35KB ⇒ 一次结果被撑成整段泄洪），
 现在在 `searchGrep` 里按 500 字符裁剪并标 `…`（行号/路径仍逐条保留）。该改动同样在下次重启生效。
+## 6. npm 分发形态（2026-11-24 追加）
+
+### 6.1 事实：源码形态发布出去**装完就是死的**
+
+`npm pack` 出的 tarball 装进隔离目录后，四个入口全部拒绝加载：
+
+```
+main / sub:fs-provider / sub:search-tool   FAIL ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING
+client                                     FAIL window is not defined（正常：浏览器 bundle）
+node --experimental-strip-types src/daemon.ts
+                                           同一错误（WSL 侧守护也栽在同一处）
+```
+
+根因：Node 的类型擦除**明确排除 `node_modules`**。`link:` 安装时文件在工作树里所以能跑，
+npm 安装时文件落进 `node_modules/` ⇒ 宿主半（`main=src/index.ts`）与守护半（`daemon.ts`）双双失效。
+而仓库既有 351 条测试**全部** import `../src/*.ts`，永远发现不了这件事。
+
+### 6.2 改动
+
+| 项 | 内容 |
+|---|---|
+| 构建 | 新增 `tsconfig.build.json`（`noEmit:false`、`outDir:lib`、`rootDir:src`、`noCheck:true`、`allowImportingTsExtensions` + **`rewriteRelativeImportExtensions`**）—— 只转译，并把源码里的 `./x.ts` 改写成 `./x.js` |
+| 入口 | `main` / `exports` 全部指向 `lib/*.js`；`files` 同时保留 `lib`（运行形态）与 `src`（可读源码） |
+| 守护定位 | `daemonScriptWsl()` 改为"与本模块**同目录**的 `daemon.js` 优先，否则 `daemon.ts`"（源码形态 / 安装形态各自成立）；进程身份判据补上 `*daemon.js*` |
+| 门禁 | 新增 `scripts/check-pack-loadable.ts`（`npm run check:pack`）：真 `npm pack` → 解包 → **逐个 entry 真 import** → 验证 `daemonScriptWsl()` 解析到 `lib/daemon.js`、`lib/daemon.js` 随包、tarball 不含 `node_modules` |
+| 契约 | `check-contract.ts` 加 2 条：`main`/`exports` 必须是**存在的 `.js`**（禁止再指 `.ts`）、`lib/daemon.js` 必须已构建 |
+| 开发体验 | 新增 `npm run dev`（`tsc -p tsconfig.build.json --watch`）：`main` 指向 `lib/` 后改 `src/` 必须重建，watch 把这一步找回来 |
+| 分发元数据 | 去掉 `private: true`；加 `publishConfig`（registry=npmjs.org、access=public） |
+
+### 6.3 复验（全部在 Windows 上直接跑）
+
+| 检查 | 结果 |
+|---|---|
+| `node --check` 全部 `lib/*.js`（46 个，含 `daemon.js`） | 0 失败 |
+| `npm pack` → 隔离目录 `npm i` → 逐个 `import` | `main` / `fs-provider` / `search-tool` / `shell-provider` / `command-policy` 全 **OK**（`client` 仍只报 `window is not defined`，浏览器侧正常） |
+| `node lib/daemon.js --port 8797 …`（从安装后的包启动） | `listening 127.0.0.1:8797` —— 安装形态的守护真的能起 |
+| `npm run check:pack` | PASS ｜ 11 条 |
+| `npm run check:contract` | PASS ｜ 12 条 |
+| `tsc -p tsconfig.json` + `node --test` | exit 0 ｜ 351 tests / **338 pass** / 0 fail / 13 skipped |
+
+### 6.4 还没做的一步
+
+真正 `npm publish`：需要 npmjs.org 的登录态（本机 `npm whoami` = `ENEEDAUTH`，registry 还是 npmmirror 镜像）。
+发布命令（登录后）：`npm publish`（`publishConfig` 已把 registry 指到 npmjs.org、access=public；
+`prepack` 会先 build）。建议先发 `0.12.0` 之外的 `0.12.1-rc.1` 试水，确认 npm 页与安装都正常再发正式版。
