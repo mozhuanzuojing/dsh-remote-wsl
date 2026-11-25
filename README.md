@@ -42,7 +42,7 @@
 
 ```mermaid
 flowchart LR
-  H["DSH 宿主进程<br/>Windows · 面板 / 九个工具"] -- "wsl.exe + TCP 127.0.0.1" --> D["常驻守护<br/>WSL2 · 状态目录"]
+  H["DSH 宿主进程<br/>Windows · 面板 / 十个工具"] -- "wsl.exe + TCP 127.0.0.1" --> D["常驻守护<br/>WSL2 · 状态目录"]
   D --> R["SDK 运行时<br/>每个 key+cwd 一个"]
   D --> F["WSL 文件世界<br/>fs / search RPC"]
 ```
@@ -56,7 +56,7 @@ flowchart LR
 - **常驻会话**：`wsl_agent` 的运行时由 WSL 侧守护持有。关掉 DSH 客户端，会话不会结束；再开一个宿主进程，用同一个 `key` 和同一个 `cwd` 还能接上之前的上下文。回复会带 `sessionId` / `runtimePid` / `turns`。
 - **会话结束只有三种方式**：显式 `wsl_daemon action=stop`（`restart` 也会先结束）；空闲 `daemonIdleMs`（默认 30 分钟）回收；守护或运行时死亡。守护在无 key 且无客户端持续 `daemonLingerMs`（默认 10 分钟）后自退，有会话时不会触发。
 - **同 key 串行**：并发 prompt 在守护里 FIFO；超过 `daemonQueueLimit`（默认 4）明确拒绝，不静默排队——上游 SDK 没有 cancel。
-- **九个工具**：诊断、一次性命令、常驻 agent、守护生命周期、远程 UI、版本对齐、路径互转、WSL 内 grep/glob，详见下方表格。
+- **十个工具**：诊断、一次性命令、常驻 agent、守护生命周期、远程 UI、版本对齐、路径互转、WSL 内 grep/glob，详见下方表格。
 - **WSL 工作区**：左侧栏「插件」下的面板。
   - **入口位置（2026-11-18）**：已移除左下角 footer 的 `WSL` 按钮（及其「添加 WSL 工作区」弹窗）；同一面板改为注册为**会话 View 标签**，出现在会话顶部标签栏、「统计」右侧（`conversation.view`，order 50）。添加工作区仍用面板头部的「添加为 WSL 工作区」把当前浏览目录登记为工作区。
   - **紧凑文件表（2026-10-30）**：文件行显示名称、大小、修改时间（目录不显示大小）；窄态隐藏时间列；单发行版时隐藏重复的 WSL 目标大卡，减少顶部噪声。
@@ -96,7 +96,7 @@ flowchart LR
 
 <img width="360" height="900" alt="360px 窄态面板：完整快捷目录 chips 与折行布局" src="assets/screenshot-narrow.webp">
 
-### 九个工具
+### 十个工具
 
 | 工具 | 做什么 |
 |---|---|
@@ -109,6 +109,7 @@ flowchart LR
 | `wsl_path` | 包一层发行版的 `wslpath`：`D:\...` ⇄ `/mnt/d/...`；`direction` 可选 `to-wsl` / `to-windows` / `both` |
 | `wsl_grep` | **在发行版里** grep：一帧 `{op:'search'}` 由守护扫完整棵树（不走 `\\wsl.localhost` 的 9P、不 spawn Windows ripgrep）。标准 preset 的会话里遇到 WSL 路径就用它代替 `grep` |
 | `wsl_glob` | 同上，列出发行版内匹配 glob 的文件（`fd`/`find`，一次 RPC） |
+| `wsl_doctor` | 只读体检：把本插件自带探针（平台/发行版/目标/DSH 版本/漂移/守护/内存·swap/配置告警）聚合成 verdict（ready / degraded / blocked）+ 逐项 check + 修复命令；不启动发行版、不启停守护、不写盘 |
 
 ## 安装
 
@@ -419,11 +420,14 @@ v5 的两条改动：
 
 | 路径 | 作用 |
 |---|---|
-| `src/index.ts` | 插件入口：注册九个工具 / 面板数据面 / preset（默认值已收敛到 `src/config.ts`） |
+| `src/index.ts` | 插件入口：注册十个工具 / 面板数据面 / preset（默认值已收敛到 `src/config.ts`） |
 | `src/config.ts` | **唯一一份**默认配置 + `normalizeConfig()` + 目标可用性判据（`targetProblem()`） |
 | `src/target-detect.ts` | 零配置目标探测：`wsl -l -v` 的默认发行版 + 它的 `$HOME`（纯函数 + 注入式 probe） |
 | `src/distro-table.ts` | `wsl -l -v` 表解析（面板与探测共用一份） |
-| `src/register-tools.ts` | 九个工具的实现 |
+| `src/register-tools.ts` | 十个工具的实现 |
+| `src/tool-catalog.ts` | **工具清单唯一真相源**：banner / README 的"N 个工具"与工具表都由它推导（门禁双向校验） |
+| `scripts/banner.ts` | banner 生成器：按事实产出 `assets/banner.svg`；`--render` 光栅化成 `assets/banner.webp`；`--check` 是漂移门禁 |
+| `assets/banner.svg` | banner 母版（**脚本生成，别手改位图**） |
 | `src/daemon.ts`、`src/daemon-*.ts` | WSL 侧常驻守护、协议、launcher 与生命周期 |
 | `src/explorer.ts` | 面板数据面 `POST /remote-wsl/api`（同源 + 硬白名单） |
 | `src/open-editor.ts` | VS Code Remote-WSL URI 与资源管理器 UNC 候选纯函数 |
@@ -447,7 +451,10 @@ v5 的两条改动：
 node --experimental-strip-types scripts/check-syntax.ts
 node --experimental-strip-types --test test/*.test.ts
 
-# 契约门禁（方法表 host≡client、bundle 同步、i18n 中英逐键相等/无重复、静态 t() 键可达）
+# 重新生成 banner（改工具数 / DSH 版本后必跑；需要 ego-browser + Pillow）
+npm run banner
+
+# 契约门禁（方法表 host≡client、bundle 同步、i18n 中英逐键相等/无重复、静态 t() 键可达、工具清单≡注册≡README 表）
 node --experimental-strip-types scripts/check-contract.ts
 
 # 一次性跑完全部门禁（语法 + 契约 + 类型 + 测试）

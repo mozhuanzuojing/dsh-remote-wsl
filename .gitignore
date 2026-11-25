@@ -23,3 +23,6 @@ spike/
 
 # 本地临时/验证产物（勿入库）
 _work/
+
+# banner 光栅化中间产物
+_banner.tmp.png

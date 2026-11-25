@@ -50,9 +50,11 @@
     "check": "node --experimental-strip-types scripts/check-syntax.ts",
     "check:contract": "node --experimental-strip-types scripts/check-contract.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "verify": "npm run check && npm run check:contract && npm run typecheck && npm test",
+    "verify": "npm run check && npm run check:contract && npm run check:banner && npm run typecheck && npm test",
     "build": "node build.ts",
     "check:pack": "node --experimental-strip-types scripts/check-pack-loadable.ts",
+    "banner": "node --experimental-strip-types scripts/banner.ts --render",
+    "check:banner": "node --experimental-strip-types scripts/banner.ts --check",
     "dev": "node node_modules/typescript/bin/tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "prepare": "node build.ts",
     "prepack": "node build.ts",
@@ -63,6 +65,7 @@
     "dsh": ">=0.2.2-rc.5"
   },
   "dsh": {
+    "devBaseline": "0.2.2-rc.5",
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
@@ -74,7 +77,6 @@
     },
     "compatibility": {
       "dshReleases": {
-        "0.2.2-rc.2": "compatible",
         "0.2.2-rc.5": "compatible"
       }
     }

@@ -161,6 +161,40 @@ must(badEntries.length === 0, "main / exports 指向存在的 .js 构建产物",
 // 守护脚本必须能解析到安装形态（lib/daemon.js 随包发布），否则 WSL 侧同样栽在 node_modules 的 .ts 上
 must(existsSync(join(ROOT, "lib/daemon.js")), "lib/daemon.js 已构建（WSL 侧守护的安装形态）", "");
 
+// ── 工具清单契约（2026-11-25）：catalog ≡ 真实注册 ≡ README 工具表 ──
+// 为什么：对外呈现里的"N 个工具"曾经三处各写一遍（README 正文、表格、banner 位图），漂了两次
+// （7→9 时图没改；加 wsl_grep/glob 时补了表、wsl_doctor 却一直没进表）。现在三者必须同时成立。
+const { HOST_TOOLS, PRESET_TOOLS } = await import(pathToFileURL(join(ROOT, "src/tool-catalog.ts")).href);
+const catalogNames = new Set([...HOST_TOOLS, ...PRESET_TOOLS].map((t: { name: string }) => t.name));
+
+const registered = new Set<string>();
+for (const file of readdirSync(join(ROOT, "src")).filter((f) => f.endsWith(".ts"))) {
+  const code = readFileSync(join(ROOT, "src", file), "utf8");
+  for (const m of code.matchAll(/tools\.register\(\{\s*\n?\s*name:\s*'([a-z_]+)'/g)) registered.add(m[1]);
+}
+const missingInCatalog = [...registered].filter((n) => !catalogNames.has(n));
+const missingInCode = [...catalogNames].filter((n) => !registered.has(n));
+must(
+  missingInCatalog.length === 0 && missingInCode.length === 0,
+  "tool-catalog 与真实 tools.register 一一对应",
+  [missingInCatalog.length ? `代码有但清单没写: ${missingInCatalog.join(", ")}` : "", missingInCode.length ? `清单有但代码没注册: ${missingInCode.join(", ")}` : ""]
+    .filter(Boolean)
+    .join("; ") || "—",
+);
+
+const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+// 只取「工具表」那一节：从 `### N 个工具` 到下一个 `## ` 之前（否则会把配置表里的 profile/backend 也算进来）
+const tableSectionMatch = /^### [^\n]*工具\s*$([\s\S]*?)(?=^## )/m.exec(readme);
+const tableNames = tableSectionMatch ? [...tableSectionMatch[1].matchAll(/^\| `([a-z_]+)` \|/gm)].map((m) => m[1]) : [];
+const hostNames = HOST_TOOLS.map((t: { name: string }) => t.name);
+const tableMissing = hostNames.filter((n: string) => !tableNames.includes(n));
+const tableExtra = tableNames.filter((n: string) => !hostNames.includes(n));
+must(
+  tableMissing.length === 0 && tableExtra.length === 0,
+  `README 工具表 = 清单里的 ${hostNames.length} 个宿主工具`,
+  [tableMissing.length ? `表格缺: ${tableMissing.join(", ")}` : "", tableExtra.length ? `表格多: ${tableExtra.join(", ")}` : ""].filter(Boolean).join("; ") || "—",
+);
+
 // ── 输出 ────────────────────────────────────────────────────────────────────
 if (!QUIET) for (const p of passes) console.log(p);
 for (const f of fails) console.log(f);

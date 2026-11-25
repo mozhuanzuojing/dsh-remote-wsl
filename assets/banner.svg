@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2172" height="724" viewBox="0 0 2172 724" role="img" aria-label="dsh-remote-wsl：把 WSL 2 当作 DeepSeek Harness 的远端执行宿主">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#071A23"/><stop offset="0.45" stop-color="#101826"/><stop offset="1" stop-color="#0A1020"/>
+  </linearGradient>
+  <radialGradient id="glowTeal" cx="0.12" cy="0.18" r="0.62">
+    <stop offset="0" stop-color="#0E4A5C" stop-opacity="0.55"/><stop offset="1" stop-color="#0E4A5C" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="glowBlue" cx="0.86" cy="0.34" r="0.5">
+    <stop offset="0" stop-color="#12325F" stop-opacity="0.55"/><stop offset="1" stop-color="#12325F" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="titleFade" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#F6F9FF"/><stop offset="0.62" stop-color="#EAF2FF"/><stop offset="1" stop-color="#9FC8F7"/>
+  </linearGradient>
+  <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+    <circle cx="1.4" cy="1.4" r="1" fill="#7FB6D0" fill-opacity="0.07"/>
+  </pattern>
+</defs>
+<rect x="0" y="0" width="2172" height="724" fill="url(#bg)" />
+<rect x="0" y="0" width="2172" height="724" fill="url(#dots)" />
+<rect x="0" y="0" width="2172" height="724" fill="url(#glowTeal)" />
+<rect x="0" y="0" width="2172" height="724" fill="url(#glowBlue)" />
+<rect x="112" y="96" width="236" height="36" rx="18" ry="18" fill="none" stroke="#2F6C86" stroke-width="1.4"/>
+<circle cx="134" cy="114" r="4.2" fill="#43C6EE"/>
+<text x="152" y="120" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="14.5" fill="#9CC7DE" letter-spacing="2.1">DEEPSEEK HARNESS PLUGIN</text>
+<text x="108" y="300" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="104" fill="url(#titleFade)" font-weight="700" letter-spacing="-2">dsh-remote-wsl</text>
+<text x="112" y="374" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="33" fill="#9FB3C4" >把 WSL 2 当作 DeepSeek Harness 的</text>
+<text x="112" y="436" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="48" fill="#EAF1F8" font-weight="700">远端执行宿主</text>
+<rect x="112" y="462" width="148" height="46" rx="23" ry="23" fill="#0B1423" stroke="#26405A" stroke-width="1.2"/>
+<text x="186" y="492" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="21" fill="#D7E3EC" text-anchor="middle">持久会话</text>
+<rect x="276" y="462" width="168" height="46" rx="23" ry="23" fill="#0B1423" stroke="#26405A" stroke-width="1.2"/>
+<text x="360" y="492" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="21" fill="#D7E3EC" text-anchor="middle">跨宿主重连</text>
+<rect x="460" y="462" width="196" height="46" rx="23" ry="23" fill="#0B1423" stroke="#26405A" stroke-width="1.2"/>
+<text x="558" y="492" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="21" fill="#D7E3EC" text-anchor="middle">远程资源管理器</text>
+<text x="112" y="556" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="18" fill="#5E697D" >Windows 11 · WSL2 · DSH 0.2.2-rc.5 · 面板中英双语</text>
+<text x="112" y="664" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="22" fill="#57B6D8" >关掉客户端 ≠ 会话结束</text>
+<text x="470" y="664" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="20" fill="#7C8CA0" >10 个工具 · 常驻守护 · 版本对齐</text>
+<rect x="1210" y="116" width="352" height="142" rx="12" ry="12" fill="#061A2B" stroke="#1E4460" stroke-width="1.2"/>
+<rect x="1210" y="116" width="3" height="142" fill="#3FBFE8" />
+<circle cx="1228" cy="150" r="4.2" fill="#43C6EE"/>
+<text x="1244" y="156" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="14" fill="#7FC4DE" letter-spacing="2.2">WINDOWS · DSH HOST</text>
+<text x="1228" y="202" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="26" fill="#E8F1FA" font-weight="700">面板 / 十个工具</text>
+<text x="1228" y="232" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="15" fill="#7E93A6" >wsL.exe · 短命命令 · token 握手</text>
+<rect x="1640" y="116" width="352" height="142" rx="12" ry="12" fill="#061A2B" stroke="#1E4460" stroke-width="1.2"/>
+<rect x="1640" y="116" width="3" height="142" fill="#3FBFE8" />
+<circle cx="1658" cy="150" r="4.2" fill="#43C6EE"/>
+<text x="1674" y="156" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="14" fill="#7FC4DE" letter-spacing="2.2">WSL2 · 常驻守护</text>
+<text x="1658" y="202" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="26" fill="#E8F1FA" font-weight="700">SDK 运行时 / 文件世界</text>
+<text x="1658" y="232" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="15" fill="#7E93A6" >每个 key+cwd 一个 · 关客户端仍在</text>
+<text x="1568" y="176" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="13" fill="#5F7C93" >wsL.exe</text>
+<path d="M1562 206 H1612" stroke="#3FBFE8" stroke-width="2" stroke-dasharray="6 5" fill="none"/>
+<path d="M1612 199 L1626 206 L1612 213 Z" fill="#3FBFE8"/>
+<path d="M1490 258 V308" stroke="#2E5E7A" stroke-width="1.4" stroke-dasharray="5 5"/>
+<path d="M1816 258 V308" stroke="#2E5E7A" stroke-width="1.4" stroke-dasharray="5 5"/>
+<rect x="1330" y="308" width="664" height="200" rx="14" ry="14" fill="#0D0C1B" stroke="#28405A" stroke-width="1.2"/>
+<circle cx="1362" cy="338" r="5" fill="#F26D6D"/><circle cx="1384" cy="338" r="5" fill="#F2C86D"/><circle cx="1406" cy="338" r="5" fill="#5FD08A"/>
+<text x="1430" y="343" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="14" fill="#8A93A6" >key=rc1 · resident session</text>
+<text x="1352" y="402" font-family="&quot;JetBrains Mono&quot;, &quot;Cascadia Mono&quot;, Consolas, monospace" font-size="20" fill="#4FC3F7" >&gt; wsL_agent task="记住数字 77"</text>
+<text x="1352" y="444" font-family="&quot;JetBrains Mono&quot;, &quot;Cascadia Mono&quot;, Consolas, monospace" font-size="20" fill="#6BE39A" >✓ 77 · sessionId kept · turns=2</text>
+<text x="1352" y="482" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="13" fill="#5A6B80" >daemon.8731.json · token 0600 · WSL 侧持有</text>
+<text x="2060" y="606" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="13" fill="#4C5A70" text-anchor="end">no remote-host flag required</text>
+<text x="2060" y="628" font-family="Inter, &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, sans-serif" font-size="13" fill="#4C5A70" text-anchor="end">versions pinned on both sides</text>
+</svg>
