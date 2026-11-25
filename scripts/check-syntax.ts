@@ -37,6 +37,10 @@ function walk(dir: string, filter: (name: string) => boolean): string[] {
 let failed = 0;
 
 const tsFiles = walk(join(root, 'src'), (n) => n.endsWith('.ts'));
+// 根目录的 `build.ts` 只在 build/prepare/prepack 里执行 —— 语法错会等到打包那一刻才暴露，
+// 所以把它显式纳入同一道门禁（它同样只用可擦除语法）。
+const rootBuild = join(root, 'build.ts');
+if (existsSync(rootBuild)) tsFiles.push(rootBuild);
 for (const file of tsFiles) {
   try {
     stripTypeScriptTypes(readFileSync(file, 'utf8'), { mode: 'strip' });

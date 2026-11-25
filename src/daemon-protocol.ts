@@ -9,7 +9,7 @@
  * 零构建纪律：只用可擦除语法；相对导入带 `.ts`；只引 `node:` 内置与同目录相对模块。
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 import { pooledCall, pooledCallBatch, poolStats, disposePool } from './daemon-conn.ts';
@@ -31,11 +31,18 @@ export function winToWsl(winPath) {
   return m ? `/mnt/${m[1].toLowerCase()}/${m[2]}` : p;
 }
 
-/** 守护脚本的 WSL 路径 —— 从**本模块自己的位置**推导，插件被 link 到哪就在哪。 */
-
-// ── 原 daemon-client.ts 第 40-43 行 ──
+/**
+ * 守护脚本的 WSL 路径 —— 从**本模块自己的位置**推导，插件被装到哪就在哪。
+ *
+ * 2026-11-24（npm 分发）：Node 的类型擦除**明确拒绝 `node_modules` 里的 `.ts`**
+ * （`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`），所以安装形态必须用构建产物 `daemon.js`。
+ * 判据是"与**本文件同目录**的那个存在"：源码形态 `src/daemon.ts`、安装形态 `lib/daemon.js`
+ * （两者互不干扰，因为 `import.meta.url` 指向的是**已加载的那个**目录）。
+ */
 export function daemonScriptWsl() {
-  return winToWsl(fileURLToPath(new URL('./daemon.ts', import.meta.url)));
+  const here = (rel) => fileURLToPath(new URL(rel, import.meta.url));
+  if (existsSync(here('./daemon.js'))) return winToWsl(here('./daemon.js'));
+  return winToWsl(here('./daemon.ts'));
 }
 
 
@@ -244,7 +251,7 @@ export function scanDaemonProcessesScript(cfg) {
     'for d in /proc/[0-9]*; do',
     '  [ -r "$d/cmdline" ] || continue',
     `  c=$(tr '\\0' ' ' < "$d/cmdline" 2>/dev/null) || continue`,
-    '  case "$c" in *daemon.ts*|*daemon.mjs*) ;; *) continue ;; esac',
+    '  case "$c" in *daemon.ts*|*daemon.mjs*|*daemon.js*) ;; *) continue ;; esac',
     `  case "$c" in *"--state-dir $S "*|*"--state-dir $S") ;; *) continue ;; esac`,
     `  p=$(printf '%s' "$c" | sed -n 's/.*--port \\([0-9]\\{1,\\}\\).*/\\1/p')`,
     `  m=$(printf '%s' "$c" | sed -n 's/.*--meta-port \\([0-9]\\{1,\\}\\).*/\\1/p')`,

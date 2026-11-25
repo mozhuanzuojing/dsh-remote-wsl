@@ -57,7 +57,7 @@ must(new Set(CLIENT).size === CLIENT.length, "client 方法表无重复项");
 // ── bundle 同步：lib/client.js 里必须能找到每个方法名 ────────────────────────
 const bundlePath = join(ROOT, "lib/client.js");
 if (!existsSync(bundlePath)) {
-  console.error("ABORT: 缺少 lib/client.js（先 node build.ts.mjs）");
+  console.error("ABORT: 缺少 lib/client.js（先 node build.ts）");
   process.exit(2);
 }
 const bundle = readFileSync(bundlePath, "utf8");
@@ -68,7 +68,7 @@ const missingInBundle = HOST.filter((m) => !quoted(m).test(bundle));
 must(
   missingInBundle.length === 0,
   "lib/client.js 与 host 方法表同版本（每个方法名都在 bundle 内）",
-  `bundle 里缺失：${missingInBundle.join(", ") || "—"}；若刚改过方法表，请 node build.ts.mjs`,
+  `bundle 里缺失：${missingInBundle.join(", ") || "—"}；若刚改过方法表，请 node build.ts`,
 );
 
 // ── i18n 契约 ────────────────────────────────────────────────────────────────
@@ -136,6 +136,30 @@ for (const file of clientFiles) {
   }
 }
 must(unknownKeys.size === 0, "client 里字面量 t(\"…\") 用到的键都在 i18n 字典里", [...unknownKeys.keys()].join(", ") || "—");
+
+// ── 分发形态契约（2026-11-24）：main / exports 必须指向**存在的构建产物**，不许再指 .ts ──
+// 为什么：Node 拒绝 `node_modules` 里的 `.ts`（ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING），
+// 入口指回 `src/*.ts` 会让 npm 安装形态当场加载失败；而本仓所有测试都 import `../src/*.ts`，
+// **永远不会**发现这件事 —— 只有这条断言会把"改回 TS 入口"拦在提交前。
+const pkgJson = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+const entryTargets = [["main", pkgJson.main], ...Object.entries(pkgJson.exports ?? {})];
+const badEntries = [];
+for (const [key, value] of entryTargets) {
+  if (typeof value !== "string") {
+    badEntries.push(`${key} → 非字符串入口（不支持的条件导出）`);
+    continue;
+  }
+  if (!value.startsWith("./")) {
+    badEntries.push(`${key} → ${value}（必须是包内相对路径）`);
+    continue;
+  }
+  if (value.endsWith(".ts")) badEntries.push(`${key} → ${value}（node_modules 里的 .ts 加载不了）`);
+  if (!existsSync(join(ROOT, value))) badEntries.push(`${key} → ${value}（文件不存在，先 npm run build）`);
+}
+must(badEntries.length === 0, "main / exports 指向存在的 .js 构建产物", badEntries.join("; ") || "—");
+
+// 守护脚本必须能解析到安装形态（lib/daemon.js 随包发布），否则 WSL 侧同样栽在 node_modules 的 .ts 上
+must(existsSync(join(ROOT, "lib/daemon.js")), "lib/daemon.js 已构建（WSL 侧守护的安装形态）", "");
 
 // ── 输出 ────────────────────────────────────────────────────────────────────
 if (!QUIET) for (const p of passes) console.log(p);

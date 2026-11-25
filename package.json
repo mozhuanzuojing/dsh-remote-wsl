@@ -1,7 +1,6 @@
 {
   "name": "dsh-remote-wsl",
   "version": "0.12.0",
-  "private": true,
   "description": "Remote-WSL for the DeepSeek Harness: treat a WSL distro as a remote execution host — status, terminal, resident remote dsh agent (SDK), Web UI window, and desktop-version parity. The DSH desktop shell cannot attach to a remote host (its host is spawned locally), so this plugin is the honest equivalent: it drives the WSL side from the Windows host instead of pretending to be a remote-connection UI.",
   "icon": "./icon.svg",
   "author": "磨砖做镜 (mozhuanzuojing) <mozhuanzuojing2020@163.com>",
@@ -14,20 +13,25 @@
     "url": "https://github.com/mozhuanzuojing/dsh-remote-wsl/issues"
   },
   "type": "module",
-  "main": "./src/index.ts",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "main": "./lib/index.js",
   "exports": {
-    ".": "./src/index.ts",
+    ".": "./lib/index.js",
     "./package.json": "./package.json",
     "./client": "./lib/client.js",
     "./icon": "./icon.svg",
-    "./fs-provider": "./src/fs-provider.ts",
-    "./search-tool": "./src/search-tool.ts",
-    "./shell-provider": "./src/shell-provider.ts",
-    "./command-policy": "./src/command-policy.ts"
+    "./fs-provider": "./lib/fs-provider.js",
+    "./search-tool": "./lib/search-tool.js",
+    "./shell-provider": "./lib/shell-provider.js",
+    "./command-policy": "./lib/command-policy.js"
   },
   "files": [
     "src",
     "lib",
+    "assets",
     "icon.svg",
     "cordis.patch.yml",
     "README.md",
@@ -47,9 +51,11 @@
     "check:contract": "node --experimental-strip-types scripts/check-contract.ts",
     "typecheck": "tsc -p tsconfig.json",
     "verify": "npm run check && npm run check:contract && npm run typecheck && npm test",
-    "build": "node build.ts.mjs",
-    "prepare": "node build.ts.mjs",
-    "prepack": "node build.ts.mjs",
+    "build": "node build.ts",
+    "check:pack": "node --experimental-strip-types scripts/check-pack-loadable.ts",
+    "dev": "node node_modules/typescript/bin/tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "prepare": "node build.ts",
+    "prepack": "node build.ts",
     "hooks": "git config core.hooksPath .githooks"
   },
   "engines": {
