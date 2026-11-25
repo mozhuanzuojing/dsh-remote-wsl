@@ -14,7 +14,7 @@
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.12.1** · 开发依据 DSH **0.2.2-rc.5** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 支持 npm 安装（0.12.0+）或 `link:` 装进 profile
+当前版本 **0.12.2** · 开发依据 DSH **0.2.2-rc.5** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 支持 npm 安装（0.12.0+）或 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -383,7 +383,7 @@ v5 的两条改动：
 
 ## 兼容性
 
-- **DSH**：最低要求 **`>=0.2.2-rc.2`**（本机在 DSH 0.2.2-rc.5 上运行）。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.2-rc.2`；
+- **DSH**：最低要求 **`>=0.2.2-rc.5`**（本机在 DSH 0.2.2-rc.5 上运行；0.12.2 起下限抬到实测版本）。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.2-rc.5`；
   rc 语义按 semver 实算，过期不会导致静默禁用）；`dsh.compatibility.dshReleases` 只是**声明**、宿主不校验。
 - **平台**：Windows + WSL2；macOS / Linux 不适用，WSL1 不支持。
 - **WSL 侧运行时**：Node ≥ 26.10（实测 26.10.0）、pnpm（实测 12.6.0）、mise（实测 2026.9.7）。Windows 侧使用 DSH 自带运行时。
@@ -495,6 +495,7 @@ $node = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\primary-r
 
 ## 更新日志与许可
 
+- **0.12.2（2026-11-25）兼容口径对齐**：`engines.dsh` 由 `>=0.2.2-rc.2` 抬到 **`>=0.2.2-rc.5`**（下限取实测版本；`engines.dsh` 是宿主唯一真正校验的字段，`dsh.compatibility.dshReleases` 宿主不读）；README 兼容性一节同步。此前 0.4.0–0.12.1 各版未在此表逐条记录，逐版历史以 [tag](https://github.com/mozhuanzuojing/dsh-remote-wsl/tags) 为准，本表自 0.12.2 起恢复维护。
 - **0.3.20（2026-11-05）适配 DSH 0.2.2-rc.1**：`list_agents` 已并入 `dsh-tool-subagent-control` 主包（原 `/list-agents` 子路径被上游删除，保留会让整份 WSL preset 判为 broken）；`dsh-tool-subagent` 的 `modelSelectionSettings` 改名 `modelSelection` + `modelDiscovery`；补齐 0.2.2 的 `fs.patchText` / `fs.deleteFile` / `fs.moveFile`（WSL fs provider + UNC 桥，守护协议 v4），编辑/补丁改为 CRLF 规范化后匹配并按原行尾写回；`tool-fs` 仍按上游标准默认 `applyPatch: false`；内置 preset 的 plan-mode 提示与 0.2.2 标准 preset 对齐。根因、对照与验证证据：[docs/2026-11-05-dsh-0.2.2-adaptation.md](docs/2026-11-05-dsh-0.2.2-adaptation.md)
 - [提交历史](https://github.com/mozhuanzuojing/dsh-remote-wsl/commits/main)
 - [设计 / 验证记录](docs/)
