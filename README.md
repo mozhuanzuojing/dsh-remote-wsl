@@ -10,11 +10,11 @@
 [![downloads](https://img.shields.io/npm/dm/dsh-remote-wsl)](https://www.npmjs.com/package/dsh-remote-wsl)
 [![node](https://img.shields.io/badge/node-%E2%89%A524-339933)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.2-6f42c1)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
+[![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.5-6f42c1)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![WSL](https://img.shields.io/badge/WSL-2-0db7ed)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 [![platform](https://img.shields.io/badge/platform-Windows%2011-0078D6)](https://github.com/mozhuanzuojing/dsh-remote-wsl)
 
-当前版本 **0.12.1** · 开发依据 DSH **0.2.2-rc.2** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 支持 npm 安装（0.12.0+）或 `link:` 装进 profile
+当前版本 **0.12.1** · 开发依据 DSH **0.2.2-rc.5** · Windows 11 + WSL2 实测 | 面板中英双语 | 只支持 WSL2 | 支持 npm 安装（0.12.0+）或 `link:` 装进 profile
 
 <img width="1280" height="900" alt="WSL 工作区面板：WSL 目标、目录浏览、守护与代理状态" src="assets/screenshot-panel.webp">
 
@@ -383,7 +383,7 @@ v5 的两条改动：
 
 ## 兼容性
 
-- **DSH**：最低要求 **`>=0.2.2-rc.2`**（本机在 DSH 0.2.2-rc.2 上运行）。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.2-rc.2`；
+- **DSH**：最低要求 **`>=0.2.2-rc.2`**（本机在 DSH 0.2.2-rc.5 上运行）。宿主真正执行的兼容门是 **`engines.dsh`**（`>=0.2.2-rc.2`；
   rc 语义按 semver 实算，过期不会导致静默禁用）；`dsh.compatibility.dshReleases` 只是**声明**、宿主不校验。
 - **平台**：Windows + WSL2；macOS / Linux 不适用，WSL1 不支持。
 - **WSL 侧运行时**：Node ≥ 26.10（实测 26.10.0）、pnpm（实测 12.6.0）、mise（实测 2026.9.7）。Windows 侧使用 DSH 自带运行时。
